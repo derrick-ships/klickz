@@ -1,0 +1,26 @@
+{
+  "name": "klickz",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI thumbnail maker that keeps you in control. Internal tool.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test lib/layout.test.ts"
+  },
+  "dependencies": {
+    "next": "^15.5.22",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.8.3"
+  }
+}
