@@ -20,3 +20,6 @@ yarn-error.log*
 # not part of the shipped artifact.
 STATE.md
 .claude/
+
+# Local agent state — not part of the project.
+.serena/

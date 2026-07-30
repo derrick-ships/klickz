@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/**
+ * Design tokens from References/DESIGN-framer.md (DEC-002).
+ *
+ * Two anchor surfaces: canvas and white. Hierarchy on dark comes from surface
+ * lift, never from opacity on white type. Blue is a signal colour only —
+ * links, focus, selection — and is never a button fill.
+ *
+ * There is deliberately no YouTube red in this UI. That is the decision, not
+ * an oversight; see DEC-002 before "fixing" it.
+ */
+@theme {
+  --color-canvas: #090909;
+  --color-surface-1: #141414;
+  --color-surface-2: #1c1c1c;
+  --color-hairline: #262626;
+  --color-hairline-soft: #1a1a1a;
+
+  --color-ink: #ffffff;
+  --color-ink-muted: #999999;
+
+  /* Signal only. Never a background. */
+  --color-signal: #0099ff;
+
+  --radius-pill: 100px;
+
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* The editor is a fixed-canvas tool; the page itself never scrolls sideways. */
+  overflow-x: hidden;
+}
+
+body {
+  /* Inter character variants are the brand voice per DESIGN-framer.md. */
+  font-feature-settings: "cv01", "cv05", "cv09", "cv11", "ss03";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus is the one place the signal colour appears. */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 153, 255, 0.55);
+  border-radius: 6px;
+}
+
+/*
+ * Range inputs: DESIGN-framer.md specifies no slider, because it documents a
+ * marketing site. Authored here to match the system — charcoal track, white
+ * thumb, signal-blue focus ring.
+ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-hairline);
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-ink);
+  border: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-ink);
+  border: none;
+  cursor: pointer;
+}
+
+/* Native colour wells carry chrome we don't want; strip it to a clean chip. */
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+}
+
+input[type="color"]::-moz-color-swatch {
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+}
+
+/* The control rail scrolls a lot; the default bar is too loud on near-black. */
+.rail-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.rail-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rail-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: 999px;
+  border: 3px solid var(--color-canvas);
+}
+
+.rail-scroll::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
