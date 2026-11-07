@@ -719,6 +719,7 @@ export default function Studio() {
                               </strong>
                               {score.dimensions[p].score !== null && (
                                 <progress
+                                  aria-label={`${names[p]} score`}
                                   max={100}
                                   value={score.dimensions[p].score!}
                                 />

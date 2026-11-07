@@ -9,6 +9,8 @@ test("review puts the real image first, with a neighboring inspector and an actu
   await expect(page.getByLabel("Prompt", { exact: true })).toBeHidden();
   await expect(stage.locator(".score-header")).toContainText("Partial");
   await expect(stage.getByText("Not assessed", { exact: true })).toHaveCount(2);
+  for (const name of ["Virality score", "Clarity score", "Emotion score"])
+    await expect(stage.getByRole("progressbar", { name, exact: true })).toBeVisible();
   for (const width of [320, 375, 390, 768, 1024, 1280, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
     await stage.scrollIntoViewIfNeeded();
@@ -42,9 +44,12 @@ test("unscored and failed previews stay useful, with reduced-motion and real ref
   const stage = page.getByRole("region", { name: "Thumbnail review studio" });
   await expect(stage.getByRole("heading", { name: "Review the packaging" })).toBeVisible();
   expect(await stage.locator(".result-image img").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
+  await expect(stage.locator("figure")).toHaveAttribute("aria-busy", "false");
+  await expect(stage.getByText("Loading image…", { exact: true })).toHaveCount(0);
   await page.screenshot({ path: "evidence/review-studio-unscored.png", fullPage: true });
   await stage.locator(".result-image img").dispatchEvent("error");
   await expect(stage.getByText("This preview could not load.")).toBeVisible();
+  await expect(stage.locator("figcaption")).toContainText("Preview unavailable");
   await page.screenshot({ path: "evidence/review-studio-preview-error.png", fullPage: true });
   await stage.getByRole("button", { name: "Refresh preview" }).click();
   await expect(stage.locator(".result-image img")).toBeVisible();

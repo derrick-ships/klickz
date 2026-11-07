@@ -97,7 +97,7 @@ The full release gate passed on the final copy revision:69 unit/database/protoco
 Controlled mobile lab medians: script_bytes=218297.000, css_bytes=9627.000, image_bytes=5098.000, total_bytes=257431.000, third_party=0.000, lcp_ms=688.000, cls=0.001, inp_sample_ms=64.000. Maximum click-to-two-frame feedback: 51.2ms. Lighthouse total transfer: mobile=263119B, desktop=266099B. Controlled local samples only; no claim of field p75, native-device validation or live provider timing.
 
 
-## Review Studio / Hallmark release — current verification
+## Review Studio / Hallmark release — historical baseline
 
 The selected Review Studio passed the full unchanged release gate: TypeScript,69 unit/database/route/protocol cases, production build,25 functional browser cases, isolated3-sample mobile lab, the new two-viewport review interaction gate and6 Lighthouse runs. No dependencies or media were added.
 
@@ -115,3 +115,19 @@ Root mobile lab medians: JS219425B, CSS11285B, image5098B, total260223B, third-p
 The explicit saved-image fixture was measured separately under CPU4× with five real Feed preview toggles per viewport. Maximum click-to-two-frame feedback:390px20.2ms,1440px19.5ms. No observed long tasks; sampled RAF median16.7ms on both, maxima16.8ms. These are controlled headless samples, not physical FPS, field p75 or measured INP. The100ms feedback budget passed without relaxing limits. Full metrics/counters: evidence/performance-review.json.
 
 Actual rendered review captures at320/375/390/768/1024/1280/1440/1920,200px feed preview, unscored and failed-preview states were opened for visual review. New tests verify selected actions, partial/null scoring, real refresh, reduced-motion, modal-before-drawer Escape and static keyboard hit areas. Native iPhone/Safari, zoom, assistive technology, live provider and hosted authenticated performance remain unverified. No paid request or hosted-policy change occurred.
+
+
+## Final Impeccable polish — current verification
+
+The full release gate passed with unchanged limits: TypeScript,69 logic/database/route/protocol tests, production build,25 browser tests,3 mobile lab samples,2-viewport review interaction test and6 Lighthouse runs.
+
+| Representative median-run | Mobile | Desktop |
+| --- | --- | --- |
+| Performance |98|100|
+| Accessibility / Best practices / SEO |100 / 100 / 100|100 / 100 / 100|
+| LCP ms |2387.034|515.201|
+| TBT ms |68|0|
+| CLS |0.001|0|
+| Total transfer B |266045|269025|
+
+Root mobile lab median LCP708ms,scripted INP72ms,CLS0.001; initial encoded-body JS219504B,CSS11335B,image5098B,total260355B,third-party0. Maximum local feedback47.5ms. Review preview-toggle maximum feedback20.3ms at390px and22.7ms at1440px under CPU4×, with no observed long tasks. Source and methods remain in the JSON reports. These controlled local results are not field p75, physical-device FPS, hosted performance or provider latency. Native Safari/iPhone remains unverified. No threshold was changed.

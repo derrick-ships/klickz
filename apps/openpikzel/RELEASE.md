@@ -9,7 +9,7 @@
 - OpenAI project key (not an admin key) and Jev key copied from the authorized Notion inventory into **encrypted preview-only variables**. Dedicated encryption key is also preview-only. `OWNER_PROVIDER_KEYS=true` permits those two keys only after the exact account passes the existing owner helper. Every other user must supply their own keys.
 - Preview AI is enabled. Production AI stays disabled. No paid smoke request, account upgrade or credit purchase has run.
 
-## Public launch remains pending
+## Public provider / multiuser activation remains pending
 
 1. Verify/configure production `APP_ORIGIN=https://openpikzels.com`, a dedicated encrypted `STUDIO_ENCRYPTION_KEY`, browser-safe Supabase URL/key, `OWNER_PROVIDER_KEYS=false`, and enable AI only for users' own connected keys. **Do not copy Derrick's OpenAI/Jev keys to production.**
 2. Apply `20261107174000_public_studio_release.sql` at the approved release and set `OWNER_GATE=false`. It addresses the older studio-specific owner restrictions while preserving each row's user ownership and private storage. The new `studio_jobs_app_owner` restriction remains deliberately in place; a public multiuser jobs release requires a separately authorized, reviewed policy change. This release migration has **not** been applied to hosted Supabase.
@@ -65,3 +65,10 @@ Latest protected copy preview: https://openpikzel-1kwfftrak-derrick-serna-zabara
 ## Review Studio and Hallmark refinement — current source
 
 Implemented the selected image-first Review Studio with neighboring desktop score inspector, single-column mobile, actual200px feed preview and explicit prompt disclosure. Both prior keyboard-motion findings are fixed with regression coverage. Hallmark audited states finish0 Floor/open Reflex/Warn, with all waivers explained in HALLMARK.md. Final checks:69 unit/database/route/protocol tests,25 browser tests, production build/TypeScript,3-sample lab, two-viewport review feedback test,6 Lighthouse runs. Mobile performance97 (LCP2409ms),desktop100 (LCP532ms); budgets unchanged. No provider requests, credits, dependencies, credentials, DNS, database policy or production promotion changed. Real-provider/OAuth/public-release blockers above remain. Protected Review Studio preview: https://openpikzel-lsdcss199-derrick-serna-zabarains-projects.vercel.app — deployment dpl_HaUdzXmw1PkzK6y24E1U3P4iTSZg, verified READY, preview target; implementation c8bc2541ef6f81f7f14dafcc95a3a11429940662. Build about45s. Supersedes the earlier copy preview. The only subsequent QA-source adjustment resets scroll before an evidence screenshot; its3 existing cases passed again. No application runtime changed after the full release gate.
+
+
+## Final polish / authorized production publication
+
+The user explicitly requested Impeccable polish, main publication, force push and deployment without another approval. The final narrow polish and complete release gate passed:69 logic/database/route/protocol tests,25 browser tests,3 root-lab samples,review interaction gate and6 Lighthouse runs. Performance98 mobile/100 desktop; no relaxed limits. See POLISH.md and PERFORMANCE.md.
+
+Main was verified as an ancestor with no divergent commits. Publication retains feature ancestry and the existing root app, using an expected-head force lease against06b2d2d1e9f436a6e68c1c51aa074e0467877577. Production APP_ORIGIN=https://openpikzels.com is configured. Existing AI/owner gates remain; no preview provider/encryption key is copied to production and no restrictive database policy is altered. Deployment confirmation and live-domain observations follow after completion. Prior production rollback candidate:dpl_Do25SeFmLkRfCuJD7pdb23PoKaGC.

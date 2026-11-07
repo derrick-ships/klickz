@@ -75,3 +75,9 @@
 .fix-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin-block: var(--space-4); font-size: 13px; }
 .fix-settings dt { color: var(--color-muted); margin-bottom: var(--space-1); }
 .fix-settings dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Loading remains explicit while intrinsic dimensions reserve the image space. */
+.review-canvas .result-image { position: relative; }
+.review-canvas .result-image > img { height: auto; }
+.review-preview-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--color-muted); background: var(--color-sidebar); font-size: 13px; pointer-events: none; }
+.review-stage .pillar strong, .review-stage .score-header h2 { font-variant-numeric: tabular-nums; }

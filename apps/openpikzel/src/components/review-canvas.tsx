@@ -9,7 +9,7 @@ export function ReviewCanvas({ src, title, feed, pointer, portrait, onRefresh }:
   const [failed, setFailed] = useState(false);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   return (
-    <figure className="review-canvas" data-preview={feed ? "feed" : "full"}>
+    <figure className="review-canvas" data-preview={feed ? "feed" : "full"} aria-busy={!failed && !size}>
       {failed ? (
         <div className="review-preview-error" role="status">
           <ScanLine size={24} aria-hidden="true" />
@@ -19,7 +19,9 @@ export function ReviewCanvas({ src, title, feed, pointer, portrait, onRefresh }:
       ) : (
         <>
           <div className={`result-image ${feed ? "phone-preview" : ""} ${portrait ? "portrait" : ""}`}>
+            {!size && <span className="review-preview-loading" role="status">Loading image…</span>}
             <img key={src} className={size && pointer ? "review-image-arrive" : ""} src={src} alt={title}
+              width={size?.width ?? (portrait ? 720 : 1280)} height={size?.height ?? (portrait ? 1280 : 720)}
               onLoad={(event) => setSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
               onError={() => setFailed(true)} />
           </div>
@@ -28,7 +30,7 @@ export function ReviewCanvas({ src, title, feed, pointer, portrait, onRefresh }:
       )}
       <figcaption>
         <span>{feed ? "Feed preview at 200 px" : "Full image"}</span>
-        <span>{size ? `${size.width} × ${size.height}` : "Image preview"}</span>
+        <span>{failed ? "Preview unavailable" : size ? `${size.width} × ${size.height}` : "Image preview"}</span>
       </figcaption>
     </figure>
   );
