@@ -1,6 +1,6 @@
 # OpenPikzels validation
 
-November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and twenty-two functional Playwright browser tests plus one isolated performance scenario. Tests make no paid provider requests.
+November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and twenty-five functional Playwright browser tests plus the root lab and two-viewport review interaction scenario. Tests make no paid provider requests.
 
 ## Verified locally
 
@@ -72,4 +72,13 @@ The finished delight implementation passed the full release gate, including22 fu
 
 ## Clarify copy follow-up
 
-TypeScript,69 unit/database/route/protocol tests, production build,22 functional browser cases, isolated3-sample lab and6 Lighthouse runs passed with unchanged budgets. Updated existing scenarios exercise singular references, provider onboarding and explicit no-charge preview versus paid fix action. Both blocked and ready fix plans are fixtures; no /api/generate request is sent by previewing. Actual320/390/768/1440 copy captures were opened, including the internally scrolled ready-fix dialog. API-disabled versus missing-key recovery messages now match the same existing feature gates. No provider, permission or billing behavior changed. See CLARIFY.md and fresh performance reports. Existing UI Motion findings remain open.
+TypeScript,69 unit/database/route/protocol tests, production build,22 functional browser cases, isolated3-sample lab and6 Lighthouse runs passed with unchanged budgets. Updated existing scenarios exercise singular references, provider onboarding and explicit no-charge preview versus paid fix action. Both blocked and ready fix plans are fixtures; no /api/generate request is sent by previewing. Actual320/390/768/1440 copy captures were opened, including the internally scrolled ready-fix dialog. API-disabled versus missing-key recovery messages now match the same existing feature gates. No provider, permission or billing behavior changed. See CLARIFY.md and fresh performance reports. The two UI Motion findings were subsequently resolved and regression-tested in Review Studio below.
+
+
+## Review Studio and Hallmark — current release
+
+The user-selected image-first review workspace retains original edit/analyze/fix/resize/download handlers and adds genuine200px preview, adjacent desktop evidence, mobile stacking and explicit creation-control disclosure. Drafts retain their editor workflow. Dialog Escape now closes the topmost dialog before a compact drawer; native close restores a usable trigger/fallback. Keyboard pressing keeps button geometry/focus outlines stationary.
+
+Final npm run verify:release passed TypeScript/build,69 unit/database/route/protocol cases,25 browser cases,3 root-lab samples, the two-viewport review performance gate and6 Lighthouse runs. Snapshot-only additions then passed the3 Review Studio cases again. Impeccable mechanical scan returned []. Hallmark rendered empty-generation/analysis and connection scope reports0 Floor failures,0 open Reflex,0 Warn after remediation;233 raw waivers comprise232 existing compact-spacing occurrences and one justified112px image input. No Floor failure was waived. See HALLMARK.md for full scope and exact rationales; this is not accessibility certification.
+
+Actual desktop/phone/tablet captures, partial/unscored/error/analysis-control states and200px preview were inspected. Independent fresh-context finish review: ship, no concrete defect in supplied renders. All diagnostic scores and account/paid-plan screenshot values remain explicit fixtures. Mobile Lighthouse97,desktop100; current detailed measurements are in PERFORMANCE.md. No live provider call, production promotion, hosted access change or new credit use. Previously documented provider/OAuth/public-release and Safari limitations remain.

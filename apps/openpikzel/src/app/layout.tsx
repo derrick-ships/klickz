@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./surfaces.css";
+import "./review.css";
 export const metadata: Metadata = {
   title: "OpenPikzels — Your thumbnail studio",
   description:

@@ -10,6 +10,7 @@ export function BrandScene({ scene, compact = false }: {
   const container = useRef<HTMLDivElement>(null);
   const finished = useRef(false);
   const [activated, setActivated] = useState(false);
+  const [poster, setPoster] = useState<string>();
   const [playing, setPlaying] = useState(false);
   const settle = useCallback(() => {
     finished.current = true;
@@ -71,8 +72,9 @@ export function BrandScene({ scene, compact = false }: {
         srcSet={`/brand/${scene}-672.webp 672w, /brand/${scene}-960.webp 960w, /brand/${scene}.webp 1344w`}
         sizes={compact ? "(max-width: 760px) calc(100vw - 34px), (max-width: 1150px) calc(100vw - 304px), 808px" : "(max-width: 650px) calc(100vw - 32px), (max-width: 1000px) calc(100vw - 48px), 952px"}
         alt="" aria-hidden="true"
-        width={1344} height={752} fetchPriority="high" />
-      <video ref={video} aria-hidden="true" muted playsInline preload="none"
+        width={1344} height={752} fetchPriority="high"
+        onLoad={(event) => setPoster(event.currentTarget.currentSrc)} />
+      <video ref={video} aria-hidden="true" muted playsInline preload="none" poster={poster}
         onEnded={settle} onError={settle}>
         {activated && <>
           <source src={`/brand/${scene}.webm`} type="video/webm" />

@@ -209,7 +209,7 @@ export function ConnectionsPage() {
     <main className="account-page">
       <header className="account-header">
         <a href="/" className="brand">
-          ▧ OpenPikzels
+          OpenPikzels<span className="wordmark-pixel" aria-hidden="true" />
         </a>
         <a href="/">Back to studio</a>
       </header>
@@ -233,7 +233,6 @@ export function ConnectionsPage() {
       ) : (
         <>
           <section className="account-panel">
-            <span className="step-label">01 / Connect your providers</span>
             <h2>Connect an API provider</h2>
             <p>
               Connect OpenAI or Google to generate images and titles. Connect
@@ -341,8 +340,7 @@ export function ConnectionsPage() {
             </a>
           </section>
           <section className="account-panel">
-            <span className="step-label">02 / Connect your agent</span>
-            <h2>Your studio, inside your chat</h2>
+            <h2>Connect your agent</h2>
             <p>
               Paste this MCP URL into your agent’s connection settings. Your
               client needs Streamable HTTP and OAuth support. Review its

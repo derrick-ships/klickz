@@ -97,7 +97,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     page.getByText("Add factual context and image-specific critique first."),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Generate fixed image · uses API credits" }),
+    page.getByRole("button", { name: "Generate fix with API credits" }),
   ).toHaveCount(0);
   expect(paid).toHaveLength(0);
   await page.screenshot({
@@ -115,7 +115,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     plan: { title: "Fixture: diagnostic test", videoBrief: "Explicit UI fixture, no real provider assessment.", settings: { model: "flare", quality: "low" }, operations: [{ id: "fixture-issue", pillar: "clarity", instruction: "Fixture: make the subject easier to read.", tradeoff: "Fixture: retain all required objects." }] },
   } }));
   await page.getByRole("button", { name: "Preview fixes · no API charge" }).click();
-  const apply = page.getByRole("button", { name: "Generate fixed image · uses API credits" });
+  const apply = page.getByRole("button", { name: "Generate fix with API credits" });
   await expect(apply).toBeVisible();
   expect(paid).toHaveLength(0);
   for (const width of [320, 390, 1440]) {

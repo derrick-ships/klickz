@@ -6,6 +6,8 @@
 /* Hallmark · dismissed 49 · The image upload dropzone is a multi-line form input with wrapped helper text, not a single-line button label. */
 /* Hallmark · answered F4 · Filled mode tabs communicate current selection; Generate is the only primary action in the composer. */
 /* Hallmark · answered F24 · The dialog boundary is needed over the dark editor; its restrained shadow separates modal focus. */
+/* Hallmark · waive 39b · App image upload field with a full preview · The 112px upload-target is a multi-line image picker, not a toolbar button; ordinary controls retain stable 44px hit targets. */
+/* Hallmark · dismissed 29 · The requested transient modal backdrop isolates dialog focus over the editor; it is not a decorative glass content panel. */
 @import "./tokens.css";
 * {
   box-sizing: border-box;
@@ -63,7 +65,7 @@ button:not(:disabled) {
     transform 100ms var(--ease-out);
 }
 button:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: none;
 }
 button:hover:not(:disabled) {
   background-color: var(--color-hover);
@@ -115,7 +117,7 @@ select {
   width: var(--sidebar-width);
   background: var(--color-sidebar);
   border-right: 1px solid var(--color-line);
-  padding: 24px 16px 14px;
+  padding: var(--space-6) var(--space-4) 14px;
   display: flex;
   flex-direction: column;
   transform: translateX(-100%);
@@ -160,12 +162,12 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   border: 1px solid var(--color-line-strong);
   background: var(--color-panel);
   border-radius: 9px;
   min-height: 38px;
-  padding: 8px 13px;
+  padding: var(--space-2) 13px;
   font-size: 12px;
   font-weight: 500;
 }
@@ -211,7 +213,7 @@ select {
   gap: 9px;
   align-items: center;
   min-height: 40px;
-  padding: 7px 8px;
+  padding: 7px var(--space-2);
   width: 100%;
   border-radius: 7px;
   margin-bottom: 3px;
@@ -250,7 +252,7 @@ select {
   display: flex;
   gap: 9px;
   align-items: center;
-  margin: 0 3px 12px;
+  margin: 0 3px var(--space-3);
 }
 .avatar {
   width: 30px;
@@ -281,7 +283,7 @@ select {
 .profile-shortcuts {
   display: flex;
   gap: 5px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 .profile-shortcuts button {
   display: flex;
@@ -290,16 +292,16 @@ select {
   gap: 7px;
   flex: 1;
   border-radius: 7px;
-  padding: 8px 5px;
+  padding: var(--space-2) 5px;
   font-size: 12px;
   color: var(--color-muted);
 }
 .sidebar-select {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 5px 0;
-  padding: 7px 8px;
+  padding: 7px var(--space-2);
   border: 1px solid var(--color-line);
   border-radius: 7px;
   font-size: 12px;
@@ -334,7 +336,7 @@ select option {
   min-height: 35px;
   width: 100%;
   border-radius: 5px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .workspace-main {
   min-height: 100dvh;
@@ -350,13 +352,13 @@ select option {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
   padding: 0 30px;
 }
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .workspace-name {
   font-size: 12px;
@@ -374,7 +376,7 @@ select option {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .quiet-button {
   display: inline-flex;
@@ -406,9 +408,9 @@ select option {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
   margin-bottom: 18px;
-  padding: 0 8px;
+  padding: 0 var(--space-2);
 }
 .workbench-heading h1 {
   font-size: 16px;
@@ -429,7 +431,7 @@ select option {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 7px var(--space-3);
   border-radius: 18px;
   background: var(--color-panel);
   border: 1px solid var(--color-line);
@@ -472,7 +474,7 @@ input {
   background: var(--color-input);
   border: 1px solid var(--color-line);
   border-radius: 9px;
-  padding: 12px 14px;
+  padding: var(--space-3) 14px;
   width: 100%;
   font-size: 13px;
   line-height: 1.7;
@@ -540,7 +542,7 @@ input {
   font-size: 12px;
   color: var(--color-dim);
   border-radius: 5px;
-  padding: 4px;
+  padding: var(--space-1);
 }
 .advanced-button.active {
   color: var(--color-ink);
@@ -550,7 +552,7 @@ input {
   margin-top: 14px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 .advanced-controls label {
   font-size: 12px;
@@ -562,7 +564,7 @@ input {
   border: 1px solid var(--color-line-strong);
   border-radius: 6px;
   background: var(--color-input);
-  padding: 5px 8px;
+  padding: 5px var(--space-2);
   margin-top: 5px;
   color: var(--color-ink);
   font-size: 12px;
@@ -601,7 +603,7 @@ input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 12px;
   font-weight: 600;
   color: var(--color-accent-ink);
@@ -615,11 +617,11 @@ input {
   min-height: 38px;
   font-size: 14px;
   font-weight: 600;
-  padding: 6px 16px;
+  padding: 6px var(--space-4);
 }
 .batch-select {
   border-left: 1px solid var(--color-ground);
-  padding: 0 8px 0 5px;
+  padding: 0 var(--space-2) 0 5px;
   display: flex;
   align-items: center;
   color: var(--color-accent-ink);
@@ -635,7 +637,7 @@ input {
   margin: 34px 7px 0;
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   font-size: 12px;
   color: var(--color-dim);
 }
@@ -651,7 +653,7 @@ input {
 .source-tabs {
   display: flex;
   justify-content: center;
-  gap: 4px;
+  gap: var(--space-1);
   margin: 0 auto 11px;
 }
 .source-tabs button {
@@ -677,7 +679,7 @@ input {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--color-muted);
   position: relative;
   overflow: hidden;
@@ -708,8 +710,8 @@ input {
 .link-input {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 12px 0 17px;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 17px;
 }
 .link-input input {
   font-size: 12px;
@@ -719,7 +721,7 @@ input {
   background: var(--color-hover);
   border: 1px solid var(--color-line-strong);
   border-radius: 7px;
-  padding: 8px 11px;
+  padding: var(--space-2) 11px;
   font-size: 12px;
 }
 .field-block {
@@ -762,7 +764,7 @@ input {
 .reference-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .reference-strip:not(:empty) {
   margin-top: 13px;
@@ -839,7 +841,7 @@ input {
 }
 .result-utilities {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .icon-button.active,
 .favorited {
@@ -872,7 +874,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   margin-top: 14px;
 }
@@ -937,7 +939,7 @@ input {
   letter-spacing: 0;
   font-weight: 400;
   color: var(--color-dim);
-  margin-left: 4px;
+  margin-left: var(--space-1);
 }
 .score-header p {
   font-size: 12px;
@@ -959,10 +961,10 @@ input {
 .pillar {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px;
+  gap: var(--space-2);
   border-radius: 7px;
   text-align: left;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   color: var(--color-muted);
   background: var(--color-panel);
   border: 1px solid var(--color-line);
@@ -1021,7 +1023,7 @@ input {
   margin-top: 13px;
 }
 .pillar-detail dd {
-  margin: 4px 0 0;
+  margin: var(--space-1) 0 0;
   font-size: 12px;
   color: var(--color-dim);
   line-height: 1.8;
@@ -1042,8 +1044,8 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 16px;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
   font-size: 12px;
   color: var(--color-dim);
 }
@@ -1131,7 +1133,7 @@ input {
   color: var(--color-muted);
 }
 .concept-thumbnail {
-  padding: 16px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -1152,7 +1154,7 @@ input {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding-top: 8px;
+  padding-top: var(--space-2);
 }
 .creation-card-info > button:first-child {
   text-align: left;
@@ -1180,7 +1182,7 @@ input {
   height: 30px;
 }
 .library-main {
-  padding: 47px 32px;
+  padding: 47px var(--space-8);
   max-width: 1120px;
   width: 100%;
   margin: 0 auto;
@@ -1193,7 +1195,7 @@ input {
 }
 .library-filters {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   margin: 26px 0;
 }
 .library-filters > label {
@@ -1204,7 +1206,7 @@ input {
   background: var(--color-panel);
   border: 1px solid var(--color-line);
   border-radius: 8px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   color: var(--color-dim);
 }
 .library-filters input {
@@ -1238,8 +1240,8 @@ input {
   border: 1px solid var(--color-line-strong);
   background: var(--color-accent-soft);
   border-radius: 9px;
-  padding: 10px 12px;
-  margin-bottom: 24px;
+  padding: 10px var(--space-3);
+  margin-bottom: var(--space-6);
   color: var(--color-danger);
 }
 .error-banner > svg {
@@ -1274,7 +1276,7 @@ input {
   height: 29px;
   border-radius: 5px;
   background: var(--color-panel);
-  margin: 5px 4px;
+  margin: 5px var(--space-1);
 }
 .history-loading span:nth-child(2) {
   width: 80%;
@@ -1307,7 +1309,7 @@ dialog::backdrop {
   align-items: center;
   justify-content: space-between;
   gap: 15px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .dialog-heading h2 {
   font-size: 20px;
@@ -1333,8 +1335,8 @@ dialog::backdrop {
 .profile-collection {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .profile-item {
   border-bottom: 1px solid var(--color-line);
@@ -1378,7 +1380,7 @@ dialog::backdrop {
   font-size: 12px;
   color: var(--color-dim);
   display: block;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 .profile-check {
   color: var(--color-panel);
@@ -1460,7 +1462,7 @@ dialog::backdrop {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 18px 0;
   border-bottom: 1px solid var(--color-line);
 }
@@ -1480,7 +1482,7 @@ dialog::backdrop {
   color: var(--color-dim);
   border: 1px solid var(--color-line-strong);
   border-radius: 5px;
-  padding: 4px 7px;
+  padding: var(--space-1) 7px;
   white-space: nowrap;
 }
 .connection-tag.ready {
@@ -1508,7 +1510,7 @@ dialog::backdrop {
 }
 .reference-library span {
   display: block;
-  padding: 8px;
+  padding: var(--space-2);
   font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1527,7 +1529,7 @@ dialog::backdrop {
     padding-top: 130px;
   }
   .topbar {
-    padding-inline: 40px;
+    padding-inline: var(--space-10);
   }
 }
 @media (max-width: 1150px) {
@@ -1575,10 +1577,10 @@ dialog::backdrop {
   .topbar {
     height: 62px;
     padding: 0 17px;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .topbar-left {
-    gap: 8px;
+    gap: var(--space-2);
   }
   .workspace-name {
     font-size: 12px;
@@ -1589,7 +1591,7 @@ dialog::backdrop {
   .topbar-actions .quiet-button {
     font-size: 0;
     gap: 0;
-    padding: 8px;
+    padding: var(--space-2);
   }
   .topbar-actions .quiet-button svg {
     width: 17px;
@@ -1597,10 +1599,10 @@ dialog::backdrop {
   }
   .login-button {
     font-size: 12px;
-    padding: 5px 12px;
+    padding: 5px var(--space-3);
   }
   .studio-main {
-    padding: 40px 17px 27px;
+    padding: var(--space-10) 17px 27px;
   }
   .workbench-heading {
     gap: 17px;
@@ -1618,8 +1620,8 @@ dialog::backdrop {
   }
   .mode-tabs button {
     font-size: 12px;
-    padding: 7px 8px;
-    gap: 4px;
+    padding: 7px var(--space-2);
+    gap: var(--space-1);
     min-height: 34px;
     flex: 1;
   }
@@ -1650,7 +1652,7 @@ dialog::backdrop {
   }
   .prompt-tools {
     gap: 5px;
-    margin-top: 12px;
+    margin-top: var(--space-3);
   }
   .tool-chip {
     font-size: 12px;
@@ -1675,7 +1677,7 @@ dialog::backdrop {
   }
   .advanced-button {
     font-size: 12px;
-    gap: 4px;
+    gap: var(--space-1);
   }
   .advanced-controls {
     gap: 9px;
@@ -1750,7 +1752,7 @@ dialog::backdrop {
     font-size: 12px;
   }
   .section-heading {
-    gap: 8px;
+    gap: var(--space-2);
   }
   .result-image {
     border-radius: 9px;
@@ -1777,7 +1779,7 @@ dialog::backdrop {
   }
   .fix-button {
     font-size: 12px;
-    padding: 9px 12px;
+    padding: 9px var(--space-3);
   }
   .score-body {
     grid-template-columns: 1fr;
@@ -1797,7 +1799,7 @@ dialog::backdrop {
     min-height: 53px;
   }
   .pillar-detail {
-    padding-top: 16px;
+    padding-top: var(--space-4);
     border-top: 1px solid var(--color-line);
   }
   .pillar-detail > p {
@@ -1826,7 +1828,7 @@ dialog::backdrop {
   }
   .creation-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: var(--space-3);
   }
   .creation-card-info {
     flex-wrap: wrap;
@@ -1842,7 +1844,7 @@ dialog::backdrop {
     font-size: 12px;
   }
   .concept-thumbnail {
-    padding: 12px;
+    padding: var(--space-3);
     gap: 6px;
   }
   .concept-thumbnail p {
@@ -1876,7 +1878,7 @@ dialog::backdrop {
   }
   .library-filters > .neutral-button {
     font-size: 12px;
-    padding: 8px;
+    padding: var(--space-2);
   }
   .library-empty {
     padding: 45px 10px;
@@ -1913,7 +1915,7 @@ dialog::backdrop {
     padding-left: 101px;
   }
   .profile-choose {
-    gap: 12px;
+    gap: var(--space-3);
   }
   .profile-choose strong {
     font-size: 12px;
@@ -1928,13 +1930,13 @@ dialog::backdrop {
   .original-link {
     align-items: flex-start;
     font-size: 12px;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .original-link button {
     font-size: 12px;
   }
   .title-option {
-    gap: 8px;
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
   .title-option p {
@@ -1991,7 +1993,7 @@ select {
     font-size: 12px;
   }
   .mode-tabs {
-    gap: 4px;
+    gap: var(--space-1);
   }
   .icon-button,
   .prompt-tools .icon-button {
@@ -2016,7 +2018,7 @@ select {
     min-height: 44px;
   }
   .settings-row {
-    gap: 8px;
+    gap: var(--space-2);
   }
   .settings-row select {
     max-width: 131px;
@@ -2050,7 +2052,7 @@ select {
 .account-page {
   max-width: 1000px;
   margin: auto;
-  padding: 28px 24px 64px;
+  padding: 28px var(--space-6) 64px;
 }
 .account-header {
   display: flex;
@@ -2060,7 +2062,7 @@ select {
 }
 .account-header a,
 .consent-page > a {
-  color: var(--text-primary, #fafafa);
+  color: var(--text-primary, var(--color-legacy-ink));
   text-decoration: none;
 }
 .account-intro {
@@ -2076,30 +2078,30 @@ select {
 .account-page p,
 .consent-page p {
   line-height: 1.6;
-  color: #bcbcbc;
+  color: var(--color-legacy-muted);
 }
 .account-panel {
-  border: 1px solid #454545;
+  border: 1px solid var(--color-legacy-line);
   border-radius: 14px;
-  background: #161616;
+  background: var(--color-legacy-control);
   padding: 26px;
-  margin: 24px 0;
+  margin: var(--space-6) 0;
 }
 .account-panel h2 {
   font-size: 23px;
   line-height: 1.25;
-  margin: 12px 0;
+  margin: var(--space-3) 0;
 }
 .account-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   max-width: 480px;
 }
 .account-form label {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 14px;
 }
 .account-form input,
@@ -2107,11 +2109,11 @@ select {
 .account-page textarea {
   width: 100%;
   box-sizing: border-box;
-  background: #101010;
-  color: #fafafa;
-  border: 1px solid #757575;
+  background: var(--color-ground);
+  color: var(--color-legacy-ink);
+  border: 1px solid var(--color-control-edge);
   border-radius: 8px;
-  padding: 12px;
+  padding: var(--space-3);
   font-family: inherit;
   font-size: 16px;
   line-height: 1.5;
@@ -2130,11 +2132,11 @@ select {
 .provider-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 .provider-grid article {
   padding: 18px;
-  border: 1px solid #454545;
+  border: 1px solid var(--color-legacy-line);
   border-radius: 10px;
 }
 .provider-grid h3 {
@@ -2153,13 +2155,13 @@ select {
 .eyebrow {
   font-size: 12px;
   letter-spacing: 0;
-  color: #ff7b83 !important;
+  color: var(--color-legacy-danger) !important;
 }
 .copy-url {
   display: block;
   overflow-wrap: anywhere;
-  background: #101010;
-  border: 1px solid #757575;
+  background: var(--color-ground);
+  border: 1px solid var(--color-control-edge);
   padding: 14px;
   border-radius: 8px;
   margin: 20px 0;
@@ -2176,9 +2178,9 @@ select {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   padding: 18px 0;
-  border-top: 1px solid #454545;
+  border-top: 1px solid var(--color-legacy-line);
 }
 .grant-row p {
   font-size: 13px;
@@ -2186,7 +2188,7 @@ select {
 }
 .consent-page {
   max-width: 620px;
-  margin: 48px auto;
+  margin: var(--space-12) auto;
   padding: 0 20px;
 }
 .consent-page h1 {
@@ -2197,15 +2199,15 @@ select {
 }
 .consent-details {
   padding: 14px;
-  background: #101010;
+  background: var(--color-ground);
   border-radius: 8px;
 }
 .consent-details dt {
   font-size: 12px;
-  color: #bcbcbc;
+  color: var(--color-legacy-muted);
 }
 .consent-details dd {
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
   overflow-wrap: anywhere;
   font-size: 14px;
 }
@@ -2214,8 +2216,8 @@ select {
   list-style: none;
 }
 .consent-permissions li {
-  padding: 16px 0;
-  border-bottom: 1px solid #454545;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-legacy-line);
 }
 .consent-permissions p {
   margin: 6px 0;
@@ -2223,7 +2225,7 @@ select {
 }
 .consent-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   margin-top: 26px;
 }
 .consent-actions button {
@@ -2231,7 +2233,7 @@ select {
   flex: 1;
 }
 .signed-in {
-  border: 1px solid #454545;
+  border: 1px solid var(--color-legacy-line);
   border-radius: 8px;
   padding: 14px;
   overflow-wrap: anywhere;
@@ -2241,7 +2243,7 @@ select {
     grid-template-columns: 1fr;
   }
   .account-page {
-    padding: 22px 16px 48px;
+    padding: 22px var(--space-4) var(--space-12);
   }
   .account-panel {
     padding: 20px;
@@ -2274,7 +2276,7 @@ select {
   border-radius: 14px;
   height: 220px;
   background: var(--color-ground);
-  margin: 24px 0 32px;
+  margin: var(--space-6) 0 var(--space-8);
 }
 .brand-scene > img,
 .brand-scene > video {
@@ -2351,7 +2353,7 @@ select {
     margin: 0 0 18px;
   }
   .brand-scene--compact .brand-scene-caption {
-    padding: 16px;
+    padding: var(--space-4);
     width: 55%;
   }
   .brand-scene--compact .brand-scene-caption strong {
@@ -2369,7 +2371,7 @@ select {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin: 16px 0;
+  margin: var(--space-4) 0;
 }
 .diagnostic-context > label {
   font-size: 13px;
@@ -2402,7 +2404,7 @@ select {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .blind-options img {
   width: 200px;

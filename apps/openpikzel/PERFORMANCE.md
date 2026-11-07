@@ -80,7 +80,7 @@ TypeScript,69 unit/database/protocol cases, production build,22 functional brows
 
 Controlled mobile lab medians: script_bytes=217845.000, css_bytes=9627.000, image_bytes=5098.000, total_bytes=256978.000, third_party=0.000, lcp_ms=680.000, cls=0.001, inp_sample_ms=72.000. Maximum click-to-two-frame feedback: 42.7ms. Lighthouse total transfer: mobile=262666B, desktop=265646B. No runtime dependencies or media were added. These are local lab metrics, not field p75, native-device or provider timings.
 
-## Clarify copy release — fresh verification
+## Clarify copy release — historical baseline
 
 The full release gate passed on the final copy revision:69 unit/database/protocol cases,22 browser cases, isolated3-sample lab and6 Lighthouse runs; TypeScript and production build passed. Same budgets, no relaxed threshold.
 
@@ -95,3 +95,23 @@ The full release gate passed on the final copy revision:69 unit/database/protoco
 | CLS |0.001|0.000|
 
 Controlled mobile lab medians: script_bytes=218297.000, css_bytes=9627.000, image_bytes=5098.000, total_bytes=257431.000, third_party=0.000, lcp_ms=688.000, cls=0.001, inp_sample_ms=64.000. Maximum click-to-two-frame feedback: 51.2ms. Lighthouse total transfer: mobile=263119B, desktop=266099B. Controlled local samples only; no claim of field p75, native-device validation or live provider timing.
+
+
+## Review Studio / Hallmark release — current verification
+
+The selected Review Studio passed the full unchanged release gate: TypeScript,69 unit/database/route/protocol cases, production build,25 functional browser cases, isolated3-sample mobile lab, the new two-viewport review interaction gate and6 Lighthouse runs. No dependencies or media were added.
+
+| Representative median-run | Mobile | Desktop |
+| --- | --- | --- |
+| Performance |97|100|
+| Accessibility / Best practices / SEO |100 / 100 / 100|100 / 100 / 100|
+| LCP ms |2409.206|531.832|
+| TBT ms |102.5|0|
+| CLS |0.001|0|
+| Total transfer bytes |265912|268892|
+
+Root mobile lab medians: JS219425B, CSS11285B, image5098B, total260223B, third-party0, LCP752ms, CLS0.001, scripted INP88ms. Maximum click-to-two-frame feedback51.4ms. Encoded-body accounting excludes protocol overhead; Lighthouse transfer totals include it.
+
+The explicit saved-image fixture was measured separately under CPU4× with five real Feed preview toggles per viewport. Maximum click-to-two-frame feedback:390px20.2ms,1440px19.5ms. No observed long tasks; sampled RAF median16.7ms on both, maxima16.8ms. These are controlled headless samples, not physical FPS, field p75 or measured INP. The100ms feedback budget passed without relaxing limits. Full metrics/counters: evidence/performance-review.json.
+
+Actual rendered review captures at320/375/390/768/1024/1280/1440/1920,200px feed preview, unscored and failed-preview states were opened for visual review. New tests verify selected actions, partial/null scoring, real refresh, reduced-motion, modal-before-drawer Escape and static keyboard hit areas. Native iPhone/Safari, zoom, assistive technology, live provider and hosted authenticated performance remain unverified. No paid request or hosted-policy change occurred.

@@ -1,0 +1,34 @@
+{
+  "scope": "main app/selected Review Studio; source and rendered default routes",
+  "before": {
+    "fails": 107,
+    "reflex": 4,
+    "warns": 1,
+    "waived": 232,
+    "rejected": 0,
+    "answered": 2,
+    "dismissed": 5,
+    "notes": 0,
+    "files": 12,
+    "render": "ran",
+    "before": "before: recorded 4 links, 10 fields, 99 handlers, 0 test hooks, 0 script hooks and 3 rendered page(s) in .hallmark/before.json; --kept checks a redesign against it"
+  },
+  "final": {
+    "fails": 0,
+    "reflex": 0,
+    "warns": 0,
+    "waived": 233,
+    "rejected": 0,
+    "answered": 2,
+    "dismissed": 6,
+    "notes": 0,
+    "files": 14,
+    "render": "ran",
+    "before": "before: recorded 4 links, 10 fields, 106 handlers, 0 test hooks, 0 script hooks and 3 rendered page(s) in .hallmark/before.json; --kept checks a redesign against it"
+  },
+  "independentReview": "ship; screenshot/source review by a model; not physical-device testing",
+  "waiverReasons": {
+    "24b": "pre-existing user-pinned compact controls",
+    "39b": "multi-line image upload field with preview"
+  }
+}

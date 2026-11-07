@@ -29,6 +29,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await expect(
     page.getByRole("heading", { name: "Concept saved." }),
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Toggle phone feed preview" })).toHaveCount(0);
   await page.reload();
   await page
     .getByRole("button", { name: /I spent 30 days offline/ })

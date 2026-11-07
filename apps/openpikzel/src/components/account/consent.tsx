@@ -51,10 +51,9 @@ export function Consent() {
   return (
     <main className="consent-page">
       <a href="/" className="brand">
-        ▧ OpenPikzels
+        OpenPikzels<span className="wordmark-pixel" aria-hidden="true" />
       </a>
       <section className="account-panel">
-        <p className="eyebrow">Connect your agent</p>
         <h1>Allow {details?.name || "this client"} to use your studio?</h1>
         <p>
           This third-party client name is supplied by its developer. Approve

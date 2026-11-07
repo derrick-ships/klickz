@@ -42,6 +42,7 @@ import {
 import type { FixPlan } from "@/lib/diagnostics";
 import { BrandScene } from "@/components/brand-scene";
 import { PixelConfirmation } from "@/components/pixel-confirmation";
+import { ReviewCanvas } from "@/components/review-canvas";
 import { useStudio } from "@/lib/use-studio";
 import {
   defaultSettings,
@@ -110,6 +111,7 @@ export default function Studio() {
     [search, setSearch] = useState(""),
     [onlyFavorites, setOnlyFavorites] = useState(false),
     [phone, setPhone] = useState(false),
+    [composerOpen, setComposerOpen] = useState(false),
     [activePillar, setActivePillar] = useState<Pillar>("clarity"),
     [tab, setTab] = useState<"studio" | "library">("studio"),
     [profileNew, setProfileNew] = useState(false),
@@ -151,6 +153,8 @@ export default function Studio() {
     navigationRef = useRef<HTMLElement>(null),
     navigationOpenRef = useRef<HTMLButtonElement>(null),
     navigationCloseRef = useRef<HTMLButtonElement>(null),
+    dialogTriggerRef = useRef<HTMLElement | null>(null),
+    reviewHeadingRef = useRef<HTMLHeadingElement>(null),
     draftFingerprintRef = useRef("");
   const draftFingerprint = JSON.stringify({ prompt, title, tool, personaId, styleId, preset, refs, settings, parentId });
   draftFingerprintRef.current = draftFingerprint;
@@ -180,9 +184,10 @@ export default function Studio() {
     history.replaceState(null, "", url);
   }, [tool]);
   useEffect(() => {
-    if (dialog) {
+    if (dialog && !dialogRef.current?.open) {
+      dialogTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       dialogRef.current?.showModal();
-    } else dialogRef.current?.close();
+    } else if (!dialog) dialogRef.current?.close();
   }, [dialog]);
   useEffect(() => {
     setSaveReceipt(0);
@@ -195,6 +200,7 @@ export default function Studio() {
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
       setMotionInput("keyboard");
+      if (dialogRef.current?.open) return;
       if ((e.ctrlKey || e.metaKey) && e.key === "b") {
         e.preventDefault(); setSidebar((x) => !x);
         if (sidebar) requestAnimationFrame(() => navigationOpenRef.current?.focus());
@@ -234,6 +240,7 @@ export default function Studio() {
     setDialog(which);
   }
   function choose(item: Creation) {
+    setComposerOpen(false);
     setSaveReceipt(0);
     setSelection(item.id);
     setTitle(item.title);
@@ -244,6 +251,7 @@ export default function Studio() {
   }
   function resume(item: Creation) {
     choose(item);
+    setComposerOpen(true);
     setPrompt(item.prompt);
     setTool(
       ["generate", "recreate", "edit", "title"].includes(item.mode)
@@ -260,6 +268,7 @@ export default function Studio() {
     setPreset(item.style);
   }
   function startNew() {
+    setComposerOpen(false);
     setSaveReceipt(0);
     setSelection(null);
     setParentId(null);
@@ -286,6 +295,7 @@ export default function Studio() {
           title || "Uploaded thumbnail",
         );
         setSelection(item.id);
+        setComposerOpen(true);
       }
       await studio.load();
     });
@@ -303,6 +313,7 @@ export default function Studio() {
           title || "Imported thumbnail",
         );
         setSelection(item.id);
+        setComposerOpen(true);
       }
       await studio.load();
     });
@@ -343,6 +354,8 @@ export default function Studio() {
               "Upload a thumbnail or choose one from your library.",
             );
           await studio.analyze(selected, title, videoBrief, includeVision);
+          setComposerOpen(false);
+          requestAnimationFrame(() => reviewHeadingRef.current?.focus());
           return;
         }
         if (tool === "title" && titleAction === "ideas") {
@@ -366,6 +379,8 @@ export default function Studio() {
         const result = await studio.generate(input);
         setSelection(result.creations[0].id);
         setTitle(result.creations[0].title);
+        setComposerOpen(false);
+        requestAnimationFrame(() => reviewHeadingRef.current?.focus());
         if (result.partial)
           studio.setError(
             "Some images were saved, but the batch stopped. Check My creations before generating again to avoid duplicate charges.",
@@ -499,6 +514,264 @@ export default function Studio() {
       (!onlyFavorites || c.favorite) &&
       `${c.title} ${c.prompt}`.toLowerCase().includes(search.toLowerCase()),
   );
+  function openReviewEditor(mode: "edit" | "analyze") {
+    if (!selected) return;
+    setComposerOpen(true);
+    setTool(mode);
+    if (mode === "edit") { setParentId(selected.id); setPrompt(""); }
+    else setTitle(selected.title);
+    requestAnimationFrame(() => {
+      document.getElementById(mode === "analyze" ? "video-title" : "thumbnail-prompt")?.focus({ preventScroll: true });
+      document.querySelector(".creation-workbench")?.scrollIntoView({ behavior: "instant", block: "start" });
+    });
+  }
+  function restoreDialogFocus() {
+    requestAnimationFrame(() => {
+      if (dialogRef.current?.open) return;
+      const trigger = dialogTriggerRef.current;
+      if (trigger?.isConnected && !trigger.closest("[inert]") && trigger.getClientRects().length && getComputedStyle(trigger).visibility === "visible") trigger.focus();
+      else (navigationOpenRef.current || mainRef.current)?.focus();
+    });
+  }
+  const hasReviewImage = !!(selected?.image_path && studio.images[selected.image_path]);
+  const showComposer = !hasReviewImage || composerOpen;
+  const ResultHeading = hasReviewImage ? "h1" : "h2";
+  const ComposerHeading = hasReviewImage ? "h2" : "h1";
+  const resultPanel = selected ? (
+<section className={`result-section ${hasReviewImage ? "review-stage" : ""}`} aria-label={hasReviewImage ? "Thumbnail review studio" : "Saved concept"}>
+                  <div className={`section-heading ${hasReviewImage ? "review-summary" : ""}`}>
+                    <div>
+                      <ResultHeading ref={hasReviewImage ? reviewHeadingRef : undefined} tabIndex={hasReviewImage ? -1 : undefined}>
+                        {selected.status === "draft"
+                          ? "Concept saved."
+                          : selected.mode === "fix"
+                            ? "New version saved."
+                            : selected.mode === "resize"
+                              ? "Ready for another format."
+                              : "Your thumbnail."}
+                      </ResultHeading>
+                      <p>{selected.title}</p>
+                    </div>
+                    <div className="result-utilities">
+                      {hasReviewImage && (
+                      <button
+                        className={phone ? "icon-button active" : "icon-button"}
+                        aria-label="Toggle phone feed preview" aria-pressed={phone}
+                        onClick={() => setPhone((x) => !x)}
+                      >
+                        <Smartphone size={16} /><span>Feed preview</span>
+                      </button>
+                      )}
+                      <button
+                        className={
+                          selected.favorite
+                            ? "icon-button favorited"
+                            : "icon-button"
+                        }
+                        aria-label="Favorite selected creation" aria-pressed={selected.favorite}
+                        onClick={() =>
+                          studio.run("Saving favorite", () =>
+                            studio.favorite(selected),
+                          )
+                        }
+                      >
+                        <Star
+                          size={16}
+                          fill={selected.favorite ? "currentColor" : "none"}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="review-layout"><div className="review-media">
+                  {selected.image_path && studio.images[selected.image_path] ? (
+                    <>
+                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={selected.title} feed={phone} pointer={motionInput === "pointer"} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} />
+                      <div className="result-actions">
+                        <button
+                          className="neutral-button"
+                          disabled={busy}
+                          onClick={() => openReviewEditor("edit")}
+                        >
+                          <Pencil size={15} />
+                          Edit
+                        </button>
+                        <button
+                          className="neutral-button"
+                          disabled={busy}
+                          onClick={() => openReviewEditor("analyze")}
+                        >
+                          <ChartNoAxesCombined size={15} />
+                          Analyze
+                        </button>
+                        <button
+                          className="neutral-button"
+                          disabled={busy}
+                          onClick={resize}
+                        >
+                          {selected.settings?.format === "short" ? (
+                            <RectangleHorizontal size={15} />
+                          ) : (
+                            <RectangleVertical size={15} />
+                          )}
+                          Resize to{" "}
+                          {selected.settings?.format === "short"
+                            ? "long-form"
+                            : "short-form"}
+                        </button>
+                        <button
+                          className="neutral-button"
+                          disabled={busy}
+                          onClick={() =>
+                            studio.run("Downloading image", () =>
+                              studio.download(selected),
+                            )
+                          }
+                        >
+                          <Download size={15} />
+                          Download
+                        </button>
+                      </div>
+                      <p className="resize-note">
+                        Resize keeps the full image and fills the extra space
+                        with a soft background. It does not use AI credits.
+                      </p>
+                    </>
+                  ) : (
+                    <div className="draft-preview">
+                      <ImagePlus size={28} />
+                      <p>{selected.prompt}</p>
+                      <span>
+                        {selected.status === "draft"
+                          ? "Your instructions are saved. Choose Generate to create an image with your connected API credits."
+                          : selected.status === "failed"
+                            ? "This image did not finish generating. Your instructions are saved; check My creations before retrying."
+                            : "This image is still processing. Check My creations before starting another request."}
+                      </span>
+                      <button
+                        className="neutral-button"
+                        onClick={() => resume(selected)}
+                      >
+                        Continue editing
+                      </button>
+                    </div>
+                  )}
+                  {selected.mode === "fix" && selected.parent_id && (
+                    <div className="original-link">
+                      <button
+                        onClick={() => {
+                          const original = studio.creations.find(
+                            (c) => c.id === selected.parent_id,
+                          );
+                          if (original) choose(original);
+                        }}
+                      >
+                        <ArrowLeft size={14} />
+                        View original thumbnail
+                      </button>
+                      <span>Your original is preserved.</span>
+                      <button
+                        className="neutral-button"
+                        disabled={busy}
+                        onClick={compare}
+                      >
+                        Compare without scores
+                      </button>
+                    </div>
+                  )}
+                  </div>
+                  {score ? (
+                    <aside className="score-panel review-inspector" aria-label="Scoring inspector">
+                      <div className="score-header">
+                        <div>
+                          <span>OpenPikzels Score</span>
+                          <h2>
+                            {score.overall ?? "Partial"}
+                            {score.overall !== null && <small>/100</small>}
+                          </h2>
+                          <p>Thumbnail + title, across five pillars.</p>
+                        </div>
+                        <button
+                          className="primary-button fix-button"
+                          disabled={busy}
+                          onClick={fix}
+                        >
+                          <WandSparkles size={16} />
+                          One-click fix
+                        </button>
+                      </div>
+                      <div className="score-body">
+                        <div className="pillar-list">
+                          {pillars.map((p) => (
+                            <button
+                              key={p}
+                              className={
+                                activePillar === p ? "pillar active" : "pillar"
+                              }
+                              aria-pressed={activePillar === p}
+                              onClick={() => setActivePillar(p)}
+                            >
+                              <span>{names[p]}</span>
+                              <strong>
+                                {score.dimensions[p].score ?? "Not assessed"}
+                                {score.dimensions[p].score !== null && (
+                                  <small>/100</small>
+                                )}
+                              </strong>
+                              {score.dimensions[p].score !== null && (
+                                <progress
+                                  max={100}
+                                  value={score.dimensions[p].score!}
+                                />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="pillar-detail">
+                          <h3>{names[activePillar]}</h3>
+                          <p>
+                            {score.dimensions[activePillar].missingReason ||
+                              score.dimensions[activePillar].observation}
+                          </p>
+                          <dl>
+                            <dt>Working for you</dt>
+                            <dd>{score.dimensions[activePillar].strength}</dd>
+                            <dt>Holding it back</dt>
+                            <dd>{score.dimensions[activePillar].weakness}</dd>
+                            <dt>What to change</dt>
+                            <dd>{score.dimensions[activePillar].fix}</dd>
+                          </dl>
+                          <span className="confidence">
+                            AI confidence:{" "}
+                            {score.dimensions[activePillar].confidence >= 0.7
+                              ? "high"
+                              : score.dimensions[activePillar].confidence >= 0.3
+                                ? "medium"
+                                : "low"}{" "}
+                            (not a measured probability)
+                          </span>
+                        </div>
+                      </div>
+                      {score.warnings?.map((w) => (
+                        <p className="score-disclaimer" key={w}>
+                          {w}
+                        </p>
+                      ))}
+                      <p className="score-disclaimer">
+                        {score.note} Jev visual scoring is experimental.
+                      </p>
+                    </aside>
+                  ) : hasReviewImage ? (
+                    <aside className="review-inspector review-inspector--empty" aria-label="Scoring inspector">
+                      <h2>Review the packaging</h2>
+                      <p>Analyze this image with its video title to review the five pillars.</p>
+                      <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
+                      <button className="neutral-button" onClick={() => openReviewEditor("analyze")}>Open analysis</button>
+                      <p className="score-disclaimer">Analysis uses your connected API credits. Scores are visual estimates, not measured CTR.</p>
+                    </aside>
+                  ) : null}
+                  </div>
+                </section>
+  ) : null;
   const profileKind = dialog === "personas" ? "persona" : "style",
     profileItems = dialog === "personas" ? studio.personas : studio.styles;
   return (
@@ -653,7 +926,7 @@ export default function Studio() {
             {studio.cloud ? <Check size={13} /> : <Link2 size={13} />}{" "}
             {studio.cloud
               ? "Connected workspace"
-              : "Connect your cloud workspace"}
+              : "Sign in to connect"}
           </button>
         </div>
       </aside>
@@ -698,7 +971,7 @@ export default function Studio() {
           id="studio-content"
           tabIndex={-1}
           ref={mainRef}
-          className={tab === "library" ? "library-main" : "studio-main"}
+          className={tab === "library" ? "library-main" : `studio-main ${hasReviewImage ? "review-active" : ""}`}
         >
           {dialog === "connections" && studio.cloud && (
             <button className="neutral-button full-width" onClick={showJobs}>
@@ -726,21 +999,22 @@ export default function Studio() {
           )}
           {tab === "studio" ? (
             <>
+              {hasReviewImage && resultPanel}
               <section
-                className="creation-workbench"
+                className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
                 aria-label="Thumbnail workspace"
                 aria-busy={busy}
               >
                 <div className="workbench-heading">
-                  <h1>
-                    {tool === "analyze"
+                  <ComposerHeading>
+                    {hasReviewImage ? "Creation controls" : tool === "analyze"
                       ? "What’s holding it back?"
                       : tool === "edit"
                         ? "Make it exactly right."
                         : tool === "title"
                           ? "Start with a great title."
                           : "What will you create?"}
-                  </h1>
+                  </ComposerHeading>
                   <div
                     className="mode-tabs"
                     role="tablist"
@@ -760,12 +1034,14 @@ export default function Studio() {
                           if (next < 0) return;
                           event.preventDefault();
                           setTool(modes[next].id);
+                          if (hasReviewImage) setComposerOpen(true);
                           setTitles([]);
                           event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
                         }}
                         className={tool === id ? "active" : ""}
                         onClick={() => {
                           setTool(id);
+                          if (hasReviewImage) setComposerOpen(true);
                           setTitles([]);
                         }}
                       >
@@ -779,7 +1055,8 @@ export default function Studio() {
                   studio.creations.length === 0 && (
                     <BrandScene scene="signal" compact />
                   )}
-                <div className="composer">
+                {hasReviewImage && <button className="quiet-button review-editor-toggle" aria-expanded={showComposer} aria-controls="review-creation-controls" onClick={() => setComposerOpen((open) => !open)}>{showComposer ? "Hide prompt and settings" : "Show prompt and settings"}<ChevronDown size={14} /></button>}
+                <div className="composer" id="review-creation-controls" hidden={!showComposer}>
                   <div className="composer-inner">
                     {tool === "title" && (
                       <div className="output-choice">
@@ -1256,7 +1533,7 @@ export default function Studio() {
                     </div>
                   </div>
                 </div>
-                <div className="composer-footer">
+                <div className="composer-footer" hidden={!showComposer}>
                   <span>
                     {tool === "analyze"
                       ? "Scores use your API credits. Resize does not."
@@ -1328,244 +1605,7 @@ export default function Studio() {
                   ))}
                 </section>
               )}
-              {selected && (
-                <section className="result-section">
-                  <div className="section-heading">
-                    <div>
-                      <h2>
-                        {selected.status === "draft"
-                          ? "Concept saved."
-                          : selected.mode === "fix"
-                            ? "New version saved."
-                            : selected.mode === "resize"
-                              ? "Ready for another format."
-                              : "Your thumbnail."}
-                      </h2>
-                      <p>{selected.title}</p>
-                    </div>
-                    <div className="result-utilities">
-                      <button
-                        className={phone ? "icon-button active" : "icon-button"}
-                        aria-label="Toggle phone feed preview"
-                        onClick={() => setPhone((x) => !x)}
-                      >
-                        <Smartphone size={16} />
-                      </button>
-                      <button
-                        className={
-                          selected.favorite
-                            ? "icon-button favorited"
-                            : "icon-button"
-                        }
-                        aria-label="Favorite selected creation"
-                        onClick={() =>
-                          studio.run("Saving favorite", () =>
-                            studio.favorite(selected),
-                          )
-                        }
-                      >
-                        <Star
-                          size={16}
-                          fill={selected.favorite ? "currentColor" : "none"}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                  {selected.image_path && studio.images[selected.image_path] ? (
-                    <>
-                      <div
-                        className={`result-image ${phone ? "phone-preview" : ""} ${selected.settings?.format === "short" ? "portrait" : ""}`}
-                      >
-                        <img
-                          src={studio.images[selected.image_path]}
-                          alt={selected.title}
-                        />
-                      </div>
-                      <div className="result-actions">
-                        <button
-                          className="neutral-button"
-                          disabled={busy}
-                          onClick={() => {
-                            setTool("edit");
-                            setParentId(selected.id);
-                            setPrompt("");
-                            mainRef.current?.scrollIntoView({
-                              behavior: "instant",
-                            });
-                          }}
-                        >
-                          <Pencil size={15} />
-                          Edit
-                        </button>
-                        <button
-                          className="neutral-button"
-                          disabled={busy}
-                          onClick={() => {
-                            setTool("analyze");
-                            setTitle(selected.title);
-                          }}
-                        >
-                          <ChartNoAxesCombined size={15} />
-                          Analyze
-                        </button>
-                        <button
-                          className="neutral-button"
-                          disabled={busy}
-                          onClick={resize}
-                        >
-                          {selected.settings?.format === "short" ? (
-                            <RectangleHorizontal size={15} />
-                          ) : (
-                            <RectangleVertical size={15} />
-                          )}
-                          Resize to{" "}
-                          {selected.settings?.format === "short"
-                            ? "long-form"
-                            : "short-form"}
-                        </button>
-                        <button
-                          className="neutral-button"
-                          disabled={busy}
-                          onClick={() =>
-                            studio.run("Downloading image", () =>
-                              studio.download(selected),
-                            )
-                          }
-                        >
-                          <Download size={15} />
-                          Download
-                        </button>
-                      </div>
-                      <p className="resize-note">
-                        Resize keeps the full image and fills the extra space
-                        with a soft background. It does not use AI credits.
-                      </p>
-                    </>
-                  ) : (
-                    <div className="draft-preview">
-                      <ImagePlus size={28} />
-                      <p>{selected.prompt}</p>
-                      <span>
-                        {selected.status === "draft"
-                          ? "Your instructions are saved. Choose Generate to create an image with your connected API credits."
-                          : selected.status === "failed"
-                            ? "This image did not finish generating. Your instructions are saved; check My creations before retrying."
-                            : "This image is still processing. Check My creations before starting another request."}
-                      </span>
-                      <button
-                        className="neutral-button"
-                        onClick={() => resume(selected)}
-                      >
-                        Continue editing
-                      </button>
-                    </div>
-                  )}
-                  {score && (
-                    <div className="score-panel">
-                      <div className="score-header">
-                        <div>
-                          <span>OpenPikzels Score</span>
-                          <h2>
-                            {score.overall ?? "Partial"}
-                            {score.overall !== null && <small>/100</small>}
-                          </h2>
-                          <p>Thumbnail + title, across five pillars.</p>
-                        </div>
-                        <button
-                          className="primary-button fix-button"
-                          disabled={busy}
-                          onClick={fix}
-                        >
-                          <WandSparkles size={16} />
-                          One-click fix
-                        </button>
-                      </div>
-                      <div className="score-body">
-                        <div className="pillar-list">
-                          {pillars.map((p) => (
-                            <button
-                              key={p}
-                              className={
-                                activePillar === p ? "pillar active" : "pillar"
-                              }
-                              onClick={() => setActivePillar(p)}
-                            >
-                              <span>{names[p]}</span>
-                              <strong>
-                                {score.dimensions[p].score ?? "Not assessed"}
-                                {score.dimensions[p].score !== null && (
-                                  <small>/100</small>
-                                )}
-                              </strong>
-                              {score.dimensions[p].score !== null && (
-                                <progress
-                                  max={100}
-                                  value={score.dimensions[p].score!}
-                                />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="pillar-detail">
-                          <h3>{names[activePillar]}</h3>
-                          <p>
-                            {score.dimensions[activePillar].missingReason ||
-                              score.dimensions[activePillar].observation}
-                          </p>
-                          <dl>
-                            <dt>Working for you</dt>
-                            <dd>{score.dimensions[activePillar].strength}</dd>
-                            <dt>Holding it back</dt>
-                            <dd>{score.dimensions[activePillar].weakness}</dd>
-                            <dt>What to change</dt>
-                            <dd>{score.dimensions[activePillar].fix}</dd>
-                          </dl>
-                          <span className="confidence">
-                            AI confidence:{" "}
-                            {score.dimensions[activePillar].confidence >= 0.7
-                              ? "high"
-                              : score.dimensions[activePillar].confidence >= 0.3
-                                ? "medium"
-                                : "low"}{" "}
-                            (not a measured probability)
-                          </span>
-                        </div>
-                      </div>
-                      {score.warnings?.map((w) => (
-                        <p className="score-disclaimer" key={w}>
-                          {w}
-                        </p>
-                      ))}
-                      <p className="score-disclaimer">
-                        {score.note} Jev visual scoring is experimental.
-                      </p>
-                    </div>
-                  )}
-                  {selected.mode === "fix" && selected.parent_id && (
-                    <div className="original-link">
-                      <button
-                        onClick={() => {
-                          const original = studio.creations.find(
-                            (c) => c.id === selected.parent_id,
-                          );
-                          if (original) choose(original);
-                        }}
-                      >
-                        <ArrowLeft size={14} />
-                        View original thumbnail
-                      </button>
-                      <span>Your original is preserved.</span>
-                      <button
-                        className="neutral-button"
-                        disabled={busy}
-                        onClick={compare}
-                      >
-                        Compare without scores
-                      </button>
-                    </div>
-                  )}
-                </section>
-              )}
+              {!hasReviewImage && resultPanel}
               {!selected && tool === "analyze" && (
                 <section className="pillars-intro" aria-label="Scoring pillars">
                   {pillars.map((p) => (
@@ -1664,6 +1704,7 @@ export default function Studio() {
         aria-labelledby="studio-dialog-title"
         ref={dialogRef}
         onCancel={() => setDialog(null)}
+        onClose={() => { if (!dialogRef.current?.open) { setDialog(null); restoreDialogFocus(); } }}
         onClick={(e) => {
           if (e.target === e.currentTarget) setDialog(null);
         }}
@@ -2026,10 +2067,11 @@ export default function Studio() {
                   <p>
                     <strong>Video promise:</strong> {fixReview.plan.videoBrief}
                   </p>
-                  <p>
-                    Model: {fixReview.plan.settings.model} · Quality:{" "}
-                    {fixReview.plan.settings.quality} · One image
-                  </p>
+                  <dl className="fix-settings">
+                    <div><dt>Model</dt><dd>{fixReview.plan.settings.model}</dd></div>
+                    <div><dt>Quality</dt><dd>{fixReview.plan.settings.quality}</dd></div>
+                    <div><dt>Images</dt><dd>1</dd></div>
+                  </dl>
                   <ol>
                     {fixReview.plan.operations.map((o) => (
                       <li key={o.id}>
@@ -2045,7 +2087,7 @@ export default function Studio() {
                     disabled={busy}
                     onClick={applyFix}
                   >
-                    Generate fixed image · uses API credits
+                    Generate fix with API credits
                   </button>
                 </>
               )}
