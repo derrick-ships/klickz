@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import type { FixPlan } from "@/lib/diagnostics";
 import { BrandScene } from "@/components/brand-scene";
+import { PixelConfirmation } from "@/components/pixel-confirmation";
 import { useStudio } from "@/lib/use-studio";
 import {
   defaultSettings,
@@ -98,6 +99,8 @@ export default function Studio() {
     [parentId, setParentId] = useState<string | null>(null),
     [dialog, setDialog] = useState<Dialog>(null),
     [sidebar, setSidebar] = useState(true),
+    [motionInput, setMotionInput] = useState<"keyboard" | "pointer">("keyboard"),
+    [saveReceipt, setSaveReceipt] = useState(0),
     [compactNavigation, setCompactNavigation] = useState(false),
     [linkOpen, setLinkOpen] = useState(false),
     [url, setUrl] = useState(""),
@@ -147,7 +150,10 @@ export default function Studio() {
     mainRef = useRef<HTMLElement>(null),
     navigationRef = useRef<HTMLElement>(null),
     navigationOpenRef = useRef<HTMLButtonElement>(null),
-    navigationCloseRef = useRef<HTMLButtonElement>(null);
+    navigationCloseRef = useRef<HTMLButtonElement>(null),
+    draftFingerprintRef = useRef("");
+  const draftFingerprint = JSON.stringify({ prompt, title, tool, personaId, styleId, preset, refs, settings, parentId });
+  draftFingerprintRef.current = draftFingerprint;
   const selected = studio.creations.find((c) => c.id === selection) || null,
     persona = studio.personas.find((p) => p.id === personaId),
     styleProfile = studio.styles.find((s) => s.id === styleId),
@@ -179,6 +185,7 @@ export default function Studio() {
     } else dialogRef.current?.close();
   }, [dialog]);
   useEffect(() => {
+    setSaveReceipt(0);
     setSelection(null);
     setRefs([]);
     setParentId(null);
@@ -187,6 +194,7 @@ export default function Studio() {
   }, [studio.user]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
+      setMotionInput("keyboard");
       if ((e.ctrlKey || e.metaKey) && e.key === "b") {
         e.preventDefault(); setSidebar((x) => !x);
         if (sidebar) requestAnimationFrame(() => navigationOpenRef.current?.focus());
@@ -207,6 +215,12 @@ export default function Studio() {
     addEventListener("keydown", listener);
     return () => removeEventListener("keydown", listener);
   }, [compactNavigation, sidebar]);
+  useEffect(() => { setSaveReceipt(0); }, [draftFingerprint]);
+  useEffect(() => {
+    if (!saveReceipt) return;
+    const timer = setTimeout(() => setSaveReceipt(0), 2800);
+    return () => clearTimeout(timer);
+  }, [saveReceipt]);
   const busy = !!studio.busy;
   const changeSettings = <K extends keyof Settings>(
     key: K,
@@ -220,6 +234,7 @@ export default function Studio() {
     setDialog(which);
   }
   function choose(item: Creation) {
+    setSaveReceipt(0);
     setSelection(item.id);
     setTitle(item.title);
     if (item.settings)
@@ -245,6 +260,7 @@ export default function Studio() {
     setPreset(item.style);
   }
   function startNew() {
+    setSaveReceipt(0);
     setSelection(null);
     setParentId(null);
     setPrompt("");
@@ -358,6 +374,8 @@ export default function Studio() {
     );
   }
   async function saveDraft() {
+    const savingFingerprint = draftFingerprint;
+    setSaveReceipt(0);
     await studio.run("Saving draft", async () => {
       const input = payload();
       const item = await studio.saveDraft({
@@ -372,6 +390,8 @@ export default function Studio() {
         parentId,
       });
       setSelection(item.id);
+      if (draftFingerprintRef.current === savingFingerprint)
+        setSaveReceipt((receipt) => receipt + 1);
     });
   }
   async function fix() {
@@ -482,7 +502,11 @@ export default function Studio() {
   const profileKind = dialog === "personas" ? "persona" : "style",
     profileItems = dialog === "personas" ? studio.personas : studio.styles;
   return (
-    <div className={`app-shell ${sidebar ? "sidebar-open" : ""}`}>
+    <div
+      className={`app-shell ${sidebar ? "sidebar-open" : ""}`}
+      data-motion-input={motionInput}
+      onPointerDownCapture={() => setMotionInput("pointer")}
+    >
       <a className="skip-link" href="#studio-content">Skip to studio</a>
       {sidebar && (
         <button
@@ -1239,10 +1263,19 @@ export default function Studio() {
                       : "Private by design. Save drafts while AI connects."}
                   </span>
                   {tool !== "analyze" && (
-                    <button onClick={saveDraft} disabled={busy}>
-                      <FolderOpen size={12} />
-                      Save draft
-                    </button>
+                    <div className="save-draft-feedback">
+                      <button
+                        className="save-draft-button"
+                        aria-label={saveReceipt ? "Draft saved. Save draft again" : "Save draft"}
+                        data-confirmed={saveReceipt > 0}
+                        onClick={saveDraft}
+                        disabled={busy}
+                      >
+                        {saveReceipt ? <PixelConfirmation key={saveReceipt} /> : <FolderOpen size={12} />}
+                        <span>{saveReceipt ? "Draft saved" : "Save draft"}</span>
+                      </button>
+                      <span className="sr-only" role="status">{saveReceipt ? "Draft saved to your library." : ""}</span>
+                    </div>
                   )}
                 </div>
                 <input

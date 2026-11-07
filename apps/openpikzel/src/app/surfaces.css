@@ -285,3 +285,36 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
   .settings-row { grid-template-columns: minmax(0, 1fr) 44px; }
   .settings-row > label:first-child { grid-column: 1 / -1; }
 }
+
+/* Delight: a completed draft locks four brand pixels into one finished tile.
+   Meaningful feedback is immediate; the finite mark never gates the action. */
+.save-draft-feedback { flex-shrink: 0; }
+.composer-footer .save-draft-button { min-inline-size: 106px; justify-content: flex-end; }
+.pixel-confirmation { color: var(--color-accent); flex-shrink: 0; }
+.pixel-confirmation rect { animation: pixel-lock 200ms var(--ease-out) both; }
+.pixel-confirmation rect:nth-child(1) { --pixel-x: -2px; --pixel-y: -2px; }
+.pixel-confirmation rect:nth-child(2) { --pixel-x: 2px; --pixel-y: -2px; animation-delay: 20ms; }
+.pixel-confirmation rect:nth-child(3) { --pixel-x: -2px; --pixel-y: 2px; animation-delay: 40ms; }
+.pixel-confirmation rect:nth-child(4) { --pixel-x: 2px; --pixel-y: 2px; animation-delay: 60ms; }
+@keyframes pixel-lock {
+  from { opacity: .35; transform: translate(var(--pixel-x), var(--pixel-y)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes control-unfold {
+  from { opacity: .6; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes control-confirm {
+  from { opacity: .65; }
+  to { opacity: 1; }
+}
+.app-shell[data-motion-input="pointer"] .advanced-controls { animation: control-unfold 160ms var(--ease-out); }
+@media (max-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .app-shell[data-motion-input="pointer"] .sidebar { transition: transform 160ms var(--ease-out); }
+  .app-shell[data-motion-input="pointer"].sidebar-open .sidebar { transition-duration: 220ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the save acknowledgment legible while removing spatial movement. */
+  .pixel-confirmation rect { animation: control-confirm 100ms ease-out both !important; animation-delay: 0ms !important; }
+  .app-shell[data-motion-input="pointer"] .advanced-controls { animation: control-confirm 100ms ease-out !important; }
+}

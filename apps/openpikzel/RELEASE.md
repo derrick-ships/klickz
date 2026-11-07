@@ -48,3 +48,7 @@ For public multiuser jobs, the exact deferred action is an explicit reviewed mig
 Impeccable Layout applied: stable composer groups, deliberate phone settings, tablet drawer with focus management, form-first compact provider onboarding and named dialogs. Final release checks passed:69 unit/database/route/protocol tests,19 functional browser tests, isolated3-sample mobile lab and6 Lighthouse runs. No provider calls, new generation credits, DNS, credentials, hosted policies or production promotion changed. See LAYOUT.md and PERFORMANCE.md.
 
 Latest protected layout preview: https://openpikzel-az5jay2km-derrick-serna-zabarains-projects.vercel.app — deployment `dpl_2XBeAkDoAnaeJrr3JyBCaTPy3ALa`, verified READY, preview target. Source implementation commit `321f713d183ce4985698e925ae8d96e12becc541`. Normal unauthenticated GET reaches Vercel sign-in; no bypass was created. Build duration about46s. Fresh median-run Lighthouse mobile98 (LCP2375ms), desktop100 (LCP521ms). This supersedes the mobile/performance preview for layout review.
+
+## Delight motion refinement
+
+Added one bounded four-pixel save acknowledgment after successful persistence, fingerprint-bound to the saved content and cleared by edits; pointer/touch panel continuity; immediate keyboard paths; opacity-only reduced-motion feedback. Final release gate passed:69 unit/database/route/protocol tests,22 functional browser cases,3-sample lab,6 Lighthouse runs. No provider calls, credits, dependencies, DNS, credentials, hosted policies or production promotion changed. See DELIGHT.md.

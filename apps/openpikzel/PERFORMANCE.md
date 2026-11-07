@@ -48,7 +48,7 @@ The independent Playwright/CDP lab uses390×844, CPU4×,150ms latency,1.6Mbps do
 
 These results describe this local production build’s unauthenticated studio route. They are not field p75, real-iPhone hardware, authenticated cloud-library load or API generation/scoring latency. Native WebKit could not launch due missing system libraries after Playwright’s unsupported-OS fallback; Safari remains unverified. Protected Vercel previews require normal authentication; no bypass URL was created. The public domain connection is complete, but existing authenticated-provider/OAuth/multiuser release gates remain in RELEASE.md. No provider credits, DNS, environment keys or hosted access policies changed for this correction.
 
-## Layout release — fresh verification
+## Layout release — historical baseline
 
 The full release gate passed on the final layout implementation, with the same limits. Three Lighthouse runs per profile and three isolated CDP lab samples were collected again.
 
@@ -63,3 +63,19 @@ The full release gate passed on the final layout implementation, with the same l
 | CLS |0.001|0.000|
 
 Controlled mobile lab medians: script_bytes=217525.000, css_bytes=9345.000, image_bytes=5098.000, total_bytes=256311.000, third_party=0.000, lcp_ms=696.000, cls=0.001, inp_sample_ms=72.000. Maximum click-to-two-frame feedback across all samples: 72.4ms. Lighthouse total transfer: mobile=261999B, desktop=264979B. Native-device and live-provider limitations above still apply.
+
+## Delight motion release — fresh verification
+
+TypeScript,69 unit/database/protocol cases, production build,22 functional browser cases, isolated3-sample lab and6 Lighthouse runs passed on the finished implementation. The same limits remain.
+
+| Median-run | Mobile | Desktop |
+| --- | --- | --- |
+| Performance |99|100|
+| Accessibility |100|100|
+| Best practices |100|100|
+| SEO |100|100|
+| LCP ms |1983.552|517.783|
+| TBT ms |62.500|0.000|
+| CLS |0.001|0.000|
+
+Controlled mobile lab medians: script_bytes=217845.000, css_bytes=9627.000, image_bytes=5098.000, total_bytes=256978.000, third_party=0.000, lcp_ms=680.000, cls=0.001, inp_sample_ms=72.000. Maximum click-to-two-frame feedback: 42.7ms. Lighthouse total transfer: mobile=262666B, desktop=265646B. No runtime dependencies or media were added. These are local lab metrics, not field p75, native-device or provider timings.

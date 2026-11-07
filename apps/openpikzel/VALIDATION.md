@@ -1,6 +1,6 @@
 # OpenPikzels validation
 
-November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and nineteen functional Playwright browser tests plus one isolated performance scenario. Tests make no paid provider requests.
+November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and twenty-two functional Playwright browser tests plus one isolated performance scenario. Tests make no paid provider requests.
 
 ## Verified locally
 
@@ -61,3 +61,11 @@ Final TypeScript/build,69 unit/database/route/protocol cases and19 functional br
 Actual rendered captures were opened for desktop, tablet, phones, empty dialogs, provider fixtures and the maximum-length name. Existing art-margin tests preserve the3:1 mobile crop. Final Impeccable layout detector returned `[]`. See LAYOUT.md for all seven structural verification questions and remaining limits; this does not claim full accessibility conformance or native Safari validation.
 
 The final layout release also passed the isolated mobile lab and all six Lighthouse runs with unchanged budgets. Fresh numbers are in PERFORMANCE.md and the two JSON reports; earlier mobile-correction figures above are historical.
+
+## Delight motion verification
+
+The existing TypeScript,69-case unit/database/protocol suite and production build remain the base. Three additional browser scenarios raise functional coverage to22: actual IndexedDB draft confirmation, failure without false success, repeat saves, clearing on subsequent edits, no replay after reload, pointer-only drawer/control continuity, global keyboard shortcut behavior and320px reduced motion. Keyboard state/focus changes stay immediate. Four-pixel acknowledgment is bounded to260ms; reduced motion uses100ms opacity without transform. No new dependency, paid generation, sound or looping effect is introduced.
+
+Actual390/1440 mid/settled save captures,320px reduced-motion capture and the compact drawer were opened for review. The one requested Impeccable mechanical scan found no issues in the changed motion targets; the later input-binding/global-shortcut adjustments do not alter visual recipes. The final build's controlled performance numbers are in PERFORMANCE.md and JSON reports. Native Safari/iPhone and live-provider/OAuth limitations still apply. See DELIGHT.md for exact values, deliberate exclusions and implementation safeguards.
+
+The finished delight implementation passed the full release gate, including22 functional browser cases with emulated touch PointerEvents and the global Ctrl+B shortcut starting from body focus. All6 fresh Lighthouse runs and the isolated3-sample lab passed unchanged budgets; fresh values are in PERFORMANCE.md and JSON reports.
