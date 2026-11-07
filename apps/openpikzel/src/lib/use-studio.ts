@@ -345,13 +345,26 @@ export function useStudio() {
     await load();
     return result as { creations: Creation[]; partial: boolean };
   }
-  async function analyze(item: Creation, title: string) {
+  async function analyze(
+    item: Creation,
+    title: string,
+    videoBrief = "",
+    includeVision = false,
+  ) {
     if (!cloud || !config?.ai)
       throw new Error(
         "Sign in and connect your own Jev key to score thumbnails.",
       );
     if (!config?.jev) throw new Error("Jev is not connected yet.");
-    const result = await api("/api/analyze", { creationId: item.id, title });
+    const intent = { creationId: item.id, title, videoBrief, includeVision };
+    const fingerprint = JSON.stringify(intent);
+    if (pendingRequest.current?.fingerprint !== fingerprint)
+      pendingRequest.current = { fingerprint, id: crypto.randomUUID() };
+    const result = await api("/api/analyze", {
+      ...intent,
+      requestId: pendingRequest.current.id,
+    });
+    pendingRequest.current = null;
     await load();
     return result;
   }
@@ -516,6 +529,7 @@ export function useStudio() {
     login,
     logout,
     api,
+    authHeaders: headers,
     requireLive,
   };
 }

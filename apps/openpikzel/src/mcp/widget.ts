@@ -108,17 +108,38 @@ function show(data: Record<string, any>) {
       details.append(img);
     }
   }
+  if (data.kind === "blocked" || data.kind === "noop")
+    status.textContent = data.reason;
+  if (data.plan && data.token) {
+    text("h3", "Review the proposed edits", details);
+    for (const op of data.plan.operations) text("p", op.instruction, details);
+    text("p", data.notice, details);
+    const apply = document.createElement("button");
+    apply.textContent = "Apply reviewed fix with my API";
+    const requestId = crypto.randomUUID();
+    apply.onclick = () =>
+      void call("one_click_fix", { planToken: data.token, requestId });
+    details.append(apply);
+  }
   if (data.message) status.textContent = data.message;
 }
 function score(value: Record<string, any>) {
-  text("h3", `Pixel score · ${value.overall}/100`, details);
+  text(
+    "h3",
+    `Pixel score · ${value.overall === null ? "Partial" : value.overall + "/100"}`,
+    details,
+  );
   for (const [pillar, d] of Object.entries(value.dimensions) as [
     string,
     Record<string, any>,
   ][]) {
     const row = document.createElement("section");
-    text("strong", `${pillar} · ${d.score}/100`, row);
-    text("p", d.observation, row);
+    text(
+      "strong",
+      `${pillar} · ${d.score === null ? "Not assessed" : d.score + "/100"}`,
+      row,
+    );
+    text("p", d.missingReason || d.observation, row);
     text("p", d.fix, row);
     details.append(row);
   }
@@ -141,7 +162,8 @@ async function call(name: string, args: Record<string, unknown> = {}) {
           .join(" "),
       );
     show(result.structuredContent || {});
-    status.textContent = "Ready";
+    if (!["blocked", "noop"].includes(String(result.structuredContent?.kind)))
+      status.textContent = "Ready";
     return result.structuredContent || {};
   } catch (e) {
     status.textContent =
@@ -201,14 +223,21 @@ document.querySelector("#score")!.addEventListener("click", () => {
     status.textContent = "Choose or upload a thumbnail first.";
     return;
   }
-  if (field("title").trim().length < 3) {
-    status.textContent = "Add the actual video title first.";
-    return;
-  }
-  void call("score_thumbnail", {
+  const args = {
     ...(selected ? { creationId: selected } : { imagePath }),
     title: field("title"),
-  });
+    videoBrief: field("brief"),
+    includeVision: (document.querySelector("#vision") as HTMLInputElement)
+      .checked,
+  };
+  const fingerprint = "score:" + JSON.stringify(args);
+  if (pending?.fingerprint !== fingerprint)
+    pending = { fingerprint, id: crypto.randomUUID() };
+  void call("score_thumbnail", { ...args, requestId: pending.id }).then(
+    (result) => {
+      if (result) pending = null;
+    },
+  );
 });
 document.querySelector("#generate")!.addEventListener("click", () => {
   void render(false);
@@ -242,7 +271,7 @@ async function render(fix: boolean) {
   const fingerprint = JSON.stringify(args);
   if (pending?.fingerprint !== fingerprint)
     pending = { fingerprint, id: crypto.randomUUID() };
-  const result = await call(fix ? "one_click_fix" : "generate_thumbnail", {
+  const result = await call(fix ? "create_fix_plan" : "generate_thumbnail", {
     ...args,
     requestId: pending.id,
   });

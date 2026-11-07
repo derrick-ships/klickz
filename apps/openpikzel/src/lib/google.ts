@@ -5,6 +5,7 @@ async function generate(
   model: string,
   parts: unknown[],
   generationConfig: Record<string, unknown>,
+  timeoutMs = 240000,
 ) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`,
@@ -18,7 +19,7 @@ async function generate(
         contents: [{ role: "user", parts }],
         generationConfig,
       }),
-      signal: AbortSignal.timeout(240000),
+      signal: AbortSignal.timeout(timeoutMs),
     },
   );
   if (!response.ok)
@@ -54,6 +55,7 @@ export async function googleText(
       ...(json ? { responseMimeType: "application/json" } : {}),
       maxOutputTokens: 3000,
     },
+    45000,
   );
   const text = parts
     ?.filter((p) => p.text)
@@ -75,11 +77,9 @@ export async function googleImage(
     model,
     [
       { text: prompt },
-      ...refs
-        .slice(0, 10)
-        .map((b) => ({
-          inlineData: { mimeType: "image/png", data: b.toString("base64") },
-        })),
+      ...refs.slice(0, 10).map((b) => ({
+        inlineData: { mimeType: "image/png", data: b.toString("base64") },
+      })),
     ],
     {
       responseModalities: ["TEXT", "IMAGE"],

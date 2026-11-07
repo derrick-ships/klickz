@@ -129,6 +129,11 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
           await sample(),
           "A real video title",
           "request-id",
+          {
+            videoBrief: "The video shows a real experiment",
+            audience: "",
+            includeVision: true,
+          },
         );
         expect(score.overall).toBe(50);
         const [url, request] = fetcher.mock.calls[1];
@@ -177,15 +182,13 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
 
 it("scores with Jev alone without silently charging an image or text provider", async () =>
   providerContext.run({ jev: "test-jev-placeholder" }, async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(
-        response({
-          answers: Object.fromEntries(
-            pillars.map((p) => [p, { score: 2, confidence: 0.7 }]),
-          ),
-        }),
-      );
+    const fetcher = vi.fn().mockResolvedValue(
+      response({
+        answers: Object.fromEntries(
+          pillars.map((p) => [p, { score: 2, confidence: 0.7 }]),
+        ),
+      }),
+    );
     vi.stubGlobal("fetch", fetcher);
     const value = await evaluateThumbnail(
       await sample(),
@@ -199,26 +202,24 @@ it("scores with Jev alone without silently charging an image or text provider", 
 it("routes Google image requests to the user key with native aspect ratio and fixed 1K output", async () =>
   providerContext.run({ google: "google-test-placeholder" }, async () => {
     const image = await sample(),
-      fetcher = vi
-        .fn()
-        .mockResolvedValue(
-          response({
-            candidates: [
-              {
-                content: {
-                  parts: [
-                    {
-                      inlineData: {
-                        mimeType: "image/png",
-                        data: image.toString("base64"),
-                      },
+      fetcher = vi.fn().mockResolvedValue(
+        response({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: "image/png",
+                      data: image.toString("base64"),
                     },
-                  ],
-                },
+                  },
+                ],
               },
-            ],
-          }),
-        );
+            },
+          ],
+        }),
+      );
     vi.stubGlobal("fetch", fetcher);
     const result = await renderThumbnail("Create a clear thumbnail", [], {
       ...defaultSettings,

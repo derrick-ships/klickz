@@ -72,10 +72,13 @@ describe("input, reference and score boundaries", () => {
     expect(score.dimensions.virality.confidence).toBe(0.4);
     expect(score.note).toContain("Not measured CTR");
   });
-  it("rejects incomplete scores", () => {
-    expect(() =>
-      parseScores({ answers: { clarity: { score: 3, confidence: 1 } } }),
-    ).toThrow();
+  it("represents missing pillars as unknown without inventing zero", () => {
+    const score = parseScores({
+      answers: { clarity: { score: 3, confidence: 1 } },
+    });
+    expect(score.dimensions.clarity.score).toBe(100);
+    expect(score.dimensions.idea.score).toBeNull();
+    expect(score.overall).toBeNull();
   });
   it("blocks local, credentials-bearing and insecure reference URLs", () => {
     for (const url of [

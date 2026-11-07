@@ -1,12 +1,12 @@
 # OpenPikzels validation
 
-November 7, 2026. Final validation covers TypeScript, 50 unit/database/route/protocol tests, a production build and ten Playwright browser tests. Tests make no paid provider requests.
+November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and eleven Playwright browser tests. Tests make no paid provider requests.
 
 ## Verified locally
 
 - Five studio modes, model/quality/intelligence/format/batch settings, real reference uploads and profile persistence, local drafts and downloads, actual 720×1280 PNG output for instant resize, responsive editor and 44px mobile controls.
 - OpenAI generation/edit contract, real image/title Jev payload with five rubrics, optional vision observations, Jev-only analysis without an extra provider charge, Google image contract and user-key forwarding, identity briefs, atomic batches, duplicate prevention and partial failures.
-- All four source migrations replay in PGlite: per-user row/folder isolation, foreign-key ownership, private buckets, provider ciphertext ownership, and public-release row isolation. The final release migration is intentionally unapplied in hosted Supabase.
+- All five source migrations replay in PGlite: per-user row/folder isolation, foreign-key ownership, private buckets, provider ciphertext ownership, and public-release row isolation. The final release migration is intentionally unapplied in hosted Supabase.
 - OAuth discovery, DCR redirect restrictions, mandatory S256 PKCE, exact resource audience, code theft prevention, single-use codes, expiration, scopes, refresh rotation/replay and revocation. Consent Origin/cookie protection and state-preserving Deny. Purpose-bound authenticated encryption and concurrent per-request BYOK contexts. Global owner keys never fall back to other users.
 - Actual SDK Streamable HTTP initialization, tool discovery, tool invocation, read-only protection and bundled MCP Apps HTML resources. Direct HTTP generation/analyze/prepare/resize routes independently reject AI grants missing write permission.
 - Browser HTTP registration→branded consent→Deny flow. Signed-in onboarding fixture verifies provider key entry clears immediately and never enters localStorage; connected-agent revocation controls and mobile layout render. A real iframe host bridge fixture exercises the bundled Apps UI, creation selection, score display, copyable fix prompt and clearing hidden thumbnail selection before resize.
@@ -18,16 +18,24 @@ Impeccable, Emil and Hallmark were installed and applied. The original editor's 
 ## Verified in hosted services
 
 - Private GitHub PR #2 preserves the existing root thumbnail project.
-- Vercel project protection remains enabled for all deployments. OpenAI/Jev variables are encrypted and preview-only; production AI remains disabled. No bypass secret is created.
-- Supabase hosted private-studio and private-accounts migrations succeeded. New provider/OAuth tables have RLS, deny anon SELECT and each retain a restrictive owner-preview policy. A rolled-back synthetic key/grant transaction confirmed another authenticated identity cannot see the rows. No test grants or keys persist.
-- Read-only Vercel domain inspection confirms openpikzels.com is not attached and DNS still points to GoDaddy parking. GoDaddy rejected the cloud browser after the account email step with an unusual-browser message; no password/OTP was entered and no sign-in succeeded. Supabase dashboard also requires sign-in. No DNS/account settings changed.
+- Vercel Authentication remains enabled for non-custom deployments; custom domains are public. OpenAI/Jev variables are encrypted and preview-only; production AI remains disabled. No bypass secret is created.
+- Supabase hosted private-studio, private-accounts and diagnostics/jobs migrations succeeded. New provider/OAuth tables have RLS, deny anon SELECT and each retain a restrictive owner-preview policy. A rolled-back synthetic key/grant transaction confirmed another authenticated identity cannot see the rows. No test grants or keys persist.
+- The main thread independently verified `openpikzels.com`/www attached to this Vercel project, working HTTPS and www→apex redirect. Domain routing is complete. This worker’s earlier GoDaddy cloud-browser restriction is no longer a domain blocker.
 
 ## Not yet verified live
 
-No real OpenAI/Jev/Google response, paid smoke test, real-client OAuth Allow/refresh sequence, production deployment, TLS for the purchased domain, or external Claude/Cursor/Codex connection is claimed. The paid smoke test is authorized but awaits a usable authenticated owner session. Public launch remains pending, and GoDaddy account access is blocked in this cloud browser; see RELEASE.md.
+No real OpenAI/Jev/Google response, paid smoke test, real-client OAuth Allow/refresh sequence, production feature promotion or external Claude/Cursor/Codex connection is claimed. The paid smoke test is authorized but awaits a usable authenticated owner session. Multiuser release and authenticated validation remain pending; see RELEASE.md.
 
 Automatic review rejected a batch that would also have copied owner provider keys to production. A read-only check confirmed no write occurred. The narrower approved preview-only operation succeeded. No owner keys are required in production for the BYOK design.
 
 ## Brand-production extension
 
 Two original GPT Image 2.6 backgrounds and two silent Kling 3.0 clips were produced through Higgsfield for 13.5 credits, then visually inspected and compressed. These completed branding jobs do not verify the app's separate OpenAI/Jev backend credentials. Two added browser tests pass for actual WebM playback, no video fetch before Play, pause on input focus, reduced-motion defaults and mobile controls. All six web assets total about 173 KB; posters load without external media hosts. ASSETS.md records exact provenance and limits.
+
+## Study-adaptation verification
+
+Real 200px image resizing, zero vs missing scores, null overall for partial diagnostics, context hashing, contradiction gates, signed diagnostic integrity, selected issue/evidence validation, preservation constraints, settings/source/expiry binding and stale re-analysis invalidation are unit-tested. Persistent job tests cover concurrent reservation, changed-payload rejection, successful replay, uncertain outcomes and SQL deadline reconciliation without paid retries.
+
+Database replay verifies immutable ready variants and durable lineage after parent deletion, immutable job identity/caps, owner isolation and reconciliation permissions. Comparison route tests verify randomized real 200px previews without prior score metadata, tie behavior and rejection of cross-account, expired, stale-image, changed-title or changed-factual-context votes. A fresh fixed variant retains its approved brief/audience.
+
+The partial-diagnostic browser fixture shows missing context and an explicitly blocked no-charge plan, with no `/api/generate` dispatch. Fixture screenshots: `evidence/openpikzels-fix-plan-blocked.png` and `evidence/openpikzels-partial-diagnostic-mobile.png`. Independent review’s final comparison-lineage context defect was corrected with regression coverage. No scoring calibration, measured CTR gain, automated pixel-fidelity verification or live application-provider response is claimed.

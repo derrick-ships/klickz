@@ -39,6 +39,7 @@ import {
   RotateCcw,
   AlertCircle,
 } from "lucide-react";
+import type { FixPlan } from "@/lib/diagnostics";
 import { BrandScene } from "@/components/brand-scene";
 import { useStudio } from "@/lib/use-studio";
 import {
@@ -57,6 +58,9 @@ type Dialog =
   | "styles"
   | "references"
   | "connections"
+  | "fixplan"
+  | "compare"
+  | "jobs"
   | "login"
   | null;
 const modes = [
@@ -110,13 +114,43 @@ export default function Studio() {
     [profileFiles, setProfileFiles] = useState<File[]>([]),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState("");
+  const [videoBrief, setVideoBrief] = useState(""),
+    [includeVision, setIncludeVision] = useState(false),
+    [fixReview, setFixReview] = useState<{
+      kind: string;
+      plan?: FixPlan;
+      token?: string;
+      notice?: string;
+      reason?: string;
+    } | null>(null),
+    [exactText, setExactText] = useState(""),
+    [requiredObjects, setRequiredObjects] = useState(""),
+    [forbiddenChanges, setForbiddenChanges] = useState(""),
+    [blindPair, setBlindPair] = useState<{
+      title: string;
+      token: string;
+      options: { label: string; preview: string; fullImage: string }[];
+      notice: string;
+    } | null>(null),
+    [reviewResult, setReviewResult] = useState(""),
+    [jobs, setJobs] = useState<
+      {
+        id: string;
+        operation: string;
+        state: string;
+        max_provider_calls: number;
+      }[]
+    >([]);
   const dialogRef = useRef<HTMLDialogElement>(null),
     uploadRef = useRef<HTMLInputElement>(null),
     mainRef = useRef<HTMLElement>(null);
   const selected = studio.creations.find((c) => c.id === selection) || null,
     persona = studio.personas.find((p) => p.id === personaId),
     styleProfile = studio.styles.find((s) => s.id === styleId),
-    score = selected?.score?.version === 2 ? selected.score : null;
+    score =
+      selected?.score && [2, 3].includes(selected.score.version)
+        ? selected.score
+        : null;
   useEffect(() => {
     const initial = new URL(location.href).searchParams.get("mode");
     if (modes.some((m) => m.id === initial)) setTool(initial as Tool);
@@ -268,11 +302,7 @@ export default function Studio() {
             throw new Error(
               "Upload a thumbnail or choose one from your library.",
             );
-          if (title.trim().length < 3)
-            throw new Error(
-              "Add the video title to analyze the complete packaging.",
-            );
-          await studio.analyze(selected, title);
+          await studio.analyze(selected, title, videoBrief, includeVision);
           return;
         }
         if (tool === "title" && titleAction === "ideas") {
@@ -322,19 +352,84 @@ export default function Studio() {
   }
   async function fix() {
     if (!selected) return;
-    await studio.run("Fixing packaging", async () => {
-      studio.requireLive();
-      const result = await studio.generate({
-        ...payload("fix"),
-        parentId: selected.id,
-        prompt:
-          "Improve the weakest packaging pillars using the analysis. Preserve the original video promise and identity.",
-        title: title || selected.title,
+    setFixReview(null);
+    setExactText("");
+    setRequiredObjects("");
+    setForbiddenChanges("");
+    setDialog("fixplan");
+  }
+  async function prepareFix() {
+    if (!selected) return;
+    await studio.run("Preparing fix plan", async () => {
+      const list = (s: string) =>
+        s
+          .split("\n")
+          .map((x) => x.trim())
+          .filter(Boolean);
+      const r = await studio.api("/api/fix-plan", {
+        creationId: selected.id,
         settings: { ...settings, batch: 1 },
-        referencePath: null,
-        referencePaths: [],
+        preserve: {
+          exactText: list(exactText),
+          requiredObjects: list(requiredObjects),
+          forbiddenChanges: list(forbiddenChanges),
+        },
+      });
+      setFixReview(r);
+    });
+  }
+  async function applyFix() {
+    if (!fixReview?.plan || !fixReview.token) return;
+    await studio.run("Applying reviewed fix", async () => {
+      const plan = fixReview.plan!;
+      const result = await studio.generate({
+        prompt:
+          "Apply the reviewed packaging edits while preserving the original.",
+        title: plan.title,
+        parentId: plan.sourceId,
+        mode: "fix",
+        settings: plan.settings,
+        fixPlanToken: fixReview.token,
+        requestId: crypto.randomUUID(),
       });
       setSelection(result.creations[0].id);
+      setDialog(null);
+    });
+  }
+  async function compare() {
+    if (!selected) return;
+    await studio.run("Preparing blind comparison", async () => {
+      setBlindPair(
+        await studio.api("/api/compare", { creationId: selected.id }),
+      );
+      setReviewResult("");
+      setDialog("compare");
+    });
+  }
+  async function decideComparison(preference: string) {
+    if (!blindPair) return;
+    await studio.run("Saving review", async () => {
+      const result = await studio.api("/api/compare", {
+        token: blindPair.token,
+        preference,
+      });
+      setReviewResult(
+        result.keptOriginal
+          ? "Keep the original, or review again later. Both versions remain saved."
+          : "You preferred the new variant. Both versions remain saved; check identity, facts and wording before export.",
+      );
+      await studio.load();
+    });
+  }
+  async function showJobs() {
+    await studio.run("Loading jobs", async () => {
+      const r = await fetch("/api/jobs", {
+        headers: await studio.authHeaders(),
+      });
+      const value = await r.json();
+      if (!r.ok) throw new Error(value.error);
+      setJobs(value.jobs);
+      setDialog("jobs");
     });
   }
   async function resize() {
@@ -550,6 +645,11 @@ export default function Studio() {
           ref={mainRef}
           className={tab === "library" ? "library-main" : "studio-main"}
         >
+          {dialog === "connections" && studio.cloud && (
+            <button className="neutral-button full-width" onClick={showJobs}>
+              View persistent jobs
+            </button>
+          )}
           {dialog === "login" && (
             <p className="dialog-footnote">
               New here?{" "}
@@ -727,6 +827,34 @@ export default function Studio() {
                           onChange={(e) => setTitle(e.target.value)}
                           placeholder="The title your audience will see"
                         />
+                      </div>
+                    )}
+                    {tool === "analyze" && (
+                      <div className="diagnostic-context">
+                        <label htmlFor="video-brief">
+                          What actually happens in the video?
+                        </label>
+                        <textarea
+                          id="video-brief"
+                          value={videoBrief}
+                          onChange={(e) => setVideoBrief(e.target.value)}
+                          maxLength={2400}
+                          placeholder="The factual promise, what is shown, and any claims to preserve. Optional for visual-only diagnostics."
+                        />
+                        <label className="vision-choice">
+                          <input
+                            type="checkbox"
+                            checked={includeVision}
+                            onChange={(e) => setIncludeVision(e.target.checked)}
+                          />
+                          Add image-specific vision critique (one extra OpenAI
+                          or Google request)
+                        </label>
+                        <p>
+                          Jev alone assesses visual rubrics. Missing title or
+                          brief leaves Idea and Curiosity unassessed; no overall
+                          score is invented.
+                        </p>
                       </div>
                     )}
                     {tool !== "analyze" && (
@@ -1255,8 +1383,8 @@ export default function Studio() {
                         <div>
                           <span>OpenPikzels Score</span>
                           <h2>
-                            {score.overall}
-                            <small>/100</small>
+                            {score.overall ?? "Partial"}
+                            {score.overall !== null && <small>/100</small>}
                           </h2>
                           <p>Thumbnail + title, across five pillars.</p>
                         </div>
@@ -1281,19 +1409,26 @@ export default function Studio() {
                             >
                               <span>{names[p]}</span>
                               <strong>
-                                {score.dimensions[p].score}
-                                <small>/100</small>
+                                {score.dimensions[p].score ?? "Not assessed"}
+                                {score.dimensions[p].score !== null && (
+                                  <small>/100</small>
+                                )}
                               </strong>
-                              <progress
-                                max={100}
-                                value={score.dimensions[p].score}
-                              />
+                              {score.dimensions[p].score !== null && (
+                                <progress
+                                  max={100}
+                                  value={score.dimensions[p].score!}
+                                />
+                              )}
                             </button>
                           ))}
                         </div>
                         <div className="pillar-detail">
                           <h3>{names[activePillar]}</h3>
-                          <p>{score.dimensions[activePillar].observation}</p>
+                          <p>
+                            {score.dimensions[activePillar].missingReason ||
+                              score.dimensions[activePillar].observation}
+                          </p>
                           <dl>
                             <dt>Working for you</dt>
                             <dd>{score.dimensions[activePillar].strength}</dd>
@@ -1303,14 +1438,21 @@ export default function Studio() {
                             <dd>{score.dimensions[activePillar].fix}</dd>
                           </dl>
                           <span className="confidence">
-                            Jev confidence{" "}
-                            {Math.round(
-                              score.dimensions[activePillar].confidence * 100,
-                            )}
-                            %
+                            Provider confidence:{" "}
+                            {score.dimensions[activePillar].confidence >= 0.7
+                              ? "high"
+                              : score.dimensions[activePillar].confidence >= 0.3
+                                ? "medium"
+                                : "low"}{" "}
+                            (uncalibrated)
                           </span>
                         </div>
                       </div>
+                      {score.warnings?.map((w) => (
+                        <p className="score-disclaimer" key={w}>
+                          {w}
+                        </p>
+                      ))}
                       <p className="score-disclaimer">
                         {score.note} Jev visual scoring is experimental.
                       </p>
@@ -1330,6 +1472,13 @@ export default function Studio() {
                         View original thumbnail
                       </button>
                       <span>Your original is preserved.</span>
+                      <button
+                        className="neutral-button"
+                        disabled={busy}
+                        onClick={compare}
+                      >
+                        Compare without scores
+                      </button>
                     </div>
                   )}
                 </section>
@@ -1445,7 +1594,13 @@ export default function Studio() {
                     ? "Reference library"
                     : dialog === "login"
                       ? "Your private workspace"
-                      : "Workspace connections"}
+                      : dialog === "fixplan"
+                        ? "Review one-click fix"
+                        : dialog === "compare"
+                          ? "Compare without scores"
+                          : dialog === "jobs"
+                            ? "Persistent jobs"
+                            : "Workspace connections"}
             </h2>
             <button
               className="icon-button"
@@ -1678,6 +1833,138 @@ export default function Studio() {
                 <Upload size={15} />
                 Upload a new reference
               </button>
+            </>
+          )}
+          {dialog === "jobs" && (
+            <>
+              <p>
+                Jobs persist across page reloads. A reconciling outcome may
+                already have used provider credits; do not automatically
+                resubmit.
+              </p>
+              {jobs.map((j) => (
+                <div className="connection-row" key={j.id}>
+                  <strong>{j.operation}</strong>
+                  <span>
+                    {j.state} · at most {j.max_provider_calls} provider
+                    request(s)
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+          {dialog === "compare" && blindPair && (
+            <>
+              <p className="dialog-description">{blindPair.notice}</p>
+              <p>{blindPair.title}</p>
+              <div className="blind-options">
+                {blindPair.options.map((o) => (
+                  <figure key={o.label}>
+                    <figcaption>Option {o.label}</figcaption>
+                    <img
+                      src={o.preview}
+                      width={200}
+                      alt={`Option ${o.label} at actual 200 pixel width`}
+                    />
+                    <a href={o.fullImage} target="_blank" rel="noreferrer">
+                      Inspect full image
+                    </a>
+                    <button
+                      className="neutral-button"
+                      disabled={busy || !!reviewResult}
+                      onClick={() => decideComparison(o.label)}
+                    >
+                      Prefer {o.label}
+                    </button>
+                  </figure>
+                ))}
+              </div>
+              <div className="consent-actions">
+                {["tie", "inconclusive"].map((p) => (
+                  <button
+                    key={p}
+                    className="neutral-button"
+                    disabled={busy || !!reviewResult}
+                    onClick={() => decideComparison(p)}
+                  >
+                    {p === "tie"
+                      ? "No meaningful difference"
+                      : "Needs more review"}
+                  </button>
+                ))}
+              </div>
+              <p role="status">{reviewResult}</p>
+            </>
+          )}
+          {dialog === "fixplan" && (
+            <>
+              <p className="dialog-description">
+                Review the exact changes before using your image-provider
+                credits. One new variant; no automatic re-analysis. Your
+                original and its lineage stay saved.
+              </p>
+              {[
+                ["Exact wording to preserve", exactText, setExactText],
+                ["Required objects", requiredObjects, setRequiredObjects],
+                ["Forbidden changes", forbiddenChanges, setForbiddenChanges],
+              ].map(([label, value, setter]) => (
+                <label key={String(label)}>
+                  {String(label)}
+                  <textarea
+                    value={String(value)}
+                    maxLength={1200}
+                    placeholder="One item per line, up to eight"
+                    onChange={(e) => {
+                      (setter as (s: string) => void)(e.target.value);
+                      setFixReview(null);
+                    }}
+                  />
+                </label>
+              ))}
+              <p>
+                Identity, existing wording, the factual video promise and
+                original image are preserved by default. This is a full-image
+                edit, not a verified pixel mask.
+              </p>
+              <button
+                className="neutral-button full-width"
+                disabled={busy}
+                onClick={prepareFix}
+              >
+                Prepare fix plan · no API charge
+              </button>
+              {fixReview?.plan && (
+                <>
+                  <p>
+                    <strong>Title:</strong> {fixReview.plan.title}
+                  </p>
+                  <p>
+                    <strong>Video promise:</strong> {fixReview.plan.videoBrief}
+                  </p>
+                  <p>
+                    Model: {fixReview.plan.settings.model} · Quality:{" "}
+                    {fixReview.plan.settings.quality} · One image
+                  </p>
+                  <ol>
+                    {fixReview.plan.operations.map((o) => (
+                      <li key={o.id}>
+                        <strong>{names[o.pillar]}</strong>
+                        <p>{o.instruction}</p>
+                        <small>{o.tradeoff}</small>
+                      </li>
+                    ))}
+                  </ol>
+                  <p>{fixReview.notice}</p>
+                  <button
+                    className="primary-button full-width"
+                    disabled={busy}
+                    onClick={applyFix}
+                  >
+                    Apply one fix with my API
+                  </button>
+                </>
+              )}
+              {fixReview?.reason && <p role="status">{fixReview.reason}</p>}
             </>
           )}
           {dialog === "connections" && (

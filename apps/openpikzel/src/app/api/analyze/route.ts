@@ -7,37 +7,60 @@ import {
 import { reviewSchema, AppError } from "@/lib/validation";
 import { evaluateThumbnail } from "@/lib/providers";
 import { ownedAsset } from "@/lib/assets";
-import { NextResponse } from "next/server";
+import { digest } from "@/lib/diagnostics";
+import { seal } from "@/lib/crypto";
+import { signDiagnostic } from "@/lib/diagnostic-proof";
+import { reserveJob, updateJob, ambiguousProviderError } from "@/lib/jobs";
 export const maxDuration = 180;
 async function handle(request: Request) {
+  let context: Awaited<ReturnType<typeof authenticated>> | undefined;
+  let jobId: string | undefined;
+  let dispatched = false;
   try {
-    const { db, user } = await authenticated(request);
+    context = await authenticated(request);
+    const { db, user } = context;
     requireAI("jev");
+    seal({ check: true }, "diagnostic-proof"); // Verify signing configuration before any paid dispatch.
     const input = reviewSchema.parse(await request.json());
-    let path = input.imagePath;
-    let id = input.creationId;
+    if (input.includeVision) requireAI("openai");
+    let path = input.imagePath,
+      id = input.creationId;
     if (id) {
-      const { data, error } = await db
+      const r = await db
         .from("studio_creations")
         .select("image_path")
         .eq("id", id)
         .eq("user_id", user.id)
         .single();
-      if (error || !data?.image_path)
+      if (r.error || !r.data?.image_path)
         throw new AppError(404, "Choose an uploaded or generated thumbnail.");
-      path = data.image_path;
+      path = r.data.image_path;
     }
     if (!path) throw new AppError(400, "Choose a thumbnail.");
-    const image = await ownedAsset(db, user.id, path);
-    const score = await evaluateThumbnail(
-      image,
-      input.title,
-      crypto.randomUUID(),
+    const image = await ownedAsset(db, user.id, path),
+      reserved = await reserveJob(
+        db,
+        user.id,
+        input.requestId,
+        "analyze",
+        { ...input, sourceDigest: digest(image) },
+        input.includeVision ? 2 : 1,
+      );
+    if (reserved.replay) return Response.json(reserved.replay);
+    jobId = input.requestId;
+    await updateJob(db, user.id, jobId, "running");
+    dispatched = true;
+    const score = signDiagnostic(
+      await evaluateThumbnail(image, input.title, input.requestId, {
+        videoBrief: input.videoBrief,
+        audience: input.audience,
+        includeVision: input.includeVision,
+      }),
     );
     if (id) {
       const saved = await db
         .from("studio_creations")
-        .update({ score, title: input.title })
+        .update({ score, title: input.title || "Untitled thumbnail" })
         .eq("id", id)
         .eq("user_id", user.id);
       if (saved.error) throw saved.error;
@@ -46,8 +69,8 @@ async function handle(request: Request) {
         .from("studio_creations")
         .insert({
           user_id: user.id,
-          title: input.title,
-          prompt: input.title.padEnd(8, "."),
+          title: input.title || "Untitled thumbnail",
+          prompt: (input.title || "Uploaded thumbnail").padEnd(8, "."),
           mode: "generate",
           style: "Uploaded",
           image_path: path,
@@ -59,12 +82,20 @@ async function handle(request: Request) {
       if (saved.error) throw saved.error;
       id = saved.data.id;
     }
-    return NextResponse.json({ score, creationId: id });
+    const result = { score, creationId: id, jobId };
+    await updateJob(db, user.id, jobId, "succeeded", result);
+    return Response.json(result);
   } catch (e) {
+    if (context && jobId)
+      await updateJob(
+        context.db,
+        context.user.id,
+        jobId,
+        dispatched && ambiguousProviderError(e) ? "reconciling" : "failed",
+      ).catch(() => {});
     return failure(e);
   }
 }
-
 export const POST = (request: Request) =>
   withUserProviders(request, () => handle(request), [
     "studio:ai",

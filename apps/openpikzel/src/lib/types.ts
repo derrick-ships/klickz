@@ -50,7 +50,8 @@ export const pillars = [
 ] as const;
 export type Pillar = (typeof pillars)[number];
 export type Dimension = {
-  score: number;
+  score: number | null;
+  missingReason?: string;
   confidence: number;
   observation: string;
   strength: string;
@@ -59,9 +60,32 @@ export type Dimension = {
 };
 export type Evaluation = {
   source: "jev";
-  version: 2;
+  version: 2 | 3;
   dimensions: Record<Pillar, Dimension>;
-  overall: number;
+  overall: number | null;
+  partial?: boolean;
+  sourceDigest?: string;
+  inputDigest?: string;
+  rubricVersion?: string;
+  context?: { title: string; videoBrief: string; audience: string };
+  preview?: { width: number; height: number; digest: string };
+  vision?: boolean;
+  evidence?: {
+    id: string;
+    pillar: Pillar;
+    asset: "original" | "preview";
+    statement: string;
+  }[];
+  issues?: {
+    id: string;
+    pillar: Pillar;
+    evidenceIds: string[];
+    instruction: string;
+    tradeoff: string;
+  }[];
+  warnings?: string[];
+  fixBlocked?: boolean;
+  proof?: string;
   title: string;
   note: string;
   priority: Pillar;
@@ -80,7 +104,7 @@ export type Creation = {
   image_path: string | null;
   parent_id: string | null;
   favorite: boolean;
-  status: "draft" | "ready" | "failed" | "generating";
+  status: "draft" | "ready" | "failed" | "generating" | "reconciling";
   created_at: string;
   titles?: string[];
   score?: Evaluation | null;
@@ -88,6 +112,8 @@ export type Creation = {
   request_id?: string;
   batch_id?: string;
   batch_index?: number;
+  lineage?: { sourceId: string; sourceDigest: string; fixPlanHash?: string };
+  review?: { preference: string; order: string[]; decidedAt: string };
 };
 export type Config = {
   cloud: boolean;

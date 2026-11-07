@@ -22,6 +22,7 @@ export const generationSchema = z
     referencePaths: z.array(z.string().max(400)).max(6).default([]),
     settings: settingsSchema.default({}),
     requestId: z.string().uuid(),
+    fixPlanToken: z.string().max(32000).optional(),
   })
   .superRefine((v, ctx) => {
     if (["edit", "fix"].includes(v.mode) && !v.parentId && !v.referencePath)
@@ -45,7 +46,14 @@ export const reviewSchema = z
   .object({
     creationId: z.string().uuid().optional(),
     imagePath: z.string().max(400).optional(),
-    title: z.string().trim().min(3).max(100),
+    title: z.string().trim().max(100).default(""),
+    videoBrief: z.string().trim().max(2400).default(""),
+    audience: z.string().trim().max(200).default(""),
+    includeVision: z.boolean().default(false),
+    requestId: z
+      .string()
+      .uuid()
+      .default(() => crypto.randomUUID()),
   })
   .refine((x) => x.creationId || x.imagePath, "Choose a thumbnail");
 export function ownedPath(path: string, userId: string) {
@@ -64,30 +72,34 @@ export class AppError extends Error {
     super(message);
   }
 }
-export const observationSchema = z.object({
-  summary: z.string(),
-  dimensions: z.object(
-    Object.fromEntries(
-      pillars.map((p) => [
-        p,
-        z.object({
-          observation: z.string(),
-          strength: z.string(),
-          weakness: z.string(),
-          fix: z.string(),
-        }),
-      ]),
-    ) as Record<
-      (typeof pillars)[number],
-      z.ZodObject<{
-        observation: z.ZodString;
-        strength: z.ZodString;
-        weakness: z.ZodString;
-        fix: z.ZodString;
-      }>
-    >,
-  ),
-});
+export const observationSchema = z
+  .object({
+    summary: z.string().max(3000),
+    promiseConflict: z.boolean().default(false),
+    readableText: z.string().max(2000).nullable().default(null),
+    dimensions: z.object(
+      Object.fromEntries(
+        pillars.map((p) => [
+          p,
+          z.object({
+            observation: z.string().max(1500),
+            strength: z.string().max(1500),
+            weakness: z.string().max(1500),
+            fix: z.string().max(1500),
+          }),
+        ]),
+      ) as Record<
+        (typeof pillars)[number],
+        z.ZodObject<{
+          observation: z.ZodString;
+          strength: z.ZodString;
+          weakness: z.ZodString;
+          fix: z.ZodString;
+        }>
+      >,
+    ),
+  })
+  .strict();
 export function parseScores(
   payload: unknown,
   observations?: z.infer<typeof observationSchema>,
@@ -97,20 +109,25 @@ export function parseScores(
     .object({
       answers: z.record(
         z.object({
-          score: z.number().min(0).max(3),
+          score: z.number().min(0).max(3).nullable(),
           confidence: z.number().min(0).max(1),
         }),
       ),
     })
     .parse(payload);
-  if (pillars.some((p) => !answers[p]))
-    throw new Error("Incomplete Jev evaluation");
+
   const dimensions = Object.fromEntries(
     pillars.map((p) => [
       p,
       {
-        score: Math.round((answers[p].score / 3) * 100),
-        confidence: answers[p].confidence,
+        score:
+          answers[p]?.score == null
+            ? null
+            : Math.round((answers[p].score! / 3) * 100),
+        ...(answers[p]?.score == null
+          ? { missingReason: "Provider did not assess this pillar." }
+          : {}),
+        confidence: answers[p]?.confidence || 0,
         observation: observations?.dimensions[p].observation || "",
         strength: observations?.dimensions[p].strength || "",
         weakness: observations?.dimensions[p].weakness || "",
@@ -122,11 +139,11 @@ export function parseScores(
     source: "jev",
     version: 2,
     dimensions,
-    overall: Math.round(
-      pillars.reduce((n, p) => n + dimensions[p].score, 0) / 5,
-    ),
+    overall: pillars.some((p) => dimensions[p].score === null)
+      ? null
+      : Math.round(pillars.reduce((n, p) => n + dimensions[p].score!, 0) / 5),
     priority: [...pillars].sort(
-      (a, b) => dimensions[a].score - dimensions[b].score,
+      (a, b) => (dimensions[a].score ?? 100) - (dimensions[b].score ?? 100),
     )[0],
     title,
     note: "AI assessment of this image and title. Not measured CTR or a guarantee of views.",

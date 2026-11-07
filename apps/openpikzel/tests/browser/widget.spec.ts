@@ -65,6 +65,12 @@ test("MCP Apps iframe bridge shows creations, scores and clears hidden selection
           data = {
             prompt: "Edit the original thumbnail. Simplify background details.",
           };
+        if (m.params.name === "create_fix_plan")
+          data = {
+            kind: "blocked",
+            reason:
+              "Add factual context and vision critique before an API fix.",
+          };
         result = {
           content: [{ type: "text", text: JSON.stringify(data) }],
           structuredContent: data,
@@ -94,6 +100,12 @@ test("MCP Apps iframe bridge shows creations, scores and clears hidden selection
   await widget.getByRole("button", { name: "Fix prompt for ChatGPT" }).click();
   await expect(widget.getByLabel("Copyable improvement prompt")).toHaveValue(
     /Simplify/,
+  );
+  await widget
+    .getByRole("button", { name: "Fix with my API", exact: true })
+    .click();
+  await expect(widget.getByRole("status")).toHaveText(
+    "Add factual context and vision critique before an API fix.",
   );
   await page.screenshot({
     path: "evidence/openpikzels-mcp-widget.png",

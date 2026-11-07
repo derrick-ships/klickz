@@ -44,11 +44,13 @@ Jev can score an image created inside ChatGPT without an OpenAI image API call. 
 
 The app lives in the existing private `derrick-ships/klickz` repository under `apps/openpikzel/`, draft [PR #2](https://github.com/derrick-ships/klickz/pull/2). The existing Supabase project is `app-starter-dev` / `iufiqfvufoecbuakzale`; creations, profiles, provider ciphertext and OAuth grants have RLS, and `studio-assets` is private. No service-role key is used.
 
-Vercel project `openpikzel` / `prj_QyWc3SoRUCmGsPRmwx4tm4kVhI9z` remains protected on all URLs. Authorized OpenAI/Jev keys and the server encryption key were configured only for the protected preview. The owner-key fallback is restricted to the exact existing owner account. Other users never receive that fallback. Production AI is disabled and has no provider keys.
+Vercel project `openpikzel` / `prj_QyWc3SoRUCmGsPRmwx4tm4kVhI9z` protects non-custom deployments with Vercel Authentication. The main thread independently verified that `openpikzels.com` and `www` are attached, HTTPS works and www redirects to the apex; custom domains are public. Authorized OpenAI/Jev keys and the server encryption key were configured only for the protected preview. The owner-key fallback is restricted to the exact existing owner account. Other users never receive that fallback. Production AI is disabled and has no provider keys.
 
-`openpikzels.com` is the planned public domain. **Domain connection and public MCP launch are still pending.** No DNS records or public access settings were changed. See [RELEASE.md](RELEASE.md) for the verified DNS state, unapplied release migration, exact activation steps and approval-review outcome. No paid provider test has run yet.
+Domain connection is complete. **Authenticated app/provider validation and multiuser MCP activation remain pending.** See [RELEASE.md](RELEASE.md) for the remaining account/release gates and approval-review outcome. No paid application-provider smoke test has run yet.
 
-For a fresh local deployment copy `.env.example`, configure the browser-safe Supabase variables and a 32-byte hex `STUDIO_ENCRYPTION_KEY`. Use the first three migrations for an owner-restricted preview. Apply the separate public-release migration only when intentionally enabling per-user access. Keep the encryption key stable; rotation requires reconnecting encrypted provider keys and agent sessions.
+For a fresh local deployment copy `.env.example`, configure the browser-safe Supabase variables and a 32-byte hex `STUDIO_ENCRYPTION_KEY`. Apply the private-studio, settings/batch, private-account and diagnostics/jobs migrations for an owner-restricted preview. The separate public-release migration remains unapplied and does not remove the new restrictive jobs-owner policy; broad access needs an explicit, reviewed release change. Keep the encryption key stable; rotation requires reconnecting encrypted provider keys and agent sessions.
+
+See [STUDY.md](STUDY.md) for the implemented study adaptations: nullable diagnostic pillars, actual 200px previews, signed evidence-based fix plans, immutable variant lineage, blinded human comparison and persistent idempotency jobs.
 
 ## Reliability and limits
 

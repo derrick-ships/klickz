@@ -143,6 +143,74 @@ describe("PostgreSQL migration and row isolation", () => {
     ).rejects.toThrow();
     await db.exec("set request.jwt.claim.owner='true'");
   });
+  it("locks ready images and lineage while preserving metadata and deliberate deletion", async () => {
+    await asUser(alice);
+    const parent = "33333333-3333-4333-8333-333333333333",
+      child = "44444444-4444-4444-8444-444444444444";
+    await db.exec(
+      `insert into studio_creations(id,user_id,title,prompt,mode,style,image_path,status) values('${parent}','${alice}','Immutable original','A specific video concept','generate','Auto','${alice}/original.png','ready');insert into studio_creations(id,user_id,title,prompt,mode,style,image_path,status,parent_id,lineage) values('${child}','${alice}','Immutable variant','A specific video concept','fix','Auto','${alice}/variant.png','ready','${parent}','{"sourceId":"${parent}","sourceDigest":"kept"}');`,
+    );
+    await expect(
+      db.exec(
+        `update studio_creations set image_path='${alice}/replacement.png' where id='${parent}'`,
+      ),
+    ).rejects.toThrow("immutable");
+    await expect(
+      db.exec(`update studio_creations set parent_id=null where id='${child}'`),
+    ).rejects.toThrow("immutable");
+    await db.exec(
+      `update studio_creations set favorite=true where id='${child}';delete from studio_creations where id='${parent}'`,
+    );
+    const row = await db.query<{
+      parent_id: string | null;
+      lineage: { sourceId: string };
+    }>(`select parent_id,lineage from studio_creations where id='${child}'`);
+    expect(row.rows[0].parent_id).toBeNull();
+    expect(row.rows[0].lineage.sourceId).toBe(parent);
+  });
+  it("persists isolated jobs and prevents request identity changes or deletion", async () => {
+    await asUser(alice);
+    await db.exec(
+      `insert into studio_jobs(id,user_id,operation,payload_digest,state,max_provider_calls) values('${alice}','${alice}','analyze',repeat('a',64),'queued',2)`,
+    );
+    await expect(
+      db.exec(
+        `update studio_jobs set payload_digest=repeat('b',64) where id='${alice}'`,
+      ),
+    ).rejects.toThrow("immutable");
+    await expect(db.exec("delete from studio_jobs")).rejects.toThrow();
+    await asUser(bob);
+    expect((await db.query("select * from studio_jobs")).rows).toHaveLength(0);
+  });
+  it("reconciles expired dispatches after a hard process termination without retrying", async () => {
+    await asUser(alice);
+    const job = "55555555-5555-4555-8555-555555555555";
+    await db.exec(
+      `insert into studio_jobs(id,user_id,operation,payload_digest,state,max_provider_calls,deadline_at) values('${job}','${alice}','generate',repeat('f',64),'running',1,now()-interval '1 second');insert into studio_creations(user_id,title,prompt,mode,style,status,batch_id) values('${alice}','Interrupted dispatch','A specific video concept','generate','Auto','generating','${job}');`,
+    );
+    expect(
+      (await db.query<{ n: number }>("select studio_reconcile_jobs() as n"))
+        .rows[0].n,
+    ).toBe(1);
+    expect(
+      (
+        await db.query<{ state: string }>(
+          `select state from studio_jobs where id='${job}'`,
+        )
+      ).rows[0].state,
+    ).toBe("reconciling");
+    expect(
+      (
+        await db.query<{ status: string }>(
+          `select status from studio_creations where batch_id='${job}'`,
+        )
+      ).rows[0].status,
+    ).toBe("reconciling");
+    expect(
+      (await db.query<{ n: number }>("select studio_reconcile_jobs() as n"))
+        .rows[0].n,
+    ).toBe(0);
+  });
   it("denies unauthenticated database access", async () => {
     await db.exec("reset role;set role anon;");
     await expect(db.query("select * from studio_creations")).rejects.toThrow();

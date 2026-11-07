@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { seal } from "../src/lib/crypto";
+import {
+  digest,
+  enrichDiagnostic,
+  compileFixPlan,
+} from "../src/lib/diagnostics";
+import { signDiagnostic } from "../src/lib/diagnostic-proof";
 import { defaultSettings, pillars } from "../src/lib/types";
 const mock = vi.hoisted(() => ({
   duplicate: false,
@@ -77,6 +84,11 @@ vi.mock("../src/lib/server", async () => {
     }),
   };
 });
+vi.mock("../src/lib/jobs", () => ({
+  reserveJob: async () => ({ replay: null }),
+  updateJob: async () => {},
+  ambiguousProviderError: () => true,
+}));
 vi.mock("../src/lib/providers", () => ({
   renderThumbnail: mock.render,
   evaluateThumbnail: mock.evaluate,
@@ -100,6 +112,7 @@ const request = (data: Record<string, unknown>) =>
     }),
   });
 beforeEach(() => {
+  vi.stubEnv("STUDIO_ENCRYPTION_KEY", "a".repeat(64));
   mock.duplicate = false;
   mock.reservations = [];
   mock.updates = [];
@@ -162,10 +175,63 @@ describe("generation orchestration without provider traffic", () => {
     expect(result.partial).toBe(true);
     expect(result.creations).toHaveLength(3);
     expect(mock.render).toHaveBeenCalledTimes(4);
-    expect(mock.updates.some((x) => x.status === "failed")).toBe(true);
+    expect(mock.updates.some((x) => x.status === "reconciling")).toBe(true);
   });
   it("fixes the source using the existing matching image-and-title critique", async () => {
-    const response = await POST(request({ mode: "fix", parentId: id }));
+    const base = {
+      ...(mock.parent.score as Record<string, unknown>),
+      source: "jev",
+      version: 2,
+      overall: 50,
+      note: "fixture",
+      priority: "clarity",
+      created_at: new Date().toISOString(),
+      dimensions: Object.fromEntries(
+        pillars.map((p) => [
+          p,
+          {
+            score: 50,
+            confidence: 0.7,
+            observation: "Competing text is visible",
+            strength: "Visible subject",
+            weakness: "Text competes",
+            fix: "Shorten the competing text",
+          },
+        ]),
+      ),
+    } as any;
+    const source = Buffer.from("reference");
+    const score = signDiagnostic(
+      enrichDiagnostic(
+        base,
+        source,
+        "A specific video",
+        {
+          videoBrief: "The actual video shows a specific experiment.",
+          audience: "",
+          includeVision: true,
+        },
+        { width: 200, height: 113, digest: digest("preview") },
+        true,
+      ),
+    );
+    mock.parent.score = score;
+    mock.parent.id = id;
+    const compiled = compileFixPlan(
+      score,
+      id,
+      digest(source),
+      defaultSettings,
+      { exactText: [], requiredObjects: [], forbiddenChanges: [] },
+    );
+    if (compiled.kind !== "ready") throw new Error("Fixture plan failed");
+    const response = await POST(
+      request({
+        mode: "fix",
+        parentId: id,
+        fixPlanToken: seal(compiled.plan, "fix-plan"),
+      }),
+    );
     expect(response.status).toBe(200);
     expect(mock.evaluate).not.toHaveBeenCalled();
     expect(mock.render.mock.calls[0][0]).toContain(

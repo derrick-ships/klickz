@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { authenticated, failure } from "@/lib/server";
 import { AppError } from "@/lib/validation";
+import { digest } from "@/lib/diagnostics";
 import { ownedAsset } from "@/lib/assets";
 import { resizeThumbnail } from "@/lib/providers";
 import { NextResponse } from "next/server";
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
       .single();
     if (error || !original?.image_path)
       throw new AppError(404, "Choose an image to resize.");
+    const sourceBytes = await ownedAsset(db, user.id, original.image_path);
     const reserved = await db
       .from("studio_creations")
       .insert({
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
         style: original.style,
         mode: "resize",
         parent_id: original.id,
+        lineage: { sourceId: original.id, sourceDigest: digest(sourceBytes) },
         settings: { ...original.settings, format: input.format },
         request_id: input.requestId,
         status: "generating",
@@ -48,7 +51,7 @@ export async function POST(request: Request) {
     }
     try {
       const image = await resizeThumbnail(
-        await ownedAsset(db, user.id, original.image_path),
+        sourceBytes,
         input.format,
       );
       const path = `${user.id}/creations/${reserved.data.id}.png`;

@@ -11,16 +11,21 @@ import { appOrigin } from "./crypto";
 import { AppError } from "./validation";
 import { ownedAsset } from "./assets";
 import { fetchReference } from "./reference";
+import { reconcileJobs } from "./jobs";
 import { fixInstructions } from "./providers";
 import { POST as generate } from "@/app/api/generate/route";
 import { POST as analyze } from "@/app/api/analyze/route";
 import { POST as resize } from "@/app/api/resize/route";
 import { POST as titles } from "@/app/api/titles/route";
+import { POST as makePlan } from "@/app/api/fix-plan/route";
+import { POST as compare } from "@/app/api/compare/route";
+import { unseal } from "./crypto";
+import type { FixPlan } from "./diagnostics";
 import { POST as prepare } from "@/app/api/persona/prepare/route";
 import { userKeys } from "./provider-context";
 import { widgetHtml } from "./widget.generated";
 export const uiUri = "ui://openpikzels/studio.html";
-export const agentGuide = `OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use one_click_fix only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. resize_thumbnail makes a vertical or horizontal contained layout with a blurred background without an image API. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.`;
+export const agentGuide = `OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail defaults to Jev only; includeVision explicitly opts into one additional OpenAI/Google request. Supply the factual videoBrief and title or Idea/Curiosity and the overall remain partial. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. resize_thumbnail makes a vertical or horizontal contained layout with a blurred background without an image API. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.`;
 export async function createMcpServer(token: string) {
   const context = await resolveAccess(token),
     { db, user, oauth } = context;
@@ -359,7 +364,11 @@ export async function createMcpServer(token: string) {
     {
       creationId: z.string().uuid().optional(),
       imagePath: z.string().max(400).optional(),
-      title: z.string().min(3).max(100),
+      title: z.string().max(100).default(""),
+      videoBrief: z.string().max(2400).default(""),
+      audience: z.string().max(200).default(""),
+      includeVision: z.boolean().default(false),
+      requestId: z.string().uuid(),
     },
     "studio:ai",
     async (args) => {
@@ -387,36 +396,96 @@ export async function createMcpServer(token: string) {
     true,
   );
   tool(
-    "one_click_fix",
-    "Create a new improved thumbnail from its current score, preserving the original. Consumes your connected image-provider credits; use get_fix_prompt for an edit in ChatGPT instead.",
+    "create_fix_plan",
+    "Compile a no-charge edit plan from a current, signed, image-specific diagnostic. Missing context or evidence blocks API fixes. Review returned operations and preservation constraints before applying.",
     {
       creationId: z.string().uuid(),
       model: z
         .enum(["flare", "sunburst", "gemini-flash", "gemini-pro"])
         .default("flare"),
       quality: z.enum(["low", "medium", "high", "xhigh", "max"]).default("low"),
-      requestId: z.string().uuid(),
+      exactText: z.array(z.string().max(160)).max(8).default([]),
+      requiredObjects: z.array(z.string().max(160)).max(8).default([]),
+      forbiddenChanges: z.array(z.string().max(160)).max(8).default([]),
     },
-    "studio:ai",
-    async ({ creationId, model, quality, requestId }) => {
-      await allowed("studio:write");
+    "studio:write",
+    async ({
+      creationId,
+      model,
+      quality,
+      exactText,
+      requiredObjects,
+      forbiddenChanges,
+    }) => {
       const c = await creation(creationId);
-      return backend(generate, {
-        parentId: creationId,
-        title: c.title,
-        prompt:
-          "Improve the weakest packaging pillars while preserving identity and the video promise.",
-        mode: "fix",
+      return backend(makePlan, {
+        creationId,
         settings: {
           model,
           quality,
           format: c.settings?.format || "long",
-          batch: 1,
           complexity: "medium",
+          batch: 1,
         },
+        preserve: { exactText, requiredObjects, forbiddenChanges },
+      });
+    },
+  );
+  tool(
+    "one_click_fix",
+    "Apply the exact reviewed create_fix_plan token. One image request, original preserved, no automatic scoring. Model and quality are bound to the plan.",
+    { planToken: z.string().max(32000), requestId: z.string().uuid() },
+    "studio:ai",
+    async ({ planToken, requestId }) => {
+      await allowed("studio:write");
+      const plan = unseal<FixPlan>(planToken, "fix-plan");
+      return backend(generate, {
+        parentId: plan.sourceId,
+        title: plan.title,
+        prompt:
+          "Apply the reviewed packaging edits while preserving the original.",
+        mode: "fix",
+        settings: plan.settings,
+        fixPlanToken: planToken,
         requestId,
       });
     },
+  );
+  tool(
+    "compare_variants",
+    "Create a randomized, same-sized A/B package without prior scores or edit rationale. No AI charge. Use record_comparison after a human reviews facts, identity and readability.",
+    { creationId: z.string().uuid() },
+    "studio:read",
+    (args) => backend(compare, args),
+    true,
+  );
+  tool(
+    "record_comparison",
+    "Record A/B, tie or inconclusive human preference. Both variants remain saved. This does not establish CTR uplift.",
+    {
+      token: z.string().max(12000),
+      preference: z.enum(["A", "B", "tie", "inconclusive"]),
+    },
+    "studio:write",
+    (args) => backend(compare, args),
+  );
+  tool(
+    "list_jobs",
+    "Read durable request states. A reconciling dispatch may already have consumed provider credits; do not automatically resubmit.",
+    {},
+    "studio:read",
+    async () => {
+      await reconcileJobs(db);
+      const r = await db
+        .from("studio_jobs")
+        .select("id,operation,state,max_provider_calls,created_at,updated_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (r.error) throw r.error;
+      return { jobs: r.data };
+    },
+    true,
   );
   tool(
     "resize_thumbnail",

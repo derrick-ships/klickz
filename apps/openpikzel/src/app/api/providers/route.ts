@@ -31,18 +31,16 @@ export async function POST(request: Request) {
         key: z.string().trim().min(12).max(12000),
       })
       .parse(await request.json());
-    const result = await db
-      .from("studio_provider_keys")
-      .upsert({
-        user_id: user.id,
-        provider: input.provider,
-        ciphertext: seal(
-          { key: input.key },
-          `provider:${user.id}:${input.provider}`,
-        ),
-        suffix: input.key.slice(-4),
-        updated_at: new Date().toISOString(),
-      });
+    const result = await db.from("studio_provider_keys").upsert({
+      user_id: user.id,
+      provider: input.provider,
+      ciphertext: seal(
+        { key: input.key },
+        `provider:${user.id}:${input.provider}`,
+      ),
+      suffix: input.key.slice(-4),
+      updated_at: new Date().toISOString(),
+    });
     if (result.error) throw result.error;
     return NextResponse.json({ saved: true });
   } catch (e) {

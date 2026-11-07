@@ -1,6 +1,6 @@
 # OpenPikzels MCP
 
-The planned public URL is `https://openpikzels.com/mcp`. **It is not publicly live yet.** The current deployment is protected by Vercel Authentication and the domain still points to GoDaddy parking. Native MCP clients cannot connect through the Vercel login wall.
+The public-domain target is `https://openpikzels.com/mcp`. Domain connection and HTTPS are complete, and non-custom previews retain Vercel Authentication. **A real authenticated MCP Allow/refresh/tool sequence has not been verified, and hosted studio access is still restricted to the owner.** Do not treat domain routing as proof of a completed public multiuser release.
 
 ## Connect after public release
 
@@ -11,7 +11,7 @@ The planned public URL is `https://openpikzels.com/mcp`. **It is not publicly li
 
 ## Copy these instructions into your agent
 
-> Connect to the OpenPikzels remote MCP URL. Never request API keys in chat; direct me to the app's Connections page. Start with `get_workspace`. Use `list_profiles` and `get_profile` for my consistent persona/character pictures and styles. Upload an image made in ChatGPT with `upload_reference`, then `score_thumbnail` with its actual title. Use `get_fix_prompt` to return an editing prompt I can copy into ChatGPT without making a new image API request. Only call `generate_thumbnail` or `one_click_fix` when I request an API-rendered image, with my chosen provider, quality and batch. Preserve the request ID after a timeout and check history before retrying. Scores are five visual rubrics, not promised CTR. Use `open_studio` for the interactive HTML workspace when the host supports MCP Apps.
+> Connect to the OpenPikzels remote MCP URL. Never request API keys in chat; direct me to the app's Connections page. Start with `get_workspace`. Use `list_profiles` and `get_profile` for my consistent persona/character pictures and styles. Upload an image made in ChatGPT with `upload_reference`, then `score_thumbnail` with a stable request ID, actual title and factual video brief. Vision critique is an explicit optional extra provider call. Use `get_fix_prompt` to return an editing prompt I can copy into ChatGPT without making a new image API request. Use `create_fix_plan` to review at most three supported changes and preservation constraints; apply its exact token through `one_click_fix` only when I request the one-image API render. Use `generate_thumbnail` for requested fresh images with my chosen provider, quality and batch. Use `compare_variants` and `record_comparison` for a blinded human review; retain both images. Preserve the request ID after a timeout and check `list_jobs` and provider history before a new paid attempt. Never automatically retry uncertain outcomes. Scores are five visual rubrics, not promised CTR. Use `open_studio` for the interactive HTML workspace when the host supports MCP Apps.
 
 ## Tools
 
@@ -26,12 +26,15 @@ The planned public URL is `https://openpikzels.com/mcp`. **It is not publicly li
 | `generate_thumbnail` | Prompt, title, recreate or edit | Write + AI |
 | `score_thumbnail` | Actual image/title Jev evaluation | Write + AI |
 | `get_fix_prompt` | Copyable improvement prompt from a saved score | Read |
-| `one_click_fix` | New improved API-rendered image; original preserved | Write + AI |
+| `create_fix_plan` | Review evidence-backed changes and preservation constraints; no AI call | Write |
+| `one_click_fix` | Apply a reviewed plan token as one new image; original preserved | Write + AI |
+| `compare_variants`, `record_comparison` | Randomized human A/B comparison; no AI call | Read / Write |
+| `list_jobs` | Persistent request state and timeout reconciliation; no retry | Read |
 | `resize_thumbnail` | Contain/blur horizontal↔vertical resize, no image API | Write |
 
 Generation uses one Low image by default. Batches are capped at four. MCP inline uploads accept PNG/JPEG/WebP up to 2 MB, browser storage uploads up to 5 MB. Images must decode within 40 megapixels. Google renders native 1K; OpenAI quality/intelligence controls do not apply to Google.
 
-Jev-only scoring makes a single Jev request and returns rubric-based edit guidance. If OpenAI or Google is also connected, a separate vision request adds image-specific observations. The UI does not claim real analytics, measured CTR or fine-tuning.
+Jev-only scoring makes a single Jev request and returns rubric-based edit guidance. Only when `includeVision=true`, a separate connected OpenAI or Google vision request adds image-specific observations. Missing title/factual brief leaves idea and curiosity unassessed and the overall score null. API fix plans require a complete signed diagnostic with supported evidence. The UI does not claim real analytics, measured CTR or fine-tuning.
 
 ## Protocol and security
 

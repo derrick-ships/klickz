@@ -169,17 +169,15 @@ export async function issueCode(
   const { db, user } = await identity(access),
     client = readClient(auth.clientId),
     grant = randomUUID();
-  const inserted = await db
-    .from("studio_oauth_grants")
-    .insert({
-      id: grant,
-      user_id: user.id,
-      client_id: hash(auth.clientId),
-      client_name: client.name,
-      redirect_uri: auth.redirect,
-      scope: auth.scope,
-      expires_at: new Date((now() + 30 * 86400) * 1000).toISOString(),
-    });
+  const inserted = await db.from("studio_oauth_grants").insert({
+    id: grant,
+    user_id: user.id,
+    client_id: hash(auth.clientId),
+    client_name: client.name,
+    redirect_uri: auth.redirect,
+    scope: auth.scope,
+    expires_at: new Date((now() + 30 * 86400) * 1000).toISOString(),
+  });
   if (inserted.error)
     throw new AppError(503, "Agent access could not be saved.");
   const value: GrantToken = {
@@ -225,14 +223,12 @@ async function consume(
   kind: string,
   context: Awaited<ReturnType<typeof identity>>,
 ) {
-  const result = await context.db
-    .from("studio_oauth_uses")
-    .insert({
-      user_id: value.uid,
-      grant_id: value.grant,
-      nonce_hash: hash(value.jti),
-      kind,
-    });
+  const result = await context.db.from("studio_oauth_uses").insert({
+    user_id: value.uid,
+    grant_id: value.grant,
+    nonce_hash: hash(value.jti),
+    kind,
+  });
   if (result.error) {
     if (kind === "refresh")
       await context.db

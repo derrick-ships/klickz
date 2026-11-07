@@ -5,18 +5,25 @@ import {
   withUserProviders,
 } from "@/lib/server";
 import { generationSchema, AppError } from "@/lib/validation";
+import { renderThumbnail } from "@/lib/providers";
 import {
-  renderThumbnail,
-  evaluateThumbnail,
-  fixInstructions,
-} from "@/lib/providers";
+  digest,
+  editorInstructions,
+  validateFixPlan,
+  type FixPlan,
+} from "@/lib/diagnostics";
+import { verifyDiagnostic } from "@/lib/diagnostic-proof";
+import { unseal } from "@/lib/crypto";
+import { reserveJob, updateJob, ambiguousProviderError } from "@/lib/jobs";
 import { providerContext } from "@/lib/provider-context";
 import { ownedAsset } from "@/lib/assets";
 import { NextResponse } from "next/server";
 export const maxDuration = 300;
 async function handle(request: Request) {
   let context: Awaited<ReturnType<typeof authenticated>> | undefined;
-  let activeId: string | undefined;
+  let jobId: string | undefined;
+  let dispatched = false;
+  let fixPlan: FixPlan | undefined;
   try {
     context = await authenticated(request);
     const { db, user } = context;
@@ -29,18 +36,6 @@ async function handle(request: Request) {
       throw new AppError(
         403,
         "Connect your own OpenAI key for Sunburst/Flare, or choose a Google model.",
-      );
-    const previous = await db
-      .from("studio_creations")
-      .select("id,status")
-      .eq("user_id", user.id)
-      .eq("request_id", input.requestId)
-      .maybeSingle();
-    if (previous.error) throw previous.error;
-    if (previous.data)
-      throw new AppError(
-        409,
-        "This batch was already submitted. Check your history.",
       );
     const refs: Buffer[] = [];
     const notes: string[] = [];
@@ -59,27 +54,31 @@ async function handle(request: Request) {
         "The first reference is the original. Preserve the main subject and identity. Apply only the requested edits.",
       );
       if (input.mode === "fix") {
-        requireAI("jev");
-        let score = data.score;
-        if (
-          score?.version !== 2 ||
-          score.title !== (input.title || data.title)
-        ) {
-          score = await evaluateThumbnail(
-            image,
-            input.title || data.title,
-            crypto.randomUUID(),
+        if (!input.fixPlanToken)
+          throw new AppError(
+            409,
+            "Review a fix plan before generating an API variant.",
           );
-          const saved = await db
-            .from("studio_creations")
-            .update({ score })
-            .eq("id", data.id);
-          if (saved.error) throw saved.error;
-        }
-        notes.push(
-          "Improve this packaging using these evidence-based visual critique instructions. Do not fabricate claims or change the underlying video promise. " +
-            fixInstructions(score),
-        );
+        verifyDiagnostic(data.score);
+        fixPlan = unseal<FixPlan>(input.fixPlanToken, "fix-plan");
+        validateFixPlan(fixPlan, data.id, image, data.score, input.settings);
+        if (data.title !== fixPlan.title)
+          throw new AppError(
+            409,
+            "The title changed after review. Prepare a new fix plan.",
+          );
+        if (
+          input.personaId ||
+          input.styleId ||
+          input.referencePath ||
+          input.referencePaths.length ||
+          input.title !== fixPlan.title
+        )
+          throw new AppError(
+            409,
+            "A reviewed fix uses only its approved source and context.",
+          );
+        notes.push(editorInstructions(fixPlan));
       }
     }
     const paths = [
@@ -112,6 +111,27 @@ async function handle(request: Request) {
         `${label} guidance: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos; use style references for treatment and palette.`,
       );
     }
+    if (input.mode === "fix" && !fixPlan)
+      throw new AppError(400, "Choose the reviewed source variant.");
+    const reserved = await reserveJob(
+      db,
+      user.id,
+      input.requestId,
+      "generate",
+      { ...input, referenceDigests: refs.map(digest), notes },
+      input.settings.batch,
+    );
+    if (reserved.replay) return NextResponse.json(reserved.replay);
+    jobId = input.requestId;
+    const previous = await db
+      .from("studio_creations")
+      .select("id,status")
+      .eq("user_id", user.id)
+      .eq("request_id", input.requestId)
+      .maybeSingle();
+    if (previous.error) throw previous.error;
+    if (previous.data)
+      throw new AppError(409, "This batch already exists. Check history.");
     const batchRows = Array.from({ length: input.settings.batch }, (_, i) => ({
       user_id: user.id,
       title: input.title || input.prompt.slice(0, 80),
@@ -128,6 +148,15 @@ async function handle(request: Request) {
       batch_index: i,
       request_id: i === 0 ? input.requestId : crypto.randomUUID(),
       status: "generating",
+      ...(input.parentId
+        ? {
+            lineage: {
+              sourceId: input.parentId,
+              sourceDigest: digest(refs[0]),
+              ...(fixPlan ? { fixPlanHash: fixPlan.hash, plan: fixPlan } : {}),
+            },
+          }
+        : {}),
     }));
     const reservation = await db
       .from("studio_creations")
@@ -138,14 +167,20 @@ async function handle(request: Request) {
         throw new AppError(409, "Batch already submitted. Check history.");
       throw reservation.error;
     }
+    await updateJob(db, user.id, jobId, "running");
+    dispatched = true;
     // Reserve the entire batch atomically, then render concurrently within the function timeout.
     const outcomes = await Promise.allSettled(
       reservation.data
         .sort((a, b) => a.batch_index - b.batch_index)
         .map(async (row) => {
+          let renderReturned = false;
           try {
-            const prompt = `Create a professional original YouTube ${input.settings.format === "short" ? "vertical 9:16 cover" : "horizontal 16:9 thumbnail"}. Strong visual hierarchy, clear at 200 px wide, concise readable text if needed. Title context: ${input.title || input.prompt}. Visual direction: ${input.style}. User request: ${input.prompt}. ${notes.join(" ")}. Variation ${row.batch_index + 1}: explore a distinct framing while preserving the promise.`;
+            const prompt = fixPlan
+              ? editorInstructions(fixPlan)
+              : `Create a professional original YouTube ${input.settings.format === "short" ? "vertical 9:16 cover" : "horizontal 16:9 thumbnail"}. Strong visual hierarchy, clear at 200 px wide, concise readable text if needed. Title context: ${input.title || input.prompt}. Visual direction: ${input.style}. User request: ${input.prompt}. ${notes.join(" ")}. Variation ${row.batch_index + 1}: explore a distinct framing while preserving the promise.`;
             const image = await renderThumbnail(prompt, refs, input.settings);
+            renderReturned = true;
             const path = `${user.id}/creations/${row.id}.png`;
             const upload = await db.storage
               .from("studio-assets")
@@ -163,7 +198,11 @@ async function handle(request: Request) {
           } catch (error) {
             await db
               .from("studio_creations")
-              .update({ status: "failed" })
+              .update({
+                status: renderReturned || ambiguousProviderError(error)
+                  ? "reconciling"
+                  : "failed",
+              })
               .eq("id", row.id)
               .eq("user_id", user.id);
             throw error;
@@ -179,14 +218,23 @@ async function handle(request: Request) {
         502,
         "The render did not finish. Check history before submitting a new batch.",
       );
-    return NextResponse.json({ creation: creations[0], creations, partial });
+    const result = { creation: creations[0], creations, partial, jobId };
+    await updateJob(
+      db,
+      user.id,
+      jobId,
+      partial ? "reconciling" : "succeeded",
+      result,
+    );
+    return NextResponse.json(result);
   } catch (error) {
-    if (context && activeId)
-      await context.db
-        .from("studio_creations")
-        .update({ status: "failed" })
-        .eq("id", activeId)
-        .eq("user_id", context.user.id);
+    if (context && jobId)
+      await updateJob(
+        context.db,
+        context.user.id,
+        jobId,
+        dispatched ? "reconciling" : "failed",
+      ).catch(() => {});
     return failure(error);
   }
 }
