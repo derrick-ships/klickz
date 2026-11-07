@@ -51,6 +51,7 @@ test("unscored and failed previews stay useful, with reduced-motion and real ref
   await expect(stage.locator("figcaption")).toContainText("1344 × 752");
   await stage.getByRole("button", { name: "Open analysis" }).click();
   await expect(page.getByLabel("Video title", { exact: true })).toBeFocused();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: "evidence/review-studio-analysis-controls.png", fullPage: true });
 });
 
