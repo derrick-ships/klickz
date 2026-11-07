@@ -459,6 +459,7 @@ export default function Studio() {
     profileItems = dialog === "personas" ? studio.personas : studio.styles;
   return (
     <div className={`app-shell ${sidebar ? "sidebar-open" : ""}`}>
+      <a className="skip-link" href="#studio-content">Skip to studio</a>
       {sidebar && (
         <button
           className="sidebar-scrim"
@@ -642,6 +643,8 @@ export default function Studio() {
           </div>
         </header>
         <main
+          id="studio-content"
+          tabIndex={-1}
           ref={mainRef}
           className={tab === "library" ? "library-main" : "studio-main"}
         >
@@ -674,6 +677,7 @@ export default function Studio() {
               <section
                 className="creation-workbench"
                 aria-label="Thumbnail workspace"
+                aria-busy={busy}
               >
                 <div className="workbench-heading">
                   <h1>
@@ -719,8 +723,7 @@ export default function Studio() {
                     ))}
                   </div>
                 </div>
-                {!studio.loading &&
-                  !selected &&
+                {!selected &&
                   studio.creations.length === 0 && (
                     <BrandScene scene="signal" compact />
                   )}

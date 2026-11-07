@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 test("brand decoration plays one finite take without playback controls", async ({ page }) => {
   await page.goto("/?mode=generate");
   const scene = page.locator('[data-brand-scene="signal"]');
-  await expect(scene.locator("img")).toHaveJSProperty("naturalWidth", 1344);
+  await expect.poll(() => scene.locator("img").evaluate(i => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(scene.getByRole("button")).toHaveCount(0);
   const player = scene.locator("video");
   await expect(player).toHaveJSProperty("loop", false);
@@ -33,7 +33,7 @@ test("reduced-motion and data-saving visitors load only the poster", async ({ pa
   page.on("request", r => { if (/\/brand\/.*\.(webm|mp4)/.test(r.url())) videos.push(r.url()); });
   await page.goto("/connect");
   const scene = page.locator('[data-brand-scene="aperture"]');
-  await expect(scene.locator("img")).toHaveJSProperty("naturalWidth", 1344);
+  await expect.poll(() => scene.locator("img").evaluate(i => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(scene.locator("source")).toHaveCount(0);
   expect(videos).toHaveLength(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -43,7 +43,7 @@ test("reduced-motion and data-saving visitors load only the poster", async ({ pa
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.addInitScript(() => Object.defineProperty(navigator, "connection", { value: { saveData: true, addEventListener() {}, removeEventListener() {} }, configurable: true }));
   await page.reload();
-  await expect(scene.locator("img")).toHaveJSProperty("naturalWidth", 1344);
+  await expect.poll(() => scene.locator("img").evaluate(i => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(scene.locator("source")).toHaveCount(0);
   expect(videos).toHaveLength(0);
 });

@@ -1,6 +1,6 @@
 # OpenPikzels validation
 
-November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and fourteen Playwright browser tests. Tests make no paid provider requests.
+November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and sixteen functional Playwright browser tests plus one isolated performance scenario. Tests make no paid provider requests.
 
 ## Verified locally
 
@@ -45,3 +45,11 @@ The partial-diagnostic browser fixture shows missing context and an explicitly b
 All four supplied images were retrieved from Library and visually inspected. Their treatments informed the existing red/dark system. Play/Pause was removed. New browser coverage checks roving Arrow/Home/End tab navigation and focus, native dialogs with Escape, no script errors, long prompt content and overflow at 320/390/768/1440px. Controls remain usable with reduced motion. Impeccable’s one requested mechanical pass returned no findings. Rendered desktop/mobile captures were inspected and refined. The final red/white control contrast exceeds 4.5:1; this is a targeted check, not a full accessibility certification.
 
 No backend or hosted policy changes, new API calls or new generation credits were required by this UI pass. App-provider/OAuth live-validation gates from RELEASE.md remain.
+
+## Mobile image regression and performance gates
+
+The user’s IMG_9018.png was retrieved and inspected. A pixel-based browser regression reproduced the shallow 430px crop (10px below the red plane). The new 3:1 layout yields 38px below it; still and moving captures at 320/375/390/414/430px were actually opened for visual review, along with desktop1280/1440 and the reduced-motion/settled frame. Independent review: ship.
+
+`npm run verify:release` passed: 69 unit/database/route/protocol tests, TypeScript/build, 16 functional browser tests, an isolated three-sample mobile lab and six Lighthouse runs with unchanged limits. Lighthouse median-run mobile: performance98, accessibility100, best-practices100, SEO100; LCP2386ms, TBT66ms, CLS0.001. Desktop: all four categories100, LCP522ms, TBT0, CLS0.
+
+The separate CDP-throttled lab (390×844, CPU4×, 150ms latency, 1.6Mbps down) measured median scripted INP64ms and maximum click-to-two-frame feedback47.9ms; its initial encoded-body total was255393bytes. Lighthouse includes transfer overhead and reported261081bytes mobile. No missing/invalid metrics are treated as passing. These are controlled local samples, not field p75 or authenticated hosted-provider timings. Native WebKit could not launch because this environment lacks required system libraries; no Safari/iPhone-device verification is claimed.

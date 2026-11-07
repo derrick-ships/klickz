@@ -30,7 +30,7 @@ The app runs at http://localhost:3000. No environment file is needed for local r
 
 ## Original brand imagery
 
-Higgsfield-generated graphite/red backgrounds and silent motion clips now appear in onboarding and the empty studio. Playback controls were removed as requested. Eligible visitors see one brief ambient take, then a still; reduced-motion/data-saving users load only the poster. Media streams from the same app origin. The complete optimized set is about 173 KB. See [ASSETS.md](ASSETS.md) for art direction, exact prompts, provenance and the 13.5-credit production record.
+Higgsfield-generated graphite/red backgrounds and silent motion clips now appear in onboarding and the empty studio. Playback controls were removed as requested. Eligible visitors see one brief ambient take, then a still; reduced-motion/data-saving users load only the poster. Media streams from the same app origin. The complete optimized set, including responsive poster variants, is about 198 KB. See [ASSETS.md](ASSETS.md) for art direction, exact prompts, provenance and the 13.5-credit production record.
 
 ## Accounts, BYOK and MCP
 
@@ -69,3 +69,7 @@ Impeccable is pinned as a Git submodule under `vendor/impeccable` and linked for
 [Pikzels app](https://app.pikzels.com/) and [Analyze feature](https://pikzels.com/features/analyze-thumbnail) informed the user-requested layout and feature set. OpenPikzels uses its own code and brand.
 
 [OpenAI image generation](https://developers.openai.com/api/docs/guides/image-generation) defines Sunburst/Flare, quality and planning controls. [TypeSafe image inputs](https://docs.typesafe.ai/images) and [score rubrics](https://docs.typesafe.ai/primitives/score) define the Jev scoring contract. [Vercel deployment protection](https://vercel.com/docs/deployment-protection) documents all-URL authentication. [Supabase private buckets](https://supabase.com/docs/guides/storage/buckets/fundamentals) documents private asset access.
+
+## Measured release gate
+
+Run `npm run verify:release` for the production build, functional tests, isolated throttled interaction lab, strict Python budget check and three Lighthouse runs each for mobile/desktop. Reports stay local; no hosted analytics or provider calls are needed. PERFORMANCE.md records the measured values, exact sources, mobile crop evidence and limits. These gates are runnable locally; no GitHub branch-protection rule or hosted CI workflow was enabled.

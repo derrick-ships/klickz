@@ -1,0 +1,48 @@
+{
+  "method": {
+    "build": "production",
+    "browser": "Chromium",
+    "viewport": "390x844",
+    "cpuSlowdown": 4,
+    "latencyMS": 150,
+    "downloadMbps": 1.6,
+    "uploadMbps": 0.75,
+    "runs": 3,
+    "note": "scripted lab samples, not real-user p75 or a production SLA"
+  },
+  "samples": [
+    {
+      "script_bytes": 217150,
+      "css_bytes": 8872,
+      "image_bytes": 5098,
+      "total_bytes": 255393,
+      "third_party": 0,
+      "lcp_ms": 688,
+      "cls": 0.0010047692849067481,
+      "inp_sample_ms": 56,
+      "feedback_max_ms": 36.899999998509884
+    },
+    {
+      "script_bytes": 217150,
+      "css_bytes": 8872,
+      "image_bytes": 5098,
+      "total_bytes": 255393,
+      "third_party": 0,
+      "lcp_ms": 668,
+      "cls": 0.0010047692849067481,
+      "inp_sample_ms": 72,
+      "feedback_max_ms": 37.30000000074506
+    },
+    {
+      "script_bytes": 217150,
+      "css_bytes": 8872,
+      "image_bytes": 5098,
+      "total_bytes": 255393,
+      "third_party": 0,
+      "lcp_ms": 692,
+      "cls": 0.0010047692849067481,
+      "inp_sample_ms": 64,
+      "feedback_max_ms": 47.900000002235174
+    }
+  ]
+}

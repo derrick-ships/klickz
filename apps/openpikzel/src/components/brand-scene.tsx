@@ -67,10 +67,13 @@ export function BrandScene({ scene, compact = false }: {
   return (
     <div className={`brand-scene${compact ? " brand-scene--compact" : ""}`}
       ref={container} data-brand-scene={scene} data-motion={playing ? "playing" : "still"}>
-      <img src={`/brand/${scene}.webp`} alt="" aria-hidden="true"
-        width={1344} height={752} fetchPriority={compact ? "low" : "high"} />
+      <img src={`/brand/${scene}.webp`}
+        srcSet={`/brand/${scene}-672.webp 672w, /brand/${scene}-960.webp 960w, /brand/${scene}.webp 1344w`}
+        sizes={compact ? "(max-width: 760px) calc(100vw - 34px), (max-width: 1150px) calc(100vw - 304px), 808px" : "(max-width: 650px) calc(100vw - 32px), (max-width: 1000px) calc(100vw - 48px), 952px"}
+        alt="" aria-hidden="true"
+        width={1344} height={752} fetchPriority="high" />
       <video ref={video} aria-hidden="true" muted playsInline preload="none"
-        poster={`/brand/${scene}.webp`} onEnded={settle} onError={settle}>
+        onEnded={settle} onError={settle}>
         {activated && <>
           <source src={`/brand/${scene}.webm`} type="video/webm" />
           <source src={`/brand/${scene}.mp4`} type="video/mp4" />

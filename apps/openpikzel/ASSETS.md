@@ -11,7 +11,7 @@ The direction uses the existing design tokens: near-black `#101010`, matte graph
 
 ## Delivery
 
-`public/brand/` contains self-hosted WebP posters and silent WebM/MP4 clips. All six optimized files together are about **173 KB**. The 20–27 KB poster renders first. Only visible scenes for visitors without reduced-motion/data-saving preferences attach a small motion source. No external video player, tracker, streaming service or generation API is used during playback.
+`public/brand/` contains self-hosted WebP posters and silent WebM/MP4 clips. The original six web files total about **173 KB**; four responsive poster variants bring the complete set to **198 KB**. Posters are available at 672/960/1344px; the Signal mobile source is 5.1 KB (versus 26.3 KB for the original), and the 960px version is 8.1 KB. The matching poster renders first. Only visible scenes for visitors without reduced-motion/data-saving preferences attach a small motion source. No external video player, tracker, streaming service or generation API is used during playback.
 
 The user explicitly requested removal of Play/Pause. There are no playback controls and no loop: eligible visible scenes play one muted take capped at 4.4 seconds, followed by a 240ms dissolve to the poster. Editing, hidden tabs, leaving the viewport or enabling reduced motion/data saving stop playback. Reduced-motion/data-saving visitors never attach video sources. A blocked autoplay keeps the poster.
 
@@ -31,3 +31,7 @@ Exact prompts, model choices, job IDs, palette, intended placements and cost rec
 Both generated stills and one-frame-per-second motion contact sheets were visually inspected. FFprobe confirmed dimensions, duration and absence of audio streams. Browser tests exercise real video decoding and time progression, finite autoplay without controls or looping, pause-on-input/preference change, no video source for reduced-motion/data-saving visitors, responsive layout and keyboard focus. Real desktop/mobile screenshots are in `evidence/`.
 
 Brand generation used the connected [Higgsfield](https://higgsfield.ai/) integration and the [Creative Prompt Director](plugin://creative-prompt-director@openai-curated-remote) skill. The existing Next.js/Vercel application stays on its current stack; the optional Higgsfield website framework was not substituted for it.
+
+## Mobile crop/performance correction
+
+The fixed 76px mobile strip was replaced with a reserved 3:1 frame. The still and video share positioning; all five representative phone widths were inspected from actual browser captures, including moving and settled frames. No new generated assets or credits were needed: responsive WebPs are compressed resizes of the existing originals. Initial HTML now exposes the high-priority empty-state poster; the video uses the existing image underneath rather than requesting a duplicate poster.

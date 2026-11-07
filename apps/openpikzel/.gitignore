@@ -14,3 +14,10 @@ supabase/.temp/
 
 # Preserve source media locally; deploy only optimized public brand assets.
 assets/brand/originals/
+
+# Local Lighthouse traces/reports; deliver separately from application source.
+.lighthouseci/
+evidence/lighthouse/
+
+__pycache__/
+*.pyc

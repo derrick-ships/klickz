@@ -215,7 +215,10 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
   .generate-split > .primary-button { min-height: 46px; min-width: 160px; font-size: 15px; padding-inline: 18px; }
   .composer-footer { margin: 43px 2px 0; gap: 16px; }
   .composer-footer > span { max-width: 60%; line-height: 1.6; }
-  .brand-scene--compact { height: 76px; }
+  /* Preserve the entire selected tile/face/shadow instead of a fixed shallow crop. */
+  .brand-scene--compact { height: auto; aspect-ratio: 3 / 1; }
+  .brand-scene--compact > img,
+  .brand-scene--compact > video { object-position: center; }
   .advanced-button { font-size: 0; gap: 0; min-width: 36px; min-height: 44px; padding: 8px; }
   .settings-row > label:first-child select { max-width: 98px; }
   .settings-row > label:nth-child(2) select { max-width: 126px; }
@@ -229,3 +232,6 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
   .workspace-main::before, .account-page::before { display: none; }
   .mode-tabs button.active { outline: 2px solid Highlight; }
 }
+
+.skip-link { position: fixed; z-index: 100; top: 12px; left: 16px; transform: translateY(-200%); padding: 10px 16px; background: #181818; color: #f4f4f4; border: 1px solid #ff868d; border-radius: 8px; }
+.skip-link:focus { transform: none; }

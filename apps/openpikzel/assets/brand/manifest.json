@@ -37,10 +37,11 @@
     }
   ],
   "delivery": {
-    "posters": "Self-hosted WebP",
+    "posters": "Self-hosted responsive WebP at672/960/1344px; total web media198425bytes",
     "video": "Self-hosted VP9 WebM with H.264 MP4 fallback, no audio streams, 960x538, about 5.04 seconds",
     "playback": "No controls or loop; a visible eligible scene plays one muted take capped at 4.4 seconds then dissolves to its poster in 240ms. Stops on input, hidden scene/tab or preference change; reduced-motion/saveData visitors attach no video sources.",
     "originals": "assets/brand/originals",
-    "notUserContent": true
+    "notUserContent": true,
+    "mobileCrop": "Compact scene uses a reserved3:1 frame with identical still/video positioning; reviewed at320/375/390/414/430px."
   }
 }

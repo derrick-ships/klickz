@@ -9,8 +9,12 @@
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:browser": "playwright test",
-    "verify": "npm run typecheck && npm test && npm run build && npm run test:browser"
+    "test:browser": "playwright test --grep-invert @performance",
+    "verify": "npm run typecheck && npm test && npm run build && npm run test:browser",
+    "perf:lighthouse": "node scripts/lighthouse-gate.mjs",
+    "perf:lab": "playwright test tests/browser/performance.spec.ts --workers=1",
+    "perf:check": "python scripts/check_perf_budget.py evidence/performance-lab.json",
+    "verify:release": "npm run verify && npm run perf:lab && npm run perf:check && npm run perf:lighthouse"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.1.2",
@@ -26,6 +30,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",
+    "@lhci/cli": "0.16.0",
     "@playwright/test": "1.51.1",
     "@types/node": "24.0.0",
     "@types/react": "19.0.3",
@@ -34,6 +39,7 @@
     "puppeteer-core": "25.16.0",
     "supabase": "2.79.0",
     "typescript": "7.0.2",
-    "vitest": "5.1.0"
+    "vitest": "5.1.0",
+    "web-vitals": "6.2.3"
   }
 }
