@@ -91,26 +91,46 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     .getByLabel("Required objects", { exact: true })
     .fill("the original subject");
   await page
-    .getByRole("button", { name: "Prepare fix plan · no API charge" })
+    .getByRole("button", { name: "Preview fixes · no API charge" })
     .click();
   await expect(
     page.getByText("Add factual context and image-specific critique first."),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Apply one fix with my API" }),
+    page.getByRole("button", { name: "Generate fixed image · uses API credits" }),
   ).toHaveCount(0);
   expect(paid).toHaveLength(0);
   await page.screenshot({
     path: "evidence/openpikzels-fix-plan-blocked.png",
     fullPage: true,
   });
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `evidence/clarify-fix-plan-${width}.png`, fullPage: true });
+  }
+  await page.unroute("**/api/fix-plan");
+  await page.route("**/api/fix-plan", (r) => r.fulfill({ json: {
+    kind: "ready", token: "explicit-ui-fixture-never-apply", notice: "Fixture: generating one image uses provider credits.",
+    plan: { title: "Fixture: diagnostic test", videoBrief: "Explicit UI fixture, no real provider assessment.", settings: { model: "flare", quality: "low" }, operations: [{ id: "fixture-issue", pillar: "clarity", instruction: "Fixture: make the subject easier to read.", tradeoff: "Fixture: retain all required objects." }] },
+  } }));
+  await page.getByRole("button", { name: "Preview fixes · no API charge" }).click();
+  const apply = page.getByRole("button", { name: "Generate fixed image · uses API credits" });
+  await expect(apply).toBeVisible();
+  expect(paid).toHaveLength(0);
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await apply.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `evidence/clarify-ready-fix-${width}.png` });
+  }
   await page.getByRole("button", { name: "Close dialog" }).click();
   await page.getByRole("tab", { name: "Analyze", exact: true }).click();
   await expect(
     page.getByLabel("What actually happens in the video?"),
   ).toBeVisible();
   await expect(
-    page.getByRole("checkbox", { name: /Add image-specific vision critique/ }),
+    page.getByRole("checkbox", { name: /Add a detailed image review/ }),
   ).not.toBeChecked();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
@@ -120,4 +140,10 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     path: "evidence/openpikzels-partial-diagnostic-mobile.png",
     fullPage: true,
   });
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `evidence/clarify-analysis-${width}.png`, fullPage: true });
+  }
+
 });

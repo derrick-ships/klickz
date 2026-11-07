@@ -52,7 +52,7 @@ test("account onboarding has no fake configured providers and fits mobile", asyn
 }) => {
   await page.goto("/connect");
   await expect(
-    page.getByRole("heading", { name: "Make it yours." }),
+    page.getByRole("heading", { name: "Connect your AI" }),
   ).toBeVisible();
   await page.screenshot({
     path: "evidence/openpikzels-connect-desktop.png",
@@ -139,7 +139,7 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
   );
   await page.goto("/connect");
   await expect(
-    page.getByRole("heading", { name: "Choose what powers your studio" }),
+    page.getByRole("heading", { name: "Connect an API provider" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Revoke access" }),

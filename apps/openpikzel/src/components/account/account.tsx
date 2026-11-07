@@ -46,7 +46,7 @@ export function useAccount(isolated = false) {
       })
       .catch(() => {
         setReady(true);
-        setError("Account settings could not load.");
+        setError("Could not load your account. Refresh this page to try again.");
       });
     return () => {
       active = false;
@@ -95,7 +95,7 @@ export function AccountSignIn({
             );
           else onSignedIn?.();
         } catch (e) {
-          setStatus(e instanceof Error ? e.message : "Account action failed.");
+          setStatus(e instanceof Error ? e.message : "Could not complete this account request. Check your connection and try again.");
         } finally {
           setBusy(false);
         }
@@ -119,7 +119,7 @@ export function AccountSignIn({
         />
       </label>
       <label>
-        Password
+        Password{signup ? " (at least 8 characters)" : ""}
         <input
           type="password"
           minLength={8}
@@ -130,7 +130,7 @@ export function AccountSignIn({
         />
       </label>
       <button className="primary-button" disabled={busy}>
-        {busy ? "Please wait…" : signup ? "Create account" : "Sign in"}
+        {busy ? (signup ? "Creating account…" : "Signing in…") : signup ? "Create account" : "Sign in"}
       </button>
       <button
         type="button"
@@ -169,7 +169,7 @@ export function ConnectionsPage() {
     [notice, setNotice] = useState("");
   async function api(path: string, method = "GET", body?: unknown) {
     const fresh = await db?.auth.getSession();
-    if (!fresh?.data.session) throw new Error("Sign in again.");
+    if (!fresh?.data.session) throw new Error("Your session ended. Sign in again to manage connections.");
     const r = await fetch(path, {
       method,
       headers: {
@@ -179,7 +179,7 @@ export function ConnectionsPage() {
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.error || "Could not complete.");
+    if (!r.ok) throw new Error(data.error || "Could not complete this action. Check your connection and try again.");
     return data;
   }
   async function refresh() {
@@ -200,7 +200,7 @@ export function ConnectionsPage() {
     try {
       await work();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not complete.");
+      setError(e instanceof Error ? e.message : "Could not complete this action. Check your connection and try again.");
     } finally {
       setBusy(false);
     }
@@ -214,20 +214,19 @@ export function ConnectionsPage() {
         <a href="/">Back to studio</a>
       </header>
       <div className="account-intro">
-        <p className="eyebrow">Your workspace · Your keys</p>
-        <h1>Make it yours.</h1>
+        <h1>Connect your AI</h1>
         <p>
-          Sign in, connect a provider, and create. API providers bill your own
-          account for the requests you make.
+          Sign in and add your own API keys. Image generation and analysis use
+          credits from your connected provider accounts.
         </p>
       </div>
       <BrandScene scene="aperture" />
       {!ready ? (
-        <p role="status">Loading account…</p>
+        <p role="status">Loading your connections…</p>
       ) : !db ? (
         <p>
-          Cloud account setup is pending.{" "}
-          <a href="/">Continue with local drafts.</a>
+          Cloud sign-in is not available here yet.{" "}
+          <a href="/">Save drafts in this browser.</a>
         </p>
       ) : !session ? (
         <AccountSignIn db={db} />
@@ -235,10 +234,10 @@ export function ConnectionsPage() {
         <>
           <section className="account-panel">
             <span className="step-label">01 / Connect your providers</span>
-            <h2>Choose what powers your studio</h2>
+            <h2>Connect an API provider</h2>
             <p>
-              OpenAI or Google for images and titles. Jev for five-pillar
-              scoring. You can connect any combination and remove it anytime.
+              Connect OpenAI or Google to generate images and titles. Connect
+              Jev to score thumbnails. You can use either or both workflows.
             </p>
             <div className="provider-setup">
             <form
@@ -254,7 +253,7 @@ export function ConnectionsPage() {
                   });
                   await refresh();
                   setNotice(
-                    "Connected. Your key is encrypted and is never sent to an agent.",
+                    "API key saved securely. No test request was made. Your agent never receives the key.",
                   );
                 });
               }}
@@ -304,7 +303,7 @@ export function ConnectionsPage() {
                     <strong>
                       {c
                         ? "Connected · ••••" + c.suffix
-                        : "Use your own API key"}
+                        : "Not connected"}
                     </strong>
                     {c && (
                       <button
@@ -329,7 +328,7 @@ export function ConnectionsPage() {
             </div>
 
             {!config?.secureConnections && (
-              <p>Encrypted key storage is awaiting server activation.</p>
+              <p>Key storage is not enabled here yet. You can continue with local drafts.</p>
             )}
             <p className="dialog-footnote">
               Keys are encrypted at rest, isolated to your account and used only
@@ -345,14 +344,14 @@ export function ConnectionsPage() {
             <span className="step-label">02 / Connect your agent</span>
             <h2>Your studio, inside your chat</h2>
             <p>
-              Paste this remote MCP URL into a client that supports Streamable
-              HTTP and OAuth. Review the branded consent screen before allowing
-              access.
+              Paste this MCP URL into your agent’s connection settings. Your
+              client needs Streamable HTTP and OAuth support. Review its
+              requested permissions before allowing access.
             </p>
             {config?.ownerGate && (
               <p>
-                The private preview is owner-only. Public MCP connections become
-                available after domain and public-launch setup.
+                This preview is owner-only. Connections for other accounts are
+                not enabled yet.
               </p>
             )}
             <code className="copy-url">

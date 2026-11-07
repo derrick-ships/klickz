@@ -45,7 +45,7 @@ export function useStudio() {
       if (current !== version.current) return;
       if (rows.some((r) => r.error))
         throw new Error(
-          "Cloud library is not ready. Check the migration and owner access.",
+          "Your cloud library could not load. Refresh the page; if it still fails, contact the workspace owner.",
         );
       setCreations(rows[0].data as Creation[]);
       setPersonas(rows[1].data as Persona[]);
@@ -67,7 +67,7 @@ export function useStudio() {
           .from("studio-assets")
           .createSignedUrls(paths, 300);
         if (current !== version.current) return;
-        if (signed.error) throw new Error("Private previews could not load.");
+        if (signed.error) throw new Error("Your private images could not load. Refresh the page to try again.");
         setImages(
           Object.fromEntries(
             (signed.data || [])
@@ -165,7 +165,7 @@ export function useStudio() {
       setError(
         e instanceof Error
           ? e.message
-          : "The operation failed. Please try again.",
+          : "This action did not finish. Check My creations before trying again.",
       );
       return undefined;
     } finally {
@@ -191,15 +191,17 @@ export function useStudio() {
       body: JSON.stringify(body),
     });
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error || "The request did not finish.");
+    if (!res.ok) throw new Error(result.error || "The request did not finish. Check My creations before retrying.");
     return result;
   }
   function requireLive() {
     if (!live)
       throw new Error(
         cloud
-          ? "AI rendering is not connected yet. You can save a draft or resize an uploaded image."
-          : "Sign in to the connected cloud workspace to use AI. Uploads, drafts and instant resize work locally.",
+          ? config?.ai
+            ? "Connect OpenAI or Google in Connections to generate images and titles. You can still save drafts or resize an uploaded image."
+            : "AI generation is not enabled in this workspace. You can still save drafts or resize an uploaded image."
+          : "Sign in and connect your own API key to use AI. Uploads, drafts and resize also work in this browser.",
       );
   }
   async function put(kind: Collection, item: Creation | Persona | Style) {
@@ -208,7 +210,7 @@ export function useStudio() {
         .current!.from("studio_" + kind)
         .upsert({ ...item, user_id: user });
       if (error)
-        throw new Error("Could not save to the private cloud library.");
+        throw new Error("Could not save to your cloud library. Keep this page open and check your connection before retrying.");
     } else await localPut(kind, item);
   }
   async function upload(file: File) {
@@ -244,7 +246,7 @@ export function useStudio() {
         .current!.storage.from("studio-assets")
         .upload(id, blob, { contentType: "image/png" });
       if (error)
-        throw new Error("Upload failed. Check private storage access.");
+        throw new Error("The image could not upload. Check your connection and try again.");
     } else await localPut("assets", { id, blob });
     return id;
   }
@@ -256,7 +258,7 @@ export function useStudio() {
     });
     if (!res.ok) {
       const value = await res.json();
-      throw new Error(value.error || "Image import failed.");
+      throw new Error(value.error || "Could not import the image. Check that the link is public, or upload the file instead.");
     }
     return upload(
       new File([await res.blob()], "reference.png", { type: "image/png" }),
@@ -267,12 +269,12 @@ export function useStudio() {
       const { data, error } = await db
         .current!.storage.from("studio-assets")
         .download(path);
-      if (error || !data) throw new Error("Image not found.");
+      if (error || !data) throw new Error("This image is not available. Choose another image or upload it again.");
       return data;
     }
     const assets = await localAll<Asset>("assets");
     const asset = assets.find((x) => x.id === path);
-    if (!asset) throw new Error("Image is missing from this browser.");
+    if (!asset) throw new Error("This image is not saved in this browser. Upload it again to continue.");
     return asset.blob;
   }
   async function saveDraft(input: {
@@ -351,11 +353,15 @@ export function useStudio() {
     videoBrief = "",
     includeVision = false,
   ) {
-    if (!cloud || !config?.ai)
+    if (!cloud)
       throw new Error(
         "Sign in and connect your own Jev key to score thumbnails.",
       );
-    if (!config?.jev) throw new Error("Jev is not connected yet.");
+    if (!config?.ai)
+      throw new Error(
+        "Scoring is not enabled in this workspace. You can still resize an uploaded image without AI credits.",
+      );
+    if (!config?.jev) throw new Error("Connect your Jev API key in Connections, then analyze this thumbnail again.");
     const intent = { creationId: item.id, title, videoBrief, includeVision };
     const fingerprint = JSON.stringify(intent);
     if (pendingRequest.current?.fingerprint !== fingerprint)
@@ -469,7 +475,7 @@ export function useStudio() {
         .current!.from("studio_" + kind)
         .delete()
         .eq("id", id);
-      if (error) throw new Error("Delete failed.");
+      if (error) throw new Error("Could not delete this item. Refresh your library to check whether it is still there.");
     } else await localDelete(kind, id);
     await load();
   }
@@ -479,7 +485,7 @@ export function useStudio() {
   }
   async function download(item: Creation) {
     if (!item.image_path)
-      throw new Error("Render this draft before downloading it.");
+      throw new Error("This draft has no image yet. Choose Generate before downloading.");
     const url = URL.createObjectURL(await blob(item.image_path));
     const link = document.createElement("a");
     link.href = url;
@@ -488,7 +494,7 @@ export function useStudio() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   async function login(email: string, password: string) {
-    if (!db.current) throw new Error("Cloud sign-in is not configured yet.");
+    if (!db.current) throw new Error("Cloud sign-in is not available here yet. You can still save drafts in this browser.");
     const { error } = await db.current.auth.signInWithPassword({
       email,
       password,

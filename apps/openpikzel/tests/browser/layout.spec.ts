@@ -79,7 +79,7 @@ test("long persona names remain readable in dialogs and bounded in the composer"
     buffer: await sharp({ create: { width: 64, height: 64, channels: 3, background: "#df1c2c" } }).png().toBuffer(),
   });
   await page.getByRole("button", { name: "Create persona", exact: true }).click();
-  const choose = page.getByRole("dialog").getByRole("button", { name: name + " 1 references saved" });
+  const choose = page.getByRole("dialog").getByRole("button", { name: name + " 1 reference saved" });
   await expect(choose).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   await page.screenshot({ path: "evidence/layout-long-persona-dialog-320.png", fullPage: true });

@@ -56,7 +56,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   ).toBeVisible();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: /Derrick 1 references saved/ })
+    .getByRole("button", { name: /Derrick 1 reference saved/ })
     .click();
   await expect(
     page.getByRole("button", { name: "Derrick", exact: true }),

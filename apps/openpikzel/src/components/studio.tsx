@@ -368,7 +368,7 @@ export default function Studio() {
         setTitle(result.creations[0].title);
         if (result.partial)
           studio.setError(
-            "Some variations finished. The remaining batch stopped; check your history before retrying.",
+            "Some images were saved, but the batch stopped. Check My creations before generating again to avoid duplicate charges.",
           );
       },
     );
@@ -702,7 +702,7 @@ export default function Studio() {
         >
           {dialog === "connections" && studio.cloud && (
             <button className="neutral-button full-width" onClick={showJobs}>
-              View persistent jobs
+              View API activity
             </button>
           )}
           {dialog === "login" && (
@@ -906,7 +906,7 @@ export default function Studio() {
                           value={videoBrief}
                           onChange={(e) => setVideoBrief(e.target.value)}
                           maxLength={2400}
-                          placeholder="The factual promise, what is shown, and any claims to preserve. Optional for visual-only diagnostics."
+                          placeholder="Describe what viewers will see or learn, and any facts the thumbnail must keep. Optional for a visual-only score."
                         />
                         <label className="vision-choice">
                           <input
@@ -914,13 +914,13 @@ export default function Studio() {
                             checked={includeVision}
                             onChange={(e) => setIncludeVision(e.target.checked)}
                           />
-                          Add image-specific vision critique (one extra OpenAI
-                          or Google request)
+                          Add a detailed image review (one extra OpenAI or
+                          Google request)
                         </label>
                         <p>
-                          Jev alone assesses visual rubrics. Missing title or
-                          brief leaves Idea and Curiosity unassessed; no overall
-                          score is invented.
+                          Idea and Curiosity need both a title and a video
+                          summary. Without them, those pillars and the overall
+                          score stay blank.
                         </p>
                       </div>
                     )}
@@ -1258,9 +1258,11 @@ export default function Studio() {
                 </div>
                 <div className="composer-footer">
                   <span>
-                    {studio.live
-                      ? "Your API accounts. Your creations."
-                      : "Private by design. Save drafts while AI connects."}
+                    {tool === "analyze"
+                      ? "Scores use your API credits. Resize does not."
+                      : studio.live
+                        ? "Generation uses your connected API credits."
+                        : "Save a draft now. Connect an API key to generate."}
                   </span>
                   {tool !== "analyze" && (
                     <div className="save-draft-feedback">
@@ -1334,7 +1336,7 @@ export default function Studio() {
                         {selected.status === "draft"
                           ? "Concept saved."
                           : selected.mode === "fix"
-                            ? "A stronger first impression."
+                            ? "New version saved."
                             : selected.mode === "resize"
                               ? "Ready for another format."
                               : "Your thumbnail."}
@@ -1435,8 +1437,8 @@ export default function Studio() {
                         </button>
                       </div>
                       <p className="resize-note">
-                        Instant resize preserves the full image over a softly
-                        extended background.
+                        Resize keeps the full image and fills the extra space
+                        with a soft background. It does not use AI credits.
                       </p>
                     </>
                   ) : (
@@ -1445,10 +1447,10 @@ export default function Studio() {
                       <p>{selected.prompt}</p>
                       <span>
                         {selected.status === "draft"
-                          ? "This is a saved concept. Generate to render your thumbnail."
+                          ? "Your instructions are saved. Choose Generate to create an image with your connected API credits."
                           : selected.status === "failed"
-                            ? "The last render did not finish. Your concept is safe."
-                            : "The render is still processing."}
+                            ? "This image did not finish generating. Your instructions are saved; check My creations before retrying."
+                            : "This image is still processing. Check My creations before starting another request."}
                       </span>
                       <button
                         className="neutral-button"
@@ -1519,13 +1521,13 @@ export default function Studio() {
                             <dd>{score.dimensions[activePillar].fix}</dd>
                           </dl>
                           <span className="confidence">
-                            Provider confidence:{" "}
+                            AI confidence:{" "}
                             {score.dimensions[activePillar].confidence >= 0.7
                               ? "high"
                               : score.dimensions[activePillar].confidence >= 0.3
                                 ? "medium"
                                 : "low"}{" "}
-                            (uncalibrated)
+                            (not a measured probability)
                           </span>
                         </div>
                       </div>
@@ -1682,7 +1684,7 @@ export default function Studio() {
                         : dialog === "compare"
                           ? "Compare without scores"
                           : dialog === "jobs"
-                            ? "Persistent jobs"
+                            ? "API activity"
                             : "Workspace connections"}
             </h2>
             <button
@@ -1726,8 +1728,8 @@ export default function Studio() {
                             <strong>{item.name}</strong>
                             <span>
                               {item.profile_status === "ready"
-                                ? "Identity brief ready"
-                                : `${item.refs.length} references saved`}
+                                ? "Profile prepared"
+                                : `${item.refs.length} reference${item.refs.length === 1 ? "" : "s"} saved`}
                             </span>
                           </div>
                           <Check
@@ -1782,9 +1784,9 @@ export default function Studio() {
                     Create {profileKind}
                   </button>
                   <p className="dialog-footnote">
-                    Reference-guided consistency. Saved photos and a prepared
-                    profile guide each generation; no fine-tuned model is
-                    claimed.
+                    Photos guide future images. Prepare profile uses your AI
+                    credits to describe the references; it does not train a
+                    custom model.
                   </p>
                 </>
               ) : (
@@ -1844,7 +1846,7 @@ export default function Studio() {
                     <ImagePlus size={25} />
                     <strong>
                       {profileFiles.length
-                        ? `${profileFiles.length} photos selected`
+                        ? `${profileFiles.length} photo${profileFiles.length === 1 ? "" : "s"} selected`
                         : "Add reference photos"}
                     </strong>
                     <span>1 to 6 photos, PNG/JPG/WebP, up to 5 MB each</span>
@@ -1921,16 +1923,16 @@ export default function Studio() {
           {dialog === "jobs" && (
             <>
               <p>
-                Jobs persist across page reloads. A reconciling outcome may
-                already have used provider credits; do not automatically
-                resubmit.
+                Requests remain here after a reload. If the outcome is still
+                being checked, API credits may already have been used. Wait and
+                check My creations before trying again.
               </p>
               {jobs.map((j) => (
                 <div className="connection-row" key={j.id}>
-                  <strong>{j.operation}</strong>
+                  <strong>{j.operation === "generate" ? "Image generation" : j.operation === "analyze" ? "Thumbnail analysis" : "API request"}</strong>
                   <span>
-                    {j.state} · at most {j.max_provider_calls} provider
-                    request(s)
+                    {({ queued: "Waiting to start", running: "Processing", succeeded: "Completed", failed: "Failed", reconciling: "Checking outcome — wait before retrying" } as Record<string, string>)[j.state] || "Status unavailable"}
+                    {` · Up to ${j.max_provider_calls} API request${j.max_provider_calls === 1 ? "" : "s"}`}
                   </span>
                 </div>
               ))}
@@ -1982,9 +1984,9 @@ export default function Studio() {
           {dialog === "fixplan" && (
             <>
               <p className="dialog-description">
-                Review the exact changes before using your image-provider
-                credits. One new variant; no automatic re-analysis. Your
-                original and its lineage stay saved.
+                Preview the changes first, then choose whether to spend API
+                credits on one new image. Your original stays saved. The new
+                image will not be scored automatically.
               </p>
               {[
                 ["Exact wording to preserve", exactText, setExactText],
@@ -2005,16 +2007,16 @@ export default function Studio() {
                 </label>
               ))}
               <p>
-                Identity, existing wording, the factual video promise and
-                original image are preserved by default. This is a full-image
-                edit, not a verified pixel mask.
+                The instructions keep the person, wording and video facts.
+                The AI edits the whole image, so other details may also change.
+                Review the result before downloading.
               </p>
               <button
                 className="neutral-button full-width"
                 disabled={busy}
                 onClick={prepareFix}
               >
-                Prepare fix plan · no API charge
+                Preview fixes · no API charge
               </button>
               {fixReview?.plan && (
                 <>
@@ -2043,7 +2045,7 @@ export default function Studio() {
                     disabled={busy}
                     onClick={applyFix}
                   >
-                    Apply one fix with my API
+                    Generate fixed image · uses API credits
                   </button>
                 </>
               )}

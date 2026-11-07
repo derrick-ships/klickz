@@ -64,7 +64,7 @@ The full release gate passed on the final layout implementation, with the same l
 
 Controlled mobile lab medians: script_bytes=217525.000, css_bytes=9345.000, image_bytes=5098.000, total_bytes=256311.000, third_party=0.000, lcp_ms=696.000, cls=0.001, inp_sample_ms=72.000. Maximum click-to-two-frame feedback across all samples: 72.4ms. Lighthouse total transfer: mobile=261999B, desktop=264979B. Native-device and live-provider limitations above still apply.
 
-## Delight motion release — fresh verification
+## Delight motion release — historical baseline
 
 TypeScript,69 unit/database/protocol cases, production build,22 functional browser cases, isolated3-sample lab and6 Lighthouse runs passed on the finished implementation. The same limits remain.
 
@@ -79,3 +79,19 @@ TypeScript,69 unit/database/protocol cases, production build,22 functional brows
 | CLS |0.001|0.000|
 
 Controlled mobile lab medians: script_bytes=217845.000, css_bytes=9627.000, image_bytes=5098.000, total_bytes=256978.000, third_party=0.000, lcp_ms=680.000, cls=0.001, inp_sample_ms=72.000. Maximum click-to-two-frame feedback: 42.7ms. Lighthouse total transfer: mobile=262666B, desktop=265646B. No runtime dependencies or media were added. These are local lab metrics, not field p75, native-device or provider timings.
+
+## Clarify copy release — fresh verification
+
+The full release gate passed on the final copy revision:69 unit/database/protocol cases,22 browser cases, isolated3-sample lab and6 Lighthouse runs; TypeScript and production build passed. Same budgets, no relaxed threshold.
+
+| Median-run | Mobile | Desktop |
+| --- | --- | --- |
+| Performance |98|100|
+| Accessibility |100|100|
+| Best practices |100|100|
+| SEO |100|100|
+| LCP ms |2373.900|519.595|
+| TBT ms |67.000|0.000|
+| CLS |0.001|0.000|
+
+Controlled mobile lab medians: script_bytes=218297.000, css_bytes=9627.000, image_bytes=5098.000, total_bytes=257431.000, third_party=0.000, lcp_ms=688.000, cls=0.001, inp_sample_ms=64.000. Maximum click-to-two-frame feedback: 51.2ms. Lighthouse total transfer: mobile=263119B, desktop=266099B. Controlled local samples only; no claim of field p75, native-device validation or live provider timing.
