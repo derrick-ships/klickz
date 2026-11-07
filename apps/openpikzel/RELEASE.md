@@ -23,7 +23,9 @@ Automatic review rejected a single attempted environment batch because it includ
 
 This worker did not mutate DNS, promote a production deployment, create a bypass secret, purchase provider credits or grant public OAuth access. Domain setup was completed separately in the main thread. Current blockers are the authenticated owner session, multiuser release configuration and real provider/client verification. Domain connection is complete.
 
-Latest protected preview: https://openpikzel-pvuedmoi9-derrick-serna-zabarains-projects.vercel.app — deployment `dpl_GAPYe98emUMMb2oH1SVCEsC4Bikj` verified READY, non-custom deployment protection enabled. Browser entry verified the Vercel login wall. Source implementation commit: `33895ecb1d2979ff567ad8735e1d84264a67b34f`.
+Latest protected preview: https://openpikzel-nbi13gdkz-derrick-serna-zabarains-projects.vercel.app — deployment `dpl_GfYuBUTSr7gB3jr2zoMhhe67E6U7`, verified READY, preview target (no production promotion). Source implementation commit: `125c69a215ac68c02f63f533b310e0414ab25b91`. This deployment includes the original brand assets and study adaptations. Non-custom deployment authentication remains enabled.
+
+Previous preview: https://openpikzel-pvuedmoi9-derrick-serna-zabarains-projects.vercel.app — implementation commit `33895ecb1d2979ff567ad8735e1d84264a67b34f`; superseded by the preview above.
 
 ## Original brand assets
 
