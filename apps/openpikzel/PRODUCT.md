@@ -16,4 +16,4 @@ Name: OpenPikzels. Red accent in the YouTube family. Faithfully follow the captu
 Pikzels app observed in cloud browser on November 7, 2026: narrow sidebar, chat history, bottom persona/style/model/format controls, central five-mode pill switcher, reference uploader, prompt, split generate/batch action. Existing generated Frame code, tests and local data store. No measured performance data or testimonial assets supplied.
 
 ## Account and MCP extension
-Per-user OpenAI, Google and Jev API keys; OAuth 2.1-style S256 PKCE consent, resource-bound tokens, dynamic registration, Streamable HTTP /mcp, MCP Apps HTML studio and copyable fix prompts for ChatGPT. Domain openpikzels.com; public launch remains pending.
+Per-user OpenAI, Google and Jev API keys; OAuth 2.1-style S256 PKCE consent, resource-bound tokens, dynamic registration, Streamable HTTP /mcp, MCP Apps HTML studio and copyable fix prompts for ChatGPT. Domain openpikzels.com; the interface is deployed to production. Public provider-key storage, AI activation and full real-client OAuth validation remain pending.

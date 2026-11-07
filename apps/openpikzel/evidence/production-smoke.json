@@ -1,0 +1,46 @@
+{
+  "source": "7f7f6745156f1427f3b6eb66f31be655e37e8f5c",
+  "origin": "https://openpikzels.com",
+  "localBrowser": {
+    "status": "unavailable",
+    "reason": "Direct request returned ERR_EMPTY_RESPONSE; configured proxy attempt timed out before any page loaded."
+  },
+  "cloudBrowser": {
+    "studio": "Observed real branded studio, five modes, controls and local-library state at https://openpikzels.com/?mode=generate",
+    "connections": "Observed Connect your AI and sign-in form at https://openpikzels.com/connect",
+    "scope": "Unauthenticated desktop cloud-browser visual check; local320\u20131920px responsive fixtures passed separately. No cloud mobile, authenticated flow or provider generation claimed."
+  },
+  "http": {
+    "config": {
+      "status": 200,
+      "mcpUrl": "https://openpikzels.com/mcp",
+      "cloud": true,
+      "ai": false,
+      "ownerGate": true,
+      "secureConnections": false,
+      "openai": false,
+      "jev": false,
+      "google": false
+    },
+    "protectedResource": {
+      "status": 200,
+      "resource": "https://openpikzels.com/mcp",
+      "authorization_servers": [
+        "https://openpikzels.com"
+      ]
+    },
+    "authorizationServer": {
+      "status": 200,
+      "issuer": "https://openpikzels.com",
+      "code_challenge_methods_supported": [
+        "S256"
+      ],
+      "registration_endpoint": "https://openpikzels.com/oauth/register"
+    },
+    "unauthenticatedMcp": {
+      "status": 401,
+      "wwwAuthenticate": "Bearer resource_metadata=\"https://openpikzels.com/.well-known/oauth-protected-resource/mcp\""
+    },
+    "pass": true
+  }
+}

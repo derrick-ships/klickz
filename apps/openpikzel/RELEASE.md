@@ -14,14 +14,14 @@
 1. Verify/configure production `APP_ORIGIN=https://openpikzels.com`, a dedicated encrypted `STUDIO_ENCRYPTION_KEY`, browser-safe Supabase URL/key, `OWNER_PROVIDER_KEYS=false`, and enable AI only for users' own connected keys. **Do not copy Derrick's OpenAI/Jev keys to production.**
 2. Apply `20261107174000_public_studio_release.sql` at the approved release and set `OWNER_GATE=false`. It addresses the older studio-specific owner restrictions while preserving each row's user ownership and private storage. The new `studio_jobs_app_owner` restriction remains deliberately in place; a public multiuser jobs release requires a separately authorized, reviewed policy change. This release migration has **not** been applied to hosted Supabase.
 3. Check Supabase signup/email redirect allowlist for `/connect`, email confirmation, delivery and rate limits. No global Supabase Site URL or existing identity-provider configuration has been changed.
-4. Create/promote the production deployment and adjust Vercel protection so OAuth discovery/consent/MCP routes are publicly reachable with app-level user authorization. Do not publish a protection-bypass secret.
+4. The UI production deployment is complete (details below). Public discovery is reachable and unauthenticated MCP is rejected. Production key storage and real-client Allow/refresh activation remain pending. Do not publish a protection-bypass secret.
 5. Verify a full real-client Allow→PKCE→tools→refresh→revoke sequence, and one real provider smoke test within the approved allowance: one Low image, five titles, one OpenAI+Jev image analysis. Check uncertain paid outcomes before retrying.
 
 ## Approval-review history
 
 Automatic review rejected a single attempted environment batch because it included provider keys in production, beyond the approved protected preview. A read-only check confirmed nothing from that batch was written. The safer preview-only operation succeeded. Production provider-key transfer remains denied and is not needed for the BYOK public release.
 
-This worker did not mutate DNS, promote a production deployment, create a bypass secret, purchase provider credits or grant public OAuth access. Domain setup was completed separately in the main thread. Current blockers are the authenticated owner session, multiuser release configuration and real provider/client verification. Domain connection is complete.
+Before the final explicitly authorized production publication below, this worker had not promoted production. No DNS mutation, bypass secret, provider-credit purchase or public OAuth grant was performed by this worker. Domain setup was completed separately in the main thread. Current blockers are the authenticated owner session, multiuser release configuration and real provider/client verification. Domain connection is complete.
 
 Mobile/performance preview: https://openpikzel-ywwfm7ifg-derrick-serna-zabarains-projects.vercel.app — deployment `dpl_GJoWkF84Z9xpAqTazBJ7EqSauyMD`, verified READY, preview target (no production promotion). Source implementation commit: `e3414a086e5bf980d3f164c02869acfbf3dd2739`. Fixes the reported mobile image crop, adds responsive posters and measured production performance gates. 69 unit/database/route/protocol tests, 16 functional browser tests, the isolated 3-sample lab and 6 Lighthouse runs passed. Mobile median-run: performance98, LCP2386ms, TBT66ms, CLS0.001; desktop100, LCP522ms. See PERFORMANCE.md for byte/interaction measurements, actual visual evidence and limitations.
 
@@ -72,3 +72,19 @@ Implemented the selected image-first Review Studio with neighboring desktop scor
 The user explicitly requested Impeccable polish, main publication, force push and deployment without another approval. The final narrow polish and complete release gate passed:69 logic/database/route/protocol tests,25 browser tests,3 root-lab samples,review interaction gate and6 Lighthouse runs. Performance98 mobile/100 desktop; no relaxed limits. See POLISH.md and PERFORMANCE.md.
 
 Main was verified as an ancestor with no divergent commits. Publication retains feature ancestry and the existing root app, using an expected-head force lease against06b2d2d1e9f436a6e68c1c51aa074e0467877577. Production APP_ORIGIN=https://openpikzels.com is configured. Existing AI/owner gates remain; no preview provider/encryption key is copied to production and no restrictive database policy is altered. Deployment confirmation and live-domain observations follow after completion. Prior production rollback candidate:dpl_Do25SeFmLkRfCuJD7pdb23PoKaGC.
+
+
+## Confirmed production result
+
+- URL:https://openpikzels.com/?mode=generate ; connections:https://openpikzels.com/connect
+- Target:production; status:READY; framework:Next.js; build:about46s.
+- Runtime source/main publication:7f7f6745156f1427f3b6eb66f31be655e37e8f5c.
+- Deployment:dpl_5V2bVmwY4RRSBQXTcHeFmndFvXe1 ; https://openpikzel-1v0yiy15h-derrick-serna-zabarains-projects.vercel.app
+- Assigned aliases:openpikzels.com,www.openpikzels.com,openpikzel.vercel.app and the established team alias. Vercel Authentication remains on non-custom deployments.
+- Guarded force push to main succeeded with expected prior06b2d2d1e9f436a6e68c1c51aa074e0467877577. Read-only comparison confirmed main exactly matched7f7f6745 after publication. Later release evidence/docs commits do not change runtime code.
+- Real cloud browser:branded studio, five modes, connection modal, Connect your AI and sign-in form rendered; no login/signup or provider request made. Local browser outbound navigation was unavailable (empty response/proxy timeout), so no production mobile-browser automation result is claimed. Local responsive fixture checks and manual375/1440 review are separate.
+- Real HTTP:config200 with canonical MCP URL;protected resource metadata200;authorization-server metadata200 withS256;unauthenticated MCP initialize401 with correct resource-metadata challenge. No OAuth client/grant was created.
+- Production config confirms ai=false,ownerGate=true,secureConnections=false and all unauthenticated provider flags=false. The public interface is live; production provider-key storage, AI generation and full agent authorization are not activated. Only APP_ORIGIN was added for this release; no production encryption/provider secret was transferred.
+- Vercel error/fatal runtime-log scan for this deployment over the preceding15minutes returned no matching logs. This is an immediate post-release observation, not field monitoring or an authenticated-provider health certificate.
+
+Evidence:evidence/production-smoke.json. Pending actions remain the production encryption-key setup, reviewed per-user/multiuser jobs activation, authenticated owner/provider smoke and real-client OAuth Allow/refresh/revoke tests. The prior production deployment remains the rollback candidate listed above. Historical production-secret batch and jobs-policy denials remain unchanged; neither denied action was retried in this release.

@@ -24,3 +24,8 @@ Real provider quality/authorized paid smoke, authenticated-owner session, real-c
 ## Final gate
 
 npm run verify:release exited0:69 logic tests,25 functional browser cases,TypeScript/production build,3 root-lab samples,review interaction gate and6 Lighthouse runs. Representative mobile98,LCP2387ms,TBT68ms,CLS0.001;desktop100,LCP515ms,TBT0,CLS0. Review feedback maxima20.3ms/22.7ms at390/1440. Unchanged budgets; no paid calls. See PERFORMANCE.md and machine-readable reports.
+
+
+## Delivered
+
+Main publication succeeded with force=true and an exact prior-head lease. Production deployment dpl_5V2bVmwY4RRSBQXTcHeFmndFvXe1 isREADY, source7f7f6745156f1427f3b6eb66f31be655e37e8f5c, assigned toopenpikzels.com/www. The real cloud browser confirmed studio and sign-in rendering; real HTTP confirmed discovery/PKCE metadata and401 for unauthenticated MCP. Local browser outbound navigation was unavailable, so cloud desktop and local responsive evidence are explicitly separate. Immediate Vercel error/fatal scan returned no matching logs. See RELEASE.md and evidence/production-smoke.json for scope and exact remaining activation limits.
