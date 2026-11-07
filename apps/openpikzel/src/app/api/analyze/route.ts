@@ -1,13 +1,17 @@
-import { authenticated, failure, requireAI } from "@/lib/server";
+import {
+  authenticated,
+  failure,
+  requireAI,
+  withUserProviders,
+} from "@/lib/server";
 import { reviewSchema, AppError } from "@/lib/validation";
 import { evaluateThumbnail } from "@/lib/providers";
 import { ownedAsset } from "@/lib/assets";
 import { NextResponse } from "next/server";
 export const maxDuration = 180;
-export async function POST(request: Request) {
+async function handle(request: Request) {
   try {
     const { db, user } = await authenticated(request);
-    requireAI("openai");
     requireAI("jev");
     const input = reviewSchema.parse(await request.json());
     let path = input.imagePath;
@@ -60,3 +64,9 @@ export async function POST(request: Request) {
     return failure(e);
   }
 }
+
+export const POST = (request: Request) =>
+  withUserProviders(request, () => handle(request), [
+    "studio:ai",
+    "studio:write",
+  ]);

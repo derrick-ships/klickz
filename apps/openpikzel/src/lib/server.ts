@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { AppError } from "./validation";
 import { publicSupabaseConfig } from "./config";
+import { providerContext, providerKey, userKeys } from "./provider-context";
+import { resolveAccess, type Scope } from "./oauth/core";
 export async function authenticated(request: Request) {
   const config = publicSupabaseConfig();
   if (!config)
@@ -13,6 +15,7 @@ export async function authenticated(request: Request) {
     .get("Authorization")
     ?.match(/^Bearer (.+)$/)?.[1];
   if (!token) throw new AppError(401, "Sign in to use your cloud studio.");
+  if (token.startsWith("opz1.")) return resolveAccess(token);
   const db = createClient(config.url, config.key, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
@@ -20,6 +23,14 @@ export async function authenticated(request: Request) {
   const { data, error } = await db.auth.getUser(token);
   if (error || !data.user)
     throw new AppError(401, "Your session expired. Please sign in again.");
+  const claims = JSON.parse(
+    Buffer.from(token.split(".")[1], "base64url").toString(),
+  );
+  if (claims.client_id)
+    throw new AppError(
+      403,
+      "Connect through the OpenPikzels OAuth consent flow.",
+    );
   if (process.env.OWNER_GATE !== "false") {
     const access = await db.rpc("app_web_access");
     if (access.error || access.data !== true)
@@ -28,23 +39,40 @@ export async function authenticated(request: Request) {
         "This private studio is available to its owner only.",
       );
   }
-  return { db, user: data.user };
+  return { db, user: data.user, oauth: undefined };
 }
-export function requireAI(provider: "openai" | "jev") {
+export function requireAI(provider: "openai" | "jev" | "google") {
   if (process.env.AI_ENABLED !== "true")
     throw new AppError(
       403,
-      "AI usage is disabled until provider usage is approved and enabled.",
+      "AI usage is awaiting activation. Your account will use only your own connected keys.",
     );
   if (
-    !(provider === "openai"
-      ? process.env.OPENAI_API_KEY
-      : process.env.JEV_API_KEY)
+    provider === "openai" &&
+    !providerContext.getStore()?.openai &&
+    providerContext.getStore()?.google
   )
-    throw new AppError(
-      503,
-      `${provider === "openai" ? "OpenAI" : "Jev"} is not configured.`,
-    );
+    providerKey("google");
+  else providerKey(provider);
+}
+export async function withUserProviders(
+  request: Request,
+  work: () => Promise<Response>,
+  scope: Scope | Scope[] = "studio:ai",
+) {
+  try {
+    const context = await authenticated(request);
+    const required = Array.isArray(scope) ? scope : [scope];
+    if (
+      context.oauth &&
+      required.some((s) => !context.oauth!.scope.includes(s))
+    )
+      throw new AppError(403, "Your agent lacks permission for this action.");
+    const keys = await userKeys(context.db, context.user.id);
+    return await providerContext.run(keys, work);
+  } catch (e) {
+    return failure(e);
+  }
 }
 export function failure(error: unknown) {
   if (error instanceof AppError)

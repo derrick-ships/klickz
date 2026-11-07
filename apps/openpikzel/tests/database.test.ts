@@ -13,6 +13,7 @@ beforeAll(async () => {
   await db.exec(`create role anon;create role authenticated;create schema auth;create schema storage;
  create table auth.users(id uuid primary key);insert into auth.users values('${alice}'),('${bob}');
  create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+ create function auth.jwt() returns jsonb language sql stable as $$ select '{}'::jsonb $$;
  create function public.app_web_access() returns boolean language sql stable as $$ select coalesce(current_setting('request.jwt.claim.owner',true),'true') <> 'false' $$;
  create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
  create table storage.objects(id uuid default gen_random_uuid() primary key,bucket_id text,name text);
@@ -117,20 +118,29 @@ describe("PostgreSQL migration and row isolation", () => {
     );
     expect(result.rows[0].persona_id).toBeNull();
   });
-  it("enforces the existing owner gate even for a valid row owner", async () => {
-    await asUser(alice);
+  it("allows separate user accounts without changing unrelated app owner access", async () => {
+    await asUser(bob);
     await db.exec("set request.jwt.claim.owner='false'");
+    await db.exec(
+      `insert into studio_creations(user_id,title,prompt,mode,style) values('${bob}','Bob owns this','A specific video concept','generate','Auto')`,
+    );
+    const rows = await db.query<{ user_id: string }>(
+      "select user_id from studio_creations",
+    );
+    expect(rows.rows.length).toBe(1);
+    expect(rows.rows[0].user_id).toBe(bob);
+    await db.exec(
+      `insert into studio_provider_keys(user_id,provider,ciphertext,suffix) values('${bob}','jev','encrypted-placeholder','test')`,
+    );
+    await asUser(alice);
     expect(
-      (await db.query("select * from studio_creations")).rows,
+      (await db.query("select * from studio_provider_keys")).rows,
     ).toHaveLength(0);
     await expect(
       db.exec(
-        `insert into studio_creations(user_id,title,prompt,mode,style) values('${alice}','blocked','A specific video concept','generate','Auto')`,
+        `insert into studio_provider_keys(user_id,provider,ciphertext,suffix) values('${bob}','openai','stolen-placeholder','test')`,
       ),
     ).rejects.toThrow();
-    expect((await db.query("select * from storage.objects")).rows).toHaveLength(
-      0,
-    );
     await db.exec("set request.jwt.claim.owner='true'");
   });
   it("denies unauthenticated database access", async () => {

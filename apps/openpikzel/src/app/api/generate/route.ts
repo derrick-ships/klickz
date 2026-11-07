@@ -1,21 +1,35 @@
-import { authenticated, failure, requireAI } from "@/lib/server";
+import {
+  authenticated,
+  failure,
+  requireAI,
+  withUserProviders,
+} from "@/lib/server";
 import { generationSchema, AppError } from "@/lib/validation";
 import {
   renderThumbnail,
   evaluateThumbnail,
   fixInstructions,
 } from "@/lib/providers";
+import { providerContext } from "@/lib/provider-context";
 import { ownedAsset } from "@/lib/assets";
 import { NextResponse } from "next/server";
 export const maxDuration = 300;
-export async function POST(request: Request) {
+async function handle(request: Request) {
   let context: Awaited<ReturnType<typeof authenticated>> | undefined;
   let activeId: string | undefined;
   try {
     context = await authenticated(request);
-    requireAI("openai");
     const { db, user } = context;
     const input = generationSchema.parse(await request.json());
+    requireAI(input.settings.model.startsWith("gemini-") ? "google" : "openai");
+    if (
+      !input.settings.model.startsWith("gemini-") &&
+      !providerContext.getStore()?.openai
+    )
+      throw new AppError(
+        403,
+        "Connect your own OpenAI key for Sunburst/Flare, or choose a Google model.",
+      );
     const previous = await db
       .from("studio_creations")
       .select("id,status")
@@ -176,3 +190,9 @@ export async function POST(request: Request) {
     return failure(error);
   }
 }
+
+export const POST = (request: Request) =>
+  withUserProviders(request, () => handle(request), [
+    "studio:ai",
+    "studio:write",
+  ]);

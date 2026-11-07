@@ -1,4 +1,4 @@
-# OpenPikzel
+# OpenPikzels
 
 A private YouTube thumbnail studio with a Pikzels-inspired dark interface and red accent, implemented with Next.js, OpenAI, Jev and Supabase.
 
@@ -28,13 +28,23 @@ npm run test:browser
 
 The app runs at http://localhost:3000. No environment file is needed for local references, drafts and instant resize. AI functions fail explicitly if disconnected; no fabricated generations or scores are shown.
 
-## Cloud resources
+## Accounts, BYOK and MCP
 
-Vercel project: `openpikzel`, ID `prj_QyWc3SoRUCmGsPRmwx4tm4kVhI9z`, under Derrick’s established team. All deployment URLs are protected by Vercel Authentication. No protection-bypass secret or external access grant is created.
+`/connect` provides account signup/sign-in, private per-user OpenAI/Google/Jev connections, agent instructions, the MCP URL and connected-agent revocation. Keys are encrypted on the server with user/provider binding. API tools never return keys. Consumer ChatGPT/Gemini subscriptions do not include API credits.
 
-Supabase: existing `app-starter-dev`, ref `iufiqfvufoecbuakzale`. Migration `openpikzel_v1_private_studio` adds `studio_creations`, `studio_personas`, `studio_styles`, private bucket `studio-assets`, owner-folder policies, replay/batch uniqueness and restrictive policies honoring the existing `public.app_web_access()` gate. Existing private owner and OAuth allowlists are retained unchanged. No service-role key is needed. Hosted transaction assertions verified that the owner can insert/read and another authenticated identity cannot read; verification rows were rolled back.
+`/mcp` implements Streamable HTTP with OAuth metadata, dynamic client registration, S256 PKCE, branded Allow/Deny consent, exact resource audience binding, single-use codes, rotation and revocation. The same backend powers the browser and agent tools. The bundled MCP Apps HTML studio supports uploaded images, profiles, scoring, generation, fix prompts and resize in compatible clients. See [MCP.md](MCP.md) for setup, tools and copyable instructions.
 
-Provider credentials must be supplied through an approved secure environment-variable handoff. They are never stored in this source, its archives, browser bundles or logs. `AI_ENABLED=false` keeps provider calls disabled until activation is approved. Model eligibility, provider balances and real paid outputs have not been verified by mocked tests.
+Jev can score an image created inside ChatGPT without an OpenAI image API call. `get_fix_prompt` returns a copyable edit prompt. Optional OpenAI or Google vision adds concrete visible observations to Jev's five numeric rubrics. Google supports Gemini Flash/Pro image models at native 1K; Sunburst/Flare retain OpenAI quality/intelligence controls.
+
+## Cloud resources and release
+
+The app lives in the existing private `derrick-ships/klickz` repository under `apps/openpikzel/`, draft [PR #2](https://github.com/derrick-ships/klickz/pull/2). The existing Supabase project is `app-starter-dev` / `iufiqfvufoecbuakzale`; creations, profiles, provider ciphertext and OAuth grants have RLS, and `studio-assets` is private. No service-role key is used.
+
+Vercel project `openpikzel` / `prj_QyWc3SoRUCmGsPRmwx4tm4kVhI9z` remains protected on all URLs. Authorized OpenAI/Jev keys and the server encryption key were configured only for the protected preview. The owner-key fallback is restricted to the exact existing owner account. Other users never receive that fallback. Production AI is disabled and has no provider keys.
+
+`openpikzels.com` is the planned public domain. **Domain connection and public MCP launch are still pending.** No DNS records or public access settings were changed. See [RELEASE.md](RELEASE.md) for the verified DNS state, unapplied release migration, exact activation steps and approval-review outcome. No paid provider test has run yet.
+
+For a fresh local deployment copy `.env.example`, configure the browser-safe Supabase variables and a 32-byte hex `STUDIO_ENCRYPTION_KEY`. Use the first three migrations for an owner-restricted preview. Apply the separate public-release migration only when intentionally enabling per-user access. Keep the encryption key stable; rotation requires reconnecting encrypted provider keys and agent sessions.
 
 ## Reliability and limits
 
@@ -42,7 +52,7 @@ A whole batch is reserved atomically before concurrent rendering. The same user/
 
 Jev image support is experimental. Scores are AI rubric assessments, not measured CTR, empirical conversion forecasts, analytics or guarantees of views. Actual performance should be tested with YouTube Test & Compare. Identity and text fidelity vary with the image model; no fine-tuned persona training pipeline is claimed.
 
-Supabase’s existing owner account signs in with the project’s existing credentials. This version does not create accounts, invite users, reset passwords, purchase credits or change billing plans.
+Users can create their own Supabase account from `/connect` after public release and email configuration. Setup has not created user accounts, invited users, reset passwords, purchased credits or changed billing plans.
 
 ## Design skills installed
 
@@ -50,6 +60,6 @@ Impeccable is pinned as a Git submodule under `vendor/impeccable` and linked for
 
 ## Sources
 
-[Pikzels app](https://app.pikzels.com/) and [Analyze feature](https://pikzels.com/features/analyze-thumbnail) informed the user-requested layout and feature set. OpenPikzel uses its own code and brand.
+[Pikzels app](https://app.pikzels.com/) and [Analyze feature](https://pikzels.com/features/analyze-thumbnail) informed the user-requested layout and feature set. OpenPikzels uses its own code and brand.
 
 [OpenAI image generation](https://developers.openai.com/api/docs/guides/image-generation) defines Sunburst/Flare, quality and planning controls. [TypeSafe image inputs](https://docs.typesafe.ai/images) and [score rubrics](https://docs.typesafe.ai/primitives/score) define the Jev scoring contract. [Vercel deployment protection](https://vercel.com/docs/deployment-protection) documents all-URL authentication. [Supabase private buckets](https://supabase.com/docs/guides/storage/buckets/fundamentals) documents private asset access.

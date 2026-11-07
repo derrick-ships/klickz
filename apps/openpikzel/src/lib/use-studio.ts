@@ -30,7 +30,7 @@ export function useStudio() {
     userRef = useRef<string | null>(null),
     pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const cloud = !!user && !!db.current,
-    live = cloud && !!config?.ai && !!config?.openai;
+    live = cloud && !!config?.ai && (!!config?.openai || !!config?.google);
   const load = useCallback(async () => {
     const current = ++version.current;
     if (db.current && user) {
@@ -138,6 +138,14 @@ export function useStudio() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [load]);
+  useEffect(() => {
+    if (user)
+      void headers()
+        .then((h) => fetch("/api/config", { headers: h }))
+        .then((r) => r.json())
+        .then(setConfig)
+        .catch(() => {});
+  }, [user]);
   useEffect(() => {
     if (!cloud) return;
     const timer = setInterval(() => load().catch(() => {}), 240000);
@@ -338,7 +346,10 @@ export function useStudio() {
     return result as { creations: Creation[]; partial: boolean };
   }
   async function analyze(item: Creation, title: string) {
-    requireLive();
+    if (!cloud || !config?.ai)
+      throw new Error(
+        "Sign in and connect your own Jev key to score thumbnails.",
+      );
     if (!config?.jev) throw new Error("Jev is not connected yet.");
     const result = await api("/api/analyze", { creationId: item.id, title });
     await load();
@@ -473,7 +484,7 @@ export function useStudio() {
       throw new Error("Sign-in failed. Check your email and password.");
   }
   async function logout() {
-    await db.current?.auth.signOut();
+    await db.current?.auth.signOut({ scope: "local" });
   }
   return {
     config,

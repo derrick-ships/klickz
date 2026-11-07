@@ -373,7 +373,7 @@ export default function Studio() {
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="sidebar-heading">
           <a className="wordmark" href="/">
-            OpenPikzel
+            OpenPikzels
             <span className="wordmark-pixel" />
           </a>
           <button
@@ -480,6 +480,8 @@ export default function Studio() {
             >
               <option value="flare">Flare 2.6</option>
               <option value="sunburst">Sunburst 2.6</option>
+              <option value="gemini-flash">Gemini Flash</option>
+              <option value="gemini-pro">Gemini Pro</option>
             </select>
           </label>
           <label className="sidebar-select">
@@ -520,7 +522,7 @@ export default function Studio() {
               </button>
             )}
             <span className="workspace-name">
-              {sidebar ? "Personal studio" : "OpenPikzel"}
+              {sidebar ? "Personal studio" : "OpenPikzels"}
             </span>
             <span className="topbar-divider" />
             <span className="topbar-caption">Your next great thumbnail.</span>
@@ -547,6 +549,12 @@ export default function Studio() {
           ref={mainRef}
           className={tab === "library" ? "library-main" : "studio-main"}
         >
+          {dialog === "login" && (
+            <p className="dialog-footnote">
+              New here?{" "}
+              <a href="/connect">Create an account and connect your keys</a>
+            </p>
+          )}
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
@@ -865,6 +873,12 @@ export default function Studio() {
                       </p>
                     ) : (
                       <>
+                        {settings.model.startsWith("gemini-") && (
+                          <p className="dialog-footnote">
+                            Google uses its native 1K image output. Quality and
+                            intelligence controls apply to Sunburst and Flare.
+                          </p>
+                        )}
                         <div className="settings-row">
                           <label>
                             <Sparkles size={13} />
@@ -880,6 +894,8 @@ export default function Studio() {
                             >
                               <option value="flare">Flare 2.6</option>
                               <option value="sunburst">Sunburst 2.6</option>
+                              <option value="gemini-flash">Gemini Flash</option>
+                              <option value="gemini-pro">Gemini Pro</option>
                             </select>
                           </label>
                           <label>
@@ -921,6 +937,7 @@ export default function Studio() {
                               Quality
                               <select
                                 aria-label="Quality"
+                                disabled={settings.model.startsWith("gemini-")}
                                 value={settings.quality}
                                 onChange={(e) =>
                                   changeSettings(
@@ -940,6 +957,7 @@ export default function Studio() {
                               Intelligence
                               <select
                                 aria-label="Intelligence"
+                                disabled={settings.model.startsWith("gemini-")}
                                 value={settings.complexity}
                                 onChange={(e) =>
                                   changeSettings(
@@ -1229,7 +1247,7 @@ export default function Studio() {
                     <div className="score-panel">
                       <div className="score-header">
                         <div>
-                          <span>OpenPikzel Score</span>
+                          <span>OpenPikzels Score</span>
                           <h2>
                             {score.overall}
                             <small>/100</small>
@@ -1396,7 +1414,7 @@ export default function Studio() {
           )}
         </main>
         <footer className="app-footer">
-          <span>OpenPikzel</span>
+          <span>OpenPikzels</span>
           <span>Made for your next upload.</span>
           <button onClick={() => setDialog("connections")}>
             Workspace settings
@@ -1659,72 +1677,17 @@ export default function Studio() {
           {dialog === "connections" && (
             <>
               <p className="dialog-description">
-                Your services power the studio. Provider keys stay on the
-                server.
+                Your workspace uses your own OpenAI, Google and Jev keys.
+                Connect providers, manage agent access and copy MCP instructions
+                in Settings.
               </p>
-              {[
-                {
-                  name: "OpenAI",
-                  detail: "Images, edits, identity profiles and title ideas",
-                  ready: studio.config?.openai,
-                },
-                {
-                  name: "Jev AI",
-                  detail: "Five-pillar image + title scoring",
-                  ready: studio.config?.jev,
-                },
-                {
-                  name: "Supabase",
-                  detail:
-                    "Owner sign-in, private creations and image references",
-                  ready: studio.config?.cloud,
-                },
-                {
-                  name: "AI usage",
-                  detail: "Server-side activation for provider requests",
-                  ready: studio.config?.ai,
-                },
-              ].map((item) => (
-                <div className="connection-row" key={item.name}>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <span>{item.detail}</span>
-                  </div>
-                  <span
-                    className={
-                      item.ready ? "connection-tag ready" : "connection-tag"
-                    }
-                  >
-                    {item.ready ? "Configured" : "Pending"}
-                  </span>
-                </div>
-              ))}
+              <a href="/connect" className="primary-button inline-link">
+                Manage connections
+              </a>
               <p className="dialog-footnote">
-                Configured means a setting is present. Account access is
-                confirmed by a successful request. Local drafts stay in this
-                browser and do not sync automatically.
+                Your keys are encrypted and private to your account. Agent tools
+                never receive them.
               </p>
-              {studio.cloud ? (
-                <button
-                  className="neutral-button full-width"
-                  onClick={() =>
-                    studio.run("Signing out", async () => {
-                      await studio.logout();
-                      setDialog(null);
-                    })
-                  }
-                >
-                  <LogOut size={15} />
-                  Sign out
-                </button>
-              ) : (
-                <button
-                  className="neutral-button full-width"
-                  onClick={() => setDialog("login")}
-                >
-                  Sign in to cloud
-                </button>
-              )}
             </>
           )}
           {dialog === "login" && (
@@ -1739,8 +1702,7 @@ export default function Studio() {
               }}
             >
               <p className="dialog-description">
-                Sign in with the owner account for your private Supabase
-                workspace.
+                Sign in to your private workspace.
               </p>
               <label>
                 Email
@@ -1766,6 +1728,12 @@ export default function Studio() {
                 Sign in
               </button>
             </form>
+          )}
+          {dialog === "login" && (
+            <p className="dialog-footnote">
+              New here?{" "}
+              <a href="/connect">Create an account and connect your keys</a>
+            </p>
           )}
           {studio.error && (
             <p className="dialog-error" role="status">

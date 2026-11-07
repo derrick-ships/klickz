@@ -8,6 +8,10 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run start",
+    env: {
+      APP_ORIGIN: "http://127.0.0.1:3000",
+      STUDIO_ENCRYPTION_KEY: "a".repeat(64),
+    },
     url: "http://127.0.0.1:3000",
     reuseExistingServer: true,
   },

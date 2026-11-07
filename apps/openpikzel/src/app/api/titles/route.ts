@@ -1,9 +1,14 @@
-import { authenticated, failure, requireAI } from "@/lib/server";
+import {
+  authenticated,
+  failure,
+  requireAI,
+  withUserProviders,
+} from "@/lib/server";
 import { ideaSchema } from "@/lib/validation";
 import { suggestTitles } from "@/lib/providers";
 import { NextResponse } from "next/server";
 export const maxDuration = 60;
-export async function POST(request: Request) {
+async function handle(request: Request) {
   try {
     await authenticated(request);
     requireAI("openai");
@@ -15,3 +20,6 @@ export async function POST(request: Request) {
     return failure(e);
   }
 }
+
+export const POST = (request: Request) =>
+  withUserProviders(request, () => handle(request));

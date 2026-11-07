@@ -1,5 +1,7 @@
 import OpenAI, { toFile } from "openai";
 import sharp from "sharp";
+import { providerKey, hasProvider } from "./provider-context";
+import { googleImage, googleText } from "./google";
 import { observationSchema, parseScores } from "./validation";
 import {
   defaultSettings,
@@ -9,7 +11,7 @@ import {
 } from "./types";
 const client = () =>
   new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: providerKey("openai"),
     timeout: 240000,
     maxRetries: 0,
   });
@@ -22,6 +24,11 @@ export async function renderThumbnail(
   refs: Buffer[],
   settings: Settings = defaultSettings,
 ) {
+  if (settings.model.startsWith("gemini-"))
+    return sharp(await googleImage(prompt, refs, settings))
+      .resize({ ...outputSize(settings.format), fit: "cover" })
+      .png()
+      .toBuffer();
   const common = {
     model: `gpt-image-2.6-${settings.model}`,
     prompt,
@@ -54,6 +61,25 @@ export async function renderThumbnail(
     .toBuffer();
 }
 export async function suggestTitles(prompt: string, audience: string) {
+  if (!hasProvider("openai") && hasProvider("google")) {
+    const value = JSON.parse(
+      await googleText(
+        "Return JSON {titles:string[]} with exactly five distinct, truthful YouTube titles under 100 characters. Do not invent evidence.",
+        JSON.stringify({ prompt, audience }),
+        [],
+        true,
+      ),
+    );
+    if (
+      !Array.isArray(value.titles) ||
+      value.titles.length !== 5 ||
+      value.titles.some(
+        (s: unknown) => typeof s !== "string" || !s.length || s.length > 100,
+      )
+    )
+      throw new Error("Invalid titles");
+    return value.titles as string[];
+  }
   const result = await client().responses.create({
     model: process.env.OPENAI_TEXT_MODEL || "gpt-5.5",
     instructions:
@@ -170,6 +196,18 @@ async function analysisImage(image: Buffer) {
 }
 export async function observePackaging(image: Buffer, title: string) {
   const preview = await analysisImage(image);
+  if (!hasProvider("openai") && hasProvider("google"))
+    return observationSchema.parse(
+      JSON.parse(
+        await googleText(
+          "Critique the actual thumbnail and title. Return JSON {summary:string,dimensions:{virality:{observation:string,strength:string,weakness:string,fix:string},clarity:{observation:string,strength:string,weakness:string,fix:string},idea:{observation:string,strength:string,weakness:string,fix:string},curiosity:{observation:string,strength:string,weakness:string,fix:string},emotion:{observation:string,strength:string,weakness:string,fix:string}}}. Ground edits in visible evidence. No predicted CTR, invented analytics, guaranteed clicks or fabricated flaws.",
+          title,
+          [preview],
+          true,
+        ),
+      ),
+    );
+
   const result = await client().responses.create({
     model: process.env.OPENAI_TEXT_MODEL || "gpt-5.5",
     instructions:
@@ -198,12 +236,39 @@ export async function evaluateThumbnail(
   requestId: string,
 ) {
   const prepared = await analysisImage(image);
-  const observations = await observePackaging(prepared, title);
+  const observations = observationSchema.parse(
+    hasProvider("openai") || hasProvider("google")
+      ? await observePackaging(prepared, title)
+      : {
+          summary:
+            "Jev scored the supplied image and title. These rubric-based prompts are suggestions; no separate vision critique was requested.",
+          dimensions: Object.fromEntries(
+            pillars.map((p) => [
+              p,
+              {
+                observation:
+                  "Jev assessed the supplied image against the " +
+                  p +
+                  " rubric.",
+                strength:
+                  "Review the pillar score alongside the actual thumbnail.",
+                weakness:
+                  "A numeric rubric alone does not identify a specific visible flaw.",
+                fix:
+                  rubric[p].instructions +
+                  " Aim for: " +
+                  rubric[p].criteria[3] +
+                  ". Preserve the truthful video promise.",
+              },
+            ]),
+          ),
+        },
+  );
   const asset = crypto.randomUUID();
   const response = await fetch("https://api.typesafe.ai/v1/systemone", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.JEV_API_KEY}`,
+      Authorization: `Bearer ${providerKey("jev")}`,
       "Content-Type": "application/json",
       "TypeSafe-Danger-Zone-Images": "true",
       "Idempotency-Key": requestId,
@@ -250,6 +315,17 @@ export async function prepareIdentity(
   kind: "persona" | "style",
 ) {
   const prepared = await Promise.all(images.map(analysisImage));
+  if (!hasProvider("openai") && hasProvider("google"))
+    return (
+      await googleText(
+        kind === "persona"
+          ? "Write a concise reference-guided identity brief preserving visible distinguishing appearance. Do not identify a person, infer sensitive attributes or claim fine-tuning."
+          : "Write a reusable visual style brief for palette, lighting, hierarchy and text treatment.",
+        name,
+        prepared,
+      )
+    ).slice(0, 2400);
+
   const result = await client().responses.create({
     model: process.env.OPENAI_TEXT_MODEL || "gpt-5.5",
     instructions:

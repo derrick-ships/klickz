@@ -1,23 +1,29 @@
-# OpenPikzel V1 validation
+# OpenPikzels validation
 
-November 7, 2026. `npm run verify` passed: TypeScript, **28 unit/PostgreSQL/route tests**, production build and **4 real-browser tests**.
+November 7, 2026. Final validation covers TypeScript, 50 unit/database/route/protocol tests, a production build and eight Playwright browser tests. Tests make no paid provider requests.
 
-Browser checks cover all five modes, real persona picture persistence, model/quality/format/batch controls, local draft reloads, actual 720×1280 PNG output from instant resize, safe disconnected-AI behavior, SSRF boundary rejection, mobile overflow, and 44px mobile model/format/tab targets. Screenshots: `evidence/openpikzel-desktop.png`, `openpikzel-mobile.png`, `openpikzel-laptop.png`.
+## Verified locally
 
-Provider tests use mocked HTTP, not the user’s credits. They verify official OpenAI generation/edit endpoint choice, Sunburst/Flare selection, quality/complexity/format forwarding, actual image assets and five questions sent to Jev, reference identity preparation, batch reservation, duplicate request rejection, partial failures and fix instructions. No paid live provider response has been claimed.
+- Five studio modes, model/quality/intelligence/format/batch settings, real reference uploads and profile persistence, local drafts and downloads, actual 720×1280 PNG output for instant resize, responsive editor and 44px mobile controls.
+- OpenAI generation/edit contract, real image/title Jev payload with five rubrics, optional vision observations, Jev-only analysis without an extra provider charge, Google image contract and user-key forwarding, identity briefs, atomic batches, duplicate prevention and partial failures.
+- All four source migrations replay in PGlite: per-user row/folder isolation, foreign-key ownership, private buckets, provider ciphertext ownership, and public-release row isolation. The final release migration is intentionally unapplied in hosted Supabase.
+- OAuth discovery, DCR redirect restrictions, mandatory S256 PKCE, exact resource audience, code theft prevention, single-use codes, expiration, scopes, refresh rotation/replay and revocation. Consent Origin/cookie protection and state-preserving Deny. Purpose-bound authenticated encryption and concurrent per-request BYOK contexts. Global owner keys never fall back to other users.
+- Actual SDK Streamable HTTP initialization, tool discovery, tool invocation, read-only protection and bundled MCP Apps HTML resources. Direct HTTP generation/analyze/prepare/resize routes independently reject AI grants missing write permission.
+- Browser HTTP registration→branded consent→Deny flow. Signed-in onboarding fixture verifies provider key entry clears immediately and never enters localStorage; connected-agent revocation controls and mobile layout render. A real iframe host bridge fixture exercises the bundled Apps UI, creation selection, score display, copyable fix prompt and clearing hidden thumbnail selection before resize.
 
-Hallmark’s actual render audit completed at 1280×800, 1440×900, 1920×1080 and mobile widths. Latest receipt: zero FAIL, zero open REFLEX, zero WARN. Compact spacing is explicitly waived to retain the user-pinned editor reference. An independent finish review requested higher field-edge contrast, legible mobile labels and larger touch targets; these were applied and the final browser measurements passed. Impeccable detector output was an empty finding list.
+Signed-in onboarding and widget screenshot data are **explicit test fixtures**, not real accounts, real provider scores or live generations. Screenshots include `evidence/openpikzels-provider-onboarding.png`, `openpikzels-provider-onboarding-mobile.png`, `openpikzels-oauth-consent.png`, `openpikzels-mcp-widget.png`, `openpikzels-mcp-widget-mobile.png` and the existing editor captures.
 
-## Hosted database checks completed
+Impeccable, Emil and Hallmark were installed and applied. The original editor's Hallmark rendered audit had zero FAIL/open REFLEX/WARN, with compact spacing waived to follow the user's pinned layout. Independent review of new OAuth/account code found missing direct-route write checks and global sign-out behavior; both were corrected and regression-tested. New widget hidden selection was cleared, and account/consent step labels changed to sentence case without tracking. Real browser captures verify the added screens.
 
-Migration `openpikzel_v1_private_studio` was applied to the existing `app-starter-dev` project. All three studio tables have RLS. The `studio-assets` bucket is private and limited to 5 MB per upload. `anon` cannot read the creations table. Restrictive policies call the existing `app_web_access()` owner gate.
+## Verified in hosted services
 
-A transaction inserted a synthetic verification row as the existing owner, asserted it was readable, switched to another authenticated identity and asserted it was invisible, then rolled back. Both assertions passed. No test images or verification records were left in hosted storage. Existing `notes`, owner allowlist and OAuth allowlist were retained.
+- Private GitHub PR #2 preserves the existing root thumbnail project.
+- Vercel project protection remains enabled for all deployments. OpenAI/Jev variables are encrypted and preview-only; production AI remains disabled. No bypass secret is created.
+- Supabase hosted private-studio and private-accounts migrations succeeded. New provider/OAuth tables have RLS, deny anon SELECT and each retain a restrictive owner-preview policy. A rolled-back synthetic key/grant transaction confirmed another authenticated identity cannot see the rows. No test grants or keys persist.
+- Read-only Vercel domain inspection confirms openpikzels.com is not attached and DNS still points to GoDaddy parking. The browser reaches GoDaddy sign-in and Supabase dashboard sign-in; no credentials were entered or DNS/account settings changed.
 
-The pre-existing advisor notices about the intentional owner helper functions and disabled leaked-password checking remain unchanged. No new studio-table RLS advisory was introduced. No unrelated account settings were changed.
+## Not yet verified live
 
-## Deployment and activation boundaries
+No real OpenAI/Jev/Google response, paid smoke test, real-client OAuth Allow/refresh sequence, production deployment, TLS for the purchased domain, or external Claude/Cursor/Codex connection is claimed. The paid smoke test is authorized but awaits a usable authenticated owner session. Public launch and GoDaddy account access remain pending; see RELEASE.md.
 
-Vercel project `openpikzel` was created under the established Derrick team with Vercel Authentication for **all** deployments. Existing Supabase project URL and browser-safe publishable key were configured. No service-role key, bypass token, new OAuth client, membership grant, password, billing upgrade or credit purchase was created.
-
-OpenAI and Jev secret handoff and paid smoke tests remain separate activation operations requiring explicit credential-transfer confirmation. The preview is prepared with `AI_ENABLED=false` until that step is approved. The project source contains no live secrets.
+Automatic review rejected a batch that would also have copied owner provider keys to production. A read-only check confirmed no write occurred. The narrower approved preview-only operation succeeded. No owner keys are required in production for the BYOK design.

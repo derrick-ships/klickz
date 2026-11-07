@@ -13,7 +13,9 @@ describe("authentication and server-only secrets", () => {
   it("blocks provider usage unless explicitly enabled", () => {
     vi.stubEnv("AI_ENABLED", "false");
     vi.stubEnv("OPENAI_API_KEY", "test-placeholder");
-    expect(() => requireAI("openai")).toThrow("AI usage is disabled");
+    expect(() => requireAI("openai")).toThrow(
+      "AI usage is awaiting activation",
+    );
   });
   it("never exposes provider secrets and rejects Supabase secret keys in public config", async () => {
     vi.stubEnv("OPENAI_API_KEY", "private-provider-placeholder");
@@ -23,7 +25,9 @@ describe("authentication and server-only secrets", () => {
       "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
       "sb_secret_private-placeholder",
     );
-    const config = await GET().json();
+    const config = await (
+      await GET(new Request("http://localhost/api/config"))
+    ).json();
     expect(config.cloud).toBe(false);
     expect(config.supabaseKey).toBe("");
     expect(JSON.stringify(config)).not.toContain("private-");

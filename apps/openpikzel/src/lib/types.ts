@@ -5,7 +5,7 @@ export type Mode =
   | "title"
   | "fix"
   | "resize";
-export type ImageModel = "sunburst" | "flare";
+export type ImageModel = "sunburst" | "flare" | "gemini-flash" | "gemini-pro";
 export type Quality = "low" | "medium" | "high" | "xhigh" | "max";
 export type Complexity = "low" | "medium" | "high";
 export type Format = "long" | "short";
@@ -94,6 +94,9 @@ export type Config = {
   ai: boolean;
   openai: boolean;
   jev: boolean;
+  google?: boolean;
+  secureConnections?: boolean;
+  mcpUrl?: string;
   supabaseUrl: string;
   supabaseKey: string;
   ownerGate: boolean;

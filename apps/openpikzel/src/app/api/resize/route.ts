@@ -7,7 +7,10 @@ import { NextResponse } from "next/server";
 export const maxDuration = 60;
 export async function POST(request: Request) {
   try {
-    const { db, user } = await authenticated(request);
+    const context = await authenticated(request);
+    const { db, user } = context;
+    if (context.oauth && !context.oauth.scope.includes("studio:write"))
+      throw new AppError(403, "Agent needs studio:write permission.");
     const input = z
       .object({
         creationId: z.string().uuid(),

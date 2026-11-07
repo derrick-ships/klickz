@@ -16,6 +16,13 @@ vi.mock("../src/lib/server", async () => {
   return {
     ...actual,
     requireAI: vi.fn(),
+    withUserProviders: async (
+      _request: Request,
+      work: () => Promise<Response>,
+    ) => {
+      const { providerContext } = await import("../src/lib/provider-context");
+      return providerContext.run({ openai: "test-placeholder" }, work);
+    },
     authenticated: async () => ({
       user: { id: "11111111-1111-4111-8111-111111111111" },
       db: {

@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { pillars, type Evaluation } from "./types";
 export const settingsSchema = z.object({
-  model: z.enum(["sunburst", "flare"]).default("flare"),
+  model: z
+    .enum(["sunburst", "flare", "gemini-flash", "gemini-pro"])
+    .default("flare"),
   quality: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
   complexity: z.enum(["low", "medium", "high"]).default("medium"),
   format: z.enum(["long", "short"]).default("long"),

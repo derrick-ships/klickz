@@ -1,11 +1,16 @@
 import { z } from "zod";
-import { authenticated, failure, requireAI } from "@/lib/server";
+import {
+  authenticated,
+  failure,
+  requireAI,
+  withUserProviders,
+} from "@/lib/server";
 import { AppError } from "@/lib/validation";
 import { ownedAsset } from "@/lib/assets";
 import { prepareIdentity } from "@/lib/providers";
 import { NextResponse } from "next/server";
 export const maxDuration = 120;
-export async function POST(request: Request) {
+async function handle(request: Request) {
   try {
     const { db, user } = await authenticated(request);
     requireAI("openai");
@@ -40,3 +45,9 @@ export async function POST(request: Request) {
     return failure(e);
   }
 }
+
+export const POST = (request: Request) =>
+  withUserProviders(request, () => handle(request), [
+    "studio:ai",
+    "studio:write",
+  ]);

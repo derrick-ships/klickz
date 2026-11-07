@@ -2045,3 +2045,222 @@ select {
     scroll-behavior: auto !important;
   }
 }
+
+/* Accounts follow the studio's compact dark surfaces and YouTube-red accent. */
+.account-page {
+  max-width: 1000px;
+  margin: auto;
+  padding: 28px 24px 64px;
+}
+.account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.account-header a,
+.consent-page > a {
+  color: var(--text-primary, #fafafa);
+  text-decoration: none;
+}
+.account-intro {
+  max-width: 650px;
+  margin: 60px 0 30px;
+}
+.account-intro h1 {
+  font-size: clamp(36px, 6vw, 56px);
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  margin: 14px 0;
+}
+.account-page p,
+.consent-page p {
+  line-height: 1.6;
+  color: #bcbcbc;
+}
+.account-panel {
+  border: 1px solid #454545;
+  border-radius: 14px;
+  background: #161616;
+  padding: 26px;
+  margin: 24px 0;
+}
+.account-panel h2 {
+  font-size: 23px;
+  line-height: 1.25;
+  margin: 12px 0;
+}
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 480px;
+}
+.account-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+.account-form input,
+.account-form select,
+.account-page textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #101010;
+  color: #fafafa;
+  border: 1px solid #757575;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 46px;
+}
+.account-page textarea {
+  font: 14px/1.6 system-ui;
+  margin: 10px 0;
+}
+.account-form button {
+  min-height: 46px;
+}
+.key-form {
+  margin: 26px 0;
+}
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.provider-grid article {
+  padding: 18px;
+  border: 1px solid #454545;
+  border-radius: 10px;
+}
+.provider-grid h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.provider-grid strong {
+  display: block;
+  font-size: 13px;
+  margin: 14px 0;
+}
+.provider-grid button {
+  width: 100%;
+}
+.step-label,
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0;
+  color: #ff7b83 !important;
+}
+.copy-url {
+  display: block;
+  overflow-wrap: anywhere;
+  background: #101010;
+  border: 1px solid #757575;
+  padding: 14px;
+  border-radius: 8px;
+  margin: 20px 0;
+  font-size: 15px;
+}
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  min-height: 44px;
+  padding: 0 20px;
+}
+.grant-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid #454545;
+}
+.grant-row p {
+  font-size: 13px;
+  margin: 5px 0;
+}
+.consent-page {
+  max-width: 620px;
+  margin: 48px auto;
+  padding: 0 20px;
+}
+.consent-page h1 {
+  font-size: 30px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 18px 0;
+}
+.consent-details {
+  padding: 14px;
+  background: #101010;
+  border-radius: 8px;
+}
+.consent-details dt {
+  font-size: 12px;
+  color: #bcbcbc;
+}
+.consent-details dd {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.consent-permissions {
+  padding: 0;
+  list-style: none;
+}
+.consent-permissions li {
+  padding: 16px 0;
+  border-bottom: 1px solid #454545;
+}
+.consent-permissions p {
+  margin: 6px 0;
+  font-size: 14px;
+}
+.consent-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 26px;
+}
+.consent-actions button {
+  min-height: 48px;
+  flex: 1;
+}
+.signed-in {
+  border: 1px solid #454545;
+  border-radius: 8px;
+  padding: 14px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .provider-grid {
+    grid-template-columns: 1fr;
+  }
+  .account-page {
+    padding: 22px 16px 48px;
+  }
+  .account-panel {
+    padding: 20px;
+  }
+  .account-intro {
+    margin-top: 38px;
+  }
+  .grant-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .account-header .brand {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 650px) {
+  .account-page button,
+  .consent-page button {
+    min-height: 44px;
+  }
+}
