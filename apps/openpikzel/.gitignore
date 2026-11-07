@@ -11,3 +11,6 @@ supabase/.temp/
 .claude/
 .cursor/
 .hallmark/shots/
+
+# Preserve source media locally; deploy only optimized public brand assets.
+assets/brand/originals/

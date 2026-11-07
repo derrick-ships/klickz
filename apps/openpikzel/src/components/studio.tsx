@@ -39,6 +39,7 @@ import {
   RotateCcw,
   AlertCircle,
 } from "lucide-react";
+import { BrandScene } from "@/components/brand-scene";
 import { useStudio } from "@/lib/use-studio";
 import {
   defaultSettings,
@@ -606,6 +607,11 @@ export default function Studio() {
                     ))}
                   </div>
                 </div>
+                {!studio.loading &&
+                  !selected &&
+                  studio.creations.length === 0 && (
+                    <BrandScene scene="signal" compact />
+                  )}
                 <div className="composer">
                   <div className="composer-inner">
                     {tool === "title" && (

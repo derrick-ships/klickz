@@ -26,3 +26,7 @@ Automatic review rejected a single attempted environment batch because it includ
 No domain mutation, public deployment, protection bypass, provider purchase, or public OAuth access grant was created. Current blockers are pending sign-in/public-launch authorization and real authenticated verification, not a failed application build.
 
 Latest protected preview: https://openpikzel-pvuedmoi9-derrick-serna-zabarains-projects.vercel.app — deployment `dpl_GAPYe98emUMMb2oH1SVCEsC4Bikj` verified READY, project protection enabled for all URLs. Browser entry verified the Vercel login wall. Source implementation commit: `33895ecb1d2979ff567ad8735e1d84264a67b34f`.
+
+## Original brand assets
+
+The authorized brand-production extension generated two custom stills and two silent motion clips through Higgsfield, costing 13.5 existing credits. Optimized, same-origin media is integrated into onboarding and the empty studio with opt-in playback. This does not complete or consume the separate approved OpenAI/Jev application smoke test. Domain/public-launch and GoDaddy browser blockers remain unchanged.

@@ -28,6 +28,10 @@ npm run test:browser
 
 The app runs at http://localhost:3000. No environment file is needed for local references, drafts and instant resize. AI functions fail explicitly if disconnected; no fabricated generations or scores are shown.
 
+## Original brand imagery
+
+Higgsfield-generated graphite/red backgrounds and silent motion clips now appear in onboarding and the empty studio. Motion is opt-in, pauses when editing starts, and streams from the same app origin. The complete optimized set is about 173 KB. See [ASSETS.md](ASSETS.md) for art direction, exact prompts, provenance and the 13.5-credit production record.
+
 ## Accounts, BYOK and MCP
 
 `/connect` provides account signup/sign-in, private per-user OpenAI/Google/Jev connections, agent instructions, the MCP URL and connected-agent revocation. Keys are encrypted on the server with user/provider binding. API tools never return keys. Consumer ChatGPT/Gemini subscriptions do not include API credits.

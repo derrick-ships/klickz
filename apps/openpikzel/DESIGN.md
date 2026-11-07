@@ -1,2 +1,4 @@
-# OpenPikzel design
+# OpenPikzels design
 Pinned visual target: the real app.pikzels.com editor captured in the browser. This is an Operate surface, not a landing page. Near-black background, slightly lifted composer, compact rounded controls, red active tab and generate action, restrained white typography. Sidebar 250px desktop, collapsible mobile; central composer max 820px; results and scored image below. A real upload or generation is the image content; no invented thumbnail results. Use Lucide icons, one system-compatible sans family, 14px body, 16px form text on mobile, accessible muted foreground, instant focus rings and reduced motion. Source palette and spacing live in src/app/tokens.css. Red is the user's explicit change from the reference's mint accent.
+
+Bespoke brand imagery extends the same token palette into practical graphite/red studio still lifes. Generated Aperture and Signal scenes are branding surfaces only. The editor retains its compact layout; a small empty-state scene is removed when user work exists. Motion is opt-in and pauses during editing. User-created thumbnails remain the only creation results. See ASSETS.md.

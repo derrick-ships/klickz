@@ -5,6 +5,7 @@ import {
   type SupabaseClient,
   type Session,
 } from "@supabase/supabase-js";
+import { BrandScene } from "@/components/brand-scene";
 import type { Config } from "@/lib/types";
 export function useAccount(isolated = false) {
   const [db, setDb] = useState<SupabaseClient | null>(null),
@@ -220,6 +221,7 @@ export function ConnectionsPage() {
           account for the requests you make.
         </p>
       </div>
+      <BrandScene scene="aperture" />
       {!ready ? (
         <p role="status">Loading account…</p>
       ) : !db ? (

@@ -1,0 +1,46 @@
+{
+  "brand": "OpenPikzels",
+  "date": "2026-11-07",
+  "direction": "Tactile graphite editing surfaces, landscape-thumbnail rectangles and one vermilion-red selection; quiet left-side negative space for live type.",
+  "palette": {
+    "ground": "#101010",
+    "panel": "#181818",
+    "accent": "#df1c2c"
+  },
+  "providers": {
+    "stills": "Higgsfield / GPT Image 2.6 Sunburst, medium, 1K, 16:9 request",
+    "motion": "Higgsfield / Kling 3.0 standard, silent, 5-second request, matching start/end reference"
+  },
+  "credits": {
+    "stillsEach": 0.5,
+    "motionEach": 6.25,
+    "total": 13.5,
+    "balanceBefore": 889.25,
+    "balanceAfter": 875.75
+  },
+  "assets": [
+    {
+      "id": "aperture",
+      "imageJob": "fc820278-da19-44e4-8eb1-0d1e14a96a98",
+      "videoJob": "05868258-f100-4ee8-9062-39c41500385d",
+      "placement": "Account onboarding",
+      "stillPrompt": "Create an original product-brand background for OpenPikzels, a precise YouTube thumbnail creation studio. This is a tactile editorial still life, not a UI screenshot. A single solid vermilion-red rectangular aperture, landscape proportions, stands upright on a matte graphite tabletop in the right third of the picture. Two thin charcoal thumbnail-sized plates are aligned behind it in shallow perspective, suggesting selecting and refining an image. The aperture is machined painted aluminum, exact restrained color family #df1c2c; dark surfaces are #101010 and #181818. Tiny authentic edge wear and soft material grain, no chrome. The left 60 percent is quiet near-black negative space, with very low spatial detail for live website typography; the left edge and upper edge fade naturally into a near-black unlit studio, not a colored gradient. One broad soft key from upper left defines the red top edge, and a narrow red bounce reflects softly on the floor immediately below the object. Controlled highlights, crisp rectangular geometry, intentional cropping, physical contact shadows. Calm confident creative-tool identity, close product photography with a modest telephoto perspective and enough depth of field to keep the aperture legible. No people, letters, typography, logos, play symbols, charts, interface controls, smoke, particles, lens flares, neon outlines, floating orbs, blue or purple accents. No stock-photo office props. Keep every important object in the rightmost 40 percent and the far-right 10 percent clear enough for responsive crop. The overall result should feel designed specifically for a disciplined dark-and-red thumbnail studio.",
+      "motionPrompt": "Animate the supplied first frame as a restrained product-brand loop for a dark graphite and red thumbnail-creation studio. One continuous five-second take, no cuts. Preserve exactly the existing red rectangular aperture, two dark plates, tabletop geometry, right-weighted composition and empty left text-safe area. All objects stay physically still and grounded. The camera is locked, no zoom and no reframing. From 0.0 to 2.5 seconds, the broad studio softbox reflection glides very slowly a short distance along the painted red top edge and tabletop, revealing the fine powder-coated surface. From 2.5 to 5.0 seconds the same reflection returns smoothly to its opening position, easing to a stop so the final image closely matches the first. Keep overall brightness constant and shadows soft, with no flashing, pulsing or flickering. Retain the #df1c2c red family and near-black #101010 and #181818 palette; no additional colors. No object deformation, shifting panels, new props, people, particles, smoke, glowing outlines, animated text, typography or logos. Quiet material detail rather than spectacle. Silent video, no music, no voice, no sound effects."
+    },
+    {
+      "id": "signal",
+      "imageJob": "7f6a0f54-a93b-4df1-8843-62cf192f32bd",
+      "videoJob": "595b391c-1839-43bd-8c9a-a4e28945229b",
+      "placement": "Empty studio",
+      "stillPrompt": "Create an original companion brand background for OpenPikzels, a dark and vermilion-red YouTube thumbnail creation studio. A macro product photograph of a low, precisely machined relief of rectangular charcoal tiles on a graphite work surface. Tile proportions subtly echo landscape thumbnails. Only one tile is red, #df1c2c, positioned in the right third. It is slightly elevated, exposing a sharp dark side face and a soft contact shadow, as if one strong idea has been selected from many. All other tiles remain matte #181818 against #101010 surroundings; a fine believable powder-coated texture, no chrome and no clear glass. The arrangement is sparse and deliberate, a few ordered rows receding into darkness, not an endless digital grid. A restrained long softbox highlight skims from upper left to lower right, revealing material and shallow depth. The camera looks obliquely down at the surface, a quiet industrial editorial composition. Keep the left 55 percent genuinely empty, near black, low contrast and free of objects so live interface text can sit above it. The red selected tile should read instantly when this image is cropped into a wide strip, with meaningful geometry concentrated in the right-hand 40 percent and away from extreme edges. Match the same restrained physical world as a painted red aperture on dark thumbnail plates: practical studio lighting, tactile finishes, tiny real imperfections, clean shadows, no spectacle. No people, letters, fake UI, data, charts, logos, circular orbs, particles, smoke, fog, neon grids, lens flares, blue or purple accents. A specific identity for a thumbnail editing tool, not generic futuristic technology wallpaper.",
+      "motionPrompt": "Create a quiet material-led website background loop from the supplied first frame. One uninterrupted five-second macro product take. Preserve the precise array of shallow matte charcoal rectangular thumbnail plates and the single red selected tile in the right third. Do not add, remove, resize, lift, rotate or deform any tile. Maintain genuine contact shadows, powder-coated texture and the calm #101010, #181818 and #df1c2c palette. Keep the left half dark, empty and stable for live typography. From 0.0 to 2.5 seconds the camera makes a barely perceptible, physically coherent two-centimeter lateral slider move to the right, creating subtle parallax between near and far tile edges; the lens direction remains fixed and the red tile stays in the right third. From 2.5 to 5.0 seconds the camera retraces that exact path back to the opening composition with smooth easing, leaving the last frame close to the first. Constant broad softbox light, stable exposure, no focus hunting, no handheld shake, no speed ramps, no cuts or transitions. No new props, typography, logos, particles, smoke, neon grid, flicker, or dramatic movement. All objects remain fixed; movement belongs only to the camera. Completely silent, no music, dialogue or sound effects."
+    }
+  ],
+  "delivery": {
+    "posters": "Self-hosted WebP",
+    "video": "Self-hosted VP9 WebM with H.264 MP4 fallback, no audio streams, 960x538, about 5.04 seconds",
+    "playback": "Manual only, preload none; pause when tab/scene hidden, preference changes, or user focuses an input",
+    "originals": "assets/brand/originals",
+    "notUserContent": true
+  }
+}

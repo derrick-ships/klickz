@@ -1,6 +1,6 @@
 # OpenPikzels validation
 
-November 7, 2026. Final validation covers TypeScript, 50 unit/database/route/protocol tests, a production build and eight Playwright browser tests. Tests make no paid provider requests.
+November 7, 2026. Final validation covers TypeScript, 50 unit/database/route/protocol tests, a production build and ten Playwright browser tests. Tests make no paid provider requests.
 
 ## Verified locally
 
@@ -27,3 +27,7 @@ Impeccable, Emil and Hallmark were installed and applied. The original editor's 
 No real OpenAI/Jev/Google response, paid smoke test, real-client OAuth Allow/refresh sequence, production deployment, TLS for the purchased domain, or external Claude/Cursor/Codex connection is claimed. The paid smoke test is authorized but awaits a usable authenticated owner session. Public launch remains pending, and GoDaddy account access is blocked in this cloud browser; see RELEASE.md.
 
 Automatic review rejected a batch that would also have copied owner provider keys to production. A read-only check confirmed no write occurred. The narrower approved preview-only operation succeeded. No owner keys are required in production for the BYOK design.
+
+## Brand-production extension
+
+Two original GPT Image 2.6 backgrounds and two silent Kling 3.0 clips were produced through Higgsfield for 13.5 credits, then visually inspected and compressed. These completed branding jobs do not verify the app's separate OpenAI/Jev backend credentials. Two added browser tests pass for actual WebM playback, no video fetch before Play, pause on input focus, reduced-motion defaults and mobile controls. All six web assets total about 173 KB; posters load without external media hosts. ASSETS.md records exact provenance and limits.
