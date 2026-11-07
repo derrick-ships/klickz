@@ -11,9 +11,9 @@ The direction uses the existing design tokens: near-black `#101010`, matte graph
 
 ## Delivery
 
-`public/brand/` contains self-hosted WebP posters and silent WebM/MP4 clips. All six optimized files together are about **173 KB**. An initial page load requests only its 20–27 KB poster; motion sources are attached only after the user presses Play. No external video player, tracker, streaming service or generation API is used during playback.
+`public/brand/` contains self-hosted WebP posters and silent WebM/MP4 clips. All six optimized files together are about **173 KB**. The 20–27 KB poster renders first. Only visible scenes for visitors without reduced-motion/data-saving preferences attach a small motion source. No external video player, tracker, streaming service or generation API is used during playback.
 
-Motion is manual, muted and loops. It pauses when the scene leaves the viewport, the tab is hidden, a motion preference changes, or the user starts editing an input. Reduced-motion and data-saving users receive the same static-first experience. Mobile controls are at least 44px high.
+The user explicitly requested removal of Play/Pause. There are no playback controls and no loop: eligible visible scenes play one muted take capped at 4.4 seconds, followed by a 240ms dissolve to the poster. Editing, hidden tabs, leaving the viewport or enabling reduced motion/data saving stop playback. Reduced-motion/data-saving visitors never attach video sources. A blocked autoplay keeps the poster.
 
 The original videos measure 1280×716 and approximately 5.04 seconds, with no audio stream. Web deliveries are 960×538, VP9 WebM with H.264 MP4 fallback. Model framing is close to the requested 16:9; CSS handles responsive crops. Loops are restrained matching-start/end takes, not a claim of mathematically identical endpoint pixels.
 
@@ -28,6 +28,6 @@ Exact prompts, model choices, job IDs, palette, intended placements and cost rec
 
 ## Verification
 
-Both generated stills and one-frame-per-second motion contact sheets were visually inspected. FFprobe confirmed dimensions, duration and absence of audio streams. Browser tests exercise real video decoding and time progression, opt-in streaming, pause-on-input, static reduced-motion defaults, responsive layout and touch target size. Real desktop/mobile screenshots are in `evidence/`.
+Both generated stills and one-frame-per-second motion contact sheets were visually inspected. FFprobe confirmed dimensions, duration and absence of audio streams. Browser tests exercise real video decoding and time progression, finite autoplay without controls or looping, pause-on-input/preference change, no video source for reduced-motion/data-saving visitors, responsive layout and keyboard focus. Real desktop/mobile screenshots are in `evidence/`.
 
 Brand generation used the connected [Higgsfield](https://higgsfield.ai/) integration and the [Creative Prompt Director](plugin://creative-prompt-director@openai-curated-remote) skill. The existing Next.js/Vercel application stays on its current stack; the optional Higgsfield website framework was not substituted for it.

@@ -1,113 +1,85 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Play, Pause } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Brand artwork is decoration, never a placeholder for a user's creation. */
-export function BrandScene({
-  scene,
-  compact = false,
-}: {
+/** Decorative artwork: one short ambient take, then the still. Never loops. */
+export function BrandScene({ scene, compact = false }: {
   scene: "aperture" | "signal";
   compact?: boolean;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const container = useRef<HTMLDivElement>(null);
-  const [activated, setActivated] = useState(false),
-    [playing, setPlaying] = useState(false),
-    [unavailable, setUnavailable] = useState(false);
+  const finished = useRef(false);
+  const [activated, setActivated] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const settle = useCallback(() => {
+    finished.current = true;
+    video.current?.pause();
+    setPlaying(false);
+  }, []);
+
   useEffect(() => {
-    const stop = () => setPlaying(false);
-    const visibility = () => {
-      if (document.hidden) stop();
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+    const connection = (navigator as Navigator & {
+      connection?: EventTarget & { saveData?: boolean };
+    }).connection;
+    const preference = () => {
+      if (reduced.matches || connection?.saveData) settle();
     };
+    const visibility = () => { if (document.hidden) settle(); };
     const focus = (event: FocusEvent) => {
-      if (
-        event.target instanceof HTMLElement &&
-        event.target.matches('input,textarea,select,[contenteditable="true"]')
-      )
-        stop();
+      if (event.target instanceof HTMLElement &&
+          event.target.matches('input,textarea,select,[contenteditable="true"]')) settle();
     };
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries[0].isIntersecting) stop();
-    });
+    preference();
+    let attempted = false;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !finished.current && !document.hidden) { attempted = true; setActivated(true); }
+      else if (!entry.isIntersecting && attempted) settle();
+    }, { threshold: 0.2 });
     if (container.current) observer.observe(container.current);
+    reduced.addEventListener("change", preference);
+    connection?.addEventListener("change", preference);
     document.addEventListener("visibilitychange", visibility);
     document.addEventListener("focusin", focus);
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-    reduced.addEventListener("change", stop);
     return () => {
       observer.disconnect();
+      reduced.removeEventListener("change", preference);
+      connection?.removeEventListener("change", preference);
       document.removeEventListener("visibilitychange", visibility);
       document.removeEventListener("focusin", focus);
-      reduced.removeEventListener("change", stop);
     };
-  }, []);
+  }, [settle]);
+
   useEffect(() => {
-    if (!video.current) return;
-    if (playing && activated)
-      void video.current.play().catch(() => {
-        setPlaying(false);
-        setUnavailable(true);
-      });
-    else video.current.pause();
-  }, [playing, activated]);
-  const name = scene === "aperture" ? "Aperture" : "Signal";
+    const player = video.current;
+    if (!activated || !player || finished.current) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Cap decoration below five seconds; no controls are needed for a finite take.
+    void player.play().then(() => {
+      if (cancelled || finished.current) { player.pause(); return; }
+      setPlaying(true);
+      timer = setTimeout(settle, 4400);
+    }).catch(settle);
+    return () => { cancelled = true; clearTimeout(timer); player.pause(); };
+  }, [activated, settle]);
+
   return (
-    <div
-      className={`brand-scene${compact ? " brand-scene--compact" : ""}`}
-      ref={container}
-      data-brand-scene={scene}
-    >
-      <img
-        src={`/brand/${scene}.webp`}
-        alt=""
-        aria-hidden="true"
-        width={1344}
-        height={752}
-        fetchPriority={compact ? "low" : "high"}
-      />
-      <video
-        ref={video}
-        aria-hidden="true"
-        muted
-        loop
-        playsInline
-        preload="none"
-        poster={`/brand/${scene}.webp`}
-        onError={() => {
-          setPlaying(false);
-          setUnavailable(true);
-        }}
-      >
-        {activated && (
-          <>
-            <source src={`/brand/${scene}.webm`} type="video/webm" />
-            <source src={`/brand/${scene}.mp4`} type="video/mp4" />
-          </>
-        )}
+    <div className={`brand-scene${compact ? " brand-scene--compact" : ""}`}
+      ref={container} data-brand-scene={scene} data-motion={playing ? "playing" : "still"}>
+      <img src={`/brand/${scene}.webp`} alt="" aria-hidden="true"
+        width={1344} height={752} fetchPriority={compact ? "low" : "high"} />
+      <video ref={video} aria-hidden="true" muted playsInline preload="none"
+        poster={`/brand/${scene}.webp`} onEnded={settle} onError={settle}>
+        {activated && <>
+          <source src={`/brand/${scene}.webm`} type="video/webm" />
+          <source src={`/brand/${scene}.mp4`} type="video/mp4" />
+        </>}
       </video>
       <div className="brand-scene-caption" aria-hidden="true">
         <span>OpenPikzels</span>
-        <strong>
-          {scene === "aperture"
-            ? "Make the idea unmistakable."
-            : "One clear idea."}
-        </strong>
+        <strong>{scene === "aperture" ? "Make the idea unmistakable." : "One clear idea."}</strong>
       </div>
-      {!unavailable && (
-        <button
-          className="brand-motion-toggle"
-          aria-label={`${playing ? "Pause" : "Play"} ${name} brand motion`}
-          aria-pressed={playing}
-          onClick={() => {
-            setActivated(true);
-            setPlaying(!playing);
-          }}
-        >
-          {playing ? <Pause size={13} /> : <Play size={13} />}
-          <span>{playing ? "Pause motion" : "Play motion"}</span>
-        </button>
-      )}
     </div>
   );
 }

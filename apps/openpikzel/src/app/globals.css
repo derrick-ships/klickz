@@ -2265,7 +2265,7 @@ select {
   }
 }
 
-/* Bespoke physical brand scenes: motion is opt-in and stops when work begins. */
+/* Original brand scenes: finite ambient motion stops when work begins. */
 .brand-scene {
   position: relative;
   isolation: isolate;
@@ -2313,31 +2313,6 @@ select {
   letter-spacing: -0.6px;
   color: var(--color-ink);
 }
-.brand-motion-toggle {
-  position: absolute;
-  z-index: 3;
-  right: 14px;
-  bottom: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 8px 11px;
-  border: 1px solid #757575;
-  border-radius: 8px;
-  background: #101010e6;
-  color: #f4f4f4;
-  font: 12px var(--font-body);
-  cursor: pointer;
-}
-.brand-motion-toggle:hover {
-  background: #222;
-}
-.brand-motion-toggle:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 3px;
-}
 .brand-scene--compact {
   height: 112px;
   margin: 0 0 18px;
@@ -2370,11 +2345,6 @@ select {
   .brand-scene-caption strong {
     font-size: 20px;
     max-width: 170px;
-  }
-  .brand-motion-toggle {
-    min-height: 44px;
-    right: 10px;
-    bottom: 10px;
   }
   .brand-scene--compact {
     height: 108px;

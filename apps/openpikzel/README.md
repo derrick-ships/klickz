@@ -30,7 +30,7 @@ The app runs at http://localhost:3000. No environment file is needed for local r
 
 ## Original brand imagery
 
-Higgsfield-generated graphite/red backgrounds and silent motion clips now appear in onboarding and the empty studio. Motion is opt-in, pauses when editing starts, and streams from the same app origin. The complete optimized set is about 173 KB. See [ASSETS.md](ASSETS.md) for art direction, exact prompts, provenance and the 13.5-credit production record.
+Higgsfield-generated graphite/red backgrounds and silent motion clips now appear in onboarding and the empty studio. Playback controls were removed as requested. Eligible visitors see one brief ambient take, then a still; reduced-motion/data-saving users load only the poster. Media streams from the same app origin. The complete optimized set is about 173 KB. See [ASSETS.md](ASSETS.md) for art direction, exact prompts, provenance and the 13.5-credit production record.
 
 ## Accounts, BYOK and MCP
 

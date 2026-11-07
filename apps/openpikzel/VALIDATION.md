@@ -1,6 +1,6 @@
 # OpenPikzels validation
 
-November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and eleven Playwright browser tests. Tests make no paid provider requests.
+November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and fourteen Playwright browser tests. Tests make no paid provider requests.
 
 ## Verified locally
 
@@ -30,7 +30,7 @@ Automatic review rejected a batch that would also have copied owner provider key
 
 ## Brand-production extension
 
-Two original GPT Image 2.6 backgrounds and two silent Kling 3.0 clips were produced through Higgsfield for 13.5 credits, then visually inspected and compressed. These completed branding jobs do not verify the app's separate OpenAI/Jev backend credentials. Two added browser tests pass for actual WebM playback, no video fetch before Play, pause on input focus, reduced-motion defaults and mobile controls. All six web assets total about 173 KB; posters load without external media hosts. ASSETS.md records exact provenance and limits.
+Two original GPT Image 2.6 backgrounds and two silent Kling 3.0 clips were produced through Higgsfield for 13.5 credits, then visually inspected and compressed. These completed branding jobs do not verify the app's separate OpenAI/Jev backend credentials. Brand tests pass for actual finite WebM playback without controls/looping, pause on editing/preference change, and no video source or request for reduced-motion/data-saving visitors. All six web assets total about 173 KB; posters load without external media hosts. ASSETS.md records exact provenance and limits.
 
 ## Study-adaptation verification
 
@@ -39,3 +39,9 @@ Real 200px image resizing, zero vs missing scores, null overall for partial diag
 Database replay verifies immutable ready variants and durable lineage after parent deletion, immutable job identity/caps, owner isolation and reconciliation permissions. Comparison route tests verify randomized real 200px previews without prior score metadata, tie behavior and rejection of cross-account, expired, stale-image, changed-title or changed-factual-context votes. A fresh fixed variant retains its approved brief/audience.
 
 The partial-diagnostic browser fixture shows missing context and an explicitly blocked no-charge plan, with no `/api/generate` dispatch. Fixture screenshots: `evidence/openpikzels-fix-plan-blocked.png` and `evidence/openpikzels-partial-diagnostic-mobile.png`. Independent review’s final comparison-lineage context defect was corrected with regression coverage. No scoring calibration, measured CTR gain, automated pixel-fidelity verification or live application-provider response is claimed.
+
+## Premium UI follow-up
+
+All four supplied images were retrieved from Library and visually inspected. Their treatments informed the existing red/dark system. Play/Pause was removed. New browser coverage checks roving Arrow/Home/End tab navigation and focus, native dialogs with Escape, no script errors, long prompt content and overflow at 320/390/768/1440px. Controls remain usable with reduced motion. Impeccable’s one requested mechanical pass returned no findings. Rendered desktop/mobile captures were inspected and refined. The final red/white control contrast exceeds 4.5:1; this is a targeted check, not a full accessibility certification.
+
+No backend or hosted policy changes, new API calls or new generation credits were required by this UI pass. App-provider/OAuth live-validation gates from RELEASE.md remain.

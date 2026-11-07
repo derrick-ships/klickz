@@ -29,7 +29,7 @@ Previous preview: https://openpikzel-pvuedmoi9-derrick-serna-zabarains-projects.
 
 ## Original brand assets
 
-The authorized brand-production extension generated two custom stills and two silent motion clips through Higgsfield, costing 13.5 existing credits. Optimized, same-origin media is integrated into onboarding and the empty studio with opt-in playback. This does not complete or consume the separate approved OpenAI/Jev application smoke test. This worker’s earlier GoDaddy browser restriction was resolved separately by the main thread; it no longer blocks the domain connection.
+The authorized brand-production extension generated two custom stills and two silent motion clips through Higgsfield, costing 13.5 existing credits. Optimized, same-origin media is integrated into onboarding and the empty studio with finite ambient playback and no Play/Pause controls, per the user’s follow-up. This does not complete or consume the separate approved OpenAI/Jev application smoke test. This worker’s earlier GoDaddy browser restriction was resolved separately by the main thread; it no longer blocks the domain connection.
 
 ## Study adaptation and retained restriction
 

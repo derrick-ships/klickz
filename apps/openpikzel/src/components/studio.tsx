@@ -695,6 +695,18 @@ export default function Studio() {
                         key={id}
                         role="tab"
                         aria-selected={tool === id}
+                        tabIndex={tool === id ? 0 : -1}
+                        onKeyDown={(event) => {
+                          const index = modes.findIndex((mode) => mode.id === id);
+                          const next = event.key === "ArrowRight" ? (index + 1) % modes.length
+                            : event.key === "ArrowLeft" ? (index + modes.length - 1) % modes.length
+                            : event.key === "Home" ? 0 : event.key === "End" ? modes.length - 1 : -1;
+                          if (next < 0) return;
+                          event.preventDefault();
+                          setTool(modes[next].id);
+                          setTitles([]);
+                          event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+                        }}
                         className={tool === id ? "active" : ""}
                         onClick={() => {
                           setTool(id);
