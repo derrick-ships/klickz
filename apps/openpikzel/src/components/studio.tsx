@@ -98,6 +98,7 @@ export default function Studio() {
     [parentId, setParentId] = useState<string | null>(null),
     [dialog, setDialog] = useState<Dialog>(null),
     [sidebar, setSidebar] = useState(true),
+    [compactNavigation, setCompactNavigation] = useState(false),
     [linkOpen, setLinkOpen] = useState(false),
     [url, setUrl] = useState(""),
     [advanced, setAdvanced] = useState(false),
@@ -143,7 +144,10 @@ export default function Studio() {
     >([]);
   const dialogRef = useRef<HTMLDialogElement>(null),
     uploadRef = useRef<HTMLInputElement>(null),
-    mainRef = useRef<HTMLElement>(null);
+    mainRef = useRef<HTMLElement>(null),
+    navigationRef = useRef<HTMLElement>(null),
+    navigationOpenRef = useRef<HTMLButtonElement>(null),
+    navigationCloseRef = useRef<HTMLButtonElement>(null);
   const selected = studio.creations.find((c) => c.id === selection) || null,
     persona = studio.personas.find((p) => p.id === personaId),
     styleProfile = studio.styles.find((s) => s.id === styleId),
@@ -154,8 +158,16 @@ export default function Studio() {
   useEffect(() => {
     const initial = new URL(location.href).searchParams.get("mode");
     if (modes.some((m) => m.id === initial)) setTool(initial as Tool);
-    if (innerWidth < 760) setSidebar(false);
   }, []);
+  useEffect(() => {
+    const media = matchMedia("(max-width: 1024px)");
+    const adapt = () => { setCompactNavigation(media.matches); setSidebar(!media.matches); };
+    adapt(); media.addEventListener("change", adapt);
+    return () => media.removeEventListener("change", adapt);
+  }, []);
+  useEffect(() => {
+    if (compactNavigation && sidebar) navigationCloseRef.current?.focus();
+  }, [compactNavigation, sidebar]);
   useEffect(() => {
     const url = new URL(location.href);
     url.searchParams.set("mode", tool);
@@ -176,13 +188,25 @@ export default function Studio() {
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "b") {
-        e.preventDefault();
-        setSidebar((x) => !x);
+        e.preventDefault(); setSidebar((x) => !x);
+        if (sidebar) requestAnimationFrame(() => navigationOpenRef.current?.focus());
+      }
+      if (!compactNavigation || !sidebar) return;
+      if (e.key === "Escape") {
+        e.preventDefault(); setSidebar(false);
+        requestAnimationFrame(() => navigationOpenRef.current?.focus());
+      }
+      if (e.key === "Tab") {
+        const items = navigationRef.current?.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),select:not(:disabled)');
+        if (!items?.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
     };
     addEventListener("keydown", listener);
     return () => removeEventListener("keydown", listener);
-  }, []);
+  }, [compactNavigation, sidebar]);
   const busy = !!studio.busy;
   const changeSettings = <K extends keyof Settings>(
     key: K,
@@ -201,7 +225,7 @@ export default function Studio() {
     if (item.settings)
       setSettings({ ...defaultSettings, ...item.settings, batch: 1 });
     setTab("studio");
-    if (innerWidth < 760) setSidebar(false);
+    if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); }
   }
   function resume(item: Creation) {
     choose(item);
@@ -229,7 +253,7 @@ export default function Studio() {
     setTitles([]);
     setTab("studio");
     studio.setError("");
-    if (innerWidth < 760) setSidebar(false);
+    if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); }
   }
   async function uploadFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -463,11 +487,11 @@ export default function Studio() {
       {sidebar && (
         <button
           className="sidebar-scrim"
-          onClick={() => setSidebar(false)}
+          onClick={() => { setSidebar(false); requestAnimationFrame(() => navigationOpenRef.current?.focus()); }}
           aria-label="Close navigation"
         />
       )}
-      <aside className="sidebar" aria-label="Workspace navigation">
+      <aside ref={navigationRef} className="sidebar" inert={!sidebar} aria-label="Workspace navigation">
         <div className="sidebar-heading">
           <a className="wordmark" href="/">
             OpenPikzels
@@ -475,7 +499,8 @@ export default function Studio() {
           </a>
           <button
             className="icon-button"
-            onClick={() => setSidebar(false)}
+            onClick={() => { setSidebar(false); requestAnimationFrame(() => navigationOpenRef.current?.focus()); }}
+            ref={navigationCloseRef}
             aria-label="Close sidebar"
           >
             <PanelLeft size={17} />
@@ -488,7 +513,7 @@ export default function Studio() {
         <div className="history-controls">
           <button
             className={tab === "library" ? "active" : ""}
-            onClick={() => setTab("library")}
+            onClick={() => { setTab("library"); if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); } }}
           >
             <FolderOpen size={14} />
             My creations
@@ -496,9 +521,11 @@ export default function Studio() {
           <button
             className="icon-button"
             aria-label="Show favorites"
+            aria-pressed={onlyFavorites}
             onClick={() => {
               setOnlyFavorites((x) => !x);
               setTab("library");
+              if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); }
             }}
           >
             <Star size={14} />
@@ -606,13 +633,14 @@ export default function Studio() {
           </button>
         </div>
       </aside>
-      <div className="workspace-main">
+      <div className="workspace-main" inert={compactNavigation && sidebar}>
         <header className="topbar">
           <div className="topbar-left">
             {!sidebar && (
               <button
                 className="icon-button"
                 onClick={() => setSidebar(true)}
+                ref={navigationOpenRef}
                 aria-label="Open sidebar"
               >
                 <PanelLeft size={18} />
@@ -933,7 +961,7 @@ export default function Studio() {
                                   alt=""
                                 />
                               )}
-                              {persona.name}
+                              <span className="selection-name">{persona.name}</span>
                               <X
                                 size={12}
                                 onClick={(e) => {
@@ -949,7 +977,7 @@ export default function Studio() {
                               onClick={() => openProfiles("styles")}
                             >
                               <Palette size={13} />
-                              {styleProfile.name}
+                              <span className="selection-name">{styleProfile.name}</span>
                               <X
                                 size={12}
                                 onClick={(e) => {
@@ -961,6 +989,7 @@ export default function Studio() {
                           )}
                         </div>
                         <div className="prompt-tools">
+                          <div className="composer-tool-group" role="group" aria-label="Subject and style">
                           <button
                             className="tool-chip"
                             onClick={() => openProfiles("personas")}
@@ -975,6 +1004,8 @@ export default function Studio() {
                             <Palette size={15} />
                             Style
                           </button>
+                          </div>
+                          <div className="composer-tool-group" role="group" aria-label="Image references">
                           <button
                             className="tool-chip"
                             onClick={() => uploadRef.current?.click()}
@@ -997,6 +1028,7 @@ export default function Studio() {
                           >
                             <Images size={15} />
                           </button>
+                          </div>
                         </div>
                         {linkOpen && !["recreate", "edit"].includes(tool) && (
                           <div className="link-input">
@@ -1217,6 +1249,7 @@ export default function Studio() {
                   ref={uploadRef}
                   type="file"
                   className="sr-only"
+                  tabIndex={-1}
                   aria-label="Upload thumbnail references"
                   multiple
                   accept="image/png,image/jpeg,image/webp"
@@ -1518,7 +1551,7 @@ export default function Studio() {
                     <h2>Recent creations</h2>
                     <button
                       className="quiet-button"
-                      onClick={() => setTab("library")}
+                      onClick={() => { setTab("library"); if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); } }}
                     >
                       View library
                     </button>
@@ -1555,6 +1588,7 @@ export default function Studio() {
                   className={
                     onlyFavorites ? "neutral-button active" : "neutral-button"
                   }
+                  aria-pressed={onlyFavorites}
                   onClick={() => setOnlyFavorites((x) => !x)}
                 >
                   <Star size={15} />
@@ -1592,6 +1626,7 @@ export default function Studio() {
         </footer>
       </div>
       <dialog
+        aria-labelledby="studio-dialog-title"
         ref={dialogRef}
         onCancel={() => setDialog(null)}
         onClick={(e) => {
@@ -1600,7 +1635,7 @@ export default function Studio() {
       >
         <div className="dialog-shell">
           <div className="dialog-heading">
-            <h2>
+            <h2 id="studio-dialog-title">
               {dialog === "personas"
                 ? "Your personas"
                 : dialog === "styles"
@@ -2090,6 +2125,7 @@ export default function Studio() {
           <button
             className={item.favorite ? "icon-button favorited" : "icon-button"}
             aria-label={`Favorite ${item.title}`}
+            aria-pressed={item.favorite}
             onClick={() =>
               studio.run("Saving favorite", () => studio.favorite(item))
             }

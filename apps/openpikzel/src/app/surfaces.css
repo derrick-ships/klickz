@@ -220,8 +220,7 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
   .brand-scene--compact > img,
   .brand-scene--compact > video { object-position: center; }
   .advanced-button { font-size: 0; gap: 0; min-width: 36px; min-height: 44px; padding: 8px; }
-  .settings-row > label:first-child select { max-width: 98px; }
-  .settings-row > label:nth-child(2) select { max-width: 126px; }
+
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -235,3 +234,54 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
 
 .skip-link { position: fixed; z-index: 100; top: 12px; left: 16px; transform: translateY(-200%); padding: 10px 16px; background: #181818; color: #f4f4f4; border: 1px solid #ff868d; border-radius: 8px; }
 .skip-link:focus { transform: none; }
+
+/* Layout: predictable task groups, a roomy workbench and compact setup actions. */
+.prompt-tools { gap: var(--space-4); }
+.composer-tool-group { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.selection-chip { min-width: 0; max-width: 100%; }
+.selection-chip > img, .selection-chip > svg { flex-shrink: 0; }
+.selection-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-collection:empty { display: none; }
+.dialog-shell { padding: var(--space-6); }
+.dialog-heading { margin-bottom: var(--space-3); }
+.dialog-description { margin-bottom: var(--space-4); }
+.account-panel { margin-block: var(--space-6); padding: var(--space-6); }
+.provider-setup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-8); margin-top: var(--space-6); }
+.provider-setup .key-form { max-width: none; margin: 0; }
+.provider-setup .provider-grid { display: flex; flex-direction: column; gap: 0; }
+.provider-setup .provider-grid article { border: 0; border-radius: 0; border-bottom: 1px solid var(--color-line-strong); background: none; padding: var(--space-4) 0; }
+.provider-setup .provider-grid article:first-child { padding-top: 0; }
+.provider-setup .provider-grid article:last-child { border-bottom: 0; padding-bottom: 0; }
+.provider-setup .provider-grid strong { margin-block: var(--space-2); }
+.account-panel > h3 { margin-top: var(--space-8); margin-bottom: var(--space-3); }
+.account-header a { min-height: 44px; display: inline-flex; align-items: center; }
+@media (max-width: 1024px) {
+  .sidebar { width: 260px; padding-top: var(--space-6); }
+  .sidebar-open .workspace-main { margin-left: 0; }
+  .sidebar-open .sidebar-scrim { display: block; position: fixed; inset: 0; background: var(--color-overlay); z-index: 19; padding: 0; }
+  .mode-tabs button { min-height: 44px; }
+  .topbar .login-button, .topbar .quiet-button { min-height: 44px; }
+  .topbar .quiet-button { min-width: 44px; }
+  .dialog-shell .neutral-button, .dialog-shell .primary-button { min-height: 44px; }
+}
+@media (max-width: 760px) {
+  .studio-main { padding-inline: var(--space-4); }
+  .workbench-heading { gap: var(--space-4); margin-bottom: var(--space-6); }
+  .composer-inner { padding: var(--space-4) var(--space-4) var(--space-10); }
+  .prompt-tools { flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+  .composer-tool-group { flex-wrap: nowrap; max-width: 100%; }
+  .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; gap: var(--space-2); }
+  .settings-row > label { min-width: 0; }
+  .settings-row > label > select { min-width: 0; width: 100%; max-width: none; flex: 1; }
+  .settings-row .advanced-button { margin: 0; width: 44px; min-width: 44px; }
+  .account-panel { padding: var(--space-4); }
+  .provider-setup { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+  .provider-setup .provider-grid article { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); }
+  .provider-setup .provider-grid h3, .provider-setup .provider-grid p { grid-column: 1 / -1; }
+  .provider-setup .provider-grid strong { grid-column: 1; margin: 0; align-self: center; }
+  .provider-setup .provider-grid button { grid-column: 2; width: auto; max-width: 150px; }
+}
+@media (max-width: 380px) {
+  .settings-row { grid-template-columns: minmax(0, 1fr) 44px; }
+  .settings-row > label:first-child { grid-column: 1 / -1; }
+}

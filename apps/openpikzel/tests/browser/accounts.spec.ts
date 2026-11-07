@@ -144,6 +144,8 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
   await expect(
     page.getByRole("button", { name: "Revoke access" }),
   ).toBeVisible();
+  const setup = page.locator(".provider-setup");
+  expect(await setup.locator(":scope > :first-child").getAttribute("class")).toContain("key-form");
   await page.getByLabel("Your API key").fill("test-key-placeholder");
   await page.getByRole("button", { name: "Connect key", exact: true }).click();
   await expect(page.getByLabel("Your API key")).toHaveValue("");
@@ -163,4 +165,11 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
     path: "evidence/openpikzels-provider-onboarding-mobile.png",
     fullPage: true,
   });
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    if (width === 320) expect((await page.getByLabel("Your API key").boundingBox())!.y).toBeLessThan((await page.locator(".provider-grid").boundingBox())!.y);
+    await page.screenshot({ path: `evidence/layout-connections-${width}.png`, fullPage: true });
+  }
+
 });

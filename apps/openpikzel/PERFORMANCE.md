@@ -16,7 +16,7 @@ User screenshot: IMG_9018.png, message Sentinel_a2699d31c5988191bc540f4819e33263
 
 The gate runs sequentially to avoid measuring alongside other browser tests: functional suite → isolated3-sample mobile lab → stdlib Python checker → Lighthouse3mobile +3desktop. `lighthouserc.cjs` names hard limits: LCP2500ms, CLS0.1, TBT200ms, performance0.90, accessibility0.95, best-practices0.90, SEO0.95; script300000B, CSS100000B, image500000B, total1500000B and third-party0 for this local unconnected route. Assertions use median-run. Limits were not relaxed after a failing baseline. No hosted workflow/required branch check was activated.
 
-## Results — final production build
+## Results — mobile-correction build (historical baseline)
 
 | Lighthouse median-run | Mobile | Desktop |
 | --- | --- | --- |
@@ -47,3 +47,19 @@ The independent Playwright/CDP lab uses390×844, CPU4×,150ms latency,1.6Mbps do
 ## Limits
 
 These results describe this local production build’s unauthenticated studio route. They are not field p75, real-iPhone hardware, authenticated cloud-library load or API generation/scoring latency. Native WebKit could not launch due missing system libraries after Playwright’s unsupported-OS fallback; Safari remains unverified. Protected Vercel previews require normal authentication; no bypass URL was created. The public domain connection is complete, but existing authenticated-provider/OAuth/multiuser release gates remain in RELEASE.md. No provider credits, DNS, environment keys or hosted access policies changed for this correction.
+
+## Layout release — fresh verification
+
+The full release gate passed on the final layout implementation, with the same limits. Three Lighthouse runs per profile and three isolated CDP lab samples were collected again.
+
+| Median-run | Mobile | Desktop |
+| --- | --- | --- |
+| Performance |98|100|
+| Accessibility |100|100|
+| Best practices |100|100|
+| SEO |100|100|
+| LCP ms |2374.932|520.655|
+| TBT ms |69.500|0.000|
+| CLS |0.001|0.000|
+
+Controlled mobile lab medians: script_bytes=217525.000, css_bytes=9345.000, image_bytes=5098.000, total_bytes=256311.000, third_party=0.000, lcp_ms=696.000, cls=0.001, inp_sample_ms=72.000. Maximum click-to-two-frame feedback across all samples: 72.4ms. Lighthouse total transfer: mobile=261999B, desktop=264979B. Native-device and live-provider limitations above still apply.

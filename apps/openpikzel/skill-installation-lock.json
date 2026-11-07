@@ -1,0 +1,197 @@
+{
+  "installedOn": "2026-11-07",
+  "scope": "Cloud user-level Codex-compatible .agents skills; project links for discovery",
+  "installer": "OpenAI skill-installer download helper; static files only; no third-party installer execution",
+  "integratedCodexDirectory": "Read-only; not modified",
+  "skills": [
+    {
+      "source": "pbakaus/impeccable",
+      "revision": "687bc381bc9091bf252c0a05303640561014a425",
+      "sourcePath": ".agents/skills/impeccable",
+      "name": "impeccable",
+      "installedPath": "/home/agent/.agents/skills/impeccable",
+      "skillSHA256": "fab04b31f946573b00a8559db1fc070f8ea5825254d491c2b13156e5661a86d7",
+      "fileCount": 63
+    },
+    {
+      "source": "LottieFiles/motion-design-skill",
+      "revision": "f9a8a041b85185ee4881b3471d3415e939aac772",
+      "sourcePath": "skills/motion-design",
+      "name": "motion-design",
+      "installedPath": "/home/agent/.agents/skills/motion-design",
+      "skillSHA256": "8729ecbc7e5736c1295baaa8ba0384bb4b1aac9cf91b83fcdc64d9548a57bb19",
+      "fileCount": 17
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/animate",
+      "name": "animate",
+      "installedPath": "/home/agent/.agents/skills/animate",
+      "skillSHA256": "39138996033e0dbe53e73217514116eaeca774bae84a0687c80d445a4e0cc3a6",
+      "fileCount": 2
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/animate-expo",
+      "name": "animate-expo",
+      "installedPath": "/home/agent/.agents/skills/animate-expo",
+      "skillSHA256": "9a01a91701e6563c67677dde6b66ab30f066a5341d42c21a90ba51d99679274a",
+      "fileCount": 2
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/animation-performance",
+      "name": "animation-performance",
+      "installedPath": "/home/agent/.agents/skills/animation-performance",
+      "skillSHA256": "6c60f45ab416ff3f7d7765a5427beead77fab0d82487fe610d2a298397558d0a",
+      "fileCount": 1
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/animation-vocabulary",
+      "name": "animation-vocabulary",
+      "installedPath": "/home/agent/.agents/skills/animation-vocabulary",
+      "skillSHA256": "40d2b27adfdfeb0570a9f20e7d0255109d9233c50603878bcd0dcd04c923fd94",
+      "fileCount": 1
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/apple-design",
+      "name": "apple-design",
+      "installedPath": "/home/agent/.agents/skills/apple-design",
+      "skillSHA256": "77bb63b7043bb93aca2ff4ab040c249484eef35682bb6ff7163433c31d30adc7",
+      "fileCount": 1
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/ask-sonner",
+      "name": "ask-sonner",
+      "installedPath": "/home/agent/.agents/skills/ask-sonner",
+      "skillSHA256": "39f3ee185b3aa2cf70a689052ff078953ce7ba5915ed7a9391d232e9d4dcf57f",
+      "fileCount": 2
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/break-ui",
+      "name": "break-ui",
+      "installedPath": "/home/agent/.agents/skills/break-ui",
+      "skillSHA256": "e7eec1d70ac56a04255e9c0dbe98084ea3d544cc04aaad34f32c95d6fa9dff5e",
+      "fileCount": 2
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/choreograph",
+      "name": "choreograph",
+      "installedPath": "/home/agent/.agents/skills/choreograph",
+      "skillSHA256": "815c7d889230bafc72c03bb0769087aeede310130e8795c7949b3e3a1684e464",
+      "fileCount": 2
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/emil-design-eng",
+      "name": "emil-design-eng",
+      "installedPath": "/home/agent/.agents/skills/emil-design-eng",
+      "skillSHA256": "965cc3108047a1f68e504977ae7816c66115b202a32e7509c0b8305314839c54",
+      "fileCount": 1
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/find-animation-opportunities",
+      "name": "find-animation-opportunities",
+      "installedPath": "/home/agent/.agents/skills/find-animation-opportunities",
+      "skillSHA256": "d52a377819b84a71930f0c822cfe2849f40301605a2d5c7eccbfa3b257700df2",
+      "fileCount": 1
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/improve-animations",
+      "name": "improve-animations",
+      "installedPath": "/home/agent/.agents/skills/improve-animations",
+      "skillSHA256": "73962447464433476343e2c12cd08ab39cc99a9e5f3c118c5fb54ed897574ef6",
+      "fileCount": 3
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/mobile-native",
+      "name": "mobile-native",
+      "installedPath": "/home/agent/.agents/skills/mobile-native",
+      "skillSHA256": "888b7651d66d66dbac4e72b7c554638eb19bd971d686d6cbdf030a5ef3788f55",
+      "fileCount": 1
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/pick-ui-library",
+      "name": "pick-ui-library",
+      "installedPath": "/home/agent/.agents/skills/pick-ui-library",
+      "skillSHA256": "675fdce308683256ed617351a9b74d23457a5fbd0a562d9831b9c764b8c5e682",
+      "fileCount": 1
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/prototype",
+      "name": "prototype",
+      "installedPath": "/home/agent/.agents/skills/prototype",
+      "skillSHA256": "bba39c955eb1871c5a02733976ceec5d0324198e0812e667604756489c89f7b9",
+      "fileCount": 2
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/remove-animations",
+      "name": "remove-animations",
+      "installedPath": "/home/agent/.agents/skills/remove-animations",
+      "skillSHA256": "dea95b7a7ef81cba312c7f70a3c5c67d7e06a287cb16b16d2f90f2b1fb0afff9",
+      "fileCount": 1
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/review-animations",
+      "name": "review-animations",
+      "installedPath": "/home/agent/.agents/skills/review-animations",
+      "skillSHA256": "5f9fb98b69cace7107af8b393a4196fd42fa42d98bce0e5afc1f866ff3b8a41c",
+      "fileCount": 2
+    },
+    {
+      "source": "emilkowalski/skills",
+      "revision": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/write-swift",
+      "name": "write-swift",
+      "installedPath": "/home/agent/.agents/skills/write-swift",
+      "skillSHA256": "16a4b6adb74e338e55e704ce5753ad54d825438b8a63930eeaede9f3c04c9447",
+      "fileCount": 1
+    },
+    {
+      "source": "Nutlope/hallmark",
+      "revision": "407fa689f4a276f2fd389208d271d0fef08f5058",
+      "sourcePath": "skills/hallmark",
+      "name": "hallmark",
+      "installedPath": "/home/agent/.agents/skills/hallmark",
+      "skillSHA256": "25a1ff92d925b2389e8409f42fb8ad7e033fceca8b5d1f07ed4ca4c28da53dc3",
+      "fileCount": 187
+    },
+    {
+      "source": "adnanrahim110/ui-motion-skill",
+      "revision": "e65b11ba6a52137e375b54238410a9b200d9ba6c",
+      "sourcePath": "skills/ui-motion",
+      "name": "ui-motion",
+      "installedPath": "/home/agent/.agents/skills/ui-motion",
+      "skillSHA256": "571ec36feb8b5057a3c4f73c1a4bbebad495369342b6629ea377a0b8a2961b00",
+      "fileCount": 15
+    }
+  ]
+}

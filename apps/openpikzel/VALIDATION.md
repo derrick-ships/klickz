@@ -1,6 +1,6 @@
 # OpenPikzels validation
 
-November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and sixteen functional Playwright browser tests plus one isolated performance scenario. Tests make no paid provider requests.
+November 7, 2026. Final validation covers TypeScript, 69 unit/database/route/protocol tests, a production build and nineteen functional Playwright browser tests plus one isolated performance scenario. Tests make no paid provider requests.
 
 ## Verified locally
 
@@ -53,3 +53,11 @@ The user’s IMG_9018.png was retrieved and inspected. A pixel-based browser reg
 `npm run verify:release` passed: 69 unit/database/route/protocol tests, TypeScript/build, 16 functional browser tests, an isolated three-sample mobile lab and six Lighthouse runs with unchanged limits. Lighthouse median-run mobile: performance98, accessibility100, best-practices100, SEO100; LCP2386ms, TBT66ms, CLS0.001. Desktop: all four categories100, LCP522ms, TBT0, CLS0.
 
 The separate CDP-throttled lab (390×844, CPU4×, 150ms latency, 1.6Mbps down) measured median scripted INP64ms and maximum click-to-two-frame feedback47.9ms; its initial encoded-body total was255393bytes. Lighthouse includes transfer overhead and reported261081bytes mobile. No missing/invalid metrics are treated as passing. These are controlled local samples, not field p75 or authenticated hosted-provider timings. Native WebKit could not launch because this environment lacks required system libraries; no Safari/iPhone-device verification is claimed.
+
+## Impeccable Layout follow-up
+
+Final TypeScript/build,69 unit/database/route/protocol cases and19 functional browser cases pass. New coverage checks compact navigation at390/768/1024, inert background/closed navigation, Tab wrapping, Escape/Close focus restoration and content-action focus transfers. Actual DOM groups remain aligned across320/375/390/430/768/1024/1440. A persona created through the real local upload flow with an80-character Spanish name wraps fully in its dialog and truncates inside its bounded selection chip. The key-entry form is first in DOM/mobile order; provider status remains visible and disconnectable. Shared dialogs now have an accessible heading name, and favorite buttons expose pressed state.
+
+Actual rendered captures were opened for desktop, tablet, phones, empty dialogs, provider fixtures and the maximum-length name. Existing art-margin tests preserve the3:1 mobile crop. Final Impeccable layout detector returned `[]`. See LAYOUT.md for all seven structural verification questions and remaining limits; this does not claim full accessibility conformance or native Safari validation.
+
+The final layout release also passed the isolated mobile lab and all six Lighthouse runs with unchanged budgets. Fresh numbers are in PERFORMANCE.md and the two JSON reports; earlier mobile-correction figures above are historical.

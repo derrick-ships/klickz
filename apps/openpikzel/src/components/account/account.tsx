@@ -240,42 +240,7 @@ export function ConnectionsPage() {
               OpenAI or Google for images and titles. Jev for five-pillar
               scoring. You can connect any combination and remove it anytime.
             </p>
-            <div className="provider-grid">
-              {[
-                ["openai", "OpenAI", "Sunburst / Flare, titles and vision"],
-                ["google", "Google", "Gemini image models, titles and vision"],
-                ["jev", "Jev AI", "Image + title scores across five pillars"],
-              ].map(([id, name, detail]) => {
-                const c = connections.find((x) => x.provider === id);
-                return (
-                  <article key={id}>
-                    <h3>{name}</h3>
-                    <p>{detail}</p>
-                    <strong>
-                      {c
-                        ? "Connected · ••••" + c.suffix
-                        : "Use your own API key"}
-                    </strong>
-                    {c && (
-                      <button
-                        className="neutral-button"
-                        disabled={busy}
-                        onClick={() =>
-                          void action(async () => {
-                            await api("/api/providers", "DELETE", {
-                              provider: id,
-                            });
-                            await refresh();
-                          })
-                        }
-                      >
-                        Disconnect {name}
-                      </button>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
+            <div className="provider-setup">
             <form
               className="account-form key-form"
               onSubmit={(e) => {
@@ -325,6 +290,44 @@ export function ConnectionsPage() {
                 {busy ? "Saving…" : "Connect key"}
               </button>
             </form>
+            <div className="provider-grid">
+              {[
+                ["openai", "OpenAI", "Sunburst / Flare, titles and vision"],
+                ["google", "Google", "Gemini image models, titles and vision"],
+                ["jev", "Jev AI", "Image + title scores across five pillars"],
+              ].map(([id, name, detail]) => {
+                const c = connections.find((x) => x.provider === id);
+                return (
+                  <article key={id}>
+                    <h3>{name}</h3>
+                    <p>{detail}</p>
+                    <strong>
+                      {c
+                        ? "Connected · ••••" + c.suffix
+                        : "Use your own API key"}
+                    </strong>
+                    {c && (
+                      <button
+                        className="neutral-button"
+                        disabled={busy}
+                        onClick={() =>
+                          void action(async () => {
+                            await api("/api/providers", "DELETE", {
+                              provider: id,
+                            });
+                            await refresh();
+                          })
+                        }
+                      >
+                        Disconnect {name}
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+            </div>
+
             {!config?.secureConnections && (
               <p>Encrypted key storage is awaiting server activation.</p>
             )}

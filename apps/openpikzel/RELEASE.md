@@ -42,3 +42,7 @@ The authorized brand-production extension generated two custom stills and two si
 Automatic review rejected one attempted local source edit that also appended removal of the restrictive `studio_jobs_app_owner` policy to the public-release migration. The process did not execute. The policy removal was not retried. Independent reliability fixes were applied separately, and the restrictive policy remains present in hosted Supabase and the migration source. The stated reason was a persistent access-boundary weakening without specific authorization and with uncertain access impact.
 
 For public multiuser jobs, the exact deferred action is an explicit reviewed migration changing/removing `public.studio_jobs` policy `studio_jobs_app_owner` on Supabase `app-starter-dev` (`iufiqfvufoecbuakzale`), while retaining `studio_jobs_own` and tenant isolation. No such change is included in this delivery.
+
+## Layout refinement
+
+Impeccable Layout applied: stable composer groups, deliberate phone settings, tablet drawer with focus management, form-first compact provider onboarding and named dialogs. Final release checks passed:69 unit/database/route/protocol tests,19 functional browser tests, isolated3-sample mobile lab and6 Lighthouse runs. No provider calls, new generation credits, DNS, credentials, hosted policies or production promotion changed. See LAYOUT.md and PERFORMANCE.md.
