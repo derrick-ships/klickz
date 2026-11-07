@@ -1,0 +1,18 @@
+import type { Metadata } from "next";
+import "./globals.css";
+export const metadata: Metadata = {
+  title: "OpenPikzel — Your thumbnail studio",
+  description:
+    "Create, recreate and improve thumbnails with your personas, references and five-pillar image analysis.",
+};
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
