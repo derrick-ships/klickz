@@ -20,10 +20,10 @@ Impeccable, Emil and Hallmark were installed and applied. The original editor's 
 - Private GitHub PR #2 preserves the existing root thumbnail project.
 - Vercel project protection remains enabled for all deployments. OpenAI/Jev variables are encrypted and preview-only; production AI remains disabled. No bypass secret is created.
 - Supabase hosted private-studio and private-accounts migrations succeeded. New provider/OAuth tables have RLS, deny anon SELECT and each retain a restrictive owner-preview policy. A rolled-back synthetic key/grant transaction confirmed another authenticated identity cannot see the rows. No test grants or keys persist.
-- Read-only Vercel domain inspection confirms openpikzels.com is not attached and DNS still points to GoDaddy parking. The browser reaches GoDaddy sign-in and Supabase dashboard sign-in; no credentials were entered or DNS/account settings changed.
+- Read-only Vercel domain inspection confirms openpikzels.com is not attached and DNS still points to GoDaddy parking. GoDaddy rejected the cloud browser after the account email step with an unusual-browser message; no password/OTP was entered and no sign-in succeeded. Supabase dashboard also requires sign-in. No DNS/account settings changed.
 
 ## Not yet verified live
 
-No real OpenAI/Jev/Google response, paid smoke test, real-client OAuth Allow/refresh sequence, production deployment, TLS for the purchased domain, or external Claude/Cursor/Codex connection is claimed. The paid smoke test is authorized but awaits a usable authenticated owner session. Public launch and GoDaddy account access remain pending; see RELEASE.md.
+No real OpenAI/Jev/Google response, paid smoke test, real-client OAuth Allow/refresh sequence, production deployment, TLS for the purchased domain, or external Claude/Cursor/Codex connection is claimed. The paid smoke test is authorized but awaits a usable authenticated owner session. Public launch remains pending, and GoDaddy account access is blocked in this cloud browser; see RELEASE.md.
 
 Automatic review rejected a batch that would also have copied owner provider keys to production. A read-only check confirmed no write occurred. The narrower approved preview-only operation succeeded. No owner keys are required in production for the BYOK design.
