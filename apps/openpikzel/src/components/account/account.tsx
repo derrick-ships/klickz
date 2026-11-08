@@ -271,6 +271,13 @@ export function ConnectionsPage() {
           credits from your connected provider accounts.
         </p>
       </div>
+      <section className="account-panel" aria-labelledby="chatgpt">
+        <h2 id="chatgpt">Connect your ChatGPT plan</h2>
+        <p>Browser sign-in is not available in OpenPikzels yet. No download is required for the planned connection.</p>
+        <p>Once activated, Continue with ChatGPT will open OpenAI’s sign-in and consent window. You choose whether OpenPikzels can use your eligible plan, then return to the studio.</p>
+        <p><strong>Awaiting OpenAI activation.</strong> Plan limits apply. Image generation and other provider API calls remain separate.</p>
+        <a href="https://developers.openai.com/siwc/quickstart" target="_blank" rel="noopener noreferrer">About ChatGPT plan connections</a>
+      </section>
       <BrandScene scene="aperture" />
       {!ready ? (
         <p role="status">Loading your connections…</p>
@@ -415,17 +422,6 @@ export function ConnectionsPage() {
               </>}
             </div>
             {higgsfieldTools.length > 0 && <details><summary>Available Higgsfield tools ({higgsfieldTools.length})</summary><ul>{higgsfieldTools.map(name => <li key={name}>{name}</li>)}</ul></details>}
-          </section>
-          <section className="account-panel">
-            <h2>Use your Claude or Codex plan</h2>
-            <p>Use the local companion to run the official Claude Code or Codex CLI with your own active login. Sign-in and subscription credentials stay in that CLI. You can also connect OpenPikzels through MCP inside your official agent. Image generation and Jev scoring use separate API credits.</p>
-            <div className="connection-actions">
-              <a className="primary-button inline-link" href="/local-companion">Set up local companion</a>
-              <a className="neutral-button inline-link" href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Open Claude</a>
-              <a className="neutral-button inline-link" href="https://chatgpt.com/codex" target="_blank" rel="noopener noreferrer">Open Codex</a>
-              <button className="neutral-button" onClick={() => void action(async () => { await navigator.clipboard.writeText(config?.mcpUrl || location.origin + "/mcp"); setNotice("MCP URL copied. Add it in your agent’s MCP connections and approve access."); })}>Copy agent connection URL</button>
-            </div>
-            <details><summary>About direct subscription sign-in</summary><p>A local app can launch an unmodified official CLI after you sign in through its own flow. OpenPikzels never collects or proxies that subscription token. Hosted ChatGPT plan integration has separate approval requirements; the local companion does not turn your subscription into a shared cloud API.</p></details>
           </section>
           <section className="account-panel">
             <h2 id="mcp">Connect your agent</h2>
