@@ -16,7 +16,7 @@ for(const profile of ["mobile","desktop"]) {
     const manifest=JSON.parse(readFileSync(`${directory}/manifest.json`,"utf8"));
     const runs=manifest.map(item=>{
       const report=JSON.parse(readFileSync(item.jsonPath,"utf8"));
-      return {representative:item.isRepresentativeRun,lighthouseVersion:report.lighthouseVersion,
+      return {url:report.finalDisplayedUrl || report.finalUrl,representative:item.isRepresentativeRun,lighthouseVersion:report.lighthouseVersion,
         browser:report.environment.hostUserAgent,scores:item.summary,
         lcp_ms:report.audits["largest-contentful-paint"].numericValue,
         tbt_ms:report.audits["total-blocking-time"].numericValue,

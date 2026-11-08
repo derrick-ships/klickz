@@ -259,10 +259,10 @@ export function ConnectionsPage() {
   return (
     <main className="account-page">
       <header className="account-header">
-        <a href="/" className="brand">
+        <a href="/studio" className="brand">
           OpenPikzels<span className="wordmark-pixel" aria-hidden="true" />
         </a>
-        <a href="/">Back to studio</a>
+        <a href="/studio">Back to studio</a>
       </header>
       <div className="account-intro">
         <h1>Connect your AI</h1>
@@ -277,7 +277,7 @@ export function ConnectionsPage() {
       ) : !db ? (
         <p>
           Cloud sign-in is not available here yet.{" "}
-          <a href="/">Save drafts in this browser.</a>
+          <a href="/studio">Save drafts in this browser.</a>
         </p>
       ) : !session ? (
         <AccountSignIn db={db} />
@@ -390,7 +390,7 @@ export function ConnectionsPage() {
               credits are separate from a ChatGPT or Gemini subscription.
               Connecting a key makes no billable test request.
             </p>
-            <a className="primary-button inline-link" href="/">
+            <a className="primary-button inline-link" href="/studio">
               Open studio
             </a>
           </section>
@@ -428,7 +428,7 @@ export function ConnectionsPage() {
             <details><summary>About direct subscription sign-in</summary><p>A local app can launch an unmodified official CLI after you sign in through its own flow. OpenPikzels never collects or proxies that subscription token. Hosted ChatGPT plan integration has separate approval requirements; the local companion does not turn your subscription into a shared cloud API.</p></details>
           </section>
           <section className="account-panel">
-            <h2>Connect your agent</h2>
+            <h2 id="mcp">Connect your agent</h2>
             <p>
               Paste this MCP URL into your agent’s connection settings. Your
               client needs Streamable HTTP and OAuth support. Review its

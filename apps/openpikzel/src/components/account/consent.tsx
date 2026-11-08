@@ -50,7 +50,7 @@ export function Consent() {
   }
   return (
     <main className="consent-page">
-      <a href="/" className="brand">
+      <a href="/studio" className="brand">
         OpenPikzels<span className="wordmark-pixel" aria-hidden="true" />
       </a>
       <section className="account-panel">

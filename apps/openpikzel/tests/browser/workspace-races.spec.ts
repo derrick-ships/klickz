@@ -35,6 +35,14 @@ test('delayed account A resize cannot overwrite account B hydration or draft',as
  await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Resize to short-form',exact:true}).click();await waiting;
  await page.evaluate(s=>{localStorage.setItem('sb-test-auth-token',JSON.stringify(s));const bc=new BroadcastChannel('sb-test-auth-token');bc.postMessage({event:'SIGNED_IN',session:s});setTimeout(()=>bc.close(),100);},session(B));
  await expect(page.locator('.chat-title')).toContainText('Account B chat');release();
- await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.locator('.chat-title')).toContainText('Account B chat');await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('A separate private account B draft');
+ await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByRole('alert').filter({hasText:'Your account changed'})).toHaveCount(0);await expect(page.locator('.chat-title')).toContainText('Account B chat');await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('A separate private account B draft');
  expect(f.chats.find(c=>c.id===chatB).draft.prompt).toBe('A separate private account B draft');
+});
+
+test('explicit save cannot overwrite newer edits already checkpointed during a slow creation write',async({page})=>{
+ const f=await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
+ await page.route('https://test.supabase.co/rest/v1/studio_creations*',async route=>{if(route.request().method()!=='POST')return route.fallback();entered();await hold;f.creations.push(route.request().postDataJSON());await route.fulfill({status:201,body:'',headers:{'access-control-allow-origin':'*'}});});
+ await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByLabel('Prompt',{exact:true}).fill('The first submitted image concept');await page.getByRole('button',{name:'Save draft',exact:true}).click();await waiting;
+ await page.getByLabel('Prompt',{exact:true}).fill('The newer edited concept must survive');await expect.poll(()=>f.chats.find(c=>c.id===chatA).draft.prompt).toBe('The newer edited concept must survive');release();
+ await expect(page.locator('.operation-progress')).toHaveCount(0);await page.reload();await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('The newer edited concept must survive');
 });

@@ -3,6 +3,7 @@ import "./globals.css";
 import "./surfaces.css";
 import "./review.css";
 import "./creative.css";
+import "./welcome.css";
 export const metadata: Metadata = {
   title: "OpenPikzels — Your thumbnail studio",
   description:

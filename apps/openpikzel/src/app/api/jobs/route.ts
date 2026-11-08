@@ -1,3 +1,4 @@
+import { jobGuidance } from "@/lib/job-state";
 import { reconcileJobs } from "@/lib/jobs";
 import { authenticated, failure } from "@/lib/server";
 export async function GET(request: Request) {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     if (r.error) throw r.error;
     return Response.json(
       {
-        jobs: r.data,
+        jobs: (r.data || []).map(job => ({...job,guidance:jobGuidance(job.state)})),
         notice:
           "Reconciling means dispatch may have executed. No automatic retry is scheduled.",
       },

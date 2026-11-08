@@ -1,3 +1,4 @@
+import { jobGuidance } from "./job-state";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   registerAppResource,
@@ -478,7 +479,7 @@ export async function createMcpServer(token: string) {
         .order("created_at", { ascending: false })
         .limit(30);
       if (r.error) throw r.error;
-      return { jobs: r.data };
+      return { jobs: (r.data || []).map(job => ({...job,guidance:jobGuidance(job.state)})) };
     },
     true,
   );

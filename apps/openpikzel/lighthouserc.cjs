@@ -5,7 +5,7 @@ const BUDGETS = Object.freeze({ LCP_MS: 2500, CLS: .1, TBT_MS: 200,
 const median = { aggregationMethod: "median-run" };
 const profile = process.env.LHCI_PROFILE === "desktop" ? "desktop" : "mobile";
 module.exports = { ci: {
-  collect: { url: ["http://127.0.0.1:3001/"], numberOfRuns: 3,
+  collect: { url: ["http://127.0.0.1:3001/", "http://127.0.0.1:3001/studio"], numberOfRuns: 3,
     startServerCommand: "npm run start -- --port 3001", startServerReadyPattern: "Ready in", startServerReadyTimeout: 30000,
     settings: { chromeFlags: "--no-sandbox --disable-dev-shm-usage", ...(profile === "desktop" ? { preset: "desktop" } : {}) } },
   assert: { assertions: {

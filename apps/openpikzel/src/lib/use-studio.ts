@@ -123,7 +123,7 @@ export function useStudio() {
             const next = session?.user.id || null;
             if (next !== userRef.current) {
               userRef.current = next;
-              ownerEpoch.current++;setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;
+              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;
               version.current++;
               setCreations([]);
               setPersonas([]);
@@ -152,12 +152,15 @@ export function useStudio() {
       .finally(() => setLoading(false));
   }, [load]);
   useEffect(() => {
+    let active = true;
+    const epoch = ownerEpoch.current;
     if (user)
       void headers()
         .then((h) => fetch("/api/config", { headers: h }))
         .then((r) => r.json())
-        .then(setConfig)
+        .then(value => { if (active && epoch === ownerEpoch.current) setConfig(value); })
         .catch(() => {});
+    return () => { active = false; };
   }, [user]);
   useEffect(() => {
     if (!cloud) return;
@@ -170,11 +173,13 @@ export function useStudio() {
   ): Promise<T | undefined> {
     if (lock.current) return;
     lock.current = true;
+    const startedEpoch = ownerEpoch.current;
     setBusy(label);
     setError("");
     try {
       return await work();
     } catch (e) {
+      if (startedEpoch !== ownerEpoch.current) return undefined;
       setError(
         e instanceof Error
           ? e.message

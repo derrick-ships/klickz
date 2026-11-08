@@ -1,4 +1,5 @@
 "use client";
+import { jobGuidance } from "@/lib/job-state";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
@@ -103,6 +104,7 @@ const definitions: Record<Pillar, string> = {
 };
 export default function Studio() {
   const studio = useStudio();
+  useEffect(() => { try { document.cookie = "openpikzels-entry=studio; Path=/; Max-Age=31536000; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : ""); } catch { /* Browser privacy settings may block preferences. */ } }, []);
   const [profileDialogTitle,setProfileDialogTitle]=useState("");
   const [activeChatId,setActiveChatId]=useState<string|null>(null),[chatSaveState,setChatSaveState]=useState("");
   const hydratedOwner=useRef(""),chatIdRef=useRef<string|null>(null),ownerUI=useRef(studio.user);ownerUI.current=studio.user;chatIdRef.current=activeChatId;
@@ -270,6 +272,7 @@ export default function Studio() {
     const saved=localStorage.getItem("openpikzels.activeChat."+key),chat=studio.conversations.find(c=>c.id===saved);if(chat)activateChat(chat,false);
   },[studio.loading,studio.user,studio.conversations]);
   const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,selection};
+  const chatDraftRef=useRef(chatDraft);chatDraftRef.current=chatDraft;
   const chatDraftJSON=JSON.stringify(chatDraft);
   useEffect(()=>{
     if(!activeChatId||!activeChat||studio.loading)return;const owner=studio.user,id=activeChatId,chat=activeChat,draft=JSON.parse(chatDraftJSON) as WorkspaceDraft;
@@ -469,6 +472,7 @@ export default function Studio() {
         settings,
         parentId,
       });
+      await studio.saveConversation({...chat,draft:{...chatDraftRef.current,selection:item.id},updated_at:new Date().toISOString()},"draft");
       setSelection(item.id);
       if (draftFingerprintRef.current === savingFingerprint)
         setSaveReceipt((receipt) => receipt + 1);
@@ -862,7 +866,7 @@ export default function Studio() {
       )}
       <aside ref={navigationRef} className="sidebar" inert={!sidebar} aria-label="Workspace navigation">
         <div className="sidebar-heading">
-          <a className="wordmark" href="/">
+          <a className="wordmark" href="/studio">
             OpenPikzels
             <span className="wordmark-pixel" />
           </a>
@@ -1816,8 +1820,9 @@ export default function Studio() {
                 <div className="connection-row" key={j.id}>
                   <strong>{j.operation === "generate" ? "Image generation" : j.operation === "analyze" ? "Thumbnail analysis" : "API request"}</strong>
                   <span>
-                    {({ queued: "Waiting to start", running: "Processing", succeeded: "Completed", failed: "Failed", reconciling: "Checking outcome — wait before retrying" } as Record<string, string>)[j.state] || "Status unavailable"}
+                    {jobGuidance(j.state).label}
                     {` · Up to ${j.max_provider_calls} API request${j.max_provider_calls === 1 ? "" : "s"}`}
+                    <small>{jobGuidance(j.state).message}</small>
                   </span>
                 </div>
               ))}

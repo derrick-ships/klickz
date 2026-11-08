@@ -6,6 +6,7 @@ test("a successful draft locks its pixels once without delaying or replaying his
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/?mode=generate");
+    await page.getByLabel("Prompt", { exact: true }).fill("");
     const save = page.getByRole("button", { name: /Save draft/ });
     await save.click();
     await expect(page.getByRole("alert").filter({ hasText: "at least eight characters" })).toContainText("at least eight characters");

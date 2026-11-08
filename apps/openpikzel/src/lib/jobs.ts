@@ -1,12 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { semanticDigest } from "./diagnostics";
 import { AppError } from "./validation";
-export type JobState =
-  | "queued"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "reconciling";
+import type { JobState } from "./job-state";
+export type { JobState } from "./job-state";
 export async function reserveJob(
   db: SupabaseClient,
   userId: string,
