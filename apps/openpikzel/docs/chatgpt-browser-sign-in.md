@@ -1,35 +1,40 @@
-# ChatGPT plan: browser-only connection
+# Browser Codex connection
 
-Decision: no download, CLI installation or local companion prerequisite in the primary ChatGPT onboarding. User reference: the November 8 recording of Notion's OpenAI-hosted consent popup. The recording visibly shows a separate plan-use permission. Its OAuth client must not be reused.
+OpenPikzels implements a no-download Codex device-code connection at /connect#chatgpt.
 
-## Actual status — November 8, 2026
+## User flow
+1. Sign in to the user's OpenPikzels workspace.
+2. Continue with ChatGPT opens https://auth.openai.com/codex/device.
+3. Enter the one-time code shown in OpenPikzels and approve on OpenAI's page.
+4. The workspace polls automatically, then shows the masked account and plan.
+5. Refresh usage and models reads metadata without requesting generation.
+6. Cancel invalidates the current attempt. Disconnect erases this app's encrypted connection.
 
-Not activated. Production environment metadata has no hosted OpenAI OAuth client configuration. No provider credentials were read or revealed during this check. The old install path has been removed from welcome and connection onboarding. Existing local-companion source/download remains for backward compatibility, outside that onboarding.
+Popup blocking has an ordinary link fallback. OpenAI may require enabling device-code login in the user's security settings. OpenPikzels never asks for an OpenAI password.
 
-The UI explicitly says browser sign-in is unavailable and awaiting activation. It does not render a fake sign-in button, simulate a grant, or imply that an identity-only login funds AI. No new authentication backend was added in this change.
+## Scope and limitations
+This is the Codex device protocol used by DSH/pi, not a registered OpenPikzels Sign in with ChatGPT partner integration. It does not establish provider approval for a hosted third-party service. No partner application was submitted.
 
-## Required external access
+This release connects the account and reads models/usage. It does not route studio generation, titles or scoring through the subscription. Those operations still use the existing per-user API connections. No inference request was made to validate this release.
 
-OpenAI's [quickstart](https://developers.openai.com/siwc/quickstart) distinguishes identity from permission to use a ChatGPT plan. Hosted partner availability is limited. [Request an OAuth client](https://developers.openai.com/siwc/request-client-id) with plan-use access through the [interest form](https://openai.com/form/sign-in-with-chatgpt-interest/).
+References:
+- https://github.com/WSL043/dsh-codex-subscription/tree/7795f5914b78363a0264652e240bd98354834c00
+- https://github.com/earendil-works/pi/blob/main/packages/ai/src/auth/oauth/openai-codex.ts
+- https://learn.chatgpt.com/docs/auth#login-on-headless-devices
 
-The [website guide](https://developers.openai.com/siwc/website) requires a registered callback, issued client ID, discovery metadata and the assigned token authentication method. Its example covers identity scopes; the approved hosted plan-use contract must also be confirmed. Do not assume the local dynamic-registration client can accept an arbitrary HTTPS callback.
+## Storage and isolation
+CODEX_DEVICE_ENABLED=true enables the route. STUDIO_ENCRYPTION_KEY is the existing server-only AES-GCM encryption key. Both pending grants and access/refresh tokens are encrypted with user-specific authenticated context. Browser responses contain only the temporary user code, fixed verification URL, masked identity, connection status, usage and model names. No tokens enter browser storage, logs, URLs or email.
 
-## Prepared access-request description
+studio_codex_connections uses auth.uid() RLS and a SECURITY INVOKER transition function. Native app sessions manage connections; delegated MCP OAuth sessions cannot. Mutation requests require the app origin. Usage/model readings remain in browser memory.
 
-OpenPikzels is a free browser-based YouTube thumbnail studio. Users should connect their own ChatGPT plan through OpenAI's consent popup, without downloads, for supported title, concept, thumbnail-analysis and editing-prompt tasks. Image generation uses separately connected provider access. Requested capability: Sign in and ChatGPT plan use for AI requests.
+A row lock enforces attempt identity, 30-second start spacing, provider polling intervals and a single polling lease. An exchange is marked before execution and never blindly retried. Cancellation, replacement and disconnection invalidate late results. Token refresh uses a separate lease/version; an abandoned rotating refresh requires sign-in rather than reusing a potentially consumed token. An expired device grant is not returned; its encrypted pending data is overwritten on the next attempt or erased by cancellation/disconnection. Codes expire after 15 minutes.
 
-Submission requires the owner's explicit authorization to contact OpenAI. This document is not proof that an application was sent or approved.
+## Validation
+- Real provider start returned HTTP 200 and a schema-valid device grant. Its code was neither exposed nor approved.
+- Unit fixtures test protocol validation, redaction, PKCE exchange fields, refresh and optional metadata.
+- PostgreSQL tests cover isolation, polling lease, cancellation before completion, refresh single-flight and disconnection.
+- Browser fixtures cover popup fallback, completion, metadata, cancellation races, expiry, mobile layout and reduced motion.
+- Real completed sign-in, token refresh and subscribed inference remain unverified; fixtures do not establish those outcomes.
 
-## Implementation acceptance criteria after access is issued
-
-1. The user clicks Continue with ChatGPT. Open a popup directly from the click; provide a same-tab path if the browser blocks it.
-2. Bind each attempt to the signed-in OpenPikzels owner with expiring state, nonce and PKCE; consume it atomically once.
-3. OpenAI owns authentication and consent. No password, OTP or provider token is entered into OpenPikzels chat.
-4. The server verifies issuer, audience, signature, nonce and granted plan permissions. Identity-only consent never becomes a plan connection.
-5. Encrypt per-user credentials server-side, serialize rotating refreshes across instances, and make disconnect/revocation available. Never expose tokens in browser events, storage or logs.
-6. Return through a registered callback. Popup events carry completion status only, validate exact origins, and refresh authoritative connection status. Support COOP, closed popups, denial, expiry, retry and account switching.
-7. Route only explicitly supported tasks to the user's plan. Never silently fall back to charged API calls. Show plan usage and limits.
-8. Test cancellation, replay, account isolation, refresh races, mobile, keyboard and reduced motion. A fixture success is not a real provider activation.
-9. Validate real consent and one permitted request before labeling the connection available.
-
-Proposed callback for registration, not an implemented route: https://openpikzels.com/api/connections/chatgpt/callback.
+## Operations
+Disable CODEX_DEVICE_ENABLED and redeploy to stop new connections. Disconnect removes the app's saved token bundle but does not claim provider-side revocation. Users can manage provider authorization in ChatGPT security settings.

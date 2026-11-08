@@ -24,7 +24,7 @@ test('fresh legacy links preserve duplicate query values without relying on a st
  const invalid=await request.get('/?mode=unknown',{maxRedirects:0});expect(invalid.status()).toBe(200);expect(await invalid.text()).toContain('GET MILLIONS');
 });
 
-test('ChatGPT onboarding requires no download and clearly identifies the activation blocker',async({page})=>{
+test('ChatGPT onboarding requires no download and requires app sign-in before provider authorization',async({page})=>{
  for(const width of [390,1440]){
   await page.setViewportSize({width,height:900});
   await page.goto('/welcome');
@@ -33,8 +33,8 @@ test('ChatGPT onboarding requires no download and clearly identifies the activat
   await expect(page).toHaveURL(/\/connect#chatgpt$/);
   const panel=page.getByRole('region',{name:'Connect your ChatGPT plan'});
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText('Awaiting OpenAI activation.');
-  await expect(panel).toContainText('No download is required');
+  await expect(panel).toContainText('Sign in to OpenPikzels below');
+  await expect(panel).toContainText('No download required.');
   await expect(page.getByRole('link',{name:/download|set up local companion/i})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Continue with ChatGPT',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

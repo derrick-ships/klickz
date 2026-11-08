@@ -2415,3 +2415,5 @@ select {
   font-size: 13px;
   color: var(--color-ink);
 }
+
+.codex-device-step{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px}.codex-device-step p{flex-basis:100%}.codex-device-code{display:block;font-size:clamp(1.5rem,5vw,2rem);font-weight:700;letter-spacing:.12em;overflow-wrap:anywhere;padding:16px;border:1px solid #ffffff24;border-radius:12px;user-select:all}.codex-connection button,.codex-connection a.neutral-button{min-height:44px}.codex-connection [role=alert]{color:#ffb4b4}.codex-connection ul{padding-left:24px;overflow-wrap:anywhere}

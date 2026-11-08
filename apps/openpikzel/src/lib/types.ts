@@ -125,6 +125,7 @@ export type Config = {
   youtube?: boolean;
   secureConnections?: boolean;
   higgsfield?: boolean;
+  codexDevice?: boolean;
   mcpUrl?: string;
   supabaseUrl: string;
   supabaseKey: string;

@@ -5,6 +5,7 @@ import {
   type SupabaseClient,
   type Session,
 } from "@supabase/supabase-js";
+import { CodexConnection } from "./codex-connection";
 import { BrandScene } from "@/components/brand-scene";
 import type { Config } from "@/lib/types";
 export function useAccount(isolated = false) {
@@ -271,13 +272,7 @@ export function ConnectionsPage() {
           credits from your connected provider accounts.
         </p>
       </div>
-      <section className="account-panel" aria-labelledby="chatgpt">
-        <h2 id="chatgpt">Connect your ChatGPT plan</h2>
-        <p>Browser sign-in is not available in OpenPikzels yet. No download is required for the planned connection.</p>
-        <p>Once activated, Continue with ChatGPT will open OpenAI’s sign-in and consent window. You choose whether OpenPikzels can use your eligible plan, then return to the studio.</p>
-        <p><strong>Awaiting OpenAI activation.</strong> Plan limits apply. Image generation and other provider API calls remain separate.</p>
-        <a href="https://developers.openai.com/siwc/quickstart" target="_blank" rel="noopener noreferrer">About ChatGPT plan connections</a>
-      </section>
+      <CodexConnection key={session?.user.id || "signed-out"} signedIn={!!session} enabled={!!config?.codexDevice} api={api} />
       <BrandScene scene="aperture" />
       {!ready ? (
         <p role="status">Loading your connections…</p>
