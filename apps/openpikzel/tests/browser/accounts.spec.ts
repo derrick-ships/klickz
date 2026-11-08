@@ -235,3 +235,16 @@ test("email limits preserve access to an already received code", async ({ page }
  await expect(page.getByRole("status").filter({ hasText: "email limit has been reached" })).toBeVisible();
  await expect(page.getByLabel("Email sign-in code",{exact:true})).toBeFocused(); expect(emails).toBe(1);
 });
+
+
+test("local companion setup offers a real source download and fits mobile", async ({ page, request }) => {
+ await page.goto("/local-companion");
+ await expect(page.getByRole("heading", {name:"Your plan. On your computer."})).toBeVisible();
+ await expect(page.getByRole("link",{name:"Open installed companion",exact:true})).toHaveAttribute("href","http://127.0.0.1:48763");
+ const archive=await request.get("/downloads/openpikzels-local-companion.zip");
+ expect(archive.status()).toBe(200);
+ expect((await archive.body()).subarray(0,2).toString()).toBe("PK");
+ await page.setViewportSize({width:390,height:844});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await page.screenshot({path:"evidence/local-companion-guide-390.png",fullPage:true});
+});

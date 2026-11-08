@@ -417,13 +417,14 @@ export function ConnectionsPage() {
           </section>
           <section className="account-panel">
             <h2>Use your Claude or Codex plan</h2>
-            <p>Sign in inside the official Claude or Codex app, then connect OpenPikzels as an MCP server. Your chat and reasoning use that app’s plan. OpenPikzels image generation and Jev scoring use your separately connected API credits.</p>
+            <p>Use the local companion to run the official Claude Code or Codex CLI with your own active login. Sign-in and subscription credentials stay in that CLI. You can also connect OpenPikzels through MCP inside your official agent. Image generation and Jev scoring use separate API credits.</p>
             <div className="connection-actions">
+              <a className="primary-button inline-link" href="/local-companion">Set up local companion</a>
               <a className="neutral-button inline-link" href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Open Claude</a>
               <a className="neutral-button inline-link" href="https://chatgpt.com/codex" target="_blank" rel="noopener noreferrer">Open Codex</a>
               <button className="neutral-button" onClick={() => void action(async () => { await navigator.clipboard.writeText(config?.mcpUrl || location.origin + "/mcp"); setNotice("MCP URL copied. Add it in your agent’s MCP connections and approve access."); })}>Copy agent connection URL</button>
             </div>
-            <details><summary>About direct subscription sign-in</summary><p>Hosted ChatGPT plan usage needs an approved OpenAI client. Claude subscription sign-in must stay inside Claude’s own applications. OpenPikzels never asks you to paste a subscription token. You can use the MCP connection below today, or connect an API key.</p></details>
+            <details><summary>About direct subscription sign-in</summary><p>A local app can launch an unmodified official CLI after you sign in through its own flow. OpenPikzels never collects or proxies that subscription token. Hosted ChatGPT plan integration has separate approval requirements; the local companion does not turn your subscription into a shared cloud API.</p></details>
           </section>
           <section className="account-panel">
             <h2>Connect your agent</h2>

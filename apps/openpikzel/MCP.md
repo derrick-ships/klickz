@@ -53,3 +53,7 @@ Supabase's native OAuth server currently does not bind tokens to RFC 8707 resour
 ## Free-tier considerations
 
 No extra always-on server, paid OAuth service, Supabase branch, Redis or billing upgrade is required. Vercel/Supabase still have usage quotas; hosting, storage, email delivery and provider APIs are not unlimited. Before a broad launch, configure suitable Supabase email delivery/rate limits, monitor quotas, and apply project-level abuse controls. DCR is stateless and request-body bounded, but edge rate limiting remains an operator deployment setting.
+
+## Optional official local CLI companion
+
+The setup page is /local-companion. The downloaded companion runs separately on the user's own computer. It launches unmodified official Claude Code/Codex processes after their own sign-in. Their subscription credentials are not collected by OpenPikzels. Local text tasks can use the CLI's eligible active plan; an API-key login uses API credits instead. This optional flow is separate from remote MCP and hosted provider execution. The companion does not expose the local CLI to remote MCP clients or perform visual scores/image generation.

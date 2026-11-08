@@ -42,3 +42,13 @@ Live authenticated provider responses, full real-account Allow/refresh/revoke an
 Derrick reported changing the project email limit to 30/hour. Fresh email delivery to the matching Gmail account succeeded. The first code failed with otp_expired. After Derrick requested a new code, private browser verification succeeded and the production Connections page displayed authenticated provider management, connected grants, and Sign out. No codes or session tokens were read from the browser or stored in evidence. See evidence/activation-login.json. Real provider key saving, paid generation, and Higgsfield consent remain separate checks.
 
 The post-login recovery release passed npm run verify:release: 77 automated cases, 27 browser cases, build/TypeScript, performance lab/review, and three Lighthouse runs for each device profile. These checks use fixtures for provider requests and do not spend provider credits.
+
+## Official local CLI companion
+
+Clarification: the restriction on third-party subscription-token collection does not prohibit launching an unmodified official local Claude Code/Codex binary. The new optional companion does exactly that. It runs on the user's computer, launches the CLI's own sign-in, reduces documented status to method/availability, and submits explicit text tasks on stdin. It neither reads auth files nor implements a Claude subscription OAuth client. Hosted/Vercel routes never execute the user's local CLI.
+
+The source package supports macOS/Linux with Node 22+ and current official CLIs. It provides titles, concepts and copyable editing prompts. It does not provide image generation or Jev visual scoring through a subscription. It is not a signed native installer; actual Mac launch/login, real provider account entitlements and Windows packaging remain unverified or unavailable.
+
+Independent review found ordinary Claude hooks, detached descendants and terminal SIGHUP cleanup issues. Each was reproduced and fixed with regression tests. Further tests cover status-only stderr, launcher-issued local execution capabilities, Host/Origin/CSRF, logged-out rejection, prompt transport, concurrent requests and literal markup. No auth, subscription or paid model call was made. Managed organizational CLI policy still applies.
+
+References: https://code.claude.com/docs/en/legal-and-compliance ; https://code.claude.com/docs/en/cli-reference ; https://developers.openai.com/siwc/token-sharing-open-source ; https://learn.chatgpt.com/docs/non-interactive-mode .

@@ -15,7 +15,9 @@
     "perf:lab": "playwright test tests/browser/performance.spec.ts --workers=1",
     "perf:check": "python scripts/check_perf_budget.py evidence/performance-lab.json",
     "verify:release": "npm run verify && npm run perf:lab && npm run perf:check && npm run perf:review && npm run perf:lighthouse",
-    "perf:review": "playwright test tests/browser/review-performance.spec.ts --workers=1"
+    "perf:review": "playwright test tests/browser/review-performance.spec.ts --workers=1",
+    "companion:test": "node --test local-companion/tests.test.mjs",
+    "companion:build": "python3 scripts/build-companion.py"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.1.2",

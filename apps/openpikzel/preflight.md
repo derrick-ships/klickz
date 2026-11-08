@@ -244,3 +244,11 @@ No account creation, new personal token, repository transfer, or paid upgrade fo
 7. The two visible temporary read-only OAuth grants are revoked. Their presence alone does not prove every OAuth lifecycle assertion.
 
 Provider documentation checked: [OpenAI image generation](https://developers.openai.com/api/docs/guides/image-generation), [TypeSafe images](https://docs.typesafe.ai/images), and [Jev-hosted decisions](https://jev-ai.org/docs/decisions/).
+
+## Local companion prerequisites
+
+1. The local route uses unmodified official CLI login and does not require the hosted OAuth-client approval discussed above.
+2. Node 22+, a current official Claude Code/Codex CLI, and the user's own sign-in are required on the user's computer.
+3. The cloud development environment cannot establish that these are installed or authenticated on Derrick's Mac.
+4. Source-package launcher/login behavior on a real Mac remains unverified. Windows packaging and signed native installers are not included.
+5. Text tasks use active CLI limits. Image generation and Jev scoring retain their separate API requirements.
