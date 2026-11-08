@@ -7,7 +7,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import assert from 'node:assert/strict';
 import {makeRunner,authStatus,taskPrompt,execute} from './core.mjs';
-import {createCompanion} from './server.mjs';
+import {createCompanion as createRealCompanion} from './server.mjs';
+const createCompanion=options=>createRealCompanion({...options,readTelemetry:async()=>({windows:[],models:[],gate:{allowed:true}}),runTask:async args=>({text:await options.runner.run(args.provider,args.task,args.brief,args.signal)})});
 test('status exposes only authentication state',()=>{
  assert.deepEqual(authStatus('claude',0,JSON.stringify({loggedIn:true,authMethod:'claude.ai',email:'private@example.com',access_token:'must-not-return'})),{installed:true,authenticated:true,method:'Claude subscription'});
  assert.equal(authStatus('codex',0,'Logged in using ChatGPT').method,'ChatGPT plan');

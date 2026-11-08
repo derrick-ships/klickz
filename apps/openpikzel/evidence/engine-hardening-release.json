@@ -1,0 +1,44 @@
+{
+  "release": "2026-11-08-engine-hardening",
+  "companionTests": 50,
+  "appTests": 77,
+  "studioBrowserTests": 28,
+  "typecheck": true,
+  "productionBuild": true,
+  "companionBrowserWidths": [
+    1280,
+    320,
+    390
+  ],
+  "reducedMotion": true,
+  "visualReview": true,
+  "realCodex": {
+    "metadata": true,
+    "models": 8,
+    "windowKinds": [
+      "weekly"
+    ],
+    "textRun": true
+  },
+  "realClaude": false,
+  "personalClaudeAuthRequired": false,
+  "oauthProviderConsent": "fixtures-only",
+  "localDependencyAudit": {
+    "vulnerabilities": 0
+  },
+  "review": {
+    "criticalFixed": [
+      "resource-bound OAuth credentials"
+    ],
+    "importantFixed": [
+      "escaped secret redaction",
+      "device activation",
+      "cancel before dispatch"
+    ],
+    "deferredMinor": [
+      "queue map retention",
+      "remote response body stall until caller cancellation/timeout"
+    ]
+  },
+  "downloadSha256": "0a54539735564afe217d6d5285f107028310de26a1b0e6898d81424c2603f50d"
+}

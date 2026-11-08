@@ -1,0 +1,12 @@
+Bundled license information:
+
+content-type/index.js:
+  /*!
+   * content-type
+   * Copyright(c) 2015 Douglas Christopher Wilson
+   * MIT Licensed
+   */
+
+@anthropic-ai/claude-agent-sdk/core-ytn251z7.mjs:
+@anthropic-ai/claude-agent-sdk/core.mjs:
+  //! symbol-dispose-prelude: defines Symbol.dispose and Symbol.asyncDispose if missing, for this bundle's `using`.
