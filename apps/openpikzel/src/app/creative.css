@@ -9,7 +9,7 @@
 
 .analysis-overview{display:flex;align-items:center;gap:20px;margin:18px 0 28px}.score-ring{position:relative;flex:0 0 112px;height:112px}.score-ring svg{width:100%;height:100%;transform:rotate(-90deg)}.score-ring circle{fill:none;stroke:var(--color-line-strong);stroke-width:7}.score-ring circle+circle{stroke:var(--color-accent-edge);stroke-linecap:round}.score-ring strong{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:28px;letter-spacing:-.04em}.score-ring small{font-size:10px;color:var(--color-muted);font-weight:400}.analysis-overview h3{font-size:17px;margin:0}.analysis-overview p{font-size:12px;line-height:1.7;color:var(--color-muted)}.analysis-overview>div>small{font-size:11px;line-height:1.6;color:var(--color-dim)}.analysis-more-label{font-size:11px;color:var(--color-muted);display:flex;gap:6px;align-items:center}.analysis-more summary>strong{margin-left:auto;font-size:13px}.analysis-more dl{font-size:12px;line-height:1.7}.analysis-more dt{font-weight:600;color:var(--color-ink);margin-top:12px}.analysis-more dd{margin:4px 0;color:var(--color-muted)}.analysis-more>small{color:var(--color-dim);font-size:11px}.analysis-more[open] summary .analysis-more-label svg{transform:rotate(180deg)}.image-secondary-actions{display:flex;flex-wrap:wrap;gap:6px 12px;margin:8px 0}.image-secondary-actions button{min-height:44px;font-size:11px}.chat-save-state{font-size:10px;display:block;color:var(--color-dim);margin:-12px 0 16px;min-height:14px}@media(max-width:400px){.analysis-overview{gap:14px}.score-ring{flex-basis:88px;height:88px}.analysis-overview h3{font-size:15px}.analysis-overlay .consent-actions{flex-direction:column}.analysis-overlay .consent-actions button{width:100%;justify-content:center}}
 
-.voice-input{display:flex;align-items:center;gap:10px;margin:8px 0}.voice-input>button{min-height:44px;font-size:11px}.voice-input small{font-size:10px;line-height:1.6;color:var(--color-muted)}.inspect-image{margin:0}.inspect-image img{display:block;width:100%;max-height:70dvh;object-fit:contain;background:#09090a;border-radius:12px}.inspect-image figcaption{font-size:12px;line-height:1.6;margin-top:12px;color:var(--color-muted)}
+.inspect-image{margin:0}.inspect-image img{display:block;width:100%;max-height:70dvh;object-fit:contain;background:#09090a;border-radius:12px}.inspect-image figcaption{font-size:12px;line-height:1.6;margin-top:12px;color:var(--color-muted)}
 
 .pillar-segments[data-band=strong]>i.filled{background:#8dc69a}.pillar-segments[data-band=mixed]>i.filled{background:#e2ad64}.pillar-segments[data-band=weak]>i.filled{background:var(--color-accent-edge)}
 
@@ -48,3 +48,38 @@
 @media(prefers-reduced-motion:reduce){.image-inspector-photo{transition:none!important}.chat-timeline>div{scroll-behavior:auto}}
 
 .image-inspector-surface{height:auto;max-height:min(55dvh,420px)}
+
+/* Navigation overlays retain the rendered workspace. Blur stays fixed; only opacity fades. */
+@media(max-width:1024px){
+ .sidebar-scrim,.sidebar-open .sidebar-scrim{
+  display:block;position:fixed;inset:0;z-index:19;width:100%;height:100%;padding:0;border:0;border-radius:0;
+  background:rgba(5,5,7,.14);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  opacity:0;visibility:hidden;pointer-events:none;transition:none;
+ }
+ .sidebar-open .sidebar-scrim{opacity:1;visibility:visible;pointer-events:auto}
+ .sidebar-scrim:active:not(:disabled){transform:none;box-shadow:none}
+}
+@media(max-width:1024px) and (prefers-reduced-motion:no-preference){
+ .app-shell[data-motion-input="pointer"] .sidebar-scrim{transition:opacity 180ms var(--ease-out),visibility 0s linear 180ms}
+ .app-shell[data-motion-input="pointer"].sidebar-open .sidebar-scrim{transition:opacity 200ms var(--ease-out),visibility 0s}
+ .app-shell[data-motion-input="pointer"] .sidebar{transition:transform 180ms var(--ease-out),visibility 0s linear 180ms}
+ .app-shell[data-motion-input="pointer"].sidebar-open .sidebar{transition:transform 200ms var(--ease-out),visibility 0s}
+}
+.provider-logo{display:block;flex:none;object-fit:contain;filter:brightness(0) invert(1)}
+.model-trigger{display:inline-flex;align-items:center;gap:7px;min-width:0;min-height:44px;padding:7px 8px;border:1px solid var(--color-select-edge);border-radius:7px;background:var(--color-control-ground);color:var(--color-ink);font-size:12px}
+.model-trigger>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.model-trigger>svg{flex:none}
+.sidebar-select .model-trigger{margin-left:auto;max-width:150px}
+.model-search{display:flex;align-items:center;gap:10px;margin:20px 0 14px;padding:0 12px;border:1px solid var(--color-line-strong);border-radius:12px;background:var(--color-input);color:var(--color-muted)}
+.model-search input{width:100%;min-width:0;min-height:48px;padding:10px 0;border:0!important;background:transparent!important;font-size:16px!important;margin:0!important}
+.model-option-list{display:flex;flex-direction:column;gap:8px}
+.model-option{display:flex;align-items:center;gap:12px;width:100%;min-height:76px;padding:12px;text-align:left;border:1px solid transparent;border-radius:14px;background:transparent;color:var(--color-ink)}
+.model-option.selected{background:var(--color-selected-fill);border-color:var(--color-accent-edge)}
+.provider-logo-tile{display:grid;place-items:center;flex:0 0 44px;height:44px;border:1px solid var(--color-line-strong);border-radius:11px;background:var(--color-control-ground)}
+.model-option-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}
+.model-option-copy strong{font-size:14px;line-height:1.5;font-weight:550;overflow-wrap:anywhere}
+.model-option-copy small{font-size:12px;line-height:1.55;color:var(--color-muted)}
+.model-selected-check{flex:none;color:var(--color-accent-edge)}
+.model-no-results{padding:24px 8px;color:var(--color-muted);font-size:14px}
+@media(hover:hover) and (pointer:fine){.model-option:hover{background:var(--color-control-ground)}.model-trigger:hover{border-color:var(--color-line-strong)}}
+@media(max-width:400px){.model-option{padding:10px 6px;gap:9px}.model-option-copy strong{font-size:13px}.model-option-copy small{font-size:11px}.model-option .provider-logo-tile{flex-basis:40px;height:40px}.model-trigger{gap:5px;padding-inline:6px}}

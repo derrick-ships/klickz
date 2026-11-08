@@ -20,7 +20,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await page.getByLabel("Quality", { exact: true }).selectOption("xhigh");
   await page.getByLabel("Intelligence", { exact: true }).selectOption("high");
   await page.getByLabel("Batch size", { exact: true }).selectOption("4");
-  await page.getByLabel("Rendering model").selectOption("sunburst");
+  await page.getByRole("button",{name:"Rendering model",exact:true}).click();await page.getByRole("button",{name:"GPT Image 2.6 Sunburst",exact:true}).click();
   await page.getByLabel("Format", { exact: true }).selectOption("short");
   await page
     .getByLabel("Prompt", { exact: true })
@@ -36,7 +36,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
     .first()
     .click();
   await expect(page.getByLabel("Batch size")).toHaveValue("1");
-  await expect(page.getByLabel("Rendering model")).toHaveValue("sunburst");
+  await expect(page.getByRole("button",{name:"Rendering model",exact:true})).toHaveText("Sunburst 2.6");
   await expect(page.getByLabel("Format", { exact: true })).toHaveValue("short");
   await page.getByRole("button", { name: "Persona", exact: true }).click();
   await page

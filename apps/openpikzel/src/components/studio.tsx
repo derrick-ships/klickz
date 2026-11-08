@@ -44,7 +44,7 @@ import type { FixPlan } from "@/lib/diagnostics";
 import { BrandScene } from "@/components/brand-scene";
 import { PixelConfirmation } from "@/components/pixel-confirmation";
 import { ReviewCanvas } from "@/components/review-canvas";
-import {VoiceInput} from "@/components/creative/voice-input";
+import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
 const AnalysisPanel=dynamic(()=>import("@/components/creative/analysis").then(m=>m.AnalysisPanel),{loading:()=> <p role="status">Opening…</p>});
 const ImageInspector=dynamic(()=>import("@/components/creative/image-inspector").then(m=>m.ImageInspector),{loading:()=> <p role="status">Opening image…</p>});
 const ProfileManager=dynamic(()=>import("@/components/creative/profiles").then(m=>m.ProfileManager),{loading:()=> <p role="status">Opening…</p>});
@@ -66,6 +66,7 @@ import {
 } from "@/lib/types";
 type Tool = "recreate" | "generate" | "analyze" | "edit" | "title";
 type Dialog =
+  | "models"
   | "inspect"
   | "analysis"
   | "beforeafter"
@@ -849,9 +850,12 @@ export default function Studio() {
       onPointerDownCapture={() => setMotionInput("pointer")}
     >
       <a className="skip-link" href="#studio-content">Skip to studio</a>
-      {sidebar && (
+      {(
         <button
           className="sidebar-scrim"
+          tabIndex={-1}
+          aria-hidden={!compactNavigation || !sidebar}
+          inert={!compactNavigation || !sidebar}
           onClick={() => { setSidebar(false); requestAnimationFrame(() => navigationOpenRef.current?.focus()); }}
           aria-label="Close navigation"
         />
@@ -929,22 +933,7 @@ export default function Studio() {
               Styles
             </button>
           </div>
-          <label className="sidebar-select">
-            <Sparkles size={15} />
-            <span>Model</span>
-            <select
-              aria-label="Image model"
-              value={settings.model}
-              onChange={(e) =>
-                changeSettings("model", e.target.value as Settings["model"])
-              }
-            >
-              <option value="flare">Flare 2.6</option>
-              <option value="sunburst">Sunburst 2.6</option>
-              <option value="gemini-flash">Gemini Flash</option>
-              <option value="gemini-pro">Gemini Pro</option>
-            </select>
-          </label>
+          <div className="sidebar-select"><Sparkles size={15}/><span>Model</span><ModelTrigger label="Image model" model={settings.model} expanded={dialog==="models"} onOpen={()=>setDialog("models")}/></div>
           <label className="sidebar-select">
             <Monitor size={15} />
             <span>Format</span>
@@ -1273,7 +1262,6 @@ export default function Studio() {
                                   : "Describe your thumbnail. Be specific about the subject, scene, text and emotion…"
                           }
                         />
-                        <VoiceInput onText={text=>setPrompt(value=>(value+" "+text).trim().slice(0,2400))}/>
                         <div className="reference-strip">
                           {refs.map((path, i) => (
                             <div className="reference-thumb" key={path}>
@@ -1406,24 +1394,7 @@ export default function Studio() {
                           </p>
                         )}
                         <div className="settings-row">
-                          <label>
-                            <Sparkles size={13} />
-                            <select
-                              aria-label="Rendering model"
-                              value={settings.model}
-                              onChange={(e) =>
-                                changeSettings(
-                                  "model",
-                                  e.target.value as Settings["model"],
-                                )
-                              }
-                            >
-                              <option value="flare">Flare 2.6</option>
-                              <option value="sunburst">Sunburst 2.6</option>
-                              <option value="gemini-flash">Gemini Flash</option>
-                              <option value="gemini-pro">Gemini Pro</option>
-                            </select>
-                          </label>
+                          <ModelTrigger label="Rendering model" model={settings.model} expanded={dialog==="models"} onOpen={()=>setDialog("models")}/>
                           <label>
                             {settings.format === "long" ? (
                               <RectangleHorizontal size={14} />
@@ -1756,7 +1727,7 @@ export default function Studio() {
         <div className="dialog-shell">
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
-              {dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis"?"Thumbnail Analysis":dialog==="beforeafter"?"Compare Your Thumbnail":dialog==="feedback"?"Leave Your Feedback":dialog === "personas"
+              {dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis"?"Thumbnail Analysis":dialog==="beforeafter"?"Compare Your Thumbnail":dialog==="feedback"?"Leave Your Feedback":dialog === "personas"
                 ? profileDialogTitle || "Your personas"
                 : dialog === "styles"
                   ? profileDialogTitle || "Your styles"
@@ -1780,6 +1751,7 @@ export default function Studio() {
               <X size={18} />
             </button>
           </div>
+          {dialog==="models"&&<ModelPicker model={settings.model} onChoose={value=>{changeSettings("model",value);setDialog(null);}}/>}
           {(dialog==="personas"||dialog==="styles")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedId={dialog==="personas"?personaId:styleId} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={fix}/>}

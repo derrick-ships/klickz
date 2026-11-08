@@ -16,39 +16,39 @@
             "seo": 1,
             "agentic-browsing": 1
           },
-          "lcp_ms": 2018.2818000000002,
-          "tbt_ms": 5.5,
+          "lcp_ms": 2256.24345,
+          "tbt_ms": 14,
           "cls": 0.001000273963032435,
           "resources": [
             {
               "resourceType": "total",
               "label": "Total",
-              "requestCount": 10,
-              "transferSize": 190982
+              "requestCount": 11,
+              "transferSize": 198914
             },
             {
               "resourceType": "script",
               "label": "Script",
               "requestCount": 6,
-              "transferSize": 163655
+              "transferSize": 169134
             },
             {
               "resourceType": "stylesheet",
               "label": "Stylesheet",
               "requestCount": 1,
-              "transferSize": 15176
+              "transferSize": 15618
+            },
+            {
+              "resourceType": "image",
+              "label": "Image",
+              "requestCount": 2,
+              "transferSize": 7416
             },
             {
               "resourceType": "document",
               "label": "Document",
               "requestCount": 1,
-              "transferSize": 6113
-            },
-            {
-              "resourceType": "image",
-              "label": "Image",
-              "requestCount": 1,
-              "transferSize": 5465
+              "transferSize": 6173
             },
             {
               "resourceType": "other",
@@ -81,45 +81,45 @@
           "lighthouseVersion": "13.6.0",
           "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
           "scores": {
-            "performance": 0.99,
+            "performance": 0.98,
             "accessibility": 1,
             "best-practices": 0.96,
             "seo": 1,
             "agentic-browsing": 1
           },
-          "lcp_ms": 2259.1396,
-          "tbt_ms": 12,
+          "lcp_ms": 2345.2764000000006,
+          "tbt_ms": 21,
           "cls": 0.001000273963032435,
           "resources": [
             {
               "resourceType": "total",
               "label": "Total",
-              "requestCount": 10,
-              "transferSize": 190982
+              "requestCount": 11,
+              "transferSize": 198914
             },
             {
               "resourceType": "script",
               "label": "Script",
               "requestCount": 6,
-              "transferSize": 163655
+              "transferSize": 169134
             },
             {
               "resourceType": "stylesheet",
               "label": "Stylesheet",
               "requestCount": 1,
-              "transferSize": 15176
+              "transferSize": 15618
+            },
+            {
+              "resourceType": "image",
+              "label": "Image",
+              "requestCount": 2,
+              "transferSize": 7416
             },
             {
               "resourceType": "document",
               "label": "Document",
               "requestCount": 1,
-              "transferSize": 6113
-            },
-            {
-              "resourceType": "image",
-              "label": "Image",
-              "requestCount": 1,
-              "transferSize": 5465
+              "transferSize": 6173
             },
             {
               "resourceType": "other",
@@ -158,39 +158,39 @@
             "seo": 1,
             "agentic-browsing": 1
           },
-          "lcp_ms": 2254.32195,
-          "tbt_ms": 6,
-          "cls": 0,
+          "lcp_ms": 2265.4452,
+          "tbt_ms": 18,
+          "cls": 0.001000273963032435,
           "resources": [
             {
               "resourceType": "total",
               "label": "Total",
-              "requestCount": 10,
-              "transferSize": 190982
+              "requestCount": 11,
+              "transferSize": 198914
             },
             {
               "resourceType": "script",
               "label": "Script",
               "requestCount": 6,
-              "transferSize": 163655
+              "transferSize": 169134
             },
             {
               "resourceType": "stylesheet",
               "label": "Stylesheet",
               "requestCount": 1,
-              "transferSize": 15176
+              "transferSize": 15618
+            },
+            {
+              "resourceType": "image",
+              "label": "Image",
+              "requestCount": 2,
+              "transferSize": 7416
             },
             {
               "resourceType": "document",
               "label": "Document",
               "requestCount": 1,
-              "transferSize": 6113
-            },
-            {
-              "resourceType": "image",
-              "label": "Image",
-              "requestCount": 1,
-              "transferSize": 5465
+              "transferSize": 6173
             },
             {
               "resourceType": "other",
@@ -235,21 +235,21 @@
             "seo": 1,
             "agentic-browsing": 1
           },
-          "lcp_ms": 536.1432,
+          "lcp_ms": 537.3528,
           "tbt_ms": 0,
           "cls": 0,
           "resources": [
             {
               "resourceType": "total",
               "label": "Total",
-              "requestCount": 11,
-              "transferSize": 213157
+              "requestCount": 12,
+              "transferSize": 220464
             },
             {
               "resourceType": "script",
               "label": "Script",
               "requestCount": 6,
-              "transferSize": 163655
+              "transferSize": 169134
             },
             {
               "resourceType": "media",
@@ -261,19 +261,19 @@
               "resourceType": "stylesheet",
               "label": "Stylesheet",
               "requestCount": 1,
-              "transferSize": 15176
+              "transferSize": 15618
             },
             {
               "resourceType": "image",
               "label": "Image",
-              "requestCount": 1,
-              "transferSize": 8445
+              "requestCount": 2,
+              "transferSize": 9771
             },
             {
               "resourceType": "document",
               "label": "Document",
               "requestCount": 1,
-              "transferSize": 6113
+              "transferSize": 6173
             },
             {
               "resourceType": "other",
@@ -306,21 +306,21 @@
             "seo": 1,
             "agentic-browsing": 1
           },
-          "lcp_ms": 486.60900000000004,
+          "lcp_ms": 459.0801,
           "tbt_ms": 0,
           "cls": 0,
           "resources": [
             {
               "resourceType": "total",
               "label": "Total",
-              "requestCount": 11,
-              "transferSize": 213157
+              "requestCount": 12,
+              "transferSize": 220464
             },
             {
               "resourceType": "script",
               "label": "Script",
               "requestCount": 6,
-              "transferSize": 163655
+              "transferSize": 169134
             },
             {
               "resourceType": "media",
@@ -332,19 +332,19 @@
               "resourceType": "stylesheet",
               "label": "Stylesheet",
               "requestCount": 1,
-              "transferSize": 15176
+              "transferSize": 15618
             },
             {
               "resourceType": "image",
               "label": "Image",
-              "requestCount": 1,
-              "transferSize": 8445
+              "requestCount": 2,
+              "transferSize": 9771
             },
             {
               "resourceType": "document",
               "label": "Document",
               "requestCount": 1,
-              "transferSize": 6113
+              "transferSize": 6173
             },
             {
               "resourceType": "other",
@@ -377,21 +377,21 @@
             "seo": 1,
             "agentic-browsing": 1
           },
-          "lcp_ms": 526.0978,
+          "lcp_ms": 526.7538,
           "tbt_ms": 0,
           "cls": 0,
           "resources": [
             {
               "resourceType": "total",
               "label": "Total",
-              "requestCount": 11,
-              "transferSize": 213157
+              "requestCount": 12,
+              "transferSize": 220464
             },
             {
               "resourceType": "script",
               "label": "Script",
               "requestCount": 6,
-              "transferSize": 163655
+              "transferSize": 169134
             },
             {
               "resourceType": "media",
@@ -403,19 +403,19 @@
               "resourceType": "stylesheet",
               "label": "Stylesheet",
               "requestCount": 1,
-              "transferSize": 15176
+              "transferSize": 15618
             },
             {
               "resourceType": "image",
               "label": "Image",
-              "requestCount": 1,
-              "transferSize": 8445
+              "requestCount": 2,
+              "transferSize": 9771
             },
             {
               "resourceType": "document",
               "label": "Document",
               "requestCount": 1,
-              "transferSize": 6113
+              "transferSize": 6173
             },
             {
               "resourceType": "other",

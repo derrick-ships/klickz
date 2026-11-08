@@ -51,7 +51,7 @@ test("composer groups, small-screen settings and long content reflow deliberatel
     }
     if (width <= 760) expect((await references.boundingBox())!.y).toBeGreaterThan((await subject.boundingBox())!.y);
     const model = page.getByLabel("Rendering model");
-    await model.selectOption("gemini-pro");
+    await model.click();await page.getByRole("button",{name:"Gemini Pro",exact:true}).click();
     await page.getByLabel("Prompt", { exact: true }).fill("Una composición cinematográfica con un personaje consistente y referencias bien definidas. ".repeat(30));
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.getByRole("button", { name: "Persona", exact: true }).click();

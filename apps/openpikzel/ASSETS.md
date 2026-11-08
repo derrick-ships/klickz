@@ -38,3 +38,6 @@ The fixed 76px mobile strip was replaced with a reserved 3:1 frame. The still an
 
 ## Persona guide (2026-11-08)
 Original synthetic photographic contact sheet generated with the built-in OpenAI image tool for OpenPikzels. No real customer likeness or stock assets. Three clear face views and three unsuitable-reference examples; CSS frames the six tiles. Packaged as public/persona-guide.webp (960px, WebP quality80,31,248bytes); used only when the Persona guide opens.
+
+## Model provider marks (2026-11-08)
+User-supplied OpenAI and Google transparent PNGs, inspected from IMG_9087.png and IMG_9088.png. Original pixels and alpha retained byte-for-byte; CSS brightness(0) invert(1) supplies white presentation. The first supplied image IMG_9086.png is a picker reference screenshot and is not published. No customer screenshots are included as public assets.

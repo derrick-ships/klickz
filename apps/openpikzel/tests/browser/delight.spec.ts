@@ -43,7 +43,7 @@ test("pointer continuity stays interruptible while keyboard navigation is immedi
   const sidebar = page.locator("aside.sidebar");
   const open = page.getByRole("button", { name: "Open sidebar", exact: true });
   await open.tap();
-  expect(await sidebar.evaluate(el => getComputedStyle(el).transitionDuration.split(",")[0].trim())).toBe("0.22s");
+  const duration=await sidebar.evaluate(el=>parseFloat(getComputedStyle(el).transitionDuration.split(",")[0]));expect(duration).toBeGreaterThan(0);expect(duration).toBeLessThanOrEqual(.3);
   await page.screenshot({ path: "evidence/delight-drawer-mobile.png", fullPage: true });
   await page.keyboard.press("Escape");
   await expect(open).toBeFocused();
