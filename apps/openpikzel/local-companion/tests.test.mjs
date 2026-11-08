@@ -1,7 +1,8 @@
 import {test} from 'node:test';
 import {EventEmitter} from 'node:events';
+import {spawnSync} from 'node:child_process';
 import {request as httpRequest} from 'node:http';
-import {mkdtempSync,readFileSync,rmSync,statSync} from 'node:fs';
+import {mkdtempSync,readFileSync,rmSync,statSync,mkdirSync,writeFileSync,chmodSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import assert from 'node:assert/strict';
@@ -110,4 +111,13 @@ test('the public local page does not disclose its process capability',async t=>{
  const server=await createCompanion({port:0,runner:{}});t.after(()=>new Promise(resolve=>server.close(resolve)));
  const html=await(await fetch('http://127.0.0.1:'+server.address().port)).text();
  assert.ok(!/name="csrf" content="[a-f0-9]{64}"/.test(html));
+});
+
+test('standard user CLI installs work even when the launcher PATH omits them',async()=>{
+ const {cliEnvironment}=await import('./core.mjs');
+ const directory=mkdtempSync(join(tmpdir(),'openpikzels-path-'));
+ try{const bin=join(directory,'.local','bin');mkdirSync(bin,{recursive:true});const path=join(bin,'claude');writeFileSync(path,'#!/bin/sh\nprintf fixture-cli\n');chmodSync(path,0o755);
+ const result=spawnSync('claude',['--version'],{env:cliEnvironment({PATH:'/usr/bin:/bin'},directory),encoding:'utf8'});
+ assert.equal(result.status,0);assert.equal(result.stdout,'fixture-cli');
+ }finally{rmSync(directory,{recursive:true,force:true});}
 });

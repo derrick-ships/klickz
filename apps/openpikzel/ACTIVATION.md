@@ -47,8 +47,14 @@ The post-login recovery release passed npm run verify:release: 77 automated case
 
 Clarification: the restriction on third-party subscription-token collection does not prohibit launching an unmodified official local Claude Code/Codex binary. The new optional companion does exactly that. It runs on the user's computer, launches the CLI's own sign-in, reduces documented status to method/availability, and submits explicit text tasks on stdin. It neither reads auth files nor implements a Claude subscription OAuth client. Hosted/Vercel routes never execute the user's local CLI.
 
-The source package supports macOS/Linux with Node 22+ and current official CLIs. It provides titles, concepts and copyable editing prompts. It does not provide image generation or Jev visual scoring through a subscription. It is not a signed native installer; actual Mac launch/login, real provider account entitlements and Windows packaging remain unverified or unavailable.
+The source package supports macOS/Linux with Node 22+ and current official CLIs. It provides titles, concepts and copyable editing prompts. It does not provide image generation or Jev visual scoring through a subscription. It is not a signed native installer; double-click launcher behavior, Claude sign-in and Windows packaging remain unverified or unavailable.
 
 Independent review found ordinary Claude hooks, detached descendants and terminal SIGHUP cleanup issues. Each was reproduced and fixed with regression tests. Further tests cover status-only stderr, launcher-issued local execution capabilities, Host/Origin/CSRF, logged-out rejection, prompt transport, concurrent requests and literal markup. No auth, subscription or paid model call was made. Managed organizational CLI policy still applies.
 
 References: https://code.claude.com/docs/en/legal-and-compliance ; https://code.claude.com/docs/en/cli-reference ; https://developers.openai.com/siwc/token-sharing-open-source ; https://learn.chatgpt.com/docs/non-interactive-mode .
+
+### Connected Mac validation
+
+Remote Desktop Commander identified Derrick's online Mac mini. Node v24.22.1 and Codex CLI 0.166.0 were already installed. The official Codex status reported a ChatGPT-plan login. Installed the checksum-verified companion under /Users/derrick/Applications/OpenPikzels-Local. A real local companion title task returned five titles through that existing login, without reading or forwarding its credentials. The local companion server was started on that Mac. This supersedes the earlier fixture-only limit for Codex text tasks.
+
+Claude Code 2.1.233 was also present in ~/.local/bin but outside the launch environment's PATH. Added process-local standard install locations for both task and sign-in processes; a real executable-discovery regression test passes. Claude was not signed in. No Claude account was registered and no Claude inference was run. Provider-key and Higgsfield activation remain separate.

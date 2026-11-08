@@ -1,7 +1,11 @@
 import {spawn} from 'node:child_process';
 import {mkdtemp,rm} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {tmpdir,homedir} from 'node:os';
+import {join,delimiter} from 'node:path';
+export function cliEnvironment(base=process.env,home=homedir()){
+ const directories=[base.PATH||'',join(home,'.local','bin'),join(home,'.npm-global','bin'),'/opt/homebrew/bin','/usr/local/bin'];
+ return {...base,PATH:directories.filter(Boolean).join(delimiter)};
+}
 export function providerName(provider){if(!['claude','codex'].includes(provider))throw new Error('Choose Claude or Codex.');return provider;}
 export function authStatus(provider,code,stdout){
  providerName(provider);
@@ -24,7 +28,7 @@ export function taskPrompt(task,brief){
 export function execute(command,args,input='',{signal,cwd,timeout=120000,captureStatus=false}={}){
  if(signal?.aborted)return Promise.reject(new Error('Cancelled.'));
  return new Promise((resolve,reject)=>{
-  const child=spawn(command,args,{shell:false,cwd,stdio:['pipe','pipe','pipe'],detached:process.platform!=='win32',windowsHide:true});
+  const child=spawn(command,args,{shell:false,cwd,env:cliEnvironment(),stdio:['pipe','pipe','pipe'],detached:process.platform!=='win32',windowsHide:true});
   let buffers=[],length=0,done=false,timer,killTimer,pendingError;
   const terminate=(signal='SIGTERM')=>{if(!child.pid)return;try{if(process.platform!=='win32')process.kill(-child.pid,signal);else child.kill(signal);}catch{}};
   const stop=error=>{if(done||pendingError)return;pendingError=error;terminate();killTimer=setTimeout(()=>terminate('SIGKILL'),1000);};

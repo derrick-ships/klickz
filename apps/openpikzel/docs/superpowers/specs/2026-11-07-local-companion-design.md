@@ -9,4 +9,4 @@ Serve no cross-origin API. Enforce loopback binding, exact Host/Origin, an ephem
 
 Chosen approach: small standalone Node companion, reusing the web brand. Alternatives: MCP-only is already available but does not provide this local workflow; a signed native installer adds packaging and signing prerequisites. Native packaging is a later improvement, not claimed complete.
 
-Provide macOS and Linux launch files. Node 22+ and the selected official CLI must already be installed. A cloud session cannot verify installation/authentication on Derrick's Mac. Fixtures must remain distinct from real subscription validation.
+Provide macOS and Linux launch files. Node 22+ and the selected official CLI must already be installed. Cloud execution alone cannot verify the user's Mac; use an authorized device connection when available. Fixtures must remain distinct from real subscription validation.
