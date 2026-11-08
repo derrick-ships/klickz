@@ -316,7 +316,7 @@ export function ConnectionsPage() {
                   onChange={(e) => { setProvider(e.target.value); setKey(""); setNotice(""); }}
                 >
                   <option value="openai">OpenAI</option>
-                  <option value="google">Google</option>
+                  <option value="google">Google</option><option value="youtube">YouTube Data API</option>
                   <option value="jev">Jev AI</option>
                 </select>
               </label>
@@ -347,6 +347,7 @@ export function ConnectionsPage() {
                 ["openai", "OpenAI", "Sunburst / Flare, titles and vision"],
                 ["google", "Google", "Gemini image models, titles and vision"],
                 ["jev", "Jev AI", "Image + title scores across five pillars"],
+                ["youtube", "YouTube", "Channel metadata and thumbnail references · your own Data API key"],
               ].map(([id, name, detail]) => {
                 const c = connections.find((x) => x.provider === id);
                 return (

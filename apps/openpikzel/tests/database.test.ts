@@ -232,3 +232,24 @@ describe("PostgreSQL migration and row isolation", () => {
     await db.exec("reset role;");
   });
 });
+
+describe('creative conversations and feedback ownership',()=>{
+ it('keeps conversations, preferences and feedback private by owner',async()=>{
+  await asUser(alice);
+  await db.exec("insert into studio_conversations(id,user_id,title) values('33333333-3333-4333-8333-333333333333','"+alice+"','A creative session')");
+  await db.exec("insert into studio_preferences(user_id,skip_persona_tutorial) values('"+alice+"',true)");
+  await db.exec("insert into studio_feedback(user_id,body) values('"+alice+"','A useful image-linked note')");
+  await asUser(bob);
+  expect((await db.query("select * from studio_conversations")).rows).toHaveLength(0);
+  expect((await db.query("select * from studio_preferences")).rows).toHaveLength(0);
+  expect((await db.query("select * from studio_feedback")).rows).toHaveLength(0);
+  await expect(db.exec("insert into studio_creations(user_id,title,prompt,mode,style,conversation_id) values('"+bob+"','My image','A truthful image concept','generate','Auto','33333333-3333-4333-8333-333333333333')")).rejects.toThrow();
+ });
+ it('does not reassign conversations or leak image feedback across accounts',async()=>{
+  await asUser(alice);
+  await expect(db.exec("update studio_conversations set user_id='"+bob+"'")).rejects.toThrow();
+  await expect(db.exec("update studio_preferences set user_id='"+bob+"'")).rejects.toThrow();
+  await asUser(bob);
+  await expect(db.exec("insert into studio_feedback(user_id,creation_id,body) values('"+bob+"','"+alice+"','Cross-owner image feedback')")).rejects.toThrow();
+ });
+});

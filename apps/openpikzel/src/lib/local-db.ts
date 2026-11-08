@@ -1,12 +1,12 @@
 import type { Creation, Persona, Style } from "./types";
 export type LocalRecord = Creation | Persona | Style;
-export type Store = "creations" | "personas" | "styles" | "assets";
+export type Store = "creations" | "personas" | "styles" | "assets" | "conversations" | "preferences" | "feedback";
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open("derrick-thumbnail-studio", 1);
+    const req = indexedDB.open("derrick-thumbnail-studio", 2);
     req.onupgradeneeded = () => {
-      for (const name of ["creations", "personas", "styles", "assets"])
-        req.result.createObjectStore(name, { keyPath: "id" });
+      for (const name of ["creations", "personas", "styles", "assets", "conversations", "preferences", "feedback"])
+        if(!req.result.objectStoreNames.contains(name))req.result.createObjectStore(name, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

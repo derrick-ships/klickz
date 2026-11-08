@@ -25,7 +25,7 @@ test("compact navigation protects the workbench and returns keyboard focus", asy
     await open.click();
     await close.click();
     await expect(open).toBeFocused();
-    for (const name of ["New creation", "Show favorites", "My creations"]) {
+    for (const name of ["New chat", "Show favorites", "My creations"]) {
       await open.click();
       await page.getByRole("button", { name, exact: true }).click();
       await expect(page.locator("#studio-content")).toBeFocused();
@@ -73,17 +73,11 @@ test("long persona names remain readable in dialogs and bounded in the composer"
   await page.goto("/?mode=generate");
   await page.getByRole("button", { name: "Persona", exact: true }).click();
   await page.getByRole("button", { name: "Create persona", exact: true }).click();
+  await page.getByRole("button",{name:"Skip Tutorial",exact:true}).click();
   await page.getByRole("dialog").getByLabel("Name", { exact: true }).fill(name);
-  await page.getByLabel("Profile reference photos").setInputFiles({
-    name: "layout-fixture.png", mimeType: "image/png",
-    buffer: await sharp({ create: { width: 64, height: 64, channels: 3, background: "#df1c2c" } }).png().toBuffer(),
-  });
+  await page.getByLabel("Profile reference photos").setInputFiles(await Promise.all(["#df1c2c","#2d599a","#56a58b"].map(async(color,i)=>({name:"layout-"+i+".png",mimeType:"image/png",buffer:await sharp({create:{width:64,height:64,channels:3,background:color}}).png().toBuffer()}))));
+  await page.getByLabel("I have permission to use these photos and this likeness.").check();
   await page.getByRole("button", { name: "Create persona", exact: true }).click();
-  const choose = page.getByRole("dialog").getByRole("button", { name: name + " 1 reference saved" });
-  await expect(choose).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
-  await page.screenshot({ path: "evidence/layout-long-persona-dialog-320.png", fullPage: true });
-  await choose.click();
   await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   expect(await page.locator(".selection-name").evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);

@@ -73,3 +73,6 @@ Impeccable is pinned as a Git submodule under `vendor/impeccable` and linked for
 ## Measured release gate
 
 Run `npm run verify:release` for the production build, functional tests, isolated throttled interaction lab, strict Python budget check and three Lighthouse runs each for mobile/desktop. Reports stay local; no hosted analytics or provider calls are needed. PERFORMANCE.md records the measured values, exact sources, mobile crop evidence and limits. These gates are runnable locally; no GitHub branch-protection rule or hosted CI workflow was enabled.
+
+## Continuous creative workspace
+See [the product workflow release](docs/product-workflows-release.md) for chats, reference-guided Personas/Styles, YouTube import requirements, comparison, feedback, validation and fidelity limits.

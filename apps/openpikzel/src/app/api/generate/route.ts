@@ -37,6 +37,8 @@ async function handle(request: Request) {
         403,
         "Connect your own OpenAI key for Sunburst/Flare, or choose a Google model.",
       );
+    if(input.conversationId){const chat=await db.from("studio_conversations").select("id").eq("id",input.conversationId).eq("user_id",user.id).maybeSingle();if(chat.error||!chat.data)throw new AppError(404,"This chat is not available in your account.");}
+    let conversationId=input.conversationId||null;
     const refs: Buffer[] = [];
     const notes: string[] = [];
     if (input.parentId) {
@@ -48,6 +50,7 @@ async function handle(request: Request) {
         .single();
       if (error || !data?.image_path)
         throw new AppError(404, "Choose a rendered thumbnail to edit.");
+      if(!conversationId)conversationId=data.conversation_id||null;
       const image = await ownedAsset(db, user.id, data.image_path);
       refs.push(image);
       notes.push(
@@ -134,6 +137,7 @@ async function handle(request: Request) {
       throw new AppError(409, "This batch already exists. Check history.");
     const batchRows = Array.from({ length: input.settings.batch }, (_, i) => ({
       user_id: user.id,
+      conversation_id: conversationId,
       title: input.title || input.prompt.slice(0, 80),
       prompt: input.prompt,
       mode: input.mode,

@@ -9,7 +9,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
   await page.goto("/");
   await page.getByRole("heading", { name: "What will you create?" }).waitFor();
   await page.evaluate(async () => {
-    const req = indexedDB.open("derrick-thumbnail-studio", 1);
+    const req = indexedDB.open("derrick-thumbnail-studio");
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       req.onsuccess = () => resolve(req.result);
       req.onerror = reject;

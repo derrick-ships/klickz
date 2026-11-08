@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   PanelLeft,
   Plus,
@@ -43,6 +44,14 @@ import type { FixPlan } from "@/lib/diagnostics";
 import { BrandScene } from "@/components/brand-scene";
 import { PixelConfirmation } from "@/components/pixel-confirmation";
 import { ReviewCanvas } from "@/components/review-canvas";
+import {VoiceInput} from "@/components/creative/voice-input";
+const AnalysisPanel=dynamic(()=>import("@/components/creative/analysis").then(m=>m.AnalysisPanel),{loading:()=> <p role="status">Opening…</p>});
+const ProfileManager=dynamic(()=>import("@/components/creative/profiles").then(m=>m.ProfileManager),{loading:()=> <p role="status">Opening…</p>});
+const ComparisonSlider=dynamic(()=>import("@/components/creative/comparison").then(m=>m.ComparisonSlider),{loading:()=> <p role="status">Opening…</p>});
+const FeedbackForm=dynamic(()=>import("@/components/creative/feedback").then(m=>m.FeedbackForm),{loading:()=> <p role="status">Opening…</p>});
+import {OperationProgress} from "@/components/creative/progress";
+import {ChatHistory,ChatTitle,ChatTimeline} from "@/components/creative/chat";
+import type {Conversation,WorkspaceDraft} from "@/lib/workspaces";
 import { useStudio } from "@/lib/use-studio";
 import {
   defaultSettings,
@@ -56,6 +65,10 @@ import {
 } from "@/lib/types";
 type Tool = "recreate" | "generate" | "analyze" | "edit" | "title";
 type Dialog =
+  | "inspect"
+  | "analysis"
+  | "beforeafter"
+  | "feedback"
   | "personas"
   | "styles"
   | "references"
@@ -88,6 +101,9 @@ const definitions: Record<Pillar, string> = {
 };
 export default function Studio() {
   const studio = useStudio();
+  const [profileDialogTitle,setProfileDialogTitle]=useState("");
+  const [activeChatId,setActiveChatId]=useState<string|null>(null),[chatSaveState,setChatSaveState]=useState("");
+  const hydratedOwner=useRef(""),chatIdRef=useRef<string|null>(null),ownerUI=useRef(studio.user);ownerUI.current=studio.user;chatIdRef.current=activeChatId;
   const [tool, setTool] = useState<Tool>("generate"),
     [settings, setSettings] = useState<Settings>(defaultSettings),
     [prompt, setPrompt] = useState(""),
@@ -228,29 +244,69 @@ export default function Studio() {
     return () => clearTimeout(timer);
   }, [saveReceipt]);
   const busy = !!studio.busy;
+  const activeChat=studio.conversations.find(c=>c.id===activeChatId)||null;
+  function activateChat(chat:Conversation,focus=true){
+    const d=chat.draft;setActiveChatId(chat.id);localStorage.setItem("openpikzels.activeChat."+(studio.user||"local"),chat.id);
+    setPrompt(d.prompt||"");setTitle(d.title||"");setTool(modes.some(m=>m.id===d.tool)?d.tool as Tool:"generate");
+    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");
+    const latest=studio.creations.find(c=>c.conversation_id===chat.id&&c.id===d.selection)||studio.creations.find(c=>c.conversation_id===chat.id);
+    setSelection(latest?.id||null);setParentId(latest?.image_path?latest.id:null);setComposerOpen(!latest?.image_path);setTab("studio");setTitles([]);setChatSaveState("");
+    if(compactNavigation){setSidebar(false);if(focus)requestAnimationFrame(()=>mainRef.current?.focus());}
+  }
+  async function ensureChat(){
+    if(activeChat)return activeChat;const owner=studio.user,chat=await studio.createConversation();
+    if(ownerUI.current!==owner)throw new Error("Your account changed. Open your current workspace again.");
+    setActiveChatId(chat.id);localStorage.setItem("openpikzels.activeChat."+(owner||"local"),chat.id);return chat;
+  }
+  async function selectProfile(kind:"persona"|"style",id:string){const owner=studio.user,startingChat=chatIdRef.current,chat=await ensureChat();await studio.saveConversation({...chat,draft:{...chatDraft,...(kind==="persona"?{personaId:id}:{styleId:id})},updated_at:new Date().toISOString()},"draft");if(ownerUI.current===owner&&(chatIdRef.current===chat.id||chatIdRef.current===startingChat)){if(kind==="persona")setPersonaId(id);else setStyleId(id);}}
+  async function flushDraft(){if(activeChat&&ownerUI.current===studio.user)await studio.saveConversation({...activeChat,draft:chatDraft,updated_at:new Date().toISOString()},"draft");}
+  async function openChat(chat:Conversation){if(busy)return;await studio.run("Opening chat",async()=>{await flushDraft();activateChat(chat);});}
+  async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();const chat=await studio.createConversation();activateChat(chat);startNew();});}
+  useEffect(()=>{setActiveChatId(null);hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setTitles([]);setDialog(null);setChatSaveState("");},[studio.user]);
+  useEffect(()=>{
+    if(studio.loading)return;const key=studio.user||"local";if(hydratedOwner.current===key)return;hydratedOwner.current=key;
+    const saved=localStorage.getItem("openpikzels.activeChat."+key),chat=studio.conversations.find(c=>c.id===saved);if(chat)activateChat(chat,false);
+  },[studio.loading,studio.user,studio.conversations]);
+  const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,selection};
+  const chatDraftJSON=JSON.stringify(chatDraft);
+  useEffect(()=>{
+    if(!activeChatId||!activeChat||studio.loading)return;const owner=studio.user,id=activeChatId,chat=activeChat,draft=JSON.parse(chatDraftJSON) as WorkspaceDraft;
+    setChatSaveState("Saving draft…");
+    const timer=setTimeout(()=>{if(ownerUI.current!==owner||chatIdRef.current!==id)return;
+     void studio.saveConversation({...chat,title:chat.title==="New chat"&&draft.prompt?.trim()?draft.prompt.trim().slice(0,80):chat.title,draft,updated_at:new Date().toISOString()},"draft").then(()=>{if(ownerUI.current===owner&&chatIdRef.current===id)setChatSaveState("Saved");}).catch(()=>{if(ownerUI.current===owner&&chatIdRef.current===id)setChatSaveState("Draft not saved. Keep this page open.");});
+    },600);return()=>clearTimeout(timer);
+  },[activeChatId,chatDraftJSON,studio.user,studio.loading]);
+
   const changeSettings = <K extends keyof Settings>(
     key: K,
     value: Settings[K],
   ) => setSettings((s) => ({ ...s, [key]: value }));
   function openProfiles(which: "personas" | "styles") {
+    setProfileDialogTitle(which==="personas"?"Your personas":"Your styles");
     setProfileNew(false);
     setProfileName("");
     setProfileNotes("");
     setProfileFiles([]);
     setDialog(which);
   }
-  function choose(item: Creation) {
-    setComposerOpen(false);
-    setSaveReceipt(0);
-    setSelection(item.id);
-    setTitle(item.title);
-    if (item.settings)
-      setSettings({ ...defaultSettings, ...item.settings, batch: 1 });
-    setTab("studio");
-    if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); }
+  async function choose(item:Creation){
+    if(busy)return false;
+    const changed=await studio.run("Opening creation",async()=>{
+      const owner=studio.user;await flushDraft();if(ownerUI.current!==owner)return false;
+      if((item.conversation_id||null)!==activeChatId){
+       const chat=studio.conversations.find(c=>c.id===item.conversation_id);
+       if(chat)activateChat(chat,false);
+       else{setActiveChatId(null);setPrompt("");setRefs([]);setPersonaId("");setStyleId("");setVideoBrief("");setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
+      }
+      setParentId(item.image_path?item.id:item.parent_id);
+      setComposerOpen(false);setSaveReceipt(0);setSelection(item.id);setTitle(item.title);
+      if(item.settings)setSettings({...defaultSettings,...item.settings,batch:1});setTab("studio");
+      if(compactNavigation){setSidebar(false);requestAnimationFrame(()=>mainRef.current?.focus());}
+      return true;
+    });return changed===true;
   }
-  function resume(item: Creation) {
-    choose(item);
+  async function resume(item: Creation) {
+    if(!await choose(item))return;
     setComposerOpen(true);
     setPrompt(item.prompt);
     setTool(
@@ -293,6 +349,7 @@ export default function Studio() {
         const item = await studio.saveUploaded(
           added[0],
           title || "Uploaded thumbnail",
+          (await ensureChat()).id,
         );
         setSelection(item.id);
         setComposerOpen(true);
@@ -311,6 +368,7 @@ export default function Studio() {
         const item = await studio.saveUploaded(
           path,
           title || "Imported thumbnail",
+          (await ensureChat()).id,
         );
         setSelection(item.id);
         setComposerOpen(true);
@@ -324,6 +382,7 @@ export default function Studio() {
         ? `Create a thumbnail for the video titled: ${title}. ${prompt}`
         : prompt;
     return {
+      conversationId: activeChatId,
       prompt: text.trim(),
       title,
       mode,
@@ -355,6 +414,7 @@ export default function Studio() {
             );
           await studio.analyze(selected, title, videoBrief, includeVision);
           setComposerOpen(false);
+          setDialog("analysis");
           requestAnimationFrame(() => reviewHeadingRef.current?.focus());
           return;
         }
@@ -367,7 +427,8 @@ export default function Studio() {
           setTitles(result.titles);
           return;
         }
-        const input = payload();
+        const chat=await ensureChat();
+        const input = {...payload(),conversationId:chat.id};
         if (input.prompt.length < 8)
           throw new Error(
             "Describe your thumbnail in at least eight characters.",
@@ -392,8 +453,10 @@ export default function Studio() {
     const savingFingerprint = draftFingerprint;
     setSaveReceipt(0);
     await studio.run("Saving draft", async () => {
+      const chat=await ensureChat();
       const input = payload();
       const item = await studio.saveDraft({
+        conversationId:chat.id,
         prompt: input.prompt,
         title,
         mode: input.mode,
@@ -445,6 +508,7 @@ export default function Studio() {
         prompt:
           "Apply the reviewed packaging edits while preserving the original.",
         title: plan.title,
+        conversationId: activeChatId,
         parentId: plan.sourceId,
         mode: "fix",
         settings: plan.settings,
@@ -631,6 +695,8 @@ export default function Studio() {
                           Download
                         </button>
                       </div>
+                      <div className="image-secondary-actions"><button className="quiet-button" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="quiet-button" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="quiet-button" disabled={busy} onClick={()=>{setRefs([selected.image_path!]);setTool("recreate");setComposerOpen(true);}}>Recreate this thumbnail</button><button className="quiet-button" onClick={()=>setDialog("feedback")}>Leave feedback</button></div>
+                      <details className="provenance-details"><summary>Prompt and generation details</summary><dl><dt>Exact request</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
                       <p className="resize-note">
                         Resize keeps the full image and fills the extra space
                         with a soft background. It does not use AI credits.
@@ -688,7 +754,7 @@ export default function Studio() {
                             {score.overall ?? "Partial"}
                             {score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>Thumbnail + title, across five pillars.</p>
+                          <p>Thumbnail + title, across five pillars.</p><button className="quiet-button" onClick={()=>setDialog("analysis")}>Open analysis details</button>
                         </div>
                         <button
                           className="primary-button fix-button"
@@ -804,13 +870,14 @@ export default function Studio() {
             <PanelLeft size={17} />
           </button>
         </div>
-        <button className="new-chat neutral-button" onClick={startNew}>
+        <button className="new-chat neutral-button" disabled={busy} onClick={newChat}>
           <Plus size={16} />
-          New creation
+          New chat
         </button>
         <div className="history-controls">
           <button
             className={tab === "library" ? "active" : ""}
+            disabled={busy}
             onClick={() => { setTab("library"); if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); } }}
           >
             <FolderOpen size={14} />
@@ -830,44 +897,15 @@ export default function Studio() {
           </button>
         </div>
         <div className="history-list">
-          {studio.loading ? (
-            <div className="history-loading" aria-label="Loading creations">
-              <span />
-              <span />
-              <span />
-            </div>
-          ) : studio.creations.length ? (
-            studio.creations.map((item) => (
-              <button
-                className={`history-item ${selection === item.id ? "selected" : ""}`}
-                key={item.id}
-                onClick={() =>
-                  item.status === "draft" ? resume(item) : choose(item)
-                }
-              >
-                {item.image_path && studio.images[item.image_path] ? (
-                  <img src={studio.images[item.image_path]} alt="" />
-                ) : (
-                  <ImagePlus size={16} />
-                )}
-                <span>{item.title}</span>
-                {item.status === "draft" && <small>Draft</small>}
-                {item.status === "generating" && (
-                  <LoaderCircle size={13} className="spin" />
-                )}
-              </button>
-            ))
-          ) : (
-            <p className="history-empty">
-              Your thumbnails and ideas will appear here.
-            </p>
-          )}
+          <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}}/>
+          {studio.creations.some(c=>!c.conversation_id)&&<p className="legacy-history-label">Recent creations</p>}
+          {studio.creations.filter(c=>!c.conversation_id).slice(0,8).map(item=><button key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.images[item.image_path]} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
         <div className="sidebar-bottom">
           <div className="workspace-account">
-            <span className="avatar">D</span>
+            <span className="avatar">O</span>
             <div>
-              <strong>Derrick’s workspace</strong>
+              <strong>Your workspace</strong>
               <small>
                 {studio.cloud ? "Private cloud library" : "Local library"}
               </small>
@@ -985,6 +1023,8 @@ export default function Studio() {
               <a href="/connect">Create an account and connect your keys</a>
             </p>
           )}
+          {activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
+          {busy&&<OperationProgress label={studio.busy}/>}
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
@@ -1001,6 +1041,7 @@ export default function Studio() {
           {tab === "studio" ? (
             <>
               {hasReviewImage && resultPanel}
+              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)}/>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
                 aria-label="Thumbnail workspace"
@@ -1231,6 +1272,7 @@ export default function Studio() {
                                   : "Describe your thumbnail. Be specific about the subject, scene, text and emotion…"
                           }
                         />
+                        <VoiceInput onText={text=>setPrompt(value=>(value+" "+text).trim().slice(0,2400))}/>
                         <div className="reference-strip">
                           {refs.map((path, i) => (
                             <div className="reference-thumb" key={path}>
@@ -1645,7 +1687,7 @@ export default function Studio() {
                   <h1>Your creations</h1>
                   <p>Every idea. Every iteration. All yours.</p>
                 </div>
-                <button className="neutral-button" onClick={startNew}>
+                <button className="neutral-button" onClick={newChat}>
                   <Plus size={16} />
                   New creation
                 </button>
@@ -1685,7 +1727,7 @@ export default function Studio() {
                       ? "Try another search or clear your filters."
                       : "Upload an image, write a prompt, or save a concept."}
                   </p>
-                  <button className="neutral-button" onClick={startNew}>
+                  <button className="neutral-button" onClick={newChat}>
                     Create a thumbnail
                   </button>
                 </div>
@@ -1713,10 +1755,10 @@ export default function Studio() {
         <div className="dialog-shell">
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
-              {dialog === "personas"
-                ? "Your personas"
+              {dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis"?"Thumbnail Analysis":dialog==="beforeafter"?"Compare Your Thumbnail":dialog==="feedback"?"Leave Your Feedback":dialog === "personas"
+                ? profileDialogTitle || "Your personas"
                 : dialog === "styles"
-                  ? "Your styles"
+                  ? profileDialogTitle || "Your styles"
                   : dialog === "references"
                     ? "Reference library"
                     : dialog === "login"
@@ -1737,183 +1779,11 @@ export default function Studio() {
               <X size={18} />
             </button>
           </div>
-          {(dialog === "personas" || dialog === "styles") && (
-            <>
-              {!profileNew ? (
-                <>
-                  <p className="dialog-description">
-                    {dialog === "personas"
-                      ? "Keep the same person, character or product across your thumbnails."
-                      : "Give every thumbnail a consistent visual language."}
-                  </p>
-                  <div className="profile-collection">
-                    {profileItems.map((item) => (
-                      <article className="profile-item" key={item.id}>
-                        <button
-                          className="profile-choose"
-                          onClick={() => {
-                            if (dialog === "personas") setPersonaId(item.id);
-                            else setStyleId(item.id);
-                            setDialog(null);
-                          }}
-                        >
-                          <div className="profile-cover">
-                            {item.refs.slice(0, 3).map((path) => (
-                              <img
-                                key={path}
-                                src={studio.images[path]}
-                                alt={`${item.name} reference`}
-                              />
-                            ))}
-                          </div>
-                          <div>
-                            <strong>{item.name}</strong>
-                            <span>
-                              {item.profile_status === "ready"
-                                ? "Profile prepared"
-                                : `${item.refs.length} reference${item.refs.length === 1 ? "" : "s"} saved`}
-                            </span>
-                          </div>
-                          <Check
-                            size={17}
-                            className={
-                              (dialog === "personas" ? personaId : styleId) ===
-                              item.id
-                                ? "profile-check checked"
-                                : "profile-check"
-                            }
-                          />
-                        </button>
-                        <div className="profile-item-actions">
-                          <button
-                            disabled={busy}
-                            onClick={() =>
-                              studio.run("Preparing reference profile", () =>
-                                studio.prepare(profileKind, item.id),
-                              )
-                            }
-                          >
-                            <Sparkles size={13} />
-                            {item.profile_status === "ready"
-                              ? "Refresh profile"
-                              : "Prepare profile"}
-                          </button>
-                          <button
-                            aria-label={`Delete ${item.name}`}
-                            onClick={() => {
-                              if (confirm(`Delete ${item.name}?`))
-                                studio.run("Deleting profile", () =>
-                                  studio.remove(
-                                    dialog === "personas"
-                                      ? "personas"
-                                      : "styles",
-                                    item.id,
-                                  ),
-                                );
-                            }}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                  <button
-                    className="neutral-button full-width"
-                    onClick={() => setProfileNew(true)}
-                  >
-                    <Plus size={16} />
-                    Create {profileKind}
-                  </button>
-                  <p className="dialog-footnote">
-                    Photos guide future images. Prepare profile uses your AI
-                    credits to describe the references; it does not train a
-                    custom model.
-                  </p>
-                </>
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    studio.run("Saving reference profile", async () => {
-                      const item = await studio.saveProfile(
-                        profileKind,
-                        profileName,
-                        profileNotes,
-                        profileFiles,
-                      );
-                      if (profileKind === "persona") setPersonaId(item.id);
-                      else setStyleId(item.id);
-                      setProfileNew(false);
-                      setProfileFiles([]);
-                    });
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="quiet-button back-button"
-                    onClick={() => setProfileNew(false)}
-                  >
-                    <ArrowLeft size={14} />
-                    Your collection
-                  </button>
-                  <label>
-                    Name
-                    <input
-                      required
-                      maxLength={80}
-                      value={profileName}
-                      onChange={(e) => setProfileName(e.target.value)}
-                      placeholder={
-                        dialog === "personas"
-                          ? "e.g. Derrick"
-                          : "e.g. Cinematic documentary"
-                      }
-                    />
-                  </label>
-                  <label>
-                    Creative guidance
-                    <textarea
-                      maxLength={800}
-                      value={profileNotes}
-                      onChange={(e) => setProfileNotes(e.target.value)}
-                      placeholder={
-                        dialog === "personas"
-                          ? "Details to preserve, wardrobe and expressions…"
-                          : "Palette, lighting, framing and text treatment…"
-                      }
-                    />
-                  </label>
-                  <label className="profile-upload">
-                    <ImagePlus size={25} />
-                    <strong>
-                      {profileFiles.length
-                        ? `${profileFiles.length} photo${profileFiles.length === 1 ? "" : "s"} selected`
-                        : "Add reference photos"}
-                    </strong>
-                    <span>1 to 6 photos, PNG/JPG/WebP, up to 5 MB each</span>
-                    <input
-                      required
-                      multiple
-                      type="file"
-                      aria-label="Profile reference photos"
-                      accept="image/png,image/jpeg,image/webp"
-                      onChange={(e) =>
-                        setProfileFiles(Array.from(e.target.files || []))
-                      }
-                    />
-                  </label>
-                  <button
-                    className="primary-button full-width"
-                    disabled={busy}
-                    type="submit"
-                  >
-                    {busy ? "Saving…" : `Create ${profileKind}`}
-                  </button>
-                </form>
-              )}
-            </>
-          )}
+          {(dialog==="personas"||dialog==="styles")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedId={dialog==="personas"?personaId:styleId} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
+          {dialog==="inspect"&&selected?.image_path&&<figure className="inspect-image"><img src={studio.images[selected.image_path]} alt={selected.title}/><figcaption>{selected.title}</figcaption></figure>}
+          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={fix}/>}
+          {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
+          {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
           {dialog === "references" && (
             <>
               <p className="dialog-description">
@@ -2170,6 +2040,7 @@ export default function Studio() {
       <article className="creation-card" key={item.id}>
         <button
           className="creation-card-image"
+          disabled={busy}
           onClick={() =>
             item.status === "draft" ? resume(item) : choose(item)
           }
@@ -2191,7 +2062,7 @@ export default function Studio() {
           </span>
         </button>
         <div className="creation-card-info">
-          <button onClick={() => choose(item)}>
+          <button disabled={busy} onClick={() => choose(item)}>
             <strong>{item.title}</strong>
             <small>
               {new Date(item.created_at).toLocaleDateString(undefined, {

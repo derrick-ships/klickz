@@ -35,3 +35,6 @@ Brand generation used the connected [Higgsfield](https://higgsfield.ai/) integra
 ## Mobile crop/performance correction
 
 The fixed 76px mobile strip was replaced with a reserved 3:1 frame. The still and video share positioning; all five representative phone widths were inspected from actual browser captures, including moving and settled frames. No new generated assets or credits were needed: responsive WebPs are compressed resizes of the existing originals. Initial HTML now exposes the high-priority empty-state poster; the video uses the existing image underneath rather than requesting a duplicate poster.
+
+## Persona guide (2026-11-08)
+Original synthetic photographic contact sheet generated with the built-in OpenAI image tool for OpenPikzels. No real customer likeness or stock assets. Three clear face views and three unsuitable-reference examples; CSS frames the six tiles. Packaged as public/persona-guide.webp (960px, WebP quality80,31,248bytes); used only when the Persona guide opens.

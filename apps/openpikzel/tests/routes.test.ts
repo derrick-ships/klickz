@@ -240,3 +240,12 @@ describe("generation orchestration without provider traffic", () => {
     expect(mock.render.mock.calls[0][1]).toHaveLength(1);
   });
 });
+
+it("carries the source conversation into an MCP-style edit without a new conversationId",async()=>{
+ const id="33333333-3333-4333-8333-333333333333";
+ mock.parent={...mock.parent,id:"22222222-2222-4222-8222-222222222222",user_id:"11111111-1111-4111-8111-111111111111",image_path:"11111111-1111-4111-8111-111111111111/source.png",conversation_id:id,title:"Original",prompt:"A factual image concept"};
+ const {POST}=await import("../src/app/api/generate/route");
+ mock.render.mockResolvedValue(Buffer.from("fixture-render"));
+ const r=await POST(new Request("https://studio.example/api/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({prompt:"Edit the image with a clearer background",title:"Original",mode:"edit",parentId:mock.parent.id,requestId:crypto.randomUUID(),settings:defaultSettings})}));
+ expect(r.status).toBe(200);expect(mock.reservations[0].conversation_id).toBe(id);
+});

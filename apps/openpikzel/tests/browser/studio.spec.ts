@@ -42,22 +42,17 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await page
     .getByRole("button", { name: "Create persona", exact: true })
     .click();
+  await page.getByRole("button",{name:"Skip Tutorial",exact:true}).click();
   await page
     .getByRole("dialog")
     .getByLabel("Name", { exact: true })
     .fill("Derrick");
   await page
     .getByLabel("Profile reference photos")
-    .setInputFiles(await photo());
+    .setInputFiles(await Promise.all(["#ff3b43","#485cdb","#52b78b"].map(async(color,i)=>({name:"persona-"+i+".png",mimeType:"image/png",buffer:await sharp({create:{width:800,height:450,channels:3,background:color}}).png().toBuffer()}))));
+  await page.getByLabel("I have permission to use these photos and this likeness.").check();
   await page
     .getByRole("button", { name: "Create persona", exact: true })
-    .click();
-  await expect(
-    page.getByRole("dialog").getByText("Derrick", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: /Derrick 1 reference saved/ })
     .click();
   await expect(
     page.getByRole("button", { name: "Derrick", exact: true }),
@@ -65,7 +60,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await page.reload();
   await page.getByRole("button", { name: "Persona", exact: true }).click();
   await expect(
-    page.getByRole("img", { name: "Derrick reference" }),
+    page.getByRole("img", { name: "Derrick reference" }).first(),
   ).toBeVisible();
 });
 test("image upload and one-click vertical resize produce a real 720x1280 PNG locally", async ({
@@ -94,10 +89,7 @@ test("image upload and one-click vertical resize produce a real 720x1280 PNG loc
   const meta = await sharp(path!).metadata();
   expect([meta.width, meta.height, meta.format]).toEqual([720, 1280, "png"]);
   await page.reload();
-  await page
-    .getByRole("button", { name: /Uploaded thumbnail/ })
-    .first()
-    .click();
+
   await expect(
     page.getByRole("button", { name: "Resize to long-form", exact: true }),
   ).toBeVisible();

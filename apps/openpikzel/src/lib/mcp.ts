@@ -21,11 +21,13 @@ import { POST as makePlan } from "@/app/api/fix-plan/route";
 import { POST as compare } from "@/app/api/compare/route";
 import { unseal } from "./crypto";
 import type { FixPlan } from "./diagnostics";
+import {POST as saveProfileRoute} from "@/app/api/profiles/route";
+import {POST as browseChannel} from "@/app/api/youtube/route";
 import { POST as prepare } from "@/app/api/persona/prepare/route";
 import { userKeys } from "./provider-context";
 import { widgetHtml } from "./widget.generated";
 export const uiUri = "ui://openpikzels/studio.html";
-export const agentGuide = `OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail defaults to Jev only; includeVision explicitly opts into one additional OpenAI/Google request. Supply the factual videoBrief and title or Idea/Curiosity and the overall remain partial. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. resize_thumbnail makes a vertical or horizontal contained layout with a blurred background without an image API. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.`;
+export const agentGuide = `OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. Use create_conversation/list_conversations/get_conversation to keep a project together; pass conversationId on generation. Profiles require three distinct owned references and names of at least3characters. A persona also requires explicit permission=true for likeness use. browse_style_channel uses the user’s own separate YouTube Data API key; never reuse an image-provider key for it. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail defaults to Jev only; includeVision explicitly opts into one additional OpenAI/Google request. Supply the factual videoBrief and title or Idea/Curiosity and the overall remain partial. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. resize_thumbnail makes a vertical or horizontal contained layout with a blurred background without an image API. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.`;
 export async function createMcpServer(token: string) {
   const context = await resolveAccess(token),
     { db, user, oauth } = context;
@@ -291,21 +293,13 @@ export async function createMcpServer(token: string) {
     "Create a reference-guided persona/character or style from your uploaded private image paths.",
     {
       kind: z.enum(["persona", "style"]),
-      name: z.string().min(1).max(80),
-      notes: z.string().max(1200).default(""),
-      references: z.array(z.string().max(400)).min(1).max(6),
+      name: z.string().trim().min(3).max(80),
+      notes: z.string().max(800).default(""),
+      references: z.array(z.string().max(400)).length(3),
+      permission: z.boolean().default(false),
     },
     "studio:write",
-    async ({ kind, name, notes, references }) => {
-      for (const path of references) await ownedAsset(db, user.id, path);
-      const r = await db
-        .from(kind === "persona" ? "studio_personas" : "studio_styles")
-        .insert({ user_id: user.id, name, notes, refs: references })
-        .select("*")
-        .single();
-      if (r.error) throw r.error;
-      return { profile: r.data, method: "reference-guided" };
-    },
+    ({kind,name,notes,references,permission})=>backend(saveProfileRoute,{kind,name,notes,refs:references,permission}),
   );
   tool(
     "prepare_profile",
@@ -331,6 +325,7 @@ export async function createMcpServer(token: string) {
     prompt: z.string().min(8).max(2400),
     title: z.string().max(100).default(""),
     mode: z.enum(["generate", "recreate", "edit", "title"]).default("generate"),
+    conversationId:z.string().uuid().optional(),
     parentId: z.string().uuid().optional(),
     personaId: z.string().uuid().optional(),
     styleId: z.string().uuid().optional(),
@@ -498,6 +493,10 @@ export async function createMcpServer(token: string) {
     "studio:write",
     (args) => backend(resize, args),
   );
+  tool("list_conversations","List your private creative chats. Old creations remain in the library.",{},"studio:read",async()=>{const r=await db.from("studio_conversations").select("id,title,created_at,updated_at").eq("user_id",user.id).order("updated_at",{ascending:false}).limit(50);if(r.error)throw r.error;return {conversations:r.data};},true);
+  tool("get_conversation","Get an owned chat and its exact saved prompts, settings and images.",{id:z.string().uuid()},"studio:read",async({id})=>{const chat=await db.from("studio_conversations").select("*").eq("id",id).eq("user_id",user.id).single();if(chat.error||!chat.data)throw new AppError(404,"Chat not found.");const rows=await db.from("studio_creations").select("*").eq("conversation_id",id).eq("user_id",user.id).order("created_at",{ascending:true});if(rows.error)throw rows.error;return {conversation:chat.data,creations:rows.data};},true);
+  tool("create_conversation","Start a new private creative chat; pass its id as conversationId when generating.",{title:z.string().trim().min(1).max(100).default("New chat")},"studio:write",async({title})=>{const r=await db.from("studio_conversations").insert({user_id:user.id,title}).select("*").single();if(r.error)throw r.error;return {conversation:r.data};});
+  tool("browse_style_channel","Browse public YouTube channel thumbnails with your own connected YouTube Data API key.",{channel:z.string().max(300),order:z.enum(["recent","popular"]).default("recent"),pageToken:z.string().max(300).default("")},"studio:read",args=>backend(browseChannel,args),true);
   server.registerResource(
     "agent-guide",
     "openpikzels://agent-guide",

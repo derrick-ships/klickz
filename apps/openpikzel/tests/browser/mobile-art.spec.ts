@@ -33,19 +33,20 @@ test("mobile art preserves the red subject at all representative widths", async 
   }
 });
 
-test("mobile motion shares the corrected crop and settles without shifting", async ({page}) => {
+test("mobile default still preserves the corrected crop without layout shifts", async ({page}) => {
   test.setTimeout(60000);
   for(const width of widths) {
     await page.setViewportSize({width,height:932});
     await page.goto("/?mode=generate");
     const scene=page.locator('[data-brand-scene="signal"]');
-    await expect(scene).toHaveAttribute("data-motion","playing");
-    await expect.poll(()=>scene.locator("video").evaluate(v=>(v as HTMLVideoElement).currentTime)).toBeGreaterThan(.7);
+    await scene.locator("img").evaluate(i=>(i as HTMLImageElement).decode());
+    await expect(scene).toHaveAttribute("data-motion","still");
+    await expect(scene.locator("source")).toHaveCount(0);
     const before=await scene.boundingBox();
     const bounds=await redBounds(await scene.screenshot());
     expect(bounds.top).toBeGreaterThanOrEqual(12);
     expect(bounds.bottom).toBeGreaterThanOrEqual(12);
-    await page.screenshot({path:`evidence/mobile-art-motion-${width}.png`,fullPage:true});
+    await page.screenshot({path:`evidence/mobile-art-default-${width}.png`,fullPage:true});
     if(width===430) {
       await expect(scene).toHaveAttribute("data-motion","still",{timeout:6000});
       expect(await scene.boundingBox()).toEqual(before);

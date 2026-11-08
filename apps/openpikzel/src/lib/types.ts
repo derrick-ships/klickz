@@ -92,6 +92,7 @@ export type Evaluation = {
   created_at: string;
 };
 export type Creation = {
+  conversation_id?: string | null;
   id: string;
   title: string;
   prompt: string;
@@ -121,6 +122,7 @@ export type Config = {
   openai: boolean;
   jev: boolean;
   google?: boolean;
+  youtube?: boolean;
   secureConnections?: boolean;
   higgsfield?: boolean;
   mcpUrl?: string;

@@ -47,3 +47,5 @@ test("reduced-motion and data-saving visitors load only the poster", async ({ pa
   await expect(scene.locator("source")).toHaveCount(0);
   expect(videos).toHaveLength(0);
 });
+
+test("mobile uses the branded still without downloading decorative video",async({page})=>{await page.setViewportSize({width:390,height:844});const clips:string[]=[];page.on("request",r=>{if(/\/brand\/.*\.(webm|mp4)/.test(r.url()))clips.push(r.url());});await page.goto("/");await expect.poll(()=>page.locator(".brand-scene img").evaluate(i=>(i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);await expect(page.locator(".brand-scene source")).toHaveCount(0);expect(clips).toEqual([]);});

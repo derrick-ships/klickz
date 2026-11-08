@@ -8,7 +8,7 @@ export async function reviewFixture(page: Page, scored = true) {
   if (scored) {
     await page.evaluate(async () => {
       await new Promise<void>((resolve, reject) => {
-        const request = indexedDB.open("derrick-thumbnail-studio", 1);
+        const request = indexedDB.open("derrick-thumbnail-studio");
         request.onsuccess = () => {
           const db = request.result, tx = db.transaction("creations", "readwrite"), store = tx.objectStore("creations"), rows = store.getAll();
           rows.onsuccess = () => {
@@ -31,8 +31,5 @@ export async function reviewFixture(page: Page, scored = true) {
     });
   }
   await page.reload();
-  const openNavigation = page.getByRole("button", { name: "Open sidebar", exact: true });
-  if (await openNavigation.isVisible()) await openNavigation.click();
-  await page.locator(".history-item").filter({ hasText: "Fixture:" }).click();
+  await expect(page.getByRole("region",{name:"Thumbnail review studio"})).toBeVisible();
 }
-

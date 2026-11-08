@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { unseal } from "./crypto";
 import { AppError } from "./validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
-export type Provider = "openai" | "jev" | "google";
+export type Provider = "openai" | "jev" | "google" | "youtube";
 export type ProviderKeys = Partial<Record<Provider, string>>;
 export const providerContext = new AsyncLocalStorage<ProviderKeys>();
 export function providerKey(provider: Provider) {

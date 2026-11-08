@@ -53,10 +53,11 @@ export function referenceURL(value: string) {
   }
   return url;
 }
-export async function fetchReference(value: string, hops = 0): Promise<Buffer> {
+export async function fetchReference(value: string, hops = 0, allowedHosts?: readonly string[]): Promise<Buffer> {
   if (hops > 3)
     throw new AppError(400, "Too many redirects. Upload the image instead.");
   const url = referenceURL(value);
+  if(allowedHosts&&!allowedHosts.includes(url.hostname))throw new AppError(400,"This reference redirected outside its trusted image host.");
   const addresses = await lookup(url.hostname, { all: true, family: 4 });
   if (!addresses.length || addresses.some((x) => !publicIPv4(x.address)))
     throw new AppError(400, "This URL is not a public image source.");
@@ -113,7 +114,7 @@ export async function fetchReference(value: string, hops = 0): Promise<Buffer> {
       req.on("error", reject);
     },
   );
-  if (fetched.redirect) return fetchReference(fetched.redirect, hops + 1);
+  if (fetched.redirect) return fetchReference(fetched.redirect, hops + 1, allowedHosts);
   return sharp(fetched.body!, { limitInputPixels: 40000000 })
     .rotate()
     .resize(1568, 1568, { fit: "inside", withoutEnlargement: true })

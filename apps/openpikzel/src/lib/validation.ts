@@ -14,6 +14,7 @@ export const generationSchema = z
     prompt: z.string().trim().min(8).max(2400),
     title: z.string().trim().max(100).default(""),
     mode: z.enum(["generate", "recreate", "edit", "title", "fix"]),
+    conversationId: z.string().uuid().nullable().optional(),
     personaId: z.string().uuid().nullable().optional(),
     styleId: z.string().uuid().nullable().optional(),
     style: z.string().max(120).default("Auto"),

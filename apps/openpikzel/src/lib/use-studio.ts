@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {type Conversation} from "./workspaces";
 import { localAll, localPut, localDelete } from "./local-db";
 import {
   defaultSettings,
@@ -12,7 +13,7 @@ import {
   type Settings,
 } from "./types";
 type Asset = { id: string; blob: Blob };
-type Collection = "creations" | "personas" | "styles";
+type Collection = "creations" | "personas" | "styles" | "conversations";
 export function useStudio() {
   const [config, setConfig] = useState<Config | null>(null),
     [user, setUser] = useState<string | null>(null),
@@ -23,6 +24,9 @@ export function useStudio() {
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
+  const [conversations,setConversations]=useState<Conversation[]>([]),[skipPersonaTutorial,setSkipPersonaTutorial]=useState(false);
+  const loadedOwner=useRef<string|null|undefined>(undefined);
+  const ownerEpoch=useRef(0),chatWrites=useRef(Promise.resolve());
   const db = useRef<SupabaseClient | null>(null),
     urls = useRef<string[]>([]),
     lock = useRef(false),
@@ -32,17 +36,18 @@ export function useStudio() {
   const cloud = !!user && !!db.current,
     live = cloud && !!config?.ai && (!!config?.openai || !!config?.google);
   const load = useCallback(async () => {
+    if(userRef.current!==user)return;
     const current = ++version.current;
     if (db.current && user) {
       const rows = await Promise.all(
-        ["creations", "personas", "styles"].map((x) =>
+        ["creations", "personas", "styles", "conversations"].map((x) =>
           db
             .current!.from("studio_" + x)
             .select("*")
             .order("created_at", { ascending: false }),
         ),
       );
-      if (current !== version.current) return;
+      if (current !== version.current || userRef.current!==user) return;
       if (rows.some((r) => r.error))
         throw new Error(
           "Your cloud library could not load. Refresh the page; if it still fails, contact the workspace owner.",
@@ -50,6 +55,8 @@ export function useStudio() {
       setCreations(rows[0].data as Creation[]);
       setPersonas(rows[1].data as Persona[]);
       setStyles(rows[2].data as Style[]);
+      setConversations(rows[3].data as Conversation[]);
+      const pref=await db.current.from("studio_preferences").select("skip_persona_tutorial").eq("user_id",user).maybeSingle();if(current!==version.current||userRef.current!==user)return;setSkipPersonaTutorial(pref.data?.skip_persona_tutorial===true);
       const paths = [
         ...new Set(
           [
@@ -66,7 +73,7 @@ export function useStudio() {
         const signed = await db.current.storage
           .from("studio-assets")
           .createSignedUrls(paths, 300);
-        if (current !== version.current) return;
+        if (current !== version.current || userRef.current!==user) return;
         if (signed.error) throw new Error("Your private images could not load. Refresh the page to try again.");
         setImages(
           Object.fromEntries(
@@ -77,16 +84,19 @@ export function useStudio() {
         );
       } else setImages({});
     } else {
-      const [c, p, s, a] = await Promise.all([
+      const [c, p, s, a, chats, preferences] = await Promise.all([
         localAll<Creation>("creations"),
         localAll<Persona>("personas"),
         localAll<Style>("styles"),
         localAll<Asset>("assets"),
+        localAll<Conversation>("conversations"),
+        localAll<{id:string;skip_persona_tutorial?:boolean}>("preferences"),
       ]);
-      if (current !== version.current) return;
+      if (current !== version.current || userRef.current!==user) return;
       setCreations(c.sort((a, b) => b.created_at.localeCompare(a.created_at)));
       setPersonas(p);
       setStyles(s);
+      setConversations(chats);setSkipPersonaTutorial(preferences.find(p=>p.id==="local")?.skip_persona_tutorial===true);
       urls.current.forEach(URL.revokeObjectURL);
       const entries = a.map((x) => {
         const url = URL.createObjectURL(x.blob);
@@ -95,6 +105,7 @@ export function useStudio() {
       });
       setImages(Object.fromEntries(entries));
     }
+    if(userRef.current===user)loadedOwner.current=user;
   }, [user]);
   useEffect(() => {
     let stop = () => {};
@@ -103,6 +114,7 @@ export function useStudio() {
       .then(async (c: Config) => {
         setConfig(c);
         if (c.cloud) {
+          const {createClient}=await import("@supabase/supabase-js");
           db.current = createClient(c.supabaseUrl, c.supabaseKey);
           const { data } = await db.current.auth.getSession();
           userRef.current = data.session?.user.id || null;
@@ -111,6 +123,7 @@ export function useStudio() {
             const next = session?.user.id || null;
             if (next !== userRef.current) {
               userRef.current = next;
+              ownerEpoch.current++;setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;
               version.current++;
               setCreations([]);
               setPersonas([]);
@@ -204,7 +217,9 @@ export function useStudio() {
           : "Sign in and connect your own API key to use AI. Uploads, drafts and resize also work in this browser.",
       );
   }
-  async function put(kind: Collection, item: Creation | Persona | Style) {
+  function ensureCurrentOwner(){if(userRef.current!==user)throw new Error("Your account changed. Check the original account for the result.");}
+  async function put(kind: Collection, item: Creation | Persona | Style | Conversation) {
+    ensureCurrentOwner();
     if (cloud) {
       const { error } = await db
         .current!.from("studio_" + kind)
@@ -212,6 +227,7 @@ export function useStudio() {
       if (error)
         throw new Error("Could not save to your cloud library. Keep this page open and check your connection before retrying.");
     } else await localPut(kind, item);
+    ensureCurrentOwner();
   }
   async function upload(file: File) {
     if (
@@ -287,11 +303,13 @@ export function useStudio() {
     referencePaths: string[];
     settings: Settings;
     parentId: string | null;
+    conversationId?: string | null;
   }) {
     if (input.prompt.trim().length < 8)
       throw new Error("Add at least eight characters to describe your idea.");
     const item: Creation = {
       id: crypto.randomUUID(),
+      conversation_id: input.conversationId || null,
       title: input.title || input.prompt.slice(0, 80),
       prompt: input.prompt,
       mode: input.mode,
@@ -309,12 +327,14 @@ export function useStudio() {
     };
     await put("creations", item);
     await load();
+    ensureCurrentOwner();
     return item;
   }
-  async function saveUploaded(path: string, title = "Uploaded thumbnail") {
+  async function saveUploaded(path: string, title = "Uploaded thumbnail",conversationId:string|null=null) {
     const item: Creation = {
       id: crypto.randomUUID(),
       title,
+      conversation_id: conversationId,
       prompt: title.padEnd(8, "."),
       mode: "generate",
       style: "Uploaded",
@@ -327,9 +347,11 @@ export function useStudio() {
     };
     await put("creations", item);
     await load();
+    ensureCurrentOwner();
     return item;
   }
   async function generate(input: unknown) {
+    const epoch=ownerEpoch.current;
     requireLive();
     const value = input as Record<string, unknown>;
     const { requestId: ignored, ...intent } = value;
@@ -343,8 +365,11 @@ export function useStudio() {
       ...value,
       requestId: pendingRequest.current!.id,
     });
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Check the original account for the result.");
     pendingRequest.current = null;
+    if(result.creations?.[0])await rememberCreation(result.creations[0]);
     await load();
+    ensureCurrentOwner();
     return result as { creations: Creation[]; partial: boolean };
   }
   async function analyze(
@@ -372,41 +397,58 @@ export function useStudio() {
     });
     pendingRequest.current = null;
     await load();
+    ensureCurrentOwner();
     return result;
   }
-  async function saveProfile(
-    kind: "persona" | "style",
-    name: string,
-    notes: string,
-    files: File[],
-  ) {
-    if (!name.trim() || files.length < 1 || files.length > 6)
-      throw new Error("Add a name and one to six reference photos.");
-    const refs: string[] = [];
-    try {
-      for (const file of files) refs.push(await upload(file));
-      const item = {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        notes,
-        refs,
-        created_at: new Date().toISOString(),
-        profile_status: "draft" as const,
-      };
-      await put(kind === "persona" ? "personas" : "styles", item);
-      await load();
-      return item;
-    } catch (e) {
-      if (cloud && refs.length)
-        await db.current!.storage.from("studio-assets").remove(refs);
-      else for (const id of refs) await localDelete("assets", id);
-      throw e;
-    }
+  async function saveProfile(kind:"persona"|"style",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]}){
+    const epoch=ownerEpoch.current;
+    if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
+    if(files.length!==3)throw new Error("Upload exactly 3 images");
+    if(kind==="persona"&&!permission)throw new Error("Confirm you have permission to use these photos and this likeness.");
+    const hashes=await Promise.all(files.map(async file=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",await file.arrayBuffer()))).join(",")));
+    if(new Set(hashes).size!==3)throw new Error("Choose three different reference images.");
+    const refs:string[]=[];let dispatched=false;
+    try{
+      for(const file of files){if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Start again in this workspace.");refs.push(await upload(file));}
+      if(name.trim().length>80||notes.length>800)throw new Error("Use a name up to 80 characters and guidance up to 800 characters.");const input={kind,name:name.trim(),notes,refs,permission,source};let item:Persona;
+      if(cloud){dispatched=true;item=(await api("/api/profiles",input)).profile;}
+      else{item={id:crypto.randomUUID(),name:input.name,notes:input.notes,refs,created_at:new Date().toISOString(),profile_status:"draft",...(source?{source}: {})};await put(kind==="persona"?"personas":"styles",item);}
+      if(epoch!==ownerEpoch.current)throw new Error("Your account changed. The profile remains in its original account.");
+      await load();return item;
+    }catch(error){if(!dispatched){if(cloud&&refs.length)await db.current!.storage.from("studio-assets").remove(refs);else for(const id of refs)await localDelete("assets",id);}throw error;}
   }
+  async function importYouTube(videoId:string){const res=await fetch("/api/youtube/reference",{method:"POST",headers:await headers(),body:JSON.stringify({videoId})});if(!res.ok){const e=await res.json();throw new Error(e.error||"This thumbnail could not import.");}return new File([await res.blob()],videoId+".png",{type:"image/png"});}
+  async function saveConversation(chat:Conversation,mode:"full"|"draft"|"title"|"selection"="full"){
+    const epoch=ownerEpoch.current;
+    const operation=chatWrites.current.then(async()=>{
+      if(epoch!==ownerEpoch.current||userRef.current!==user)throw new Error("Your account changed.");
+      let next=chat;
+      if(mode!=="full"){
+       const current=cloud?(await db.current!.from("studio_conversations").select("*").eq("id",chat.id).eq("user_id",user).single()).data:(await localAll<Conversation>("conversations")).find(c=>c.id===chat.id);
+       if(!current)throw new Error("This chat is no longer available.");
+       if(mode==="title")next={...current,title:chat.title,draft:{...current.draft,manualTitle:true},updated_at:chat.updated_at};
+       else if(mode==="selection")next={...current,draft:{...current.draft,selection:chat.draft.selection},updated_at:chat.updated_at};
+       else next={...current,draft:{...chat.draft,manualTitle:current.draft.manualTitle},title:current.title==="New chat"&&!current.draft.manualTitle&&chat.draft.prompt?.trim()?chat.draft.prompt.trim().slice(0,80):current.title,updated_at:chat.updated_at};
+      }
+      await put("conversations",next);
+      if(epoch!==ownerEpoch.current)throw new Error("Your account changed. This chat stays in its original workspace.");
+      setConversations(items=>[next,...items.filter(c=>c.id!==next.id)].sort((a,b)=>b.updated_at.localeCompare(a.updated_at)));return next;
+    });
+    chatWrites.current=operation.then(()=>{},()=>{});return operation;
+  }
+  async function rememberCreation(item:Creation){
+    if(!item.conversation_id)return;
+    const chat=cloud?(await db.current!.from("studio_conversations").select("*").eq("id",item.conversation_id).eq("user_id",user).maybeSingle()).data:(await localAll<Conversation>("conversations")).find(c=>c.id===item.conversation_id);
+    if(chat)await saveConversation({...chat,draft:{...chat.draft,selection:item.id},updated_at:new Date().toISOString()},"selection");
+  }
+  async function createConversation(){const now=new Date().toISOString();return saveConversation({id:crypto.randomUUID(),title:"New chat",draft:{},created_at:now,updated_at:now});}
+  async function saveTutorialPreference(skip:boolean){const epoch=ownerEpoch.current;if(cloud){const result=await db.current!.from("studio_preferences").upsert({user_id:user,skip_persona_tutorial:skip,updated_at:new Date().toISOString()});if(result.error)throw new Error("Could not save this preference.");}else await localPut("preferences",{id:"local",skip_persona_tutorial:skip});if(epoch===ownerEpoch.current)setSkipPersonaTutorial(skip);}
+  async function feedback(creationId:string,body:string){if(body.trim().length<3||body.length>2000)throw new Error("Write between 3 and 2,000 characters.");const item={id:crypto.randomUUID(),creation_id:creationId,body:body.trim(),created_at:new Date().toISOString()};if(cloud){const result=await db.current!.from("studio_feedback").insert({...item,user_id:user});if(result.error)throw new Error("Feedback could not be saved. Your text remains here.");}else await localPut("feedback",item);}
   async function prepare(kind: "persona" | "style", id: string) {
     requireLive();
     const result = await api("/api/persona/prepare", { id, kind });
     await load();
+    ensureCurrentOwner();
     return result.profile;
   }
   async function resize(item: Creation, format: Format) {
@@ -418,7 +460,10 @@ export function useStudio() {
         format,
         requestId: crypto.randomUUID(),
       });
+      await rememberCreation(result.creation as Creation);
       await load();
+      ensureCurrentOwner();
+    ensureCurrentOwner();
       return result.creation as Creation;
     }
     const bitmap = await createImageBitmap(await blob(item.image_path));
@@ -466,7 +511,9 @@ export function useStudio() {
       created_at: new Date().toISOString(),
     };
     await put("creations", copy);
+    await rememberCreation(copy);
     await load();
+    ensureCurrentOwner();
     return copy;
   }
   async function remove(kind: Collection, id: string) {
@@ -478,10 +525,12 @@ export function useStudio() {
       if (error) throw new Error("Could not delete this item. Refresh your library to check whether it is still there.");
     } else await localDelete(kind, id);
     await load();
+    ensureCurrentOwner();
   }
   async function favorite(item: Creation) {
     await put("creations", { ...item, favorite: !item.favorite });
     await load();
+    ensureCurrentOwner();
   }
   async function download(item: Creation) {
     if (!item.image_path)
@@ -506,11 +555,12 @@ export function useStudio() {
     await db.current?.auth.signOut({ scope: "local" });
   }
   return {
+    conversations,skipPersonaTutorial,saveConversation,createConversation,saveTutorialPreference,feedback,importYouTube,
     config,
     user,
     cloud,
     live,
-    loading,
+    loading:loading||loadedOwner.current!==user,
     creations,
     personas,
     styles,

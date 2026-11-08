@@ -37,6 +37,7 @@ export async function POST(request: Request) {
         style: original.style,
         mode: "resize",
         parent_id: original.id,
+        conversation_id: original.conversation_id || null,
         lineage: { sourceId: original.id, sourceDigest: digest(sourceBytes) },
         settings: { ...original.settings, format: input.format },
         request_id: input.requestId,
