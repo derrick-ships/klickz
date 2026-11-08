@@ -17,3 +17,6 @@ Pikzels app observed in cloud browser on November 7, 2026: narrow sidebar, chat 
 
 ## Account and MCP extension
 Per-user OpenAI, Google and Jev API keys; OAuth 2.1-style S256 PKCE consent, resource-bound tokens, dynamic registration, Streamable HTTP /mcp, MCP Apps HTML studio and copyable fix prompts for ChatGPT. Domain openpikzels.com; the interface is deployed to production. Public provider-key storage, AI activation and full real-client OAuth validation remain pending.
+
+## Public activation
+Production uses per-user encrypted API connections with write-only replacement boxes and same-page email-code sign-in. New users own their rows and private storage; paid calls use only their own provider accounts. Higgsfield uses a separate encrypted OAuth connection. Claude/Codex subscription usage stays in the official clients through MCP; direct hosted plan sign-in requires vendor support/approval. See ACTIVATION.md.

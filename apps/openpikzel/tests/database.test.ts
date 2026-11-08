@@ -211,6 +211,21 @@ describe("PostgreSQL migration and row isolation", () => {
         .rows[0].n,
     ).toBe(0);
   });
+  it("permits new-user jobs and private external connections without other-user visibility", async () => {
+    await asUser(bob); await db.exec("set request.jwt.claim.owner='false'");
+    const job = "66666666-6666-4666-8666-666666666666";
+    await db.exec(`insert into studio_jobs(id,user_id,operation,payload_digest,state,max_provider_calls) values('${job}','${bob}','analyze',repeat('b',64),'queued',1)`);
+    await db.exec(`insert into studio_external_connections(user_id,provider,ciphertext) values('${bob}','higgsfield','encrypted-fixture')`);
+    await db.exec(`insert into studio_connection_sessions(id,user_id,provider,ciphertext,expires_at) values('${job}','${bob}','higgsfield','encrypted-state',now()+interval '10 minutes')`);
+    await asUser(alice);
+    expect((await db.query("select * from studio_external_connections")).rows).toHaveLength(0);
+    expect((await db.query("select * from studio_connection_sessions")).rows).toHaveLength(0);
+    await expect(db.exec(`update studio_jobs set user_id='${alice}' where id='${job}'`)).resolves.toBeDefined();
+    await asUser(bob);
+    expect((await db.query(`select user_id from studio_jobs where id='${job}'`)).rows[0]).toEqual({ user_id: bob });
+    await expect(db.exec(`update studio_external_connections set user_id='${alice}'`)).rejects.toThrow();
+    await db.exec("set request.jwt.claim.owner='true'");
+  });
   it("denies unauthenticated database access", async () => {
     await db.exec("reset role;set role anon;");
     await expect(db.query("select * from studio_creations")).rejects.toThrow();

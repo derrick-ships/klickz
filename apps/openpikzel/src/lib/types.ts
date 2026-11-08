@@ -122,6 +122,7 @@ export type Config = {
   jev: boolean;
   google?: boolean;
   secureConnections?: boolean;
+  higgsfield?: boolean;
   mcpUrl?: string;
   supabaseUrl: string;
   supabaseKey: string;

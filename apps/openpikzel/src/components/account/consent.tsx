@@ -99,7 +99,7 @@ export function Consent() {
               Sign in here to create a separate session for this agent. Your
               studio session stays independent.
             </p>
-            <AccountSignIn db={db} />
+            <AccountSignIn db={db} showEmailLinkHint={false} />
           </>
         ) : session ? (
           <p className="signed-in">Signed in as {session.user.email}</p>

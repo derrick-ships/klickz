@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createClient,
   type SupabaseClient,
@@ -33,7 +33,7 @@ export function useAccount(isolated = false) {
                     detectSessionInUrl: false,
                   },
                 }
-              : undefined,
+              : { auth: { detectSessionInUrl: !new URL(location.href).searchParams.has("state") } },
           );
           setDb(client);
           const { data } = await client.auth.getSession();
@@ -58,15 +58,19 @@ export function useAccount(isolated = false) {
 export function AccountSignIn({
   db,
   onSignedIn,
+  showEmailLinkHint = true,
 }: {
   db: SupabaseClient;
   onSignedIn?: () => void;
+  showEmailLinkHint?: boolean;
 }) {
   const [signup, setSignup] = useState(false),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [status, setStatus] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [emailSent, setEmailSent] = useState(false),
+    [code, setCode] = useState("");
   return (
     <form
       className="account-form"
@@ -75,17 +79,19 @@ export function AccountSignIn({
         setBusy(true);
         setStatus("");
         try {
-          const result = signup
+          const result = emailSent
+            ? await db.auth.verifyOtp({ email, token: code, type: "email" })
+            : signup
             ? await db.auth.signUp({
                 email,
                 password,
                 options: { emailRedirectTo: location.origin + "/connect" },
               })
             : await db.auth.signInWithPassword({ email, password });
-          setPassword("");
+          setPassword(""); setCode("");
           if (result.error)
             throw new Error(
-              signup
+              emailSent ? "That code expired or could not be verified. Request a new code and try again." : signup
                 ? "Could not create the account. Check your details or try signing in."
                 : "Sign-in failed. Check your email and password.",
             );
@@ -118,7 +124,7 @@ export function AccountSignIn({
           onChange={(e) => setEmail(e.target.value)}
         />
       </label>
-      <label>
+      {!emailSent && <label>
         Password{signup ? " (at least 8 characters)" : ""}
         <input
           type="password"
@@ -128,23 +134,37 @@ export function AccountSignIn({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-      </label>
+      </label>}
+      {emailSent && <label>Email sign-in code<input id="email-signin-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))} /></label>}
       <button className="primary-button" disabled={busy}>
-        {busy ? (signup ? "Creating account…" : "Signing in…") : signup ? "Create account" : "Sign in"}
+        {busy ? (emailSent ? "Verifying…" : signup ? "Creating account…" : "Signing in…") : emailSent ? "Verify code" : signup ? "Create account" : "Sign in"}
       </button>
       <button
         type="button"
         className="neutral-button"
         disabled={busy}
         onClick={() => {
-          setSignup(!signup);
+          if (emailSent) { setEmailSent(false); setCode(""); } else setSignup(!signup);
           setStatus("");
         }}
       >
-        {signup
+        {emailSent ? "Use password instead" : signup
           ? "Already have an account? Sign in"
           : "New here? Create an account"}
       </button>
+      {<button type="button" className="neutral-button" disabled={busy} onClick={async (event) => {
+        const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
+        if (!input?.reportValidity()) return;
+        setBusy(true); setStatus(""); setPassword("");
+        try {
+          const result = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + "/connect" } });
+          if (result.error) throw new Error("Could not send the sign-in email. Try password sign-in or contact support.");
+          setEmailSent(true);
+          requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
+          setStatus(showEmailLinkHint ? "Check your email for the sign-in code, then enter it here. You can also use the one-time link in that email." : "Enter the code from your email here to finish connecting this agent. The email link opens the main studio separately.");
+        } catch (error) { setStatus(error instanceof Error ? error.message : "Could not send the sign-in email."); }
+        finally { setBusy(false); }
+      }}>{emailSent ? "Send a new sign-in code" : "Email me a sign-in code"}</button>}
       <p role="status">{status}</p>
     </form>
   );
@@ -167,6 +187,8 @@ export function ConnectionsPage() {
     [key, setKey] = useState(""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
+  const [higgsfield, setHiggsfield] = useState(false), [higgsfieldTools, setHiggsfieldTools] = useState<string[]>([]);
+  const callbackHandled = useRef(false);
   async function api(path: string, method = "GET", body?: unknown) {
     const fresh = await db?.auth.getSession();
     if (!fresh?.data.session) throw new Error("Your session ended. Sign in again to manage connections.");
@@ -183,15 +205,30 @@ export function ConnectionsPage() {
     return data;
   }
   async function refresh() {
-    const [c, g] = await Promise.all([
+    const [c, g, h] = await Promise.all([
       api("/api/providers"),
       api("/api/oauth/grants"),
+      config?.higgsfield ? api("/api/connections/higgsfield") : Promise.resolve({ connected: false }),
     ]);
     setConnections(c.connections);
     setGrants(g.grants);
+    setHiggsfield(h.connected);
   }
   useEffect(() => {
     if (session) void refresh().catch((e) => setError(e.message));
+  }, [session?.user.id]);
+  useEffect(() => {
+    if (!session || callbackHandled.current) return;
+    const params = new URLSearchParams(location.search), code = params.get("code"), state = params.get("state"), failure = params.get("error");
+    if (!code && !failure) return;
+    callbackHandled.current = true;
+    history.replaceState(null, "", "/connect");
+    if (failure) { setError("Higgsfield sign-in was not completed. You can connect again."); return; }
+    if (!state) { setError("The sign-in state is missing. Connect Higgsfield again."); return; }
+    void action(async () => {
+      await api("/api/connections/higgsfield", "POST", { action: "finish", code, state });
+      await refresh(); setNotice("Higgsfield connected. No generation credits were used.");
+    });
   }, [session?.user.id]);
   async function action(work: () => Promise<void>) {
     setBusy(true);
@@ -246,13 +283,13 @@ export function ConnectionsPage() {
                 void action(async () => {
                   const submitted = key;
                   setKey("");
-                  await api("/api/providers", "POST", {
+                  const result = await api("/api/providers", "POST", {
                     provider,
                     key: submitted,
                   });
                   await refresh();
                   setNotice(
-                    "API key saved securely. No test request was made. Your agent never receives the key.",
+                    result.kept ? "Your saved key is unchanged." : "API key saved securely. No test request was made. Your agent never receives the key.",
                   );
                 });
               }}
@@ -260,8 +297,9 @@ export function ConnectionsPage() {
               <label>
                 Provider
                 <select
+                  aria-label="Provider"
                   value={provider}
-                  onChange={(e) => setProvider(e.target.value)}
+                  onChange={(e) => { setProvider(e.target.value); setKey(""); setNotice(""); }}
                 >
                   <option value="openai">OpenAI</option>
                   <option value="google">Google</option>
@@ -274,18 +312,20 @@ export function ConnectionsPage() {
                   type="password"
                   autoComplete="off"
                   spellCheck={false}
-                  required
+                  required={!connections.some((c) => c.provider === provider)}
                   minLength={12}
+                  aria-describedby="provider-key-help"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
-                  placeholder="Paste your key securely"
+                  placeholder={connections.some((c) => c.provider === provider) ? "Leave empty to keep current key" : "Paste your key securely"}
                 />
               </label>
+              <p id="provider-key-help">Saved keys are never shown again. Leave empty to keep current key. To replace it, paste a new key.</p>
               <button
                 className="primary-button"
                 disabled={busy || !config?.secureConnections}
               >
-                {busy ? "Saving…" : "Connect key"}
+                {busy ? "Saving…" : connections.some((c) => c.provider === provider) ? "Save connection" : "Connect key"}
               </button>
             </form>
             <div className="provider-grid">
@@ -338,6 +378,38 @@ export function ConnectionsPage() {
             <a className="primary-button inline-link" href="/">
               Open studio
             </a>
+          </section>
+          <section className="account-panel">
+            <h2>Higgsfield</h2>
+            <p>Connect your own Higgsfield account through its secure sign-in page. Tokens stay encrypted. Generating through MCP uses your Higgsfield credits, including on Unlimited plans.</p>
+            <p role="status">{!config?.higgsfield ? "Higgsfield connection is awaiting activation." : higgsfield ? "Higgsfield is connected." : "Higgsfield is not connected."}</p>
+            <div className="connection-actions">
+              <button className="primary-button" disabled={busy || !config?.secureConnections || !config?.higgsfield} onClick={() => void action(async () => {
+                const result = await api("/api/connections/higgsfield", "POST", { action: "start" });
+                location.assign(result.authorizationUrl);
+              })}>{higgsfield ? "Reconnect Higgsfield" : "Connect Higgsfield"}</button>
+              {higgsfield && <>
+                <button className="neutral-button" disabled={busy} onClick={() => void action(async () => {
+                  const result = await api("/api/connections/higgsfield?check=true"); setHiggsfieldTools(result.tools.map((tool: { name: string }) => tool.name));
+                  setNotice("Higgsfield connection checked. No generation was requested.");
+                })}>Check Higgsfield connection</button>
+                <button className="neutral-button" disabled={busy} onClick={() => void action(async () => {
+                  await api("/api/connections/higgsfield", "DELETE"); setHiggsfieldTools([]); await refresh();
+                  setNotice("Higgsfield disconnected from OpenPikzels. You can also revoke access in Higgsfield settings.");
+                })}>Disconnect Higgsfield</button>
+              </>}
+            </div>
+            {higgsfieldTools.length > 0 && <details><summary>Available Higgsfield tools ({higgsfieldTools.length})</summary><ul>{higgsfieldTools.map(name => <li key={name}>{name}</li>)}</ul></details>}
+          </section>
+          <section className="account-panel">
+            <h2>Use your Claude or Codex plan</h2>
+            <p>Sign in inside the official Claude or Codex app, then connect OpenPikzels as an MCP server. Your chat and reasoning use that app’s plan. OpenPikzels image generation and Jev scoring use your separately connected API credits.</p>
+            <div className="connection-actions">
+              <a className="neutral-button inline-link" href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Open Claude</a>
+              <a className="neutral-button inline-link" href="https://chatgpt.com/codex" target="_blank" rel="noopener noreferrer">Open Codex</a>
+              <button className="neutral-button" onClick={() => void action(async () => { await navigator.clipboard.writeText(config?.mcpUrl || location.origin + "/mcp"); setNotice("MCP URL copied. Add it in your agent’s MCP connections and approve access."); })}>Copy agent connection URL</button>
+            </div>
+            <details><summary>About direct subscription sign-in</summary><p>Hosted ChatGPT plan usage needs an approved OpenAI client. Claude subscription sign-in must stay inside Claude’s own applications. OpenPikzels never asks you to paste a subscription token. You can use the MCP connection below today, or connect an API key.</p></details>
           </section>
           <section className="account-panel">
             <h2>Connect your agent</h2>

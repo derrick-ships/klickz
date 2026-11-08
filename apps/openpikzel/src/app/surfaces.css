@@ -326,3 +326,9 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
   .app-shell button > svg { transition: none !important; }
   .app-shell button:active:not(:disabled) > svg { transform: none !important; }
 }
+
+.connection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block: var(--space-4); }
+.connection-actions > a, .connection-actions > button { min-height: 44px; }
+.account-panel details { margin-top: var(--space-4); overflow-wrap: anywhere; }
+.account-panel summary { cursor: pointer; padding-block: var(--space-3); }
+.account-panel details p, .account-panel details ul { margin-top: var(--space-3); }

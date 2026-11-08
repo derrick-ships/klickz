@@ -107,15 +107,18 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
         jev: true,
         google: false,
         secureConnections: true,
+        higgsfield: true,
         mcpUrl: "https://openpikzels.com/mcp",
         supabaseUrl: "https://test.supabase.co",
         supabaseKey: "sb_publishable_test",
       },
     }),
   );
-  let saved = false;
+  await page.route("**/api/connections/higgsfield", r => r.fulfill({ json: { connected: false } }));
+  let saved = false; let kept = false;
   await page.route("**/api/providers", (r) => {
     if (r.request().method() === "POST") {
+      if (!r.request().postDataJSON().key) { kept = true; return r.fulfill({ json: { kept: true, saved: false } }); }
       saved = true;
       return r.fulfill({ json: { saved: true } });
     }
@@ -150,6 +153,15 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
   await page.getByRole("button", { name: "Connect key", exact: true }).click();
   await expect(page.getByLabel("Your API key")).toHaveValue("");
   expect(saved).toBe(true);
+  await page.getByLabel("Provider", { exact: true }).selectOption("jev");
+  await expect(page.getByLabel("Your API key")).toHaveAttribute("placeholder", "Leave empty to keep current key");
+  await page.getByRole("button", { name: "Save connection", exact: true }).click();
+  await expect(page.getByText("Your saved key is unchanged.", { exact: true })).toBeVisible();
+  expect(kept).toBe(true);
+  await page.getByLabel("Your API key").fill("unsaved-secret-placeholder");
+  await page.getByLabel("Provider", { exact: true }).selectOption("google");
+  await expect(page.getByLabel("Your API key")).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Connect Higgsfield", exact: true })).toBeVisible();
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
     "test-key-placeholder",
   );
@@ -172,4 +184,40 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
     await page.screenshot({ path: `evidence/layout-connections-${width}.png`, fullPage: true });
   }
 
+  let externalConnected = false;
+  await page.route("**/api/connections/higgsfield", async route => {
+    if (route.request().method() === "POST") {
+      const input = route.request().postDataJSON();
+      expect(input.action).toBe("finish"); expect(input.code).toBe("synthetic-code"); expect(input.state).toBe(uid);
+      externalConnected = true;
+    } else if (route.request().method() === "DELETE") externalConnected = false;
+    await route.fulfill({ json: { connected: externalConnected } });
+  });
+  await page.route("**/api/connections/higgsfield?check=true", route => route.fulfill({ json: { tools: [{ name: "fixture_read_assets" }] } }));
+  await page.goto("/connect?code=synthetic-code&state=" + uid);
+  await expect(page.getByText("Higgsfield is connected.", { exact: true })).toBeVisible();
+  expect(new URL(page.url()).search).toBe("");
+  await page.getByRole("button", { name: "Check Higgsfield connection", exact: true }).click();
+  await page.getByText("Available Higgsfield tools (1)", { exact: true }).click();
+  await expect(page.getByText("fixture_read_assets", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Disconnect Higgsfield", exact: true }).click();
+  await expect(page.getByText("Higgsfield is not connected.", { exact: true })).toBeVisible();
+
+});
+
+test("email-code sign-in stays on the page and keeps password fallback", async ({ page }) => {
+ await page.route("**/api/config", route => route.fulfill({json:{cloud:true,ai:true,ownerGate:false,secureConnections:true,supabaseUrl:"https://test.supabase.co",supabaseKey:"sb_publishable_test",mcpUrl:"https://openpikzels.com/mcp"}}));
+ await page.route("https://test.supabase.co/auth/v1/otp**", route => route.fulfill({json:{}}));
+ await page.goto("/connect");
+ await page.getByLabel("Email",{exact:true}).fill("creator@example.com");
+ await page.getByRole("button",{name:"Email me a sign-in code",exact:true}).click();
+ await expect(page.getByLabel("Email sign-in code",{exact:true})).toBeFocused();
+ await expect(page.getByLabel("Password",{exact:true})).toHaveCount(0);
+ await expect(page.getByRole("button",{name:"Verify code",exact:true})).toBeVisible();
+ await page.getByRole("button",{name:"Use password instead",exact:true}).click();
+ await expect(page.getByLabel("Password",{exact:true})).toBeVisible();
+ await page.setViewportSize({width:390,height:844});
+ await page.getByRole("button",{name:"Email me a sign-in code",exact:true}).click();
+ await page.screenshot({path:"evidence/activation-email-code-390.png",fullPage:true});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

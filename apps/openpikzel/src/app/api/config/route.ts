@@ -30,6 +30,7 @@ export async function GET(request: Request) {
   return Response.json(
     {
       mcpUrl: mcpResource(),
+      higgsfield: process.env.HIGGSFIELD_ENABLED === "true",
       cloud: !!db,
       ownerGate: process.env.OWNER_GATE !== "false",
       ai: process.env.AI_ENABLED === "true",

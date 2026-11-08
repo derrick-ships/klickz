@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authenticated, failure } from "@/lib/server";
 import { seal, sameOrigin } from "@/lib/crypto";
 import { AppError } from "@/lib/validation";
+import { limitedJson } from "@/lib/oauth/http";
 export async function GET(request: Request) {
   try {
     const { db, user, oauth } = await authenticated(request);
@@ -28,9 +29,16 @@ export async function POST(request: Request) {
     const input = z
       .object({
         provider: z.enum(["openai", "jev", "google"]),
-        key: z.string().trim().min(12).max(12000),
+        key: z.string().trim().max(12000).default(""),
       })
-      .parse(await request.json());
+      .parse(await limitedJson(request, 16000));
+    if (!input.key) {
+      const existing = await db.from("studio_provider_keys").select("provider").eq("user_id", user.id).eq("provider", input.provider).maybeSingle();
+      if (existing.error) throw existing.error;
+      if (!existing.data) throw new AppError(400, "Paste a key to create this connection.");
+      return NextResponse.json({ saved: false, kept: true }, { headers: { "Cache-Control": "no-store" } });
+    }
+    if (input.key.length < 12 || /[\r\n]/.test(input.key)) throw new AppError(400, "Paste one complete API key without line breaks.");
     const result = await db.from("studio_provider_keys").upsert({
       user_id: user.id,
       provider: input.provider,
@@ -42,7 +50,7 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     });
     if (result.error) throw result.error;
-    return NextResponse.json({ saved: true });
+    return NextResponse.json({ saved: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return failure(e);
   }
