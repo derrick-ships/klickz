@@ -67,7 +67,7 @@ button:not(:disabled) {
 button:active:not(:disabled) {
   transform: none;
 }
-button:hover:not(:disabled) {
+button:hover:not(:disabled):not(.sidebar-scrim) {
   background-color: var(--color-hover);
 }
 a {

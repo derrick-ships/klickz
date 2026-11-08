@@ -5,7 +5,7 @@ test('mobile navigation keeps the artwork visible through blur and preserves the
  await page.setViewportSize({width:390,height:844});await page.goto('/');await page.locator('.brand-scene img').evaluate(i=>(i as HTMLImageElement).decode());const prompt=page.getByLabel('Prompt',{exact:true});await prompt.fill('Keep this direction visible beneath navigation');await prompt.blur();await page.evaluate(()=>window.scrollTo(0,0));
  const scene=(await page.locator('.brand-scene').boundingBox())!,clip={x:270,y:scene.y,width:100,height:scene.height},before=await redSignal(await page.screenshot({clip}));expect(before).toBeGreaterThan(500);
  await page.getByRole('button',{name:'Open sidebar',exact:true}).click();await expect(page.locator('.workspace-main')).toHaveAttribute('inert','');const after=await redSignal(await page.screenshot({clip}));expect(after).toBeGreaterThan(before*.55);
- const style=await page.locator('.sidebar-scrim').evaluate(e=>({blur:getComputedStyle(e).backdropFilter||(getComputedStyle(e) as any).webkitBackdropFilter}));expect(style.blur).toContain('blur');
+ await expect(page.locator('.workspace-main')).toHaveCSS('filter','blur(6px)');
  await page.screenshot({path:'evidence/navigation-blur-390.png'});await page.getByRole('button',{name:'Close sidebar',exact:true}).click();await expect(prompt).toHaveValue('Keep this direction visible beneath navigation');await expect(page.getByRole('button',{name:'Open sidebar',exact:true})).toBeFocused();
 });
 test('navigation can reverse during motion and stays instant with reduced motion and keyboard',async({page})=>{
@@ -22,4 +22,12 @@ test('image model picker uses supplied white logos and applies only supported ch
  await expect(dialog.getByRole('button',{name:'GPT Image 2.6 Flare',exact:true})).toHaveAttribute('aria-pressed','true');await expect(dialog.locator('img.provider-logo')).toHaveCount(4);
  await dialog.locator('img.provider-logo').evaluateAll(xs=>Promise.all(xs.map(i=>(i as HTMLImageElement).decode())));const filters=await dialog.locator('img.provider-logo').evaluateAll(xs=>xs.map(e=>getComputedStyle(e).filter));expect(filters.every(x=>x.includes('brightness(0)')&&x.includes('invert(1)'))).toBe(true);
  await expect(dialog).toHaveCSS('opacity','1');await page.screenshot({path:'evidence/model-picker-white-390.png'});await dialog.getByLabel('Search image models',{exact:true}).fill('Google');await expect(dialog.getByRole('button',{name:'GPT Image 2.6 Flare',exact:true})).toHaveCount(0);await dialog.getByRole('button',{name:'Gemini Pro',exact:true}).click();await expect(dialog).not.toBeVisible();await expect(page.getByRole('button',{name:'Rendering model',exact:true})).toHaveText('Gemini Pro');await expect(page.getByRole('button',{name:'Rendering model',exact:true})).toBeFocused();await expect(page.getByRole('button',{name:'Rendering model',exact:true})).toHaveAccessibleDescription('Gemini Pro');await page.getByRole('button',{name:'Open sidebar',exact:true}).click();const sidebarModel=page.getByRole('button',{name:'Image model',exact:true});await expect(sidebarModel).toHaveAccessibleDescription('Gemini Pro');await sidebarModel.click();await dialog.getByRole('button',{name:'GPT Image 2.6 Flare',exact:true}).click();await expect(sidebarModel).toHaveAccessibleDescription('Flare 2.6');await expect(sidebarModel).toBeFocused();
+});
+
+test('navigation backdrop stays transparent when hovered and touched',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await page.goto('/studio');await page.locator('.brand-scene img').evaluate(i=>(i as HTMLImageElement).decode());await page.getByRole('button',{name:'Open sidebar',exact:true}).click();
+ const scrim=page.locator('.sidebar-scrim');await scrim.hover({position:{x:380,y:300}});
+ await expect(scrim).toHaveCSS('background-color','rgba(5, 5, 7, 0.14)');
+ await page.screenshot({path:'evidence/navigation-hover-visible-390.png'});
+ await page.keyboard.press('Escape');await expect(page.locator('.workspace-main')).not.toHaveAttribute('inert','');
 });
