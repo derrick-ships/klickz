@@ -76,3 +76,5 @@ Run `npm run verify:release` for the production build, functional tests, isolate
 
 ## Continuous creative workspace
 See [the product workflow release](docs/product-workflows-release.md) for chats, reference-guided Personas/Styles, YouTube import requirements, comparison, feedback, validation and fidelity limits.
+
+Gesture improvements and installation status: [gesture release notes](docs/gestures-release.md).

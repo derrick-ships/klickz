@@ -1,0 +1,340 @@
+{
+  "date": "2026-11-08",
+  "baseline": "9fc8270846a667eb0adee0dec6f0f1f68eddd707",
+  "feature": "Direct image gestures and accessible revision navigation",
+  "skill": {
+    "source": "https://github.com/emilkowalski/skills",
+    "guidanceUsed": [
+      "gestures",
+      "mobile-native"
+    ],
+    "persistentCloudInstall": "blocked_read_only",
+    "installedElsewhere": false
+  },
+  "checks": {
+    "typecheck": "passed",
+    "unitApiDatabaseTests": 99,
+    "functionalBrowserTests": 45,
+    "performanceBrowserTests": 2,
+    "build": "passed; production webpack on authorized Mac",
+    "lighthouse": [
+      {
+        "profile": "mobile",
+        "pass": true,
+        "representative": {
+          "representative": true,
+          "lighthouseVersion": "13.6.0",
+          "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+          "scores": {
+            "performance": 0.99,
+            "accessibility": 1,
+            "best-practices": 0.96,
+            "seo": 1,
+            "agentic-browsing": 1
+          },
+          "lcp_ms": 2254.32195,
+          "tbt_ms": 6,
+          "cls": 0,
+          "resources": [
+            {
+              "resourceType": "total",
+              "label": "Total",
+              "requestCount": 10,
+              "transferSize": 190982
+            },
+            {
+              "resourceType": "script",
+              "label": "Script",
+              "requestCount": 6,
+              "transferSize": 163655
+            },
+            {
+              "resourceType": "stylesheet",
+              "label": "Stylesheet",
+              "requestCount": 1,
+              "transferSize": 15176
+            },
+            {
+              "resourceType": "document",
+              "label": "Document",
+              "requestCount": 1,
+              "transferSize": 6113
+            },
+            {
+              "resourceType": "image",
+              "label": "Image",
+              "requestCount": 1,
+              "transferSize": 5465
+            },
+            {
+              "resourceType": "other",
+              "label": "Other",
+              "requestCount": 1,
+              "transferSize": 573
+            },
+            {
+              "resourceType": "media",
+              "label": "Media",
+              "requestCount": 0,
+              "transferSize": 0
+            },
+            {
+              "resourceType": "font",
+              "label": "Font",
+              "requestCount": 0,
+              "transferSize": 0
+            },
+            {
+              "resourceType": "third-party",
+              "label": "Third-party",
+              "requestCount": 0,
+              "transferSize": 0
+            }
+          ]
+        }
+      },
+      {
+        "profile": "desktop",
+        "pass": true,
+        "representative": {
+          "representative": true,
+          "lighthouseVersion": "13.6.0",
+          "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+          "scores": {
+            "performance": 1,
+            "accessibility": 1,
+            "best-practices": 0.96,
+            "seo": 1,
+            "agentic-browsing": 1
+          },
+          "lcp_ms": 526.0978,
+          "tbt_ms": 0,
+          "cls": 0,
+          "resources": [
+            {
+              "resourceType": "total",
+              "label": "Total",
+              "requestCount": 11,
+              "transferSize": 213157
+            },
+            {
+              "resourceType": "script",
+              "label": "Script",
+              "requestCount": 6,
+              "transferSize": 163655
+            },
+            {
+              "resourceType": "media",
+              "label": "Media",
+              "requestCount": 1,
+              "transferSize": 19195
+            },
+            {
+              "resourceType": "stylesheet",
+              "label": "Stylesheet",
+              "requestCount": 1,
+              "transferSize": 15176
+            },
+            {
+              "resourceType": "image",
+              "label": "Image",
+              "requestCount": 1,
+              "transferSize": 8445
+            },
+            {
+              "resourceType": "document",
+              "label": "Document",
+              "requestCount": 1,
+              "transferSize": 6113
+            },
+            {
+              "resourceType": "other",
+              "label": "Other",
+              "requestCount": 1,
+              "transferSize": 573
+            },
+            {
+              "resourceType": "font",
+              "label": "Font",
+              "requestCount": 0,
+              "transferSize": 0
+            },
+            {
+              "resourceType": "third-party",
+              "label": "Third-party",
+              "requestCount": 0,
+              "transferSize": 0
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "lab": {
+    "method": {
+      "build": "production",
+      "browser": "Chromium",
+      "viewport": "390x844",
+      "cpuSlowdown": 4,
+      "latencyMS": 150,
+      "downloadMbps": 1.6,
+      "uploadMbps": 0.75,
+      "runs": 3,
+      "note": "scripted lab samples, not real-user p75 or a production SLA"
+    },
+    "samples": [
+      {
+        "script_bytes": 160713,
+        "css_bytes": 14706,
+        "image_bytes": 5098,
+        "total_bytes": 186286,
+        "third_party": 0,
+        "lcp_ms": 888,
+        "cls": 0.0010047692849067481,
+        "inp_sample_ms": 40,
+        "feedback_max_ms": 29
+      },
+      {
+        "script_bytes": 160713,
+        "css_bytes": 14706,
+        "image_bytes": 5098,
+        "total_bytes": 186277,
+        "third_party": 0,
+        "lcp_ms": 1016,
+        "cls": 0.0010047692849067481,
+        "inp_sample_ms": 40,
+        "feedback_max_ms": 22
+      },
+      {
+        "script_bytes": 160713,
+        "css_bytes": 14706,
+        "image_bytes": 5098,
+        "total_bytes": 186277,
+        "third_party": 0,
+        "lcp_ms": 1020,
+        "cls": 0.0010047692849067481,
+        "inp_sample_ms": 32,
+        "feedback_max_ms": 24.30000001192093
+      }
+    ]
+  },
+  "reviewPerformance": {
+    "method": "Local production Review Studio with explicit scored fixture; Chromium CPU4x; five preview toggles per viewport. RAF samples are not physical-device FPS, field p75 or INP.",
+    "profiles": [
+      {
+        "width": 390,
+        "feedback_ms": [
+          36.60000002384186,
+          20.19999998807907,
+          18.30000001192093,
+          25.100000023841858,
+          40.60000002384186
+        ],
+        "frameIntervals": [
+          16.700000000000045,
+          26.69999999999999,
+          8.599999999999966,
+          15.600000000000023,
+          7.5,
+          27.19999999999999,
+          16.600000000000023,
+          11.800000000000011,
+          15,
+          9.099999999999966,
+          13.900000000000034,
+          9.599999999999966,
+          10.800000000000011,
+          10.600000000000023,
+          8,
+          26.699999999999932,
+          17.100000000000023,
+          9.899999999999977,
+          16.90000000000009,
+          8.699999999999932,
+          15.5,
+          6.600000000000023,
+          27.100000000000023,
+          15.699999999999932
+        ],
+        "longTaskSupported": true,
+        "longTasks": [],
+        "delta": {
+          "LayoutCount": 11,
+          "RecalcStyleCount": 32,
+          "ScriptDuration": 0.015544,
+          "TaskDuration": 0.09470600000000001
+        }
+      },
+      {
+        "width": 1440,
+        "feedback_ms": [
+          33.30000001192093,
+          15.600000023841858,
+          21.19999998807907,
+          23.19999998807907,
+          41.89999997615814
+        ],
+        "frameIntervals": [
+          26.30000000000001,
+          28.599999999999966,
+          25.80000000000001,
+          12.300000000000011,
+          9.899999999999977,
+          12.700000000000045,
+          8.899999999999977,
+          10.100000000000023,
+          9.5,
+          11.799999999999955,
+          8.300000000000011,
+          27.100000000000023,
+          16.69999999999999,
+          10.100000000000023,
+          16.299999999999955,
+          7.600000000000023,
+          27.100000000000023,
+          16.699999999999932,
+          11.800000000000068,
+          15,
+          9.299999999999955,
+          15.300000000000068,
+          8,
+          27.09999999999991,
+          16.700000000000045
+        ],
+        "longTaskSupported": true,
+        "longTasks": [],
+        "delta": {
+          "LayoutCount": 11,
+          "RecalcStyleCount": 32,
+          "ScriptDuration": 0.014523,
+          "TaskDuration": 0.091369
+        }
+      }
+    ]
+  },
+  "review": {
+    "critical": 0,
+    "important": 3,
+    "fixed": [
+      "continuous edge tracking and reversal",
+      "reset captures/gesture state on source and geometry changes",
+      "comparison touch intent/cancellation rollback"
+    ],
+    "regressions": "observed failing, then passing"
+  },
+  "touch": {
+    "method": "Chromium CDP Input.dispatchTouchEvent plus pointer/keyboard tests",
+    "physicalPhone": false
+  },
+  "sourceChangeRegression": "real component rendered in an isolated browser harness; public example image data only",
+  "noPaidCalls": true,
+  "noDatabaseChanges": true,
+  "noNewDependencies": true,
+  "visualReview": [
+    "320px fit inspector",
+    "390px touch zoomed inspector",
+    "desktop zoom and pan",
+    "390px revision strip"
+  ],
+  "productionSmoke": "checked after deployment and reported in completion email"
+}
