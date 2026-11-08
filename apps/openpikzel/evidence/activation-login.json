@@ -1,0 +1,23 @@
+{
+  "origin": "https://openpikzels.com",
+  "path": "/connect",
+  "dateLocal": "2026-11-07",
+  "timezone": "America/Bogota",
+  "emailLimit": {
+    "userReported": 30,
+    "numericSettingIndependentlyRead": false
+  },
+  "emailDeliveryVerified": true,
+  "firstCodeResult": "otp_expired",
+  "newCodeRequestedByUser": true,
+  "secureCredentialRequest": "submitted",
+  "authenticatedPageSignals": [
+    "Connect an API provider",
+    "Connected agents",
+    "Sign out"
+  ],
+  "authenticatedSignInVerified": true,
+  "providerConnectionsVerified": false,
+  "paidProviderSmokeRun": false,
+  "credentialsLogged": false
+}

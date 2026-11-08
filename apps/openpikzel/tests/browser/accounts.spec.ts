@@ -221,3 +221,17 @@ test("email-code sign-in stays on the page and keeps password fallback", async (
  await page.screenshot({path:"evidence/activation-email-code-390.png",fullPage:true});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+
+test("email limits preserve access to an already received code", async ({ page }) => {
+ await page.route("**/api/config", route => route.fulfill({json:{cloud:true,ai:true,ownerGate:false,secureConnections:true,supabaseUrl:"https://test.supabase.co",supabaseKey:"sb_publishable_test",mcpUrl:"https://openpikzels.com/mcp"}}));
+ let emails=0;
+ await page.route("https://test.supabase.co/auth/v1/otp**", route => { emails++; return route.fulfill({status:429,json:{code:"over_email_send_rate_limit",msg:"email rate limit exceeded"}}); });
+ await page.goto("/connect"); await page.getByLabel("Email",{exact:true}).fill("creator@example.com");
+ await page.getByRole("button",{name:"I already have a code",exact:true}).click();
+ await expect(page.getByLabel("Email sign-in code",{exact:true})).toBeFocused(); expect(emails).toBe(0);
+ await page.getByRole("button",{name:"Use password instead",exact:true}).click();
+ await page.getByRole("button",{name:"Email me a sign-in code",exact:true}).click();
+ await expect(page.getByRole("status").filter({ hasText: "email limit has been reached" })).toBeVisible();
+ await expect(page.getByLabel("Email sign-in code",{exact:true})).toBeFocused(); expect(emails).toBe(1);
+});

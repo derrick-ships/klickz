@@ -36,3 +36,9 @@ Two Supabase connector confirmations expired without execution. The user explici
 Automatic review rejected revealing/exporting all project API keys as broader than needed; that command did not execute and was not repeated. A safer normal email-sign-in path was used instead. Automatic review also rejected embedding one-time email codes in command arguments because they would enter the transcript; no code verification ran. That path was stopped. Secure browser authentication is the permitted remaining live sign-in path; no command/code workaround is included. Secrets are omitted throughout these reports.
 
 Live authenticated provider responses, full real-account Allow/refresh/revoke and actual Higgsfield account consent remain to be verified after deployment and secure sign-in. Source/fixtures are not represented as successful live provider tests. Vendor approval remains a separate prerequisite for any direct hosted ChatGPT-plan integration; Claude subscription-token collection is not offered.
+
+## Live email-code follow-up
+
+Derrick reported changing the project email limit to 30/hour. Fresh email delivery to the matching Gmail account succeeded. The first code failed with otp_expired. After Derrick requested a new code, private browser verification succeeded and the production Connections page displayed authenticated provider management, connected grants, and Sign out. No codes or session tokens were read from the browser or stored in evidence. See evidence/activation-login.json. Real provider key saving, paid generation, and Higgsfield consent remain separate checks.
+
+The post-login recovery release passed npm run verify:release: 77 automated cases, 27 browser cases, build/TypeScript, performance lab/review, and three Lighthouse runs for each device profile. These checks use fixtures for provider requests and do not spend provider credits.

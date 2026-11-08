@@ -152,13 +152,27 @@ export function AccountSignIn({
           ? "Already have an account? Sign in"
           : "New here? Create an account"}
       </button>
+      {!emailSent && <button type="button" className="neutral-button" disabled={busy} onClick={event => {
+        const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
+        if (!input?.reportValidity()) return;
+        setPassword(""); setEmailSent(true); setStatus("Enter the code from your latest sign-in email. This does not send another email.");
+        requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
+      }}>I already have a code</button>}
       {<button type="button" className="neutral-button" disabled={busy} onClick={async (event) => {
         const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
         if (!input?.reportValidity()) return;
         setBusy(true); setStatus(""); setPassword("");
         try {
           const result = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + "/connect" } });
-          if (result.error) throw new Error("Could not send the sign-in email. Try password sign-in or contact support.");
+          if (result.error) {
+            if (result.error.status === 429) {
+              setEmailSent(true);
+              requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
+              setStatus("The sign-in email limit has been reached. If you already received a code, enter it here. Otherwise wait before requesting another email.");
+              return;
+            }
+            throw new Error("Could not send the sign-in email. If you already received a code, choose I already have a code. Otherwise try again later.");
+          }
           setEmailSent(true);
           requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
           setStatus(showEmailLinkHint ? "Check your email for the sign-in code, then enter it here. You can also use the one-time link in that email." : "Enter the code from your email here to finish connecting this agent. The email link opens the main studio separately.");

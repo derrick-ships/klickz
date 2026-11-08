@@ -1,0 +1,37 @@
+{
+  "origin": "https://openpikzels.com",
+  "runtimeSource": "2658bfbf4f7967f610473813c92133241e5eaef8",
+  "config": {
+    "ai": true,
+    "secureConnections": true,
+    "ownerGate": false,
+    "higgsfield": true,
+    "mcpUrl": "https://openpikzels.com/mcp",
+    "openai": false,
+    "jev": false,
+    "google": false
+  },
+  "higgsfieldClient": {
+    "status": 200,
+    "clientIdMatches": true,
+    "redirectMatches": true
+  },
+  "registrationStatus": 201,
+  "consentPage": {
+    "status": 200,
+    "brandingVisible": true,
+    "canonicalPath": "/oauth/consent"
+  },
+  "deny": {
+    "status": 200,
+    "statePreserved": true,
+    "accessDenied": true
+  },
+  "/api/providers": {
+    "status": 401
+  },
+  "/api/connections/higgsfield": {
+    "status": 401
+  },
+  "pass": true
+}
