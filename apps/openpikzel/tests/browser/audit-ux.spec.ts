@@ -8,6 +8,7 @@ test("composer is the sole settings home with provider-aware identity and honest
  const info=page.locator("#request-readiness");await expect(info).toContainText("OpenAI · Flare 2.6 · gpt-image-2.6-flare");await expect(info).toContainText("Sign in and connect");await expect(info).toContainText("Cost cannot be estimated reliably");
  await model.click();await page.getByRole("button",{name:"Gemini Pro",exact:true}).click();await expect(info).toContainText("Google · Gemini Pro · gemini-3-pro-image");
  await page.getByLabel("Batch size",{exact:true}).selectOption("4");await page.getByLabel("Format",{exact:true}).selectOption("short");await expect(info).toContainText("4 images · 9:16");
+ for(const width of [320,390,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);if(width===320)expect((await page.getByLabel("Format",{exact:true}).boundingBox())!.width).toBeGreaterThan(140);}
  const prompt=page.getByLabel("Prompt",{exact:true});await prompt.fill("Keep this unsent direction");await page.getByRole("tab",{name:"Title",exact:true}).click();await page.getByRole("tab",{name:"Prompt",exact:true}).click();await expect(prompt).toHaveValue("Keep this unsent direction");
  await expect(prompt).toHaveCSS("font-size","16px");await page.screenshot({path:"evidence/audit-readiness-1440.png",fullPage:true});
 });

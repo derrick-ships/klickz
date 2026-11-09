@@ -277,7 +277,7 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
 }
 @media (max-width: 380px) {
   .settings-row { grid-template-columns: minmax(0, 1fr) 44px; }
-  .settings-row > label:first-child { grid-column: 1 / -1; }
+  .settings-row > .model-trigger { grid-column: 1 / -1; }
 }
 
 /* Delight: a completed draft locks four brand pixels into one finished tile.
