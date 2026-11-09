@@ -11,12 +11,19 @@ test("review puts the real image first, with a neighboring inspector and an actu
   await expect(stage.getByText("Not assessed", { exact: true })).toHaveCount(2);
   for (const name of ["Virality score", "Clarity score", "Emotion score"])
     await expect(stage.getByRole("progressbar", { name, exact: true })).toBeVisible();
-  for (const width of [320, 375, 390, 768, 1024, 1280, 1440, 1920]) {
+  for (const width of [320, 375, 390, 768, 1024, 1100, 1280, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
     await stage.scrollIntoViewIfNeeded();
     const image = await stage.locator(".review-canvas").boundingBox(), inspector = await stage.getByRole("complementary", { name: "Scoring inspector" }).boundingBox();
-    if (width >= 1100) expect(inspector!.x).toBeGreaterThan(image!.x + image!.width);
-    else expect(inspector!.y).toBeGreaterThanOrEqual(image!.y + image!.height);
+    // Available canvas width, not viewport width: the sidebar appears above 1024px.
+    const available = (await stage.boundingBox())!.width;
+    if (available >= 960) {
+      expect(inspector!.x).toBeGreaterThan(image!.x + image!.width);
+      expect(inspector!.width).toBeGreaterThanOrEqual(280);
+    } else expect(inspector!.y).toBeGreaterThanOrEqual(image!.y + image!.height);
+    const renderedImage = await stage.locator(".result-image").boundingBox();
+    expect(renderedImage!.width).toBeGreaterThanOrEqual(Math.min(500, available - 32));
+    if (width === 1100) expect(image!.width).toBeGreaterThan(600);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `evidence/review-studio-${width}.png`, fullPage: true });

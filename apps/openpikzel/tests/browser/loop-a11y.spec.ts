@@ -10,7 +10,7 @@ test("LOOP provisional automated accessibility matrix",async({page})=>{
   const result=await page.evaluate(async()=>{const r=await (window as any).axe.run(document,{runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21aa","wcag22aa"]}});return {violations:r.violations.map((v:any)=>({id:v.id,impact:v.impact,description:v.description,nodes:v.nodes.map((n:any)=>({target:n.target,summary:n.failureSummary}))})),incomplete:r.incomplete.map((v:any)=>({id:v.id,nodes:v.nodes.map((n:any)=>({target:n.target,summary:n.failureSummary}))})),passes:r.passes.length};});
   reports.push({state,width:page.viewportSize()!.width,...result});
  }
- for(const width of [320,390,768,1100,1440]){
+ for(const width of [320,390,768,1024,1100,1440,1920]){
   await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});
   await page.goto("/welcome");await scan("welcome ready");expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.goto("/studio");await expect(page.getByLabel("Prompt",{exact:true})).toBeVisible();await scan("studio blank");expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

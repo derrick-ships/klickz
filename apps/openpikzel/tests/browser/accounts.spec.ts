@@ -195,6 +195,15 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
   await page.screenshot({path:"evidence/loop-v2-provider-guide-mobile.png"});
   await page.locator(".provider-key-guide summary").click();
 
+  const browser = page.context().browser()!.browserType().name();
+  for (const width of [320, 390]) {
+    await page.setViewportSize({width, height:844});
+    await page.getByRole("button", {name:"Connect key", exact:true}).scrollIntoViewIfNeeded();
+    await expect(page.getByLabel("Your API key")).toBeVisible();
+    await expect(page.locator("#provider-key-help")).toBeVisible();
+    await expect(page.getByRole("button", {name:"Connect key", exact:true})).toBeVisible();
+    await page.screenshot({path:"evidence/loop-v2-key-entry-"+browser+"-"+width+".png"});
+  }
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
