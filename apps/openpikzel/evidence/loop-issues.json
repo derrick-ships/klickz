@@ -1,0 +1,99 @@
+{
+  "round": 1,
+  "status": "provisional; exact LOOP v2 protocol unavailable",
+  "issues": [
+    {
+      "id": "POWER-01",
+      "priority": "P1",
+      "problem": "Delayed raw API results could restore previous-account title or comparison content.",
+      "resolution": "Owner-epoch checks before dispatch and after responses; transient comparison state cleared on account changes.",
+      "verification": "workspace-races: stale titles A-to-B and A-to-B-to-A; comparison across account switch passed.",
+      "status": "fixed-local-fixture-verified"
+    },
+    {
+      "id": "POWER-02",
+      "priority": "P1",
+      "problem": "Typing during slow chat navigation could be lost after the captured save.",
+      "resolution": "Temporarily disable composer fields and modes during chat navigation; preserve free typing during generation.",
+      "verification": "workspace-races: slow navigation locks/restores composer; concurrent generation retains writing.",
+      "status": "fixed-local-fixture-verified"
+    },
+    {
+      "id": "SAVE-01",
+      "priority": "P1",
+      "problem": "An older explicit save could reselect the previous source after the user chose another.",
+      "resolution": "Only select saved draft if its fingerprint still matches; persist the current draft otherwise.",
+      "verification": "workspace-races: delayed creation save and source change survives reload.",
+      "status": "fixed-local-fixture-verified"
+    },
+    {
+      "id": "CP-01",
+      "priority": "P1",
+      "problem": "Access options could imply ChatGPT connection alone generates studio images.",
+      "resolution": "Name current models/usage capability and explicitly require API access for studio images at entry and connection screen.",
+      "status": "implemented and browser fixture verified"
+    },
+    {
+      "id": "NEW-01/02/04",
+      "priority": "P2",
+      "problem": "Draft action weak, recovery copy mismatched setup state, failed email code cleared and error distant.",
+      "resolution": "Visible Save draft, readiness-specific guidance, nearby associated error and preserved retry code.",
+      "status": "implemented and targeted fixture tests passed"
+    },
+    {
+      "id": "CONTRAST-01",
+      "priority": "P2",
+      "problem": "Inset red focus ring against red generation/batch surface below 3:1.",
+      "resolution": "Light inset ring; modeled minimum 4.508:1 including hover.",
+      "status": "fixed; color calculation plus rendered desktop/mobile keyboard focus verified"
+    },
+    {
+      "id": "DESIGN-01/02",
+      "priority": "P2",
+      "problem": "Mobile editing density and intermediate-width image/analysis continuity have tradeoffs.",
+      "resolution": "Keep selected review studio and image size; no untested structural redesign.",
+      "status": "remaining usability opportunity"
+    },
+    {
+      "id": "CP-03/DESIGN-04",
+      "priority": "P2",
+      "problem": "Entry has limited authentic product-output proof.",
+      "resolution": "No invented output or performance claims. A real approved walkthrough remains needed.",
+      "status": "open"
+    },
+    {
+      "id": "WEBKIT-LOCAL",
+      "priority": "P1",
+      "problem": "Earlier WebKit local image upload fixture failed before the review appeared.",
+      "resolution": "Persist byte-backed assets, retain reads of legacy Blob records. WebKit upload/reload/PNG export and review now pass; legacy Blob reads separately tested in Chromium.",
+      "status": "fixed-local-browser-verified"
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Exact LOOP v2",
+      "status": "blocked",
+      "reason": "Full original protocol/schema/roles unavailable; retrieval unavailable; requested exact text."
+    },
+    {
+      "gate": "Independent blind ChatGPT review",
+      "status": "denied",
+      "reason": "Browser approval declined chatgpt.com. No alternate access, prompt, rating or price."
+    },
+    {
+      "gate": "Production browser verification",
+      "status": "denied",
+      "reason": "Browser approval declined openpikzels.com/studio. No alternate access."
+    },
+    {
+      "gate": "Actual screen reader",
+      "status": "incomplete",
+      "reason": "VoiceOver automation timed out before any speech returned; restored prior off state."
+    },
+    {
+      "gate": "Complete contrast and state coverage",
+      "status": "incomplete",
+      "reason": "Only bounded source calculations and 17 automated fixture states; artwork and untested transitions remain."
+    }
+  ]
+}

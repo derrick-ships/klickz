@@ -1,0 +1,164 @@
+{
+  "lens": "UX/UI designer — bounded contrast follow-up",
+  "method": {
+    "access": "Read-only Desktop Commander source inspection on the authorized Mac; no browser, network, paid calls, edits, or deployment.",
+    "calculation": "WCAG relative-luminance contrast using sRGB transfer functions. Alpha overlays were composited before luminance calculation. Red gradients were checked at endpoints and 1,001 interpolation samples.",
+    "thresholds": "4.5:1 for normal-size text; 3:1 for relevant non-text indicators and input boundaries.",
+    "limitations": "Calculations establish the listed foreground/background relationships. They do not establish complete conformance, rendered focus geometry, browser-native select-popup appearance, transient animation frames, or all pixels beneath artwork."
+  },
+  "inspected_scope": {
+    "source": [
+      "src/app/tokens.css",
+      "src/app/globals.css:30-74, 310-320, 429-543, 588-635, 1964-1981, 2051-2128",
+      "src/app/surfaces.css:1-220 and final focus override",
+      "src/app/review.css:72-75",
+      "src/app/creative.css model-trigger and timeline styles",
+      "src/app/welcome.css",
+      "src/app/layout.tsx stylesheet import order",
+      "src/components/studio.tsx batch-size markup",
+      "src/components/welcome.tsx"
+    ],
+    "controls": [
+      "Welcome primary links, access links, focus outline, plain-background typography",
+      "Studio mode tabs, tool chips, prompt placeholder, settings selectors, Generate/batch controls, external focus outlines",
+      "Connection input text/boundaries, labels, explanatory text, primary button and external focus outline"
+    ]
+  },
+  "findings": [
+    {
+      "id": "CONTRAST-01",
+      "severity": "medium",
+      "status": "Source fix confirmed; rendered keyboard verification remains with root.",
+      "evidence": "The original global focus color #ff868d was inset into the red generation surface by surfaces.css:121 (-5px) and surfaces.css:124 (-2px for batch size). The batch select is transparent. Root added a final override setting both focus outlines to --color-accent-ink (#fff9f9), which was read back from source.",
+      "before": {
+        "normal_red_gradient": "2.126:1–2.813:1",
+        "generate_hover_with_white_12_over_255_overlay": "2.022:1–2.653:1"
+      },
+      "after": {
+        "normal_red_gradient": "4.739:1–6.272:1",
+        "generate_hover_with_white_12_over_255_overlay": "4.508:1–5.915:1"
+      },
+      "impact": "The previous inset ring was insufficiently distinct from the red fill. The new light ring exceeds 3:1 throughout the modeled red gradient, including the Generate hover overlay.",
+      "recommendation": "Retain the source fix and verify keyboard focus separately on Generate and Batch size. Confirm neither ring is clipped or obscured. Active state has no additional background change in the inspected rules, so its modeled colors match normal or hover.",
+      "confidence": "High for source colors and calculated relationships; rendered geometry unverified."
+    }
+  ],
+  "calculated_checks": [
+    {
+      "target": "Welcome primary text",
+      "foreground": "#fafafa",
+      "background": "Normal #d62930; hover #ce242b",
+      "minimum_ratio": 4.769,
+      "hover_ratio": 5.144,
+      "result": "Passes 4.5:1. Active changes position only; focus does not alter text/fill."
+    },
+    {
+      "target": "Welcome focus on plain dark section",
+      "foreground": "#ff686b",
+      "background": "#09090b",
+      "minimum_ratio": 7.053,
+      "result": "Passes 3:1. Hero artwork-adjacent outline pixels were not established by this calculation."
+    },
+    {
+      "target": "Welcome red headline on plain dark background",
+      "foreground": "#ff383b",
+      "background": "#09090b",
+      "minimum_ratio": 5.571,
+      "result": "Passes large-text threshold for this pair; exact headline preserved."
+    },
+    {
+      "target": "Studio/connection red primary labels and selected-mode labels",
+      "foreground": "#fff9f9",
+      "background": "#d92436 to #ba1426",
+      "minimum_ratio": 4.739,
+      "result": "Passes 4.5:1 across modeled gradient."
+    },
+    {
+      "target": "Generate label on hover",
+      "foreground": "#fff9f9",
+      "background": "#ffffff0c over red gradient",
+      "minimum_ratio": 4.508,
+      "result": "Passes 4.5:1 narrowly. Avoid brightening this hover overlay without recalculating."
+    },
+    {
+      "target": "Connection primary-button hover",
+      "foreground": "#fff9f9",
+      "background": "#c91928",
+      "minimum_ratio": 5.521,
+      "result": "Passes 4.5:1."
+    },
+    {
+      "target": "Inactive mode text",
+      "foreground": "#c6c6ca",
+      "background": "Brightest gradient endpoint #202021",
+      "minimum_ratio": 9.56,
+      "result": "Passes 4.5:1. Hover foreground becomes brighter."
+    },
+    {
+      "target": "Tool-chip text",
+      "foreground": "#b3b3b3",
+      "background": "Brightest gradient endpoint #202021",
+      "minimum_ratio": 7.764,
+      "result": "Passes 4.5:1."
+    },
+    {
+      "target": "Dim control text on generic hover",
+      "foreground": "#999999",
+      "background": "#2a2a2a",
+      "minimum_ratio": 5.038,
+      "result": "Passes 4.5:1."
+    },
+    {
+      "target": "Prompt placeholder",
+      "foreground": "#a2a2aa",
+      "background": "Brightest composer endpoint #181819",
+      "minimum_ratio": 7.0,
+      "result": "Passes 4.5:1."
+    },
+    {
+      "target": "Settings selector boundary",
+      "foreground": "#68686b",
+      "background": "Inner #161617; outer composer endpoint #181819",
+      "minimum_ratio": 3.195,
+      "result": "Passes 3:1 for both modeled adjacent surfaces."
+    },
+    {
+      "target": "Connection input boundary and entered text",
+      "foreground": "Boundary #68686b; text #fafafa",
+      "background": "Input fill #101011",
+      "boundary_ratio": 3.424,
+      "text_ratio": 18.22,
+      "result": "Passes relevant thresholds against the inner input fill."
+    },
+    {
+      "target": "Connection explanatory text inside panel",
+      "foreground": "#bcbcbc",
+      "background": "Brightest panel endpoint #1b1b1d",
+      "minimum_ratio": 9.055,
+      "result": "Passes 4.5:1."
+    },
+    {
+      "target": "Text and focus over workspace/account dot field",
+      "background": "Maximum dot opacity: #ffffff17 composited over #101010 gives RGB approximately 37.557,37.557,37.557; mask can only reduce it.",
+      "dim_text_ratio": 5.342,
+      "account_body_ratio": 8.014,
+      "account_label_ratio": 13.838,
+      "focus_ratio": 6.557,
+      "result": "Passes relevant thresholds even at the maximum modeled dot brightness."
+    },
+    {
+      "target": "Standard external focus outline against brightest inspected generic hover surface",
+      "foreground": "#ff868d",
+      "background": "#2a2a2a",
+      "minimum_ratio": 6.183,
+      "result": "Passes 3:1."
+    }
+  ],
+  "untested": [
+    "Pixel-level contrast where welcome hero text or focus outlines intersect image/video artwork and multiple masks.",
+    "Exact rasterization and spatial extent of inset highlights/shadows; the computed red bounds concern the gradient and full hover overlay beneath labels/rings.",
+    "Native select popup states, disabled controls, forced-colors mode, and all transient animation frames.",
+    "Full-page contrast conformance; unresolved axe gradient results must not be converted into automatic passes."
+  ],
+  "verdict": "One concrete source-level contrast defect was found in inset generation/batch focus rings and is now corrected in source. The modeled before/after contrast confirms the color fix. No additional actual normal-text contrast failure was established within the explicitly inspected scope."
+}

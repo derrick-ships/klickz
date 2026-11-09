@@ -1,0 +1,52 @@
+{
+  "kind": "local controlled lab; not field p75",
+  "samples": 3,
+  "metrics": {
+    "lcp_ms": {
+      "measured": 1228,
+      "limit": 2500,
+      "pass": true
+    },
+    "cls": {
+      "measured": 0.001,
+      "limit": 0.1,
+      "pass": true
+    },
+    "inp_sample_ms": {
+      "measured": 32,
+      "limit": 200,
+      "pass": true
+    },
+    "feedback_max_ms": {
+      "measured": 23.8,
+      "limit": 100,
+      "pass": true
+    },
+    "script_bytes": {
+      "measured": 183016,
+      "limit": 300000,
+      "pass": true
+    },
+    "css_bytes": {
+      "measured": 18296,
+      "limit": 100000,
+      "pass": true
+    },
+    "image_bytes": {
+      "measured": 5918,
+      "limit": 500000,
+      "pass": true
+    },
+    "total_bytes": {
+      "measured": 213329,
+      "limit": 1500000,
+      "pass": true
+    },
+    "third_party": {
+      "measured": 0,
+      "limit": 0,
+      "pass": true
+    }
+  },
+  "pass": true
+}

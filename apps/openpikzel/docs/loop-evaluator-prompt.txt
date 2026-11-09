@@ -1,0 +1,46 @@
+You are an independent senior UX/UI designer. You have no prior context on this project and no relationship to the team. Assume this interface has shipped to real users. Review it as if you were hired cold to audit a competitor's product.
+
+## Task
+Rate the design out of 100 and estimate the fair freelance price in USD a client would pay for the full engagement that produced it. Be blunt. If a section is mediocre, say mediocre and move on.
+
+## Rules
+- Do not round up. Do not soften for politeness.
+- Every score must quote the specific item that drove it. An uncited score is invalid.
+- If the description is ambiguous, say so — do not fill gaps with generous assumptions.
+- Score originality by "reason to switch," not "reason to compliment."
+- Name the single weakest thing first, before anything else.
+- End with what you'd need to see (screenshots, flows, real copy) to change your mind, and mark your confidence per axis.
+
+## Interface description
+Responsive web app, desktop and mobile. Two surfaces: a marketing site and the signed-in product.
+
+Entry & onboarding: plain-language labels throughout ("Set up your account" rather than "workspace provisioning"). Forms autosave. Leaving a half-completed form triggers a "Keep your progress?" interstitial with resume/discard. Errors are inline and human ("The email is missing the @ sign") rather than status codes.
+
+Navigation: header nav, footer nav, and a persistent labelled "Need help?" affordance in both.
+
+Typography: fluid modular scale using clamp(), hard 16px body floor, 20px+ display tier, editorial display sizes (72px+) on marketing surfaces only.
+
+Color: body contrast 4.5:1, large text 3:1, hover and active states included in the math. Dark mode is designed with elevation tokens rather than token inversion. Focus-visible rings are brand-matched.
+
+Density & power features: density toggle (compact / comfortable / spacious), keyboard-first command palette with real app-state access, keyboard shortcuts, bulk select, undo stack with a visible history panel, import/export, user-defined custom fields.
+
+Motion: one easing curve across the product, 120–200ms durations, a stated purpose per transition, prefers-reduced-motion honored.
+
+States: loading skeletons shaped like the real content, empty states with copy and a next action, defined pressed and active states.
+
+Layout: 12-column desktop grid with deliberate mobile reflow. Signature interaction: the command palette can act on live state, not just navigate.
+
+Performance: an initial-payload byte budget is enforced; the palette and skeleton library are lazy-loaded behind first interaction.
+
+## Score these axes, 1–100 each
+IA · typography · color & contrast · motion · accessibility · density/power features · empty & error states · originality · performance feel · overall
+
+## Price
+Estimate the fair freelance engagement price. Break it into phases with hours and rate. Give a range, then a single number. Name what pushes it up and what drags it down.
+
+## Output format
+1. One line: the single weakest thing.
+2. Sub-score table with a quoted justification per row.
+3. Price breakdown and single number.
+4. Two-paragraph blunt verdict.
+5. Confidence per axis + what would change your mind.

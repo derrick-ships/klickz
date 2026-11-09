@@ -1,0 +1,12 @@
+[WebServer] ⚠ Warning: Next.js ignored package-lock.json in <user-home> because it would include your home directory (<user-home>).
+[WebServer]  To use this directory, set `outputFileTracingRoot` in your Next.js config.
+[WebServer] 
+
+Running 2 tests using 1 worker
+
+{"method":{"build":"production","browser":"Chromium","viewport":"390x844","cpuSlowdown":4,"latencyMS":150,"downloadMbps":1.6,"uploadMbps":0.75,"runs":3,"note":"scripted lab samples, not real-user p75 or a production SLA"},"samples":[{"script_bytes":183016,"css_bytes":18296,"image_bytes":5918,"total_bytes":213338,"third_party":0,"lcp_ms":1224,"cls":0.0010047692849067481,"inp_sample_ms":40,"feedback_max_ms":23.80000001192093},{"script_bytes":183016,"css_bytes":18296,"image_bytes":5918,"total_bytes":213329,"third_party":0,"lcp_ms":1228,"cls":0.0010047692849067481,"inp_sample_ms":32,"feedback_max_ms":21.69999998807907},{"script_bytes":183016,"css_bytes":18296,"image_bytes":5918,"total_bytes":213329,"third_party":0,"lcp_ms":1356,"cls":0.0010047692849067481,"inp_sample_ms":32,"feedback_max_ms":23.100000023841858}]}
+  ✓  1 tests/browser/performance.spec.ts:3:1 › controlled mobile lab budgets and immediate feedback @performance (13.3s)
+[{"width":390,"maximumFeedbackMS":34.700000047683716,"frames":26,"longTasks":0},{"width":1440,"maximumFeedbackMS":41.30000001192093,"frames":24,"longTasks":0}]
+  ✓  2 tests/browser/review-performance.spec.ts:5:1 › review preview reacts within the existing feedback budget @performance (4.6s)
+
+  2 passed (18.9s)

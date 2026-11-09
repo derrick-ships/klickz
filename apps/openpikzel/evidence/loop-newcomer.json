@@ -1,0 +1,86 @@
+{
+  "lens": "newcomer_and_low_vision",
+  "method": {
+    "status": "provisional",
+    "protocol": "Independent review; the original LOOP v2 schema was unavailable, so exact protocol compliance is not claimed.",
+    "evidence": "Inspected each requested local screenshot individually with read_file, then inspected relevant studio and account source.",
+    "scope": "Read-only. No live sites, authentication attempts, provider calls, edits, messages, or deployment."
+  },
+  "observed": [
+    {
+      "evidence": "evidence/panel-after-02-studio.png",
+      "observation": "The prompt field and red Sign in to generate button establish a recognizable creation flow. Save draft is available but receives substantially less visual emphasis."
+    },
+    {
+      "evidence": "evidence/panel-after-edit-390.png",
+      "observation": "The selected image, editable instructions, Original stays saved message, and saved-concept receipt explain what is being edited and preserved."
+    },
+    {
+      "evidence": "evidence/panel-after-07-connect-mobile.png",
+      "observation": "Email and Password have persistent visible labels. Sign-in, account creation, existing-code entry, and requesting a code are separately named actions."
+    },
+    {
+      "evidence": "src/components/studio.tsx",
+      "observation": "Inspected icon controls have accessible names for sidebar access, importing references, choosing library references, removing references, and favorites. Format and batch selectors are named. Creation tabs implement arrow, Home, and End keyboard handling."
+    },
+    {
+      "evidence": "src/components/account/account.tsx",
+      "observation": "The email-code paths validate the email field, focus the code input, provide recovery instructions, and announce status through role=status."
+    }
+  ],
+  "findings": [
+    {
+      "id": "NEW-01",
+      "severity": "medium",
+      "evidence": [
+        "evidence/panel-after-02-studio.png: Save draft is a small secondary action below the dominant authentication button.",
+        "evidence/panel-after-edit-390.png: the draft-saving action follows the full composer, model controls, and readiness explanation."
+      ],
+      "impact": "A newcomer without an account or API key can overlook the immediately achievable action and conclude that setup is necessary before retaining their work. Small, subdued action text adds visual search effort.",
+      "recommendation": "Present Save draft as a clearly visible secondary button beside the authentication action, with a short explanation that it saves on this device. Preserve the sign-in action for generation.",
+      "confidence": "high"
+    },
+    {
+      "id": "NEW-02",
+      "severity": "medium",
+      "evidence": [
+        "evidence/panel-after-edit-390.png: the saved-concept message says Choose Generate while the visible primary action says Sign in to generate.",
+        "src/components/studio.tsx: draft-preview uses unconditional Choose Generate copy, while the primary button changes with readiness."
+      ],
+      "impact": "The recovery instruction skips the current prerequisite and refers to an action label that the signed-out newcomer does not see.",
+      "recommendation": "Derive saved-concept guidance from the same readiness state as the primary button: explain sign-in first, provider connection when needed, and generation once ready.",
+      "confidence": "high"
+    },
+    {
+      "id": "NEW-03",
+      "severity": "medium",
+      "evidence": [
+        "evidence/panel-after-02-studio.png and evidence/panel-after-edit-390.png: provider, display-model name, and raw model identifier are repeated above the main action.",
+        "evidence/panel-after-07-connect-mobile.png: the ChatGPT connection panel presents a long paragraph covering setup, limits, model access, API generation, encryption, and password handling."
+      ],
+      "impact": "The reader must process implementation details and several account concepts to identify the next task. This creates additional reading and navigation effort when magnifying the page.",
+      "recommendation": "Keep the current prerequisite and billing source visible in short sentences. Move the raw model identifier and extended connection explanation into clearly named expandable details. Lead the ChatGPT panel with its purpose and the requirement to sign in.",
+      "confidence": "high"
+    },
+    {
+      "id": "NEW-04",
+      "severity": "medium",
+      "evidence": [
+        "src/components/account/account.tsx: failed authentication produces a general status paragraph after the alternative-action buttons.",
+        "src/components/account/account.tsx: email, password, and code inputs do not associate account-status feedback through aria-describedby or expose an invalid state.",
+        "src/components/account/account.tsx: password and code are cleared before result.error is evaluated."
+      ],
+      "impact": "After a failed attempt, a magnified view can leave the explanation outside the user's current view, while the cleared input requires renewed entry. Screen-reader users receive a status announcement but lack a persistent field-level association when revisiting the affected field.",
+      "recommendation": "Place failure feedback near the relevant inputs, associate it with those inputs, and mark an invalid field when the failure can be attributed reliably. Preserve correctable code input until replacement or successful verification; make any password-clearing behavior explicit. Verify error discovery and retry with keyboard and screen-reader use.",
+      "confidence": "high for source behavior; medium for interaction impact"
+    }
+  ],
+  "untested": [
+    "Actual keyboard traversal, focus visibility, and screen-reader announcements.",
+    "Zoom, text enlargement, reflow, contrast ratios, and touch-target dimensions; screenshots alone do not establish accessibility conformance.",
+    "Invalid credentials, expired codes, network failures, and successful recovery.",
+    "Draft persistence across sign-in and provider connection.",
+    "Whether the source inspected exactly matches the build used for the screenshots."
+  ],
+  "verdict": "The inspected states provide a credible creation path, explicit input labels, named controls, and useful preservation feedback. Improve draft discoverability, readiness-specific recovery copy, reading effort, and field-associated errors before treating this lens as complete. This review does not establish accessibility conformance."
+}

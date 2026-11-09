@@ -1,0 +1,45 @@
+{
+  "method": "Rendered keyboard traversal and computed focus styles. Color ratios are separately calculated in loop-contrast.json; screenshots require visual review.",
+  "readings": [
+    {
+      "viewport": 390,
+      "control": "primary",
+      "color": "rgb(255, 249, 249)",
+      "width": "2px",
+      "offset": "-5px",
+      "style": "solid",
+      "gradient": "linear-gradient(rgb(217, 36, 54), rgb(186, 20, 38))",
+      "focusVisible": true
+    },
+    {
+      "viewport": 390,
+      "control": "batch",
+      "color": "rgb(255, 249, 249)",
+      "width": "2px",
+      "offset": "-2px",
+      "style": "solid",
+      "gradient": "linear-gradient(rgb(217, 36, 54), rgb(186, 20, 38))",
+      "focusVisible": true
+    },
+    {
+      "viewport": 1440,
+      "control": "primary",
+      "color": "rgb(255, 249, 249)",
+      "width": "2px",
+      "offset": "-5px",
+      "style": "solid",
+      "gradient": "linear-gradient(rgb(217, 36, 54), rgb(186, 20, 38))",
+      "focusVisible": true
+    },
+    {
+      "viewport": 1440,
+      "control": "batch",
+      "color": "rgb(255, 249, 249)",
+      "width": "2px",
+      "offset": "-2px",
+      "style": "solid",
+      "gradient": "linear-gradient(rgb(217, 36, 54), rgb(186, 20, 38))",
+      "focusVisible": true
+    }
+  ]
+}

@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "status": "provisional; exact LOOP v2 protocol unavailable",
+  "round": 1,
+  "baseline": "fd62c88f33f11de10daabdb081578833a52e654c plus reviewed uncommitted candidate",
+  "releaseGate": "blocked",
+  "routes": [
+    {
+      "route": "/",
+      "states": [
+        {
+          "name": "fresh entry",
+          "evidence": [
+            "welcome.spec.ts",
+            "Lighthouse mobile/desktop"
+          ],
+          "status": "tested-local"
+        },
+        {
+          "name": "returning entry",
+          "evidence": [
+            "welcome.spec.ts"
+          ],
+          "status": "tested-local"
+        }
+      ]
+    },
+    {
+      "route": "/welcome",
+      "states": [
+        {
+          "name": "ready, 320/390/768/1100/1440, reduced motion",
+          "evidence": [
+            "loop-axe.json",
+            "welcome.spec.ts"
+          ],
+          "status": "tested-local"
+        },
+        {
+          "name": "gradient contrast across all hover/active states",
+          "status": "manual-review-required"
+        }
+      ]
+    },
+    {
+      "route": "/studio",
+      "states": [
+        {
+          "name": "blank, draft, first reload, save, immediate navigation",
+          "status": "tested-local",
+          "evidence": [
+            "panel-improvements.spec.ts",
+            "product-workflows.spec.ts"
+          ]
+        },
+        {
+          "name": "generation concurrent writing and account changes",
+          "status": "fixture-tested",
+          "evidence": [
+            "workspace-races.spec.ts"
+          ]
+        },
+        {
+          "name": "real provider completion/failure/balance",
+          "status": "untested-this-round"
+        },
+        {
+          "name": "edit source, partial score, review layout",
+          "status": "tested-local-fixture",
+          "evidence": [
+            "audit-ux.spec.ts",
+            "loop-axe.json",
+            "panel-after-review-1100.png"
+          ]
+        },
+        {
+          "name": "keyboard tabs/dialog/navigation/profile removal",
+          "status": "tested-local",
+          "evidence": [
+            "polish.spec.ts",
+            "layout.spec.ts",
+            "product-workflows.spec.ts"
+          ]
+        },
+        {
+          "name": "jobs reconciling/completed/refresh/result",
+          "status": "fixture-tested",
+          "evidence": [
+            "workspace-races.spec.ts"
+          ]
+        },
+        {
+          "name": "comparison, feedback, resize/download",
+          "status": "tested-local",
+          "evidence": [
+            "product-workflows.spec.ts",
+            "studio.spec.ts"
+          ]
+        },
+        {
+          "name": "all error/empty/loading states, every gesture, all authenticated routes",
+          "status": "coverage-not-established"
+        }
+      ]
+    },
+    {
+      "route": "/connect",
+      "states": [
+        {
+          "name": "signed-out sign-in, OTP rate limit, retry code",
+          "status": "fixture-tested",
+          "evidence": [
+            "accounts.spec.ts"
+          ]
+        },
+        {
+          "name": "key entry isolation and revoked agents",
+          "status": "fixture-tested",
+          "evidence": [
+            "accounts.spec.ts"
+          ]
+        },
+        {
+          "name": "Codex popup-blocked/cancel/expiry/completion",
+          "status": "fixture-tested",
+          "evidence": [
+            "codex-connection.spec.ts"
+          ]
+        },
+        {
+          "name": "real provider sign-in and production account configuration",
+          "status": "untested-this-round"
+        }
+      ]
+    },
+    {
+      "route": "/oauth/consent",
+      "states": [
+        {
+          "name": "registration, consent branding, Deny",
+          "status": "tested-local-http",
+          "evidence": [
+            "accounts.spec.ts"
+          ]
+        },
+        {
+          "name": "full production grant and external client pairing",
+          "status": "untested-this-round"
+        }
+      ]
+    },
+    {
+      "route": "/local-companion",
+      "states": [
+        {
+          "name": "ready/mobile/source download",
+          "status": "tested-local",
+          "evidence": [
+            "accounts.spec.ts",
+            "loop-axe.json"
+          ]
+        },
+        {
+          "name": "OS installation and CLI account usage",
+          "status": "untested-this-round"
+        }
+      ]
+    },
+    {
+      "route": "/mcp and embedded app",
+      "states": [
+        {
+          "name": "contracts and auth unit tests",
+          "status": "unit-tested",
+          "evidence": [
+            "tests/mcp.test.ts",
+            "tests/oauth.test.ts"
+          ]
+        },
+        {
+          "name": "real host integration and all embedded states",
+          "status": "untested-this-round"
+        }
+      ]
+    }
+  ],
+  "gates": {
+    "exactProtocol": {
+      "status": "blocked",
+      "reason": "No parent-conversation read tool; personal-context lookup unavailable; full protocol requested."
+    },
+    "independentEvaluation": {
+      "status": "denied",
+      "reason": "chatgpt.com browser approval gate declined; no prompt submitted, rating or price."
+    },
+    "productionVisual": {
+      "status": "denied",
+      "reason": "openpikzels.com browser approval gate declined; no alternate route attempted."
+    },
+    "screenReader": {
+      "status": "incomplete",
+      "reason": "Actual local VoiceOver attempt timed out before returning speech; prior off state restored. See loop-screen-reader.json."
+    },
+    "contrast": {
+      "status": "incomplete",
+      "reason": "Bounded source calculations found and corrected inset focus contrast; rendered focus samples checked. Artwork/popup/transient states and remaining axe incomplete nodes are not fully resolved."
+    },
+    "fullCoverage": {
+      "status": "unproven",
+      "reason": "No exact route/state inventory or coverage threshold supplied; untested states do not pass."
+    }
+  },
+  "candidateSourceCommit": "de11970bd2c733aca2e615638035135b3ffa2763"
+}

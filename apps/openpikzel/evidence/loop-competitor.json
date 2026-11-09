@@ -1,0 +1,76 @@
+{
+  "lens": "competitor-positioning",
+  "method": {
+    "status": "Provisional independent review; exact LOOP v2 compliance is not claimed because the full schema was unavailable.",
+    "scope": "Read-only inspection of three supplied screenshots individually and relevant candidate source through the authorized Desktop Commander device.",
+    "comparison_basis": "Switching value and setup expectations communicated by this candidate; no competitor research or comparative performance claims.",
+    "constraints": "Retain the exact hero GET MILLIONS OF VIEWS / Without adding another subscription*. No live sites, alternative network routes, provider calls, edits, deployments or external messages."
+  },
+  "observed": [
+    {
+      "evidence": "evidence/panel-after-01-welcome.png; src/components/welcome.tsx",
+      "observation": "The required hero is retained. Adjacent copy states there is no OpenPikzels subscription fee, provider plans and API usage may cost money, and views are not guaranteed."
+    },
+    {
+      "evidence": "evidence/panel-after-01-welcome.png; src/components/welcome.tsx",
+      "observation": "The candidate articulates a coherent potential switching benefit: generation, creative assessment, fixes, comparisons and preservation of originals in one workspace, with reusable personas and styles."
+    },
+    {
+      "evidence": "evidence/panel-after-02-studio.png; src/lib/generation-readiness.ts",
+      "observation": "The studio shows provider/model identity, output quantity and format, a sign-in requirement, API-key readiness guidance and an explicit statement that the final provider charge cannot be estimated reliably. Local draft saving is presented separately."
+    },
+    {
+      "evidence": "evidence/panel-after-07-connect-mobile.png; src/components/account/codex-connection.tsx",
+      "observation": "The mobile connection page explains that connecting ChatGPT reads available models and usage while studio image generation still requires a separate API provider. It also states that connection data is encrypted on the server and the OpenAI password stays with OpenAI; these are observed claims, not independently verified security findings."
+    }
+  ],
+  "findings": [
+    {
+      "id": "CP-01",
+      "severity": "high",
+      "evidence": [
+        "evidence/panel-after-01-welcome.png presents Connect API keys, Connect my ChatGPT plan and Connect an agent as three neighboring access choices under Bring the access. We bring the studio.",
+        "src/components/welcome.tsx describes choosing the route that fits the user's workflow.",
+        "evidence/panel-after-07-connect-mobile.png and src/components/account/codex-connection.tsx explain that the ChatGPT connection reads available models and usage, while studio image generation still uses a separately connected API provider."
+      ],
+      "impact": "The access choices appear more interchangeable than their stated capabilities support. Someone attracted by using an existing ChatGPT subscription can complete an additional connection without unlocking the primary thumbnail-generation action. The disclosure is present, but the prominence of the route can still create an expectation of immediate creative value.",
+      "recommendation": "Make the capability difference explicit at the choice itself: identify API connection as the route for generating studio images and describe the ChatGPT connection by its currently implemented benefit. State that connecting ChatGPT alone does not enable studio image generation before the user starts connection setup. Retain the required hero unchanged.",
+      "confidence": "high"
+    },
+    {
+      "id": "CP-02",
+      "severity": "medium",
+      "evidence": [
+        "evidence/panel-after-01-welcome.png uses Start creating free and includes the adjacent provider-cost disclosure.",
+        "evidence/panel-after-02-studio.png opens on an empty Prompt composer with Sign in to generate as the dominant action.",
+        "The same studio screenshot places Save a draft now. Connect an API key to generate. and Save draft below the main composer.",
+        "src/lib/generation-readiness.ts returns Sign in and connect your own API key. for the signed-out state and declares the request cost cannot be estimated reliably."
+      ],
+      "impact": "The fee model is disclosed, but the first practical benefit of starting free is less prominent than the generation gate. A visitor cannot quickly determine whether the free first step produces a usable thumbnail, only a saved draft, or a preview. This weakens the promised reduction in subscription friction because account setup, API setup and uncertain provider charges arrive before a demonstrated result.",
+      "recommendation": "Explain the free first step immediately beside the landing CTA and at the top of the initial studio state: local drafting is available now; generation requires signing in, connecting a supported API provider and paying any applicable provider usage. Give the draft action visible parity with connection setup, and provide a supplied example workflow that can be inspected without a provider request.",
+      "confidence": "high"
+    },
+    {
+      "id": "CP-03",
+      "severity": "medium",
+      "evidence": [
+        "evidence/panel-after-01-welcome.png illustrates the proposition with abstract red-and-black forms and textual workflow descriptions.",
+        "src/components/welcome.tsx contains the generation, assessment and comparison claims but no visible worked thumbnail example in the landing-page component.",
+        "evidence/panel-after-02-studio.png shows an empty prompt workspace rather than a populated example of the claimed improvement cycle."
+      ],
+      "impact": "The candidate describes a plausible reason to switch from an existing creation workflow, but the inspected entry surfaces do not demonstrate that advantage. Visitors must accept the promise of useful assessments, preserved originals and better comparisons before seeing what those benefits actually look like.",
+      "recommendation": "Add one clearly labeled illustrative thumbnail workflow using a real product capture: starting image, a specific creative observation, a resulting revision and the retained original. Explain what changed in visual clarity without inventing view gains, click predictions, competitor weaknesses or user outcomes. Keep the exact hero and its outcome disclaimer.",
+      "confidence": "high"
+    }
+  ],
+  "untested": [
+    "Competitor products, current competitor pricing, feature parity, migration effort and comparative results.",
+    "Live openpikzels.com and chatgpt.com; access was denied and no alternate route was attempted.",
+    "Actual generation, analysis, revisions, comparison behavior, saved-draft recovery or end-to-end time to first useful result.",
+    "Provider eligibility, billing amounts, model availability and the practical usefulness of connecting ChatGPT after authentication.",
+    "Encryption implementation, credential handling, retention behavior and security of stored connections.",
+    "Whether the supplied screenshots exactly match the current deployment or all possible signed-in states.",
+    "Full LOOP v2 schema compliance."
+  ],
+  "verdict": "The candidate communicates a credible workspace benefit and materially improves trust through visible cost and outcome disclosures. Its principal positioning weakness is the gap between the prominence of existing-subscription access and the separate API setup needed for image generation. Clarify each connection's immediate value and demonstrate the improvement workflow before claiming the entry experience is ready to persuade users to switch."
+}
