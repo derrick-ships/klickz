@@ -17,16 +17,31 @@ export async function localAll<T>(store: Store): Promise<T[]> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, "readonly");
     const req = tx.objectStore(store).getAll();
-    req.onsuccess = () => resolve(req.result as T[]);
+    req.onsuccess = () => {
+      try {
+        const rows = store === "assets" ? req.result.map((asset) =>
+          asset.blob instanceof Blob ? asset :
+          asset.bytes instanceof ArrayBuffer ? {...asset, blob: new Blob([asset.bytes], {type: asset.mime || "application/octet-stream"})} : asset
+        ) : req.result;
+        resolve(rows as T[]);
+      } catch (error) { reject(error); }
+    };
     req.onerror = () => reject(req.error);
     tx.oncomplete = () => db.close();
   });
 }
 export async function localPut(store: Store, value: unknown) {
+  // Persist bytes instead of Blob handles: some WebKit stores cannot prepare Blob data.
+  // Legacy Blob records remain readable, so existing local libraries need no migration.
+  let stored = value;
+  if (store === "assets" && value && typeof value === "object" && "blob" in value && value.blob instanceof Blob) {
+    const {blob, ...rest} = value;
+    stored = {...rest, bytes: await blob.arrayBuffer(), mime: blob.type};
+  }
   const db = await database();
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(store, "readwrite");
-    tx.objectStore(store).put(value);
+    tx.objectStore(store).put(stored);
     tx.oncomplete = () => {
       db.close();
       resolve();

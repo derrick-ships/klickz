@@ -1,0 +1,73 @@
+{
+  "lens": "UX/UI designer",
+  "method": "Independent, read-only visual review of each of the five requested screenshots, supported by inspection of current welcome, connection, review-layout, timeline, and motion source. Provisional JSON: the complete LOOP v2 schema was unavailable, so exact schema compliance is not claimed.",
+  "observed": [
+    {
+      "evidence": "evidence/panel-after-01-welcome.png",
+      "observation": "The exact headline, strong scale contrast, restrained red accents, and sculptural aperture establish a coherent identity. Sections use generous space and consistent rules. Current src/components/welcome.tsx:27 now says 'Check ChatGPT models and usage' and explicitly separates this connection from studio image generation; the screenshot predates that clarification."
+    },
+    {
+      "evidence": "evidence/panel-after-02-studio.png",
+      "observation": "The red selected mode and generation action create clear emphasis. The abstract red/black artwork carries the landing identity into the workspace. Provider requirements and billing uncertainty are visible beside generation controls."
+    },
+    {
+      "evidence": "evidence/panel-after-edit-390.png",
+      "observation": "The mobile layout retains usable-looking controls and contains the selected image within the viewport. However, the revision strip, mode selection, large source preview, editor, settings, and saved-concept panel create a long path through one editing task. The partially visible second timeline card communicates horizontal continuation; source provides 44px minimum arrow controls."
+    },
+    {
+      "evidence": "evidence/panel-after-review-1100.png",
+      "observation": "The full image receives strong priority, and the assessment distinguishes partial coverage from unassessed pillars. The explanation and image are separated vertically at this width. Numeric values shown here are explicit fixture data, not evidence of model accuracy."
+    },
+    {
+      "evidence": "evidence/panel-after-07-connect-mobile.png",
+      "observation": "The connection form has clear labels, substantial input boundaries, and a distinct primary action. Its ChatGPT explanation accurately separates models/usage from API image generation, but is visually dense."
+    },
+    {
+      "evidence": "src/components/brand-scene.tsx; src/app/review.css:48-67; src/app/welcome.css",
+      "observation": "Motion intent is restrained: decorative video is non-looping, capped at 4.4 seconds, and settles on input focus, hidden-page state, reduced-motion preference, or a narrow viewport. Review arrival uses a short opacity transition. Runtime execution was not tested."
+    }
+  ],
+  "findings": [
+    {
+      "id": "DESIGN-01",
+      "severity": "medium",
+      "evidence": "evidence/panel-after-edit-390.png shows the revision strip and mode controls before the selected image and edit instructions; the primary generation action appears far below them. src/app/creative.css defines 180px timeline cards on narrow screens.",
+      "impact": "Returning to a mobile edit requires navigating substantial supporting material before reaching the active task and its action. The saved-concept panel then repeats the edit instructions below the form.",
+      "recommendation": "Give the edit instructions and selected-source identity first priority on mobile. Condense the revision strip into an expandable history summary and initially show a compact source preview with an explicit expand control. Keep the saved-state confirmation brief while retaining access to the saved concept.",
+      "confidence": "high"
+    },
+    {
+      "id": "DESIGN-02",
+      "severity": "medium",
+      "evidence": "evidence/panel-after-review-1100.png places the image above the assessment, requiring scrolling between them. src/app/review.css:50-54 enables the side-by-side sticky review layout only when the review container reaches 960px.",
+      "impact": "At a common intermediate desktop width, users must remember visual details while reading the assessment, weakening the central image-review task.",
+      "recommendation": "Add an intermediate review arrangement that preserves a compact image reference beside or above the assessment, or allow the navigation rail to collapse to make room. Validate the arrangement at 1100px without shrinking assessment text or obscuring actions.",
+      "confidence": "high"
+    },
+    {
+      "id": "DESIGN-03",
+      "severity": "low",
+      "evidence": "evidence/panel-after-07-connect-mobile.png and src/components/account/codex-connection.tsx:33-38 retain the heading 'Connect your ChatGPT plan' above a long explanatory block. The current welcome link instead promises 'Check ChatGPT models and usage'.",
+      "impact": "The destination changes the framing from a specific informational benefit to a broad plan connection. On mobile, the most useful distinction is buried within several consecutive sentences.",
+      "recommendation": "Align the connection heading with the current welcome promise and put the models/usage benefit immediately below it. Separate the API-generation requirement into a short, clearly visible sentence; group security and sign-in mechanics as supporting details.",
+      "confidence": "high"
+    },
+    {
+      "id": "DESIGN-04",
+      "severity": "low",
+      "evidence": "evidence/panel-after-01-welcome.png uses abstract aperture artwork and text-only workflow descriptions. evidence/panel-after-02-studio.png continues the abstract motif, while the reviewed result screenshot uses a declared fixture.",
+      "impact": "The identity is distinctive and coherent, but the welcome page provides limited visual evidence of the actual thumbnail creation, assessment, and revision experience.",
+      "recommendation": "Preserve the exact headline and red-dark identity. Add one compact, clearly labeled product walkthrough or authentic before/after example within the workflow section, using real approved output and observable editing changes rather than implied performance results.",
+      "confidence": "medium"
+    }
+  ],
+  "untested": [
+    "Live openpikzels.com and chatgpt.com were not accessed; no alternate access was attempted.",
+    "No mobile touch, keyboard, screen-reader, zoom, contrast measurement, or runtime motion verification was performed.",
+    "No authentication, provider connection, generation, paid operation, external message, edit, or deployment was performed.",
+    "Current welcome-copy rendering was checked in source only; the supplied welcome screenshot is stale for that copy.",
+    "Originality was assessed from the supplied artifacts, not through competitor or live-site comparison.",
+    "The complete LOOP v2 schema and any numeric scoring rubric were unavailable."
+  ],
+  "verdict": "The supplied design has a coherent, recognizable red-dark identity and credible source-level motion restraint. No visual blocker was established by this limited review. Prioritize mobile editing density and intermediate-width review context, then align connection naming and add concrete product evidence. This is a provisional designer assessment, not a functional or release-readiness certification."
+}

@@ -1,0 +1,36 @@
+
+> openpikzel@1.0.0 test
+> vitest run
+
+
+ RUN  v5.1.0 <workspace>
+
+ ✓ tests/workspaces.test.ts (4 tests) 29ms
+ ✓ tests/diagnostics.test.ts (9 tests) 24ms
+ ✓ tests/codex-route.test.ts (4 tests) 9ms
+ ✓ tests/routes.test.ts (5 tests) 18ms
+ ✓ tests/product-routes.test.ts (6 tests) 119ms
+ ✓ tests/provider-connections.test.ts (4 tests) 11ms
+ ✓ tests/codex-provider.test.ts (6 tests) 25ms
+ ✓ tests/comparison.test.ts (5 tests) 154ms
+ ✓ tests/validation.test.ts (7 tests) 12ms
+ ✓ tests/oauth.test.ts (8 tests) 27ms
+ ✓ tests/job-state.test.ts (2 tests) 9ms
+ ✓ tests/providers.test.ts (7 tests) 330ms
+ ✓ tests/draft-checkpoint.test.ts (3 tests) 14ms
+ ✓ tests/higgsfield.test.ts (3 tests) 36ms
+ ✓ tests/auth.test.ts (4 tests) 18ms
+ ✓ tests/image-gestures.test.ts (9 tests) 12ms
+ ✓ tests/keys.test.ts (3 tests) 6ms
+ ✓ tests/jobs.test.ts (2 tests) 17ms
+ ✓ tests/generation-readiness.test.ts (4 tests) 3ms
+ ✓ tests/mcp.test.ts (5 tests) 29ms
+ ✓ tests/scopes.test.ts (4 tests) 8ms
+ ✓ tests/codex-database.test.ts (4 tests) 866ms
+ ✓ tests/database.test.ts (14 tests) 910ms
+
+ Test Files  23 passed (23)
+      Tests  122 passed (122)
+   Start at  00:12:02
+   Duration  1.01s (tests 52%, import 38%, transform 8%, worker 1%)
+

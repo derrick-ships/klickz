@@ -1,0 +1,8 @@
+import {describe,it,expect} from "vitest";
+import {readDraftCheckpoint,writeDraftCheckpoint} from "../src/lib/draft-checkpoint";
+describe("private draft checkpoints",()=>{
+ function store(){const m=new Map<string,string>();return {getItem:(k:string)=>m.get(k)||null,setItem:(k:string,v:string)=>{m.set(k,v);}}}
+ it("recovers an unsaved first draft without exposing it to another owner",()=>{const s=store();expect(writeDraftCheckpoint(s,"alice",{chatId:null,draft:{prompt:"Keep this first idea",parentId:"original",titleAction:"ideas",includeVision:true}})).toBe(true);expect(readDraftCheckpoint(s,"alice")?.draft).toMatchObject({prompt:"Keep this first idea",parentId:"original",titleAction:"ideas",includeVision:true});expect(readDraftCheckpoint(s,"bob")).toBeNull();expect(readDraftCheckpoint(s,"local")).toBeNull();});
+ it("rejects corrupt records and oversized inputs, and strips unexpected properties",()=>{const s=store();s.setItem("openpikzels.draftCheckpoint.local","broken");expect(readDraftCheckpoint(s,"local")).toBeNull();expect(writeDraftCheckpoint(s,"local",{chatId:null,draft:{prompt:"x".repeat(2401)}})).toBe(false);writeDraftCheckpoint(s,"local",{chatId:null,draft:{prompt:"A valid idea",apiKey:"must not persist"} as any});expect(JSON.stringify(readDraftCheckpoint(s,"local"))).not.toContain("apiKey");});
+ it("reports quota or privacy-setting failures without throwing",()=>{const s={getItem:()=>{throw Error("denied")},setItem:()=>{throw Error("quota")}};expect(readDraftCheckpoint(s,"local")).toBeNull();expect(writeDraftCheckpoint(s,"local",{chatId:null,draft:{prompt:"Keep open"}})).toBe(false);});
+});

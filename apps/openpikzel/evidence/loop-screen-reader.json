@@ -1,0 +1,6 @@
+{
+  "method": "Actual macOS VoiceOver, isolated headed Chromium, local fixture only. Limited task sample, not full screen-reader conformance.",
+  "status": "incomplete",
+  "readings": [],
+  "blocker": "spawnSync /usr/bin/osascript ETIMEDOUT"
+}

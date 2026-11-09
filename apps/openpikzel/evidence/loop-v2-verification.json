@@ -1,0 +1,408 @@
+{
+  "protocol": "LOOP v2 original received; round 1 continuation",
+  "status": "FAILED / incomplete release gate",
+  "sourceCommit": "db123ced6f477f03c706d054ee1a10ea3cf32886",
+  "sourceTree": "548011eb8efb2a493c32f49aa591998a1a7f3165",
+  "mainObserved": "fd62c88f33f11de10daabdb081578833a52e654c",
+  "deployment": "Not promoted to main or deployed by this continuation",
+  "verification": {
+    "build": "Production webpack build and TypeScript passed",
+    "unit": {
+      "passed": 123,
+      "files": 23,
+      "log": "loop-v2-final-unit.log"
+    },
+    "chromium": {
+      "broadFirst": {
+        "passed": 83,
+        "failed": 3,
+        "total": 86,
+        "log": "loop-v2-broad-first.log"
+      },
+      "corrections": {
+        "passed": 7,
+        "files": [
+          "brand.spec.ts",
+          "review-studio.spec.ts"
+        ],
+        "log": "loop-v2-corrected-contracts.log",
+        "reason": "Two tests expected artwork on /connect after it moved to /welcome. One assumed viewport-only review layout rather than available canvas space. Motion assertions retained; layout assertion now also enforces meaningful image width."
+      },
+      "stableCapture": {
+        "passed": 1,
+        "log": "loop-v2-stable-capture.log"
+      },
+      "distinctFunctionalChecksCoveredAfterTargetedReruns": 86,
+      "scope": "Not a clean single broad rerun. All three prior failures passed in the targeted seven-test run. Initial command included --ignore-snapshots, but source scan found no toHaveScreenshot/toMatchSnapshot assertions; no snapshot gate was disabled."
+    },
+    "webkit": {
+      "passed": 38,
+      "skipped": 1,
+      "total": 39,
+      "log": "loop-v2-final-webkit.log",
+      "skippedReason": "Legacy Blob creation unsupported in this WebKit runtime. Legacy reads covered in Chromium; byte storage/upload/reload/export covered in WebKit.",
+      "scope": "Touch/mobile emulation; not a physical iPhone"
+    },
+    "axe": {
+      "combinations": 21,
+      "confirmedViolations": 0,
+      "combinationsWithIncompleteContrast": 21,
+      "gate": "INCOMPLETE",
+      "report": "loop-axe.json"
+    },
+    "routeChecks": {
+      "readyCombinations": 30,
+      "pageRoutes": 6,
+      "widths": [
+        320,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "sourceHandlers": 29,
+      "gate": "INCOMPLETE: untested states fail",
+      "reports": [
+        "loop-v2-source-inventory.json",
+        "loop-v2-route-checks.json",
+        "loop-v2-form-checks.json"
+      ]
+    },
+    "keyboard": "Selected tabs, dialogs, guide disclosures and focus paths tested; exhaustive traversal not established",
+    "screenReader": "INCOMPLETE: prior actual VoiceOver attempt timed out without speech; prior off state restored",
+    "contrast": "INCOMPLETE: bounded focus calculations and visual review do not resolve every axe incomplete node",
+    "performance": {
+      "controlledLabTests": 2,
+      "passed": true,
+      "medianLCPms": 1304,
+      "CLS": 0.0010047692849067481,
+      "scriptBytes": 183040,
+      "maximumTotalBytes": 213548,
+      "thirdPartyRequests": 0,
+      "maximumInputFeedbackMs": 25.5,
+      "maximumReviewFeedbackMs": {
+        "mobile": 50.30000001192093,
+        "desktop": 38.90000003576279
+      },
+      "reviewLongTasks": 0,
+      "labOnly": true,
+      "report": "performance-lab.json"
+    },
+    "lighthouse": {
+      "runs": 12,
+      "profiles": [
+        {
+          "profile": "mobile",
+          "pass": true,
+          "runs": [
+            {
+              "url": "http://127.0.0.1:3001/",
+              "lcpMs": 2015.2775,
+              "cls": 0,
+              "tbtMs": 6,
+              "scores": {
+                "performance": 0.99,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/",
+              "lcpMs": 2011.4939000000002,
+              "cls": 0,
+              "tbtMs": 6,
+              "scores": {
+                "performance": 0.99,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/studio?mode=generate",
+              "lcpMs": 2325.9004,
+              "cls": 0.001000273963032435,
+              "tbtMs": 21.024900000000116,
+              "scores": {
+                "performance": 0.98,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/studio?mode=generate",
+              "lcpMs": 2406.3778,
+              "cls": 0.001000273963032435,
+              "tbtMs": 20,
+              "scores": {
+                "performance": 0.98,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/",
+              "lcpMs": 2011.1994,
+              "cls": 0,
+              "tbtMs": 5.950150000000008,
+              "scores": {
+                "performance": 0.99,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/studio?mode=generate",
+              "lcpMs": 2406.3608,
+              "cls": 0.001000273963032435,
+              "tbtMs": 21,
+              "scores": {
+                "performance": 0.98,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            }
+          ]
+        },
+        {
+          "profile": "desktop",
+          "pass": true,
+          "runs": [
+            {
+              "url": "http://127.0.0.1:3001/",
+              "lcpMs": 465.7274,
+              "cls": 0,
+              "tbtMs": 0,
+              "scores": {
+                "performance": 1,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/",
+              "lcpMs": 461.2793,
+              "cls": 0,
+              "tbtMs": 0,
+              "scores": {
+                "performance": 1,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/studio?mode=generate",
+              "lcpMs": 530.074,
+              "cls": 0.0009472838383648457,
+              "tbtMs": 0,
+              "scores": {
+                "performance": 1,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/studio?mode=generate",
+              "lcpMs": 501.2683,
+              "cls": 0.0009472838383648457,
+              "tbtMs": 0,
+              "scores": {
+                "performance": 1,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/",
+              "lcpMs": 462.02230000000003,
+              "cls": 0,
+              "tbtMs": 0,
+              "scores": {
+                "performance": 1,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            },
+            {
+              "url": "http://127.0.0.1:3001/studio?mode=generate",
+              "lcpMs": 525.6362,
+              "cls": 0.0009472838383648457,
+              "tbtMs": 0,
+              "scores": {
+                "performance": 1,
+                "accessibility": 1,
+                "best-practices": 0.96,
+                "seo": 1,
+                "agentic-browsing": 1
+              }
+            }
+          ]
+        }
+      ],
+      "report": "performance-lighthouse-summary.json",
+      "scope": "Two public entry surfaces, local production build, three runs per profile and URL. Not all routes or real-user p75."
+    }
+  },
+  "review": {
+    "sequentialLenses": [
+      "loop-v2-grandma.json",
+      "loop-v2-competitor.json",
+      "loop-v2-power.json",
+      "loop-v2-designer.json"
+    ],
+    "panel": "loop-v2-critic-panel.json",
+    "panelMethod": "One synthesis agent applying seven explicit perspectives; not seven independent reviewers",
+    "rechecks": [
+      "loop-v2-grandma-verify.json",
+      "loop-v2-power-verify.json"
+    ],
+    "disposition": [
+      {
+        "id": "T01",
+        "severity": "P1",
+        "status": "Fixed and locally regression verified; active chat and persisted text survive selection/reload"
+      },
+      {
+        "id": "T02",
+        "severity": "P1",
+        "status": "Missing setup explanation addressed and fixture/visual verified; no real novice or provider login validation. Residual authentication-choice density retained as P2"
+      },
+      {
+        "id": "T04",
+        "severity": "P2",
+        "status": "Draft text included in search, unit verified"
+      },
+      {
+        "id": "T03",
+        "severity": "P2",
+        "status": "Essential text enlarged, rendered mobile/desktop inspected; universal accessibility not claimed"
+      },
+      {
+        "id": "T14",
+        "severity": "P2",
+        "status": "Adjacent qualification enlarged; fixed headline preserved; comprehension unmeasured"
+      }
+    ],
+    "remaining": "Other panel P2/P3 findings remain open. No complete P0/P1 clearance asserted across untested states.",
+    "signoff": false
+  },
+  "visualReview": {
+    "rootInspected": [
+      "loop-v2-active-chat-result.png",
+      "loop-v2-provider-guide-mobile.png",
+      "loop-v2-key-entry-chromium-320.png",
+      "loop-v2-key-entry-webkit-390.png",
+      "panel-after-edit-390.png",
+      "review-studio-1440.png",
+      "layout-connections-1440.png"
+    ],
+    "scope": "Rendered localhost screenshots, including focused viewport captures. No physical-device or live-production visual test.",
+    "captureInconsistency": "One reviewer saw a blank area in a full-page connection capture. Stable viewport captures at 320 and 390 showed key, help and Connect button; no runtime cause inferred. See grandma verification."
+  },
+  "evidenceProvenance": {
+    "originalReviewedScreenshotsCommit": "0d6a518f82ced5ad09772f3bea8ac77808c66de7",
+    "latestRouteScreenshots": "Verification captures, primarily final WebKit run, not immutable original baseline.",
+    "activeChatFailure": "loop-v2-active-chat-failure.png/log preserved before repair. The file ending before.png shows the input state of the latest rerun, not the initial code baseline.",
+    "imageBlobsVerified": 49,
+    "sourceFilesHashVerified": 14,
+    "sourceHashes": [
+      {
+        "path": "apps/openpikzel/src/components/studio.tsx",
+        "sha": "35cdf5f51bf1fda520a31e1fc3989a32eb87f43f"
+      },
+      {
+        "path": "apps/openpikzel/src/lib/workspaces.ts",
+        "sha": "b28f6be792a3de4ef7171c5ea6bb16bc33264d8e"
+      },
+      {
+        "path": "apps/openpikzel/tests/workspaces.test.ts",
+        "sha": "c9d0d276299829550078e8cec20f62018c9b1e36"
+      },
+      {
+        "path": "apps/openpikzel/tests/browser/workspace-races.spec.ts",
+        "sha": "05a8d71a349a22b0eb70b128c8392279c890242c"
+      },
+      {
+        "path": "apps/openpikzel/src/components/account/account.tsx",
+        "sha": "387ed024589eb2068b10d8d80a49874a200c751d"
+      },
+      {
+        "path": "apps/openpikzel/src/app/surfaces.css",
+        "sha": "2949e5fa716f2f9d4898422e62bf49e0f155a0ba"
+      },
+      {
+        "path": "apps/openpikzel/tests/browser/accounts.spec.ts",
+        "sha": "45125560b2787677b4dd953ca9fd477fde150223"
+      },
+      {
+        "path": "apps/openpikzel/src/app/creative.css",
+        "sha": "b98341b8864e4dd16b7f520cd12e2a6b205ada32"
+      },
+      {
+        "path": "apps/openpikzel/src/app/globals.css",
+        "sha": "79b33cd658322a13174b870a2332242adf43f0b5"
+      },
+      {
+        "path": "apps/openpikzel/src/app/welcome.css",
+        "sha": "1f7f8d21a42cbd62357533512de493f69211e708"
+      },
+      {
+        "path": "apps/openpikzel/tests/browser/brand.spec.ts",
+        "sha": "5410c7c6c4823c3b5ca206d7120dc2939f813502"
+      },
+      {
+        "path": "apps/openpikzel/tests/browser/review-studio.spec.ts",
+        "sha": "b371a8191995419f654743721d2fbfb967baa768"
+      },
+      {
+        "path": "apps/openpikzel/tests/browser/loop-a11y.spec.ts",
+        "sha": "74c3585e294eacadacaedf0b237850c885588918"
+      },
+      {
+        "path": "apps/openpikzel/tests/browser/loop-protocol.spec.ts",
+        "sha": "16159993e871c30eabe2af2585b640ba31ca70aa"
+      }
+    ]
+  },
+  "independentEvaluation": {
+    "status": "blocked_by_denied_browser_access",
+    "score": null,
+    "price_usd": null,
+    "promptSent": false,
+    "format": "Later full prompt supersedes earlier strict JSON prompt; hypothetical description cannot be represented as live-app facts.",
+    "resolution": "docs/loop-v2-evaluator-resolution.md"
+  },
+  "decision": {
+    "pass": false,
+    "release": false,
+    "reason": "Independent review and production visual access denied; actual screen reader, full contrast, keyboard/state coverage and panel signoff incomplete. No additional nominal round claimed.",
+    "nextRoundInput": "Outstanding panel findings and actual independent evidence when access is available. Thresholds unchanged."
+  },
+  "boundaries": {
+    "realProviderValidation": false,
+    "paidInferenceRequests": 0,
+    "realKeysChanged": false,
+    "osPermissionsChanged": false
+  }
+}

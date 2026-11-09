@@ -149,6 +149,18 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
   ).toBeVisible();
   const setup = page.locator(".provider-setup");
   expect(await setup.locator(":scope > :first-child").getAttribute("class")).toContain("key-form");
+  await expect(page.locator(".provider-key-guide")).toContainText("It is not your password");
+  await expect(page.locator("#provider-key-cost")).toContainText("Saving a key makes no billable test request");
+  for (const [provider, name, host] of [["openai", "OpenAI", "developers.openai.com"], ["google", "Google", "ai.google.dev"], ["jev", "Jev AI", "docs.typesafe.ai"], ["youtube", "YouTube", "developers.google.com"]]) {
+    await page.getByLabel("Provider", {exact:true}).selectOption(provider);
+    const guide = page.locator(".provider-key-guide");
+    const summary = guide.locator("summary"); await summary.focus(); await page.keyboard.press("Enter");
+    await expect(guide.locator("details")).toHaveAttribute("open", "");
+    expect(new URL((await guide.getByRole("link").getAttribute("href"))!).hostname).toBe(host);
+    await expect(guide.getByRole("link")).toContainText(name);
+    await expect(guide.locator("li")).toHaveCount(3);
+  }
+  await page.getByLabel("Provider", {exact:true}).selectOption("openai");
   await page.getByLabel("Your API key").fill("test-key-placeholder");
   await page.getByRole("button", { name: "Connect key", exact: true }).click();
   await expect(page.getByLabel("Your API key")).toHaveValue("");
@@ -177,6 +189,21 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
     path: "evidence/openpikzels-provider-onboarding-mobile.png",
     fullPage: true,
   });
+  await expect(page.getByRole("link", {name:"Continue with a free draft", exact:true})).toHaveAttribute("href", "/studio");
+  await page.locator(".provider-key-guide summary").click();
+  await page.locator(".provider-key-guide").scrollIntoViewIfNeeded();
+  await page.screenshot({path:"evidence/loop-v2-provider-guide-mobile.png"});
+  await page.locator(".provider-key-guide summary").click();
+
+  const browser = page.context().browser()!.browserType().name();
+  for (const width of [320, 390]) {
+    await page.setViewportSize({width, height:844});
+    await page.getByRole("button", {name:"Connect key", exact:true}).scrollIntoViewIfNeeded();
+    await expect(page.getByLabel("Your API key")).toBeVisible();
+    await expect(page.locator("#provider-key-help")).toBeVisible();
+    await expect(page.getByRole("button", {name:"Connect key", exact:true})).toBeVisible();
+    await page.screenshot({path:"evidence/loop-v2-key-entry-"+browser+"-"+width+".png"});
+  }
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -247,4 +274,17 @@ test("local companion setup offers a real source download and fits mobile", asyn
  await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
  await page.screenshot({path:"evidence/local-companion-guide-390.png",fullPage:true});
+});
+
+test("invalid email code stays editable with nearby associated feedback",async({page})=>{
+ await page.route("**/*",r=>new URL(r.request().url()).hostname==="127.0.0.1"?r.continue():r.abort());
+ await page.route("**/api/config",r=>r.fulfill({json:{cloud:true,ai:true,ownerGate:false,secureConnections:true,supabaseUrl:"https://test.supabase.co",supabaseKey:"sb_publishable_test"}}));
+ await page.route("https://test.supabase.co/auth/v1/verify**",r=>r.fulfill({status:403,json:{code:"otp_expired",msg:"Token has expired or is invalid"}}));
+ await page.route("https://test.supabase.co/auth/v1/otp**",r=>r.fulfill({json:{}}));
+ await page.goto("/connect");await page.getByLabel("Email",{exact:true}).fill("creator@example.test");await page.getByRole("button",{name:"I already have a code",exact:true}).click();
+ const code=page.getByLabel("Email sign-in code",{exact:true});await code.fill("123456");await page.getByRole("button",{name:"Verify code",exact:true}).click();
+ await expect(code).toHaveValue("123456");await expect(code).toHaveAttribute("aria-invalid","true");await expect(code).toHaveAccessibleDescription(/could not be verified/);
+ const error=page.getByRole("status").filter({hasText:"That code could not be verified"});await expect(error).toBeVisible();
+ expect((await error.boundingBox())!.y).toBeLessThan((await page.getByRole("button",{name:"Verify code",exact:true}).boundingBox())!.y);
+ await page.getByRole("button",{name:"Send a new sign-in code",exact:true}).click();await expect(code).toHaveValue("");await expect(code).not.toHaveAttribute("aria-invalid","true");
 });

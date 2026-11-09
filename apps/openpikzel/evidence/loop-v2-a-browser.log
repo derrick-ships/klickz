@@ -1,0 +1,21 @@
+[WebServer] ⚠ Warning: Next.js ignored package-lock.json in [user] because it would include your home directory ([user]).
+[WebServer]  To use this directory, set `outputFileTracingRoot` in your Next.js config.
+[WebServer] 
+
+Running 13 tests using 1 worker
+
+  ✓  1 tests/browser/workspace-races.spec.ts:25:1 › busy generation cannot switch chats through library navigation (2.1s)
+  ✓  2 tests/browser/workspace-races.spec.ts:33:1 › delayed account A resize cannot overwrite account B hydration or draft (1.8s)
+  ✓  3 tests/browser/workspace-races.spec.ts:43:1 › explicit save cannot overwrite newer edits already checkpointed during a slow creation write (2.2s)
+  ✓  4 tests/browser/workspace-races.spec.ts:51:1 › editing uses the newly selected library source and preserves the unsent brief (3.5s)
+  ✓  5 tests/browser/workspace-races.spec.ts:62:1 › typing while generation runs preserves new direction and offers a result without stealing focus (1.9s)
+  ✓  6 tests/browser/workspace-races.spec.ts:70:1 › request activity is reachable inside its modal and refresh never resubmits a request (1.9s)
+  ✓  7 tests/browser/workspace-races.spec.ts:79:1 › slow first autosave cannot steal a subsequently selected chat (1.9s)
+  ✓  8 tests/browser/workspace-races.spec.ts:94:37 › stale title response cannot enter account B (1.8s)
+  ✓  9 tests/browser/workspace-races.spec.ts:94:37 › stale title response cannot enter a new session of account A (1.9s)
+  ✓  10 tests/browser/workspace-races.spec.ts:101:1 › stale comparison cannot reopen another account image dialog (1.5s)
+  ✓  11 tests/browser/workspace-races.spec.ts:108:1 › composer locks while a slow chat navigation saves then restores editable destination (1.5s)
+  ✓  12 tests/browser/workspace-races.spec.ts:116:1 › explicit save does not reselect an old editing source after a new source is chosen (2.2s)
+  ✓  13 tests/browser/workspace-races.spec.ts:126:1 › reselecting the active chat preserves an unsent prompt (2.1s)
+
+  13 passed (27.3s)

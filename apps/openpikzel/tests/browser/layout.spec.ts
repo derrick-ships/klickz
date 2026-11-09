@@ -78,8 +78,9 @@ test("long persona names remain readable in dialogs and bounded in the composer"
   await page.getByLabel("Profile reference photos").setInputFiles(await Promise.all(["#df1c2c","#2d599a","#56a58b"].map(async(color,i)=>({name:"layout-"+i+".png",mimeType:"image/png",buffer:await sharp({create:{width:64,height:64,channels:3,background:color}}).png().toBuffer()}))));
   await page.getByLabel("I have permission to use these photos and this likeness.").check();
   await page.getByRole("button", { name: "Create persona", exact: true }).click();
-  await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change persona: "+name, exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   expect(await page.locator(".selection-name").evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
   await page.screenshot({ path: "evidence/layout-long-persona-selected-320.png", fullPage: true });
+  await page.getByRole("button",{name:"Remove persona: "+name,exact:true}).focus();await page.keyboard.press("Enter");await expect(page.getByRole("button",{name:"Persona",exact:true})).toBeFocused();await expect(page.getByRole("button",{name:"Remove persona: "+name,exact:true})).toHaveCount(0);
 });

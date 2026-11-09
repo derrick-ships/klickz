@@ -1,0 +1,35 @@
+[WebServer] ⚠ Warning: Next.js ignored package-lock.json in <user-home> because it would include your home directory (<user-home>).
+[WebServer]  To use this directory, set `outputFileTracingRoot` in your Next.js config.
+[WebServer] 
+
+Running 26 tests using 1 worker
+
+  ✓  1 tests/browser/audit-ux.spec.ts:3:1 › composer is the sole settings home with provider-aware identity and honest readiness (876ms)
+  ✓  2 tests/browser/audit-ux.spec.ts:15:1 › editing keeps the selected image next to unsent instructions at desktop and narrow widths (2.0s)
+  ✓  3 tests/browser/local-assets.spec.ts:11:1 › local uploaded images survive reload and export as real PNG files (518ms)
+  -  4 tests/browser/local-assets.spec.ts:18:1 › existing Blob asset records remain readable without migration
+  ✓  5 tests/browser/panel-improvements.spec.ts:6:1 › first-session typing survives immediate reload and does not create duplicate chats (1.5s)
+  ✓  6 tests/browser/panel-improvements.spec.ts:18:1 › saved edit retains its original image and draft through reload (1.0s)
+  ✓  7 tests/browser/panel-improvements.spec.ts:34:1 › setup is actionable without a paid call and preserves the draft (473ms)
+  ✓  8 tests/browser/panel-improvements.spec.ts:42:1 › review protects image size at intermediate width and keeps reduced motion static (557ms)
+  ✓  9 tests/browser/panel-improvements.spec.ts:50:1 › navigation before first autosave preserves the detached draft (359ms)
+  ✓  10 tests/browser/product-workflows.spec.ts:4:1 › chats restore drafts, names and selected conversation after reload (1.6s)
+  ✓  11 tests/browser/product-workflows.spec.ts:17:1 › v1 library survives upgrade, comparison supports keyboard and feedback saves privately (1.0s)
+  ✓  12 tests/browser/product-workflows.spec.ts:29:1 › Persona tutorial, inline errors, three-photo permission flow and preference persist (2.0s)
+  ✓  13 tests/browser/product-workflows.spec.ts:39:1 › YouTube Style browser preserves selection across orders and saves three references (1.5s)
+  ✓  14 tests/browser/product-workflows.spec.ts:52:1 › switching immediately flushes a draft and library selection restores its own chat context (1.8s)
+  ✓  15 tests/browser/workspace-races.spec.ts:25:1 › busy generation cannot switch chats through library navigation (454ms)
+  ✓  16 tests/browser/workspace-races.spec.ts:33:1 › delayed account A resize cannot overwrite account B hydration or draft (567ms)
+  ✓  17 tests/browser/workspace-races.spec.ts:43:1 › explicit save cannot overwrite newer edits already checkpointed during a slow creation write (1.0s)
+  ✓  18 tests/browser/workspace-races.spec.ts:51:1 › editing uses the newly selected library source and preserves the unsent brief (904ms)
+  ✓  19 tests/browser/workspace-races.spec.ts:62:1 › typing while generation runs preserves new direction and offers a result without stealing focus (596ms)
+  ✓  20 tests/browser/workspace-races.spec.ts:70:1 › request activity is reachable inside its modal and refresh never resubmits a request (819ms)
+  ✓  21 tests/browser/workspace-races.spec.ts:79:1 › slow first autosave cannot steal a subsequently selected chat (808ms)
+  ✓  22 tests/browser/workspace-races.spec.ts:94:37 › stale title response cannot enter account B (508ms)
+  ✓  23 tests/browser/workspace-races.spec.ts:94:37 › stale title response cannot enter a new session of account A (725ms)
+  ✓  24 tests/browser/workspace-races.spec.ts:101:1 › stale comparison cannot reopen another account image dialog (531ms)
+  ✓  25 tests/browser/workspace-races.spec.ts:108:1 › composer locks while a slow chat navigation saves then restores editable destination (445ms)
+  ✓  26 tests/browser/workspace-races.spec.ts:116:1 › explicit save does not reselect an old editing source after a new source is chosen (862ms)
+
+  1 skipped
+  25 passed (24.5s)

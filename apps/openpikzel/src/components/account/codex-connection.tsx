@@ -31,11 +31,12 @@ export function CodexConnection({signedIn,enabled,api}:{signedIn:boolean;enabled
  }
  const pending=!!status.attemptId&&["starting","waiting_device","polling","exchanging"].includes(status.phase);
  return <section className="account-panel codex-connection" aria-labelledby="chatgpt">
-  <h2 id="chatgpt">Connect your ChatGPT plan</h2>
-  <p>Open OpenAI’s sign-in window, enter your one-time code and approve the connection. No download required.</p>
-  <p>Codex plan limits apply. This connects your account and reads available models and usage. Studio image generation still uses your separately connected API provider.</p>
+  <h2 id="chatgpt">ChatGPT models and usage</h2>
+  <p>Check the models and usage available with your ChatGPT plan. Codex plan limits apply.</p>
+  <p>Generating studio images requires a separate API connection.</p>
+  <details><summary>How sign-in works</summary><p>Open OpenAI’s sign-in window, enter your one-time code and approve the connection. No download required.</p></details>
   <p>Your connection is encrypted on our server. Your OpenAI password stays with OpenAI.</p>
-  {!signedIn?<p>Sign in to OpenPikzels below to connect your plan.</p>:!enabled?<p>ChatGPT connection setup is being completed. Your API connections remain available.</p>:<>
+  {!signedIn?<p>Sign in to your workspace first to connect your plan.</p>:!enabled?<p>ChatGPT connection setup is being completed. Your API connections remain available.</p>:<>
    {status.connected&&<p><strong>Connected · {status.label||"ChatGPT account"}</strong>{status.plan?" · "+status.plan:""}</p>}
    {status.needsReauth&&<p>Your OpenAI connection needs sign-in again.</p>}
    {pending?<div className="codex-device-step">

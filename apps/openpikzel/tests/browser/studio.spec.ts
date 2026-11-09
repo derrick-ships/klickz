@@ -55,7 +55,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
     .getByRole("button", { name: "Create persona", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Derrick", exact: true }),
+    page.getByRole("button", { name: "Change persona: Derrick", exact: true }),
   ).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "Persona", exact: true }).click();
@@ -104,10 +104,11 @@ test("all five modes and truthful disabled-AI boundaries are present", async ({
   await page
     .getByLabel("Prompt", { exact: true })
     .fill("A clear and specific video concept");
-  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await page.getByRole("button", { name: "Sign in to generate", exact: true }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Sign in" }),
+    page.getByRole("dialog"),
   ).toContainText("Sign in");
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await page.getByRole("tab", { name: "Analyze", exact: true }).click();
   for (const name of ["Virality", "Clarity", "Idea", "Curiosity", "Emotion"])
     await expect(
@@ -134,7 +135,7 @@ test("desktop and mobile editor fit their viewport", async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.goto("/?mode=generate");
     await expect(
-      page.getByRole("button", { name: "Generate", exact: true }),
+      page.getByRole("button", { name: "Sign in to generate", exact: true }),
     ).toBeVisible();
     expect(
       await page.evaluate(

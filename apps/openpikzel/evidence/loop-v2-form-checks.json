@@ -1,0 +1,13 @@
+{
+  "route": "/connect",
+  "width": 1024,
+  "states": [
+    "loading displayed",
+    "configuration failure displayed",
+    "recovery by reload",
+    "invalid email prevents submission",
+    "corrected email accepted by browser validation"
+  ],
+  "authCalls": 0,
+  "providerSignInTested": false
+}

@@ -1,0 +1,326 @@
+{
+  "findings": [
+    {
+      "id": "DES-V2-01",
+      "route": "/studio",
+      "state": "390px, editing a saved draft with selected source",
+      "selector": ".edit-source-preview, .chat-strip, .composer, .composer-footer",
+      "severity": "P2",
+      "confidence": 0.97,
+      "user_impact": "The editing task is buried in a very tall mobile composition. The screenshot places history cards above the heading, a full source preview above the edit field, another reference thumbnail below it, and generation and saving near the bottom. A creator must repeatedly scroll between the image, instruction and action.",
+      "recommendation": "On narrow screens lead with the current image and edit field as a compact working pair. Collapse history behind an explicit version count and make the existing source preview disclosure compact by default after source selection. Keep the original image easily recoverable and keep Save draft and the applicable generation action adjacent to the edit task. Do not hide readiness or provider-charge information.",
+      "evidence_ids": [
+        "DES-E03",
+        "DES-E08",
+        "DES-E10"
+      ]
+    },
+    {
+      "id": "DES-V2-02",
+      "route": "/studio",
+      "state": "Signed-out empty prompt at 1024px and 1440px",
+      "selector": ".request-readiness, .request-identity, .composer-footer",
+      "severity": "P2",
+      "confidence": 0.98,
+      "user_impact": "The bottom third of the composer is dominated by repeated model/provider/format identity and setup explanations. The raw API model identifier receives near-primary text emphasis, while the immediately usable Save draft action sits outside the card in low-emphasis styling. This makes the free drafting path feel secondary to a blocked generation path.",
+      "recommendation": "Keep one concise visible readiness summary, show the human-readable model and format once, put raw API identifiers in an optional details disclosure, and keep the provider-charge explanation beside the generation action. Give Save draft a clear secondary action position and label in the same action group. Preserve the explicit sign-in requirement.",
+      "evidence_ids": [
+        "DES-E02",
+        "DES-E06",
+        "DES-E10"
+      ]
+    },
+    {
+      "id": "DES-V2-03",
+      "route": "/studio",
+      "state": "1100px review with partial analysis fixture",
+      "selector": ".review-layout, .review-canvas, .review-inspector; src/app/review.css",
+      "severity": "P2",
+      "confidence": 0.94,
+      "user_impact": "At the supplied middle desktop width the full image and its controls consume almost the first screen, while the active analysis explanation is much farther down. The image is no longer beside its feedback, weakening the core visual-review task and requiring memory and repeated scrolling.",
+      "recommendation": "Design an intentional intermediate review layout below the current 960px container breakpoint: a compact image preview retained near the active analysis, or a clearly bounded sticky preview that does not obscure keyboard focus. Keep the full-size view available. Validate the composition with long real titles and incomplete assessments before claiming the problem resolved.",
+      "evidence_ids": [
+        "DES-E04",
+        "DES-E11"
+      ]
+    },
+    {
+      "id": "DES-V2-04",
+      "route": "/studio",
+      "state": "390px edit settings and generation action",
+      "selector": ".settings-row select, .batch-select select, .model-trigger",
+      "severity": "P3",
+      "confidence": 0.96,
+      "user_impact": "The native aspect-ratio selector and batch control show a noticeably different control face from the custom model picker and sculpted buttons. In the mobile screenshot the ratio field appears as a thin inset strip and the batch selector has platform arrows, reducing consistency and perceived finish. This is a visual observation, not a measured touch-target failure.",
+      "recommendation": "Retain native select behavior but normalize its visible height, padding, background and indicator within the shared control geometry; use appearance:none only with a clear replacement indicator and preserved focus/forced-colors behavior. Align the ratio field with ModelTrigger and keep batch quantity legible inside the split action.",
+      "evidence_ids": [
+        "DES-E03",
+        "DES-E06",
+        "DES-E09",
+        "DES-E12"
+      ]
+    },
+    {
+      "id": "DES-V2-05",
+      "route": "/connect",
+      "state": "390px signed-out account form",
+      "selector": ".account-form .neutral-button; src/components/account/account.tsx",
+      "severity": "P2",
+      "confidence": 0.96,
+      "user_impact": "Three equal full-width alternatives directly follow Sign in: create account, existing code, and email a code. Existing-code recovery is visually as prominent as the normal paths, so the form asks new visitors to sort authentication states before they can connect AI.",
+      "recommendation": "Give the form a clear password/code method choice, keep the selected method's single submit action primary, and move account switching to a quieter but obvious text action. Reveal existing-code entry in the code method without removing recovery access or changing authentication behavior.",
+      "evidence_ids": [
+        "DES-E05",
+        "DES-E13"
+      ]
+    },
+    {
+      "id": "DES-V2-06",
+      "route": "/welcome, /studio, /connect",
+      "state": "Marketing header, studio sidebar/topbar, account header",
+      "selector": ".welcome-brand, .wordmark, .workspace-name, .account-header .brand",
+      "severity": "P3",
+      "confidence": 0.99,
+      "user_impact": "The identity shifts from a bold compact wordmark with baseline red punctuation on the welcome page, to a bold studio mark with a raised pixel, to a light account wordmark and small plain mobile studio name. This makes connected parts of the product feel less deliberately unified.",
+      "recommendation": "Define one reusable wordmark with an explicit compact variant: consistent weight, letter spacing and raised red pixel. Allow size to change for context, while preserving the same mark. Keep the red/dark brand and all required headline text.",
+      "evidence_ids": [
+        "DES-E01",
+        "DES-E02",
+        "DES-E03",
+        "DES-E05",
+        "DES-E07",
+        "DES-E09",
+        "DES-E13"
+      ]
+    },
+    {
+      "id": "DES-V2-07",
+      "route": "/welcome",
+      "state": "1440px and 1920px complete landing page",
+      "selector": ".welcome-art, .welcome-workflow, .welcome-steps",
+      "severity": "P2",
+      "confidence": 0.91,
+      "user_impact": "The artwork creates a distinctive red/dark atmosphere, but the entire landing page explains a visual thumbnail studio through abstract frames and text. Visitors never see the actual creation-to-review interface, so the promised workflow remains difficult to picture before entering.",
+      "recommendation": "Keep the required GET MILLIONS OF VIEWS / Without adding another subscription* headline and the abstract brand hero. Add one carefully composed product example in the workflow section showing a local draft, review annotations and retained original. Label illustrative content clearly and do not present fixture images, fixture scores, or invented outcomes as provider performance evidence.",
+      "evidence_ids": [
+        "DES-E01",
+        "DES-E07",
+        "DES-E14"
+      ]
+    },
+    {
+      "id": "DES-V2-08",
+      "route": "/studio",
+      "state": "1100px review with incomplete assessment fixture",
+      "selector": ".score-header, .score-body, .pillar-detail",
+      "severity": "P2",
+      "confidence": 0.94,
+      "user_impact": "The large 'Partial' label is followed by score bars and an immediately prominent red One-click fix action, while the actionable incomplete-context explanation appears later in the detailed pillar content. The visual hierarchy encourages moving on before understanding what the assessment lacks.",
+      "recommendation": "Place a brief incomplete-assessment explanation and the next needed input directly below Partial; keep unavailable dimensions visibly unassessed. Let the fix action follow that context in the reading order and present its scope clearly. Treat the existing fixture only as evidence of UI hierarchy.",
+      "evidence_ids": [
+        "DES-E04",
+        "DES-E15"
+      ]
+    }
+  ],
+  "blockers": [],
+  "delight": [
+    {
+      "id": "DES-D01",
+      "observation": "The red frame artwork, generous headline scale and restrained monochrome body give the landing page a recognizable visual direction. The exact required headline remains intact.",
+      "evidence_ids": [
+        "DES-E01",
+        "DES-E07"
+      ]
+    },
+    {
+      "id": "DES-D02",
+      "observation": "The review screen prioritizes the user's image, keeps neutral editing/export actions grouped, and visibly distinguishes unassessed dimensions rather than drawing fabricated bars.",
+      "evidence_ids": [
+        "DES-E04"
+      ]
+    },
+    {
+      "id": "DES-D03",
+      "observation": "Source inspection shows a finite decorative scene that settles on input focus, hidden documents, reduced motion and mobile. This is thoughtful attention management; actual timing and smoothness were not observed in motion.",
+      "evidence_ids": [
+        "DES-E16"
+      ]
+    },
+    {
+      "id": "DES-D04",
+      "observation": "Source inspection shows explicit focus outlines, roving keyboard behavior for creation tabs, labelled native selectors, and a save receipt with a live status. The four-pixel save animation is a relevant brand detail. These implementation affordances are not a substitute for interactive accessibility validation.",
+      "evidence_ids": [
+        "DES-E08",
+        "DES-E09",
+        "DES-E10",
+        "DES-E17"
+      ]
+    }
+  ],
+  "jobs_to_be_done": [
+    {
+      "job": "Understand what this thumbnail studio will let me do before entering.",
+      "desired_outcome": "A distinctive brand promise paired with an honest visible workflow example.",
+      "finding_ids": [
+        "DES-V2-07"
+      ],
+      "evidence_ids": [
+        "DES-E01",
+        "DES-E07"
+      ]
+    },
+    {
+      "job": "Refine an existing thumbnail on my phone while keeping the source in view.",
+      "desired_outcome": "Image, edit instruction, save and generation readiness remain within a compact, predictable working sequence.",
+      "finding_ids": [
+        "DES-V2-01",
+        "DES-V2-04"
+      ],
+      "evidence_ids": [
+        "DES-E03"
+      ]
+    },
+    {
+      "job": "Save a useful idea before connecting generation.",
+      "desired_outcome": "The available draft action is discoverable alongside the clearly explained generation prerequisite.",
+      "finding_ids": [
+        "DES-V2-02"
+      ],
+      "evidence_ids": [
+        "DES-E02",
+        "DES-E06"
+      ]
+    },
+    {
+      "job": "Judge the image against feedback and decide what to change.",
+      "desired_outcome": "Image and current explanation are visually adjacent, with missing assessment context understood before a fix.",
+      "finding_ids": [
+        "DES-V2-03",
+        "DES-V2-08"
+      ],
+      "evidence_ids": [
+        "DES-E04"
+      ]
+    },
+    {
+      "job": "Sign in and connect AI without choosing among recovery states.",
+      "desired_outcome": "One clear selected authentication method, with alternate and recovery paths readily available.",
+      "finding_ids": [
+        "DES-V2-05"
+      ],
+      "evidence_ids": [
+        "DES-E05"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "DES-E01",
+      "type": "screenshot",
+      "path": "evidence/panel-after-01-welcome.png",
+      "observed": "Inspected individually; full landing page, 1440px wide. Image tool displayed a downscaled full-page rendition."
+    },
+    {
+      "id": "DES-E02",
+      "type": "screenshot",
+      "path": "evidence/panel-after-02-studio.png",
+      "observed": "Inspected individually; empty signed-out prompt studio with sidebar, 1440px wide."
+    },
+    {
+      "id": "DES-E03",
+      "type": "screenshot",
+      "path": "evidence/panel-after-edit-390.png",
+      "observed": "Inspected individually; 390px mobile edit/saved-draft fixture, 2248px full-page height. Displayed downscaled; source confirms layout structures."
+    },
+    {
+      "id": "DES-E04",
+      "type": "screenshot",
+      "path": "evidence/panel-after-review-1100.png",
+      "observed": "Inspected individually; 1100px review, 2462px full-page height; explicit fixture image and analysis. No provider performance inferred."
+    },
+    {
+      "id": "DES-E05",
+      "type": "screenshot",
+      "path": "evidence/panel-after-07-connect-mobile.png",
+      "observed": "Inspected individually; 390px signed-out connection form."
+    },
+    {
+      "id": "DES-E06",
+      "type": "screenshot",
+      "path": "evidence/loop-v2-studio-1024.png",
+      "observed": "Inspected individually; new 1024px empty signed-out prompt baseline, sidebar collapsed."
+    },
+    {
+      "id": "DES-E07",
+      "type": "screenshot",
+      "path": "evidence/loop-v2-welcome-1920.png",
+      "observed": "Inspected individually; new 1920px full landing-page baseline. Displayed downscaled."
+    },
+    {
+      "id": "DES-E08",
+      "type": "source",
+      "path": "src/components/studio.tsx:1085",
+      "observed": "Creation tabs use tablist/tab, aria-selected and roving arrow/Home/End keyboard handling. Source preview at line 1274 is details open; the preview can be collapsed manually."
+    },
+    {
+      "id": "DES-E09",
+      "type": "source",
+      "path": "src/app/surfaces.css",
+      "observed": "Reviewed component geometry, breakpoint overrides, focus styling, touch-target rules, shared surface/color variables, reduced-motion and forced-colors rules."
+    },
+    {
+      "id": "DES-E10",
+      "type": "source",
+      "path": "src/components/studio.tsx:1508",
+      "observed": "Readiness block separately renders identity, quantity, readiness and cost, followed by generation dock; Save draft lives in composer-footer at line 1562. Save acknowledgement has status text."
+    },
+    {
+      "id": "DES-E11",
+      "type": "source",
+      "path": "src/app/review.css:50",
+      "observed": "Two-column review layout and sticky media begin at a 960px container width; narrower layouts stack image and inspector."
+    },
+    {
+      "id": "DES-E12",
+      "type": "source",
+      "path": "src/components/creative/model-picker.tsx:8",
+      "observed": "ModelTrigger is a custom button with icon and chevron, whereas aspect/batch use native select controls; globals.css:1940-2035 and surfaces.css supply layered dimensions."
+    },
+    {
+      "id": "DES-E13",
+      "type": "source",
+      "path": "src/components/account/account.tsx:120",
+      "observed": "Read sign-in controls and account header. Three alternate actions share neutral-button styling. Account header uses .brand plus wordmark-pixel."
+    },
+    {
+      "id": "DES-E14",
+      "type": "source",
+      "path": "src/app/welcome.css",
+      "observed": "Welcome uses Arial/Helvetica, its own wordmark punctuation, oversized display type, abstract hero art and three-column text workflow; responsive rules were read."
+    },
+    {
+      "id": "DES-E15",
+      "type": "source",
+      "path": "src/components/studio.tsx:817",
+      "observed": "Partial heading and One-click fix precede pillar list and detailed missingReason/observation content."
+    },
+    {
+      "id": "DES-E16",
+      "type": "source",
+      "path": "src/components/brand-scene.tsx",
+      "observed": "Single scene playback, 4400ms cap, settling on field focus and document hiding, reduced-motion/mobile/save-data guards. No playback tested."
+    },
+    {
+      "id": "DES-E17",
+      "type": "source",
+      "path": "src/app/tokens.css",
+      "observed": "Reviewed spacing, color, typography, focus and timing tokens; no measured contrast claim made."
+    },
+    {
+      "id": "DES-E18",
+      "type": "scope",
+      "observed": "Independent fourth LOOP v2 designer lens. No other lens reports read. Source commit de11970bd2c733aca2e615638035135b3ffa2763 supplied as root-verified. Read-only screenshot/source inspection; no browser tests, network/live-site access, paid calls, app edits, deployments or outbound messages. Empty blockers means no P0/P1 demonstrated within this limited design review, not an assertion of release readiness. Motion, hover/focus/error/loading appearance and additional responsive states remain unverified interactively."
+    }
+  ]
+}

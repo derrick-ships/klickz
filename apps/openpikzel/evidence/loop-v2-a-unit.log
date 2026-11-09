@@ -1,0 +1,14 @@
+
+> openpikzel@1.0.0 test
+> vitest run tests/workspaces.test.ts
+
+
+ RUN  v5.1.0 [workspace]
+
+ ✓ tests/workspaces.test.ts (5 tests) 18ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  00:43:55
+   Duration  80ms (tests 52%, transform 33%, import 11%, worker 4%)
+

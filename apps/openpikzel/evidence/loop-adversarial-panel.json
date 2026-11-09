@@ -1,0 +1,146 @@
+{
+  "method": {
+    "status": "provisional",
+    "description": "Seven role perspectives applied within one model review; not seven independent people or exact LOOP v2 compliance.",
+    "evidenceReviewed": [
+      "evidence/loop-route-state-matrix.json",
+      "docs/loop-concepts.md",
+      "evidence/loop-axe.json",
+      "docs/panel-ux-review.md",
+      "Current welcome, connection, studio, and use-studio source"
+    ],
+    "limitations": [
+      "Exact LOOP v2 protocol and prescribed role list unavailable.",
+      "No live-site access, external evaluator submission, provider calls, new browser tests, or new visual inspection.",
+      "Earlier passing checks do not automatically validate subsequent changes."
+    ]
+  },
+  "roles": [
+    {
+      "role": "accessibility",
+      "challenge": "Zero automated violations does not establish accessible reading or operation. Resolve contrast uncertainty and exercise the actual screen-reader journey, particularly save status, code errors, dialogs, and navigation disabling.",
+      "evidence": [
+        "loop-axe.json contains 17 fixture/viewport reports with zero violations, but every report has incomplete color-contrast findings, ranging from 3 to 82 nodes.",
+        "Route matrix explicitly marks screen-reader testing unperformed and manual gradient/hover/active contrast review incomplete.",
+        "studio.tsx:1123 disables a fieldset during navigation; its keyboard/focus consequences require validation."
+      ],
+      "severity": "high validation gap; no specific contrast failure established"
+    },
+    {
+      "role": "newcomer usability",
+      "challenge": "Users must understand the difference between automatic recovery and explicitly saving a library draft. Improved status text helps, but two save models still require comprehension testing, including storage failure and workspace sync failure.",
+      "evidence": [
+        "studio.tsx:318-330 writes a device checkpoint, then syncs a conversation and reports separate failure states.",
+        "studio.tsx:511-533 explicitly saves a creation and updates selection.",
+        "studio.tsx:1570-1578 displays 'Draft saved' and announces 'Draft saved to your library.'",
+        "Earlier review documents successful fixture recovery checks, not observed newcomer comprehension."
+      ],
+      "severity": "medium usability uncertainty"
+    },
+    {
+      "role": "visual design",
+      "challenge": "Preserving the source image must be judged at the moment users edit and interpret analysis. The selected direction is reasonable, but mobile density and intermediate-width image context remain review targets rather than proven solved states.",
+      "evidence": [
+        "loop-concepts.md selects a review studio with a central image and adjacent analysis when space allows.",
+        "Earlier panel review reports a container breakpoint and a visually checked 1100px review layout.",
+        "Current designer lens supplied by the parent still identifies mobile edit density and intermediate review image context as medium concerns.",
+        "No fresh visual inspection was performed in this panel."
+      ],
+      "severity": "medium; bounded by existing local visual evidence"
+    },
+    {
+      "role": "power-user workflow",
+      "challenge": "Do not accept the new race protections on inspection alone. Delayed compare/title results, account changes, and slow chat navigation are precisely where apparent success can place content in the wrong context or discard intended work.",
+      "evidence": [
+        "use-studio.ts:205-217 checks owner epoch around credential retrieval and API responses.",
+        "use-studio.ts:241-279 checks owner epoch around image preparation and upload.",
+        "studio.tsx:1123 disables composer inputs while navigating.",
+        "Parent reports these protections were just implemented and their regression tests were pending."
+      ],
+      "severity": "high until focused regressions pass; prior defects are not asserted to remain"
+    },
+    {
+      "role": "frontend engineering/performance",
+      "challenge": "Bind the release evidence to the final candidate. Earlier unit, browser, and lab results support the prior implementation but cannot certify later changes, and isolated lab scenarios cannot cover authenticated startup, large libraries, or real network/provider behavior.",
+      "evidence": [
+        "panel-ux-review.md records earlier TypeScript/build, unit, Chromium, WebKit, and controlled performance results.",
+        "Route matrix identifies a baseline plus an uncommitted candidate, rather than a fixed final revision.",
+        "Route matrix leaves all-error-state coverage unestablished and several production integrations untested.",
+        "Earlier review explicitly records an unresolved WebKit local Blob-storage limitation."
+      ],
+      "severity": "high release-evidence gap; medium broader performance/browser uncertainty"
+    },
+    {
+      "role": "privacy/security",
+      "challenge": "Account ownership must remain correct throughout asynchronous work, and encrypted-storage copy must not be mistaken for a completed security assessment. Verify stale success and error responses cannot populate the next account's interface, including A-to-B-to-A transitions.",
+      "evidence": [
+        "Current API and upload code includes owner-epoch checks, a concrete improvement.",
+        "welcome.tsx:33 distinguishes browser storage, cloud records, provider inputs, local companion secrets, and server-stored Codex tokens.",
+        "codex-connection.tsx:37 states that the connection is encrypted on the server.",
+        "This panel did not audit encryption implementation, server authorization, token lifecycle, or all account-transition paths."
+      ],
+      "severity": "high ownership-validation gap; no new security exploit established"
+    },
+    {
+      "role": "product/value",
+      "challenge": "The concept can be justified by continuity and image-review needs, but neither commercial value nor product superiority has been established. The optional ChatGPT connection also needs a clear reason to occupy onboarding attention when it only exposes models and usage.",
+      "evidence": [
+        "welcome.tsx:24-28 now explicitly separates API image generation, ChatGPT models/usage, and agent access.",
+        "codex-connection.tsx:34 still leads with 'Connect your ChatGPT plan', although the following paragraph correctly limits the capability.",
+        "The three concepts are documented implementation hypotheses, not tested alternatives.",
+        "Independent evaluation was denied; no actual external score or price estimate exists."
+      ],
+      "severity": "medium positioning risk; high gap for any claimed external acceptance target"
+    }
+  ],
+  "disagreements": [
+    {
+      "issue": "Guided onboarding versus review studio",
+      "positions": "The newcomer perspective favors reducing initial choices; power-user and visual perspectives favor preserving direct access and image inspection.",
+      "resolution": "Retain the review studio and improve local explanations. Do not add a wizard without evidence that setup confusion persists."
+    },
+    {
+      "issue": "Disabling inputs during navigation",
+      "positions": "Power-user flexibility favors continued typing; engineering favors preventing edits from entering an unresolved destination.",
+      "resolution": "Accept the temporary lock as a correctness tradeoff only after slow-navigation tests establish clear feedback, focus behavior, and recovery."
+    },
+    {
+      "issue": "Release versus incomplete evidence",
+      "positions": "Product iteration favors shipping the bounded improvements; accessibility and ownership perspectives reject broad readiness claims with unresolved gates.",
+      "resolution": "Support continued local validation. Withhold unconditional release approval and LOOP-completion claims."
+    }
+  ],
+  "conceptDecision": {
+    "selected": "Review studio",
+    "verdict": "Provisionally justified",
+    "rationale": "Matches the recorded user preference and directly addresses observed source continuity and cramped review problems with less structural disruption than the alternatives.",
+    "qualification": "Not demonstrated to outperform guided onboarding or a conversation-first workbench. Alternative concepts were not implemented or user-tested."
+  },
+  "releaseVerdict": {
+    "decision": "Do not declare the full LOOP cycle or release gate passed.",
+    "scope": "The candidate has credible local improvements and useful prior fixture evidence. Fresh guard regressions, manual accessibility work, and production/integration verification remain necessary evidence.",
+    "distinction": "Denied external evaluation and unavailable protocol are process blockers; they are not newly discovered product defects. Untested real-provider and host integrations are functional uncertainty."
+  },
+  "blockers": [
+    {
+      "type": "candidate validation",
+      "required": "Run focused stale-response/account-transition and slow-navigation regressions against the final code, then record the exact candidate and applicable build/check results."
+    },
+    {
+      "type": "accessibility validation",
+      "required": "Complete manual contrast checks and an actual screen-reader task audit; retain unresolved findings as incomplete."
+    },
+    {
+      "type": "release scope",
+      "required": "Resolve or explicitly bound the known WebKit local Blob-storage limitation and identify which browser/local-storage workflows are supported."
+    },
+    {
+      "type": "production integration",
+      "required": "Obtain authorized production UI and provider/host integration verification before claiming those paths work in production."
+    },
+    {
+      "type": "LOOP compliance",
+      "required": "Obtain the exact protocol and any required independent evaluation through authorized access. Do not fabricate the requested score, price, or compliance result."
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "lens": "power-user",
+  "method": "Independent read-only source inspection and review of two supplied screenshots. Provisional JSON; exact LOOP v2 schema compliance is not claimed. No runtime interactions, mutations, deployments, paid calls, or live-site access.",
+  "observed": [
+    "The mobile edit screenshot visibly identifies the selected source and states that the original stays saved.",
+    "Draft checkpoints are scoped by owner, and conversation writes are serialized.",
+    "Generation completion checks the draft fingerprint and offers a separate result when the draft changes.",
+    "Mode tabs implement arrow, Home, and End navigation. Dialogs use native modal behavior and attempt to restore focus."
+  ],
+  "findings": [
+    {
+      "id": "POWER-01",
+      "severity": "high",
+      "evidence": [
+        "src/components/studio.tsx:581-589: compare awaits studio.api, then unconditionally stores the returned comparison and opens its dialog.",
+        "src/components/studio.tsx:476-483: title generation unconditionally applies returned titles.",
+        "src/components/studio.tsx:300: account changes clear titles and close dialogs, but do not invalidate these pending continuations.",
+        "src/lib/use-studio.ts:170-192: run suppresses stale errors but does not prevent successful work callbacks from updating state.",
+        "src/lib/use-studio.ts:205-213: api has no owner-epoch validation after its response."
+      ],
+      "impact": "If an account changes while a comparison or title request is pending, its eventual response can restore content from the previous account in the new account's UI. The comparison path can reopen a dialog containing the previous account's image previews.",
+      "recommendation": "Capture an owner epoch for every asynchronous operation and reject stale responses before any state update. Apply the same guard to raw API calls and upload/import continuations, and clear comparison state on account changes.",
+      "confidence": "high from source inspection; not reproduced at runtime"
+    },
+    {
+      "id": "POWER-02",
+      "severity": "high",
+      "evidence": [
+        "src/components/studio.tsx:291-299: flushDraft captures the draft once; openChat and newChat activate another chat after asynchronous persistence completes.",
+        "src/components/studio.tsx:1282-1296: the prompt textarea remains editable during these operations.",
+        "src/components/studio.tsx:314-332: autosave waits 300 ms and cancels its pending timer when the draft or active chat changes.",
+        "src/lib/draft-checkpoint.ts:20-21: checkpoints use one storage entry per owner, so activating another chat replaces the previous chat's checkpoint."
+      ],
+      "impact": "Typing while a slow chat transition is saving can lose the newly entered text. If the transition completes before the latest debounce fires, navigation cancels that save, restores the destination draft, and subsequently overwrites the sole local checkpoint. The original chat retains the earlier snapshot.",
+      "recommendation": "Prevent composer edits specifically during chat transitions, or keep flushing until the captured draft revision matches the current revision before activation. Retain checkpoints per chat until their corresponding writes are confirmed.",
+      "confidence": "high from source inspection; timing scenario not reproduced at runtime"
+    }
+  ],
+  "untested": [
+    "Live application behavior because browser access to openpikzels.com and chatgpt.com was denied.",
+    "Actual delayed writes, account transitions, failed requests, and reload recovery.",
+    "Keyboard traversal and focus restoration in a running browser.",
+    "Backend authorization and storage policies."
+  ],
+  "verdict": "Selected-source clarity and several recovery mechanisms are present. Two source-level asynchronous workflow failures remain: stale responses can restore previous-account content, and editing during a slow chat transition can lose unsaved text."
+}

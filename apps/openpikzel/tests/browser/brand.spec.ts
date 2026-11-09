@@ -19,7 +19,7 @@ test("brand motion settles when editing or motion preference changes", async ({ 
   await page.getByLabel("Prompt", { exact: true }).focus();
   await expect(scene).toHaveAttribute("data-motion", "still");
   expect(await scene.locator("video").evaluate(v => (v as HTMLVideoElement).paused)).toBe(true);
-  await page.goto("/connect");
+  await page.goto("/welcome");
   const onboarding = page.locator('[data-brand-scene="aperture"]');
   await expect(onboarding).toHaveAttribute("data-motion", "playing");
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -31,7 +31,7 @@ test("reduced-motion and data-saving visitors load only the poster", async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   const videos: string[] = [];
   page.on("request", r => { if (/\/brand\/.*\.(webm|mp4)/.test(r.url())) videos.push(r.url()); });
-  await page.goto("/connect");
+  await page.goto("/welcome");
   const scene = page.locator('[data-brand-scene="aperture"]');
   await expect.poll(() => scene.locator("img").evaluate(i => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(scene.locator("source")).toHaveCount(0);

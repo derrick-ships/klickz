@@ -1,0 +1,48 @@
+[WebServer] ⚠ Warning: Next.js ignored package-lock.json in [user] because it would include your home directory ([user]).
+[WebServer]  To use this directory, set `outputFileTracingRoot` in your Next.js config.
+[WebServer] 
+
+Running 39 tests using 1 worker
+
+  ✓  1 tests/browser/accounts.spec.ts:2:1 › OAuth registration, consent branding and Deny work through HTTP (787ms)
+  ✓  2 tests/browser/accounts.spec.ts:50:1 › account onboarding has no fake configured providers and fits mobile (229ms)
+  ✓  3 tests/browser/accounts.spec.ts:71:1 › signed-in provider onboarding isolates key entry and shows revocable agents (1.4s)
+  ✓  4 tests/browser/accounts.spec.ts:235:1 › email-code sign-in stays on the page and keeps password fallback (382ms)
+  ✓  5 tests/browser/accounts.spec.ts:253:1 › email limits preserve access to an already received code (463ms)
+  ✓  6 tests/browser/accounts.spec.ts:267:1 › local companion setup offers a real source download and fits mobile (182ms)
+  ✓  7 tests/browser/accounts.spec.ts:279:1 › invalid email code stays editable with nearby associated feedback (261ms)
+  ✓  8 tests/browser/local-assets.spec.ts:11:1 › local uploaded images survive reload and export as real PNG files (556ms)
+  -  9 tests/browser/local-assets.spec.ts:18:1 › existing Blob asset records remain readable without migration
+  ✓  10 tests/browser/loop-protocol.spec.ts:3:1 › LOOP v2 page routes, required breakpoints, links and runtime errors (2.2s)
+  ✓  11 tests/browser/loop-protocol.spec.ts:34:1 › LOOP v2 account loading, setup failure and invalid form recovery (392ms)
+  ✓  12 tests/browser/navigation-blur.spec.ts:4:1 › mobile navigation keeps the artwork visible through blur and preserves the prompt (601ms)
+  ✓  13 tests/browser/navigation-blur.spec.ts:11:1 › navigation can reverse during motion and stays instant with reduced motion and keyboard (727ms)
+  ✓  14 tests/browser/navigation-blur.spec.ts:17:1 › voice capture controls and status are removed from the composer (196ms)
+  ✓  15 tests/browser/navigation-blur.spec.ts:20:1 › image model picker uses supplied white logos and applies only supported choices (987ms)
+  ✓  16 tests/browser/navigation-blur.spec.ts:27:1 › navigation backdrop stays transparent when hovered and touched (261ms)
+  ✓  17 tests/browser/panel-improvements.spec.ts:6:1 › first-session typing survives immediate reload and does not create duplicate chats (1.5s)
+  ✓  18 tests/browser/panel-improvements.spec.ts:18:1 › saved edit retains its original image and draft through reload (988ms)
+  ✓  19 tests/browser/panel-improvements.spec.ts:34:1 › setup is actionable without a paid call and preserves the draft (485ms)
+  ✓  20 tests/browser/panel-improvements.spec.ts:42:1 › review protects image size at intermediate width and keeps reduced motion static (549ms)
+  ✓  21 tests/browser/panel-improvements.spec.ts:50:1 › navigation before first autosave preserves the detached draft (363ms)
+  ✓  22 tests/browser/product-workflows.spec.ts:4:1 › chats restore drafts, names and selected conversation after reload (1.5s)
+  ✓  23 tests/browser/product-workflows.spec.ts:17:1 › v1 library survives upgrade, comparison supports keyboard and feedback saves privately (1.0s)
+  ✓  24 tests/browser/product-workflows.spec.ts:29:1 › Persona tutorial, inline errors, three-photo permission flow and preference persist (2.0s)
+  ✓  25 tests/browser/product-workflows.spec.ts:39:1 › YouTube Style browser preserves selection across orders and saves three references (1.5s)
+  ✓  26 tests/browser/product-workflows.spec.ts:52:1 › switching immediately flushes a draft and library selection restores its own chat context (2.2s)
+  ✓  27 tests/browser/workspace-races.spec.ts:25:1 › busy generation cannot switch chats through library navigation (452ms)
+  ✓  28 tests/browser/workspace-races.spec.ts:33:1 › delayed account A resize cannot overwrite account B hydration or draft (565ms)
+  ✓  29 tests/browser/workspace-races.spec.ts:43:1 › explicit save cannot overwrite newer edits already checkpointed during a slow creation write (987ms)
+  ✓  30 tests/browser/workspace-races.spec.ts:51:1 › editing uses the newly selected library source and preserves the unsent brief (902ms)
+  ✓  31 tests/browser/workspace-races.spec.ts:62:1 › typing while generation runs preserves new direction and offers a result without stealing focus (593ms)
+  ✓  32 tests/browser/workspace-races.spec.ts:70:1 › request activity is reachable inside its modal and refresh never resubmits a request (825ms)
+  ✓  33 tests/browser/workspace-races.spec.ts:79:1 › slow first autosave cannot steal a subsequently selected chat (802ms)
+  ✓  34 tests/browser/workspace-races.spec.ts:94:37 › stale title response cannot enter account B (655ms)
+  ✓  35 tests/browser/workspace-races.spec.ts:94:37 › stale title response cannot enter a new session of account A (717ms)
+  ✓  36 tests/browser/workspace-races.spec.ts:101:1 › stale comparison cannot reopen another account image dialog (560ms)
+  ✓  37 tests/browser/workspace-races.spec.ts:108:1 › composer locks while a slow chat navigation saves then restores editable destination (452ms)
+  ✓  38 tests/browser/workspace-races.spec.ts:116:1 › explicit save does not reselect an old editing source after a new source is chosen (819ms)
+  ✓  39 tests/browser/workspace-races.spec.ts:126:1 › reselecting the active chat preserves an unsent prompt (954ms)
+
+  1 skipped
+  38 passed (32.1s)

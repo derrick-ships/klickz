@@ -1,0 +1,133 @@
+{
+  "findings": [
+    {
+      "id": "POWER-01",
+      "original_severity": "P1",
+      "status": "resolved_in_reviewed_local_implementation",
+      "confidence": 0.99,
+      "route": "/studio",
+      "state": "Type a new prompt in the active chat, reselect its sidebar row, wait for persistence, then reload.",
+      "selector": ".chat-row[aria-current='true']; #thumbnail-prompt",
+      "source_reference": "src/components/studio.tsx:299; tests/browser/workspace-races.spec.ts:126-137",
+      "assessment": "openChat now returns when chat.id equals chatIdRef.current. This eliminates the specific stale captured Conversation reactivation path identified in the original lens. The root-owned regression now checks the current textarea value, persisted fixture conversation draft, and value after reload. The supplied browser log reports this case passed within a 13-test passing suite; the after capture visibly retains the latest brief.",
+      "user_impact": "Reselecting the active chat preserves the unsent direction instead of restoring its older prompt.",
+      "recommendation": "Keep the active-chat no-op and regression. No additional fix is required for this finding within the reviewed scope.",
+      "evidence_ids": [
+        "VERIFY-E01",
+        "VERIFY-E02",
+        "VERIFY-E03",
+        "VERIFY-E04"
+      ]
+    },
+    {
+      "id": "POWER-06",
+      "original_severity": "P2",
+      "status": "resolved_at_search_function_level",
+      "confidence": 0.99,
+      "route": "/studio",
+      "state": "Search a named chat for text present only in its autosaved draft, with no generated or explicitly saved creation.",
+      "selector": "input[aria-label='Search your chats']",
+      "source_reference": "src/lib/workspaces.ts:9; tests/workspaces.test.ts",
+      "assessment": "searchChats now searches chat.title plus draft.prompt, draft.title, and draft.videoBrief, retaining linked creation prompt matching. The added unit test uses an empty creations array and covers prompt/title/brief matches, surrounding whitespace and case normalization, no-match, empty query, and an empty draft. The supplied unit log reports all five tests passed.",
+      "user_impact": "A named chat is discoverable by text from an autosaved idea even when the idea has never become a creation.",
+      "recommendation": "Keep the expanded predicate and unit regression. UI-level autosave-to-search and real cloud synchronization were not independently exercised in this verification.",
+      "evidence_ids": [
+        "VERIFY-E05",
+        "VERIFY-E06"
+      ]
+    }
+  ],
+  "blockers": [
+    {
+      "id": "VERIFY-SCOPE-01",
+      "description": "Verification is limited to POWER-01 and POWER-06. POWER-02/03/04/05/07 were not reassessed and retain their previous disposition."
+    },
+    {
+      "id": "VERIFY-SCOPE-02",
+      "description": "Read source, test definitions, existing root-owned logs, and before/after screenshots only. No app edits, test runs, browser operations, network calls, or provider calls were performed by this verifier."
+    },
+    {
+      "id": "VERIFY-SCOPE-03",
+      "description": "The browser regression uses fixtures. It proves the tested local UI/state behavior, not real-provider generation, real backend persistence, cross-device synchronization, all timing interleavings, or browser coverage beyond the supplied run."
+    }
+  ],
+  "delight": [
+    {
+      "description": "The active-chat guard addresses the data-loss path without adding a confirmation or interrupting the autosave flow.",
+      "evidence_ids": [
+        "VERIFY-E01",
+        "VERIFY-E02"
+      ]
+    },
+    {
+      "description": "Draft search preserves existing title/creation lookup while making unsent ideas retrievable.",
+      "evidence_ids": [
+        "VERIFY-E05",
+        "VERIFY-E06"
+      ]
+    }
+  ],
+  "jobs_to_be_done": [
+    {
+      "id": "POWER-J01",
+      "assessment": "The reviewed active-chat reselect case now preserves edits through fixture persistence and reload.",
+      "evidence_ids": [
+        "VERIFY-E02",
+        "VERIFY-E03"
+      ]
+    },
+    {
+      "id": "POWER-J05",
+      "assessment": "Search now matches persisted draft fields without requiring an image or saved creation.",
+      "evidence_ids": [
+        "VERIFY-E05",
+        "VERIFY-E06"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "VERIFY-E01",
+      "type": "source",
+      "reference": "src/components/studio.tsx:299",
+      "observation": "openChat begins with if(busy||chat.id===chatIdRef.current)return, preventing active-row rehydration."
+    },
+    {
+      "id": "VERIFY-E02",
+      "type": "test_source",
+      "reference": "tests/browser/workspace-races.spec.ts:126-137",
+      "observation": "Test fills latest brief, clicks the active row, asserts textarea, polls fixture draft, reloads, then asserts the same brief again. Other adjacent tests retain coverage for explicit-save/source selection."
+    },
+    {
+      "id": "VERIFY-E03",
+      "type": "root_owned_browser_log",
+      "reference": "loop-v2-a-browser.log",
+      "observation": "13 passed (27.3s), including reselecting active chat preserves unsent prompt. This verifier read but did not execute the suite."
+    },
+    {
+      "id": "VERIFY-E04",
+      "type": "before_after",
+      "references": [
+        "evidence/loop-v2-active-chat-failure.log",
+        "evidence/loop-v2-active-chat-failure.png",
+        "evidence/loop-v2-active-chat-result.png"
+      ],
+      "observation": "Prior failure log expected 'This latest brief must survive clicking my current chat' but received 'A factual thumbnail from account A'. Failure capture has collapsed composer. Current result capture shows expanded composer containing the latest brief. Log supplies the pre-fix value evidence."
+    },
+    {
+      "id": "VERIFY-E05",
+      "type": "source_and_unit_test",
+      "references": [
+        "src/lib/workspaces.ts:9",
+        "tests/workspaces.test.ts"
+      ],
+      "observation": "Search includes draft prompt/title/videoBrief. New test passes empty creations and verifies matching all three fields, normalization, unrelated query, and whitespace-only query."
+    },
+    {
+      "id": "VERIFY-E06",
+      "type": "root_owned_unit_log",
+      "reference": "loop-v2-a-unit.log",
+      "observation": "vitest run tests/workspaces.test.ts reports one test file passed, five tests passed. This verifier read but did not execute the suite."
+    }
+  ]
+}

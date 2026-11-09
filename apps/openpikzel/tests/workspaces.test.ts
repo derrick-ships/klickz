@@ -20,6 +20,14 @@ describe('creative workspace contracts',()=>{
   expect(groupChats(chats,new Date('2026-11-08T12:00:00Z')).map(g=>g.label)).toEqual(['Today','Yesterday']);
   expect(searchChats(chats,[{conversation_id:'b',prompt:'A skeleton holding a smartphone'}] as any,'smartphone').map(x=>x.id)).toEqual(['b']);
  });
+
+ it('finds autosaved drafts without requiring a generated or saved image',async()=>{
+  const {searchChats}=await import('../src/lib/workspaces');
+  const chats=[{id:'draft',title:'My project',created_at:'2026-11-09T10:00:00Z',updated_at:'2026-11-09T10:00:00Z',draft:{prompt:'A tiny astronaut',title:'The moon experiment',videoBrief:'Testing gravity at home'}},{id:'empty',title:'Untitled',created_at:'2026-11-09T10:00:00Z',updated_at:'2026-11-09T10:00:00Z',draft:{}}];
+  for(const q of [' ASTRONAUT ','moon','gravity'])expect(searchChats(chats,[],q).map(c=>c.id)).toEqual(['draft']);
+  expect(searchChats(chats,[],'unrelated')).toEqual([]);
+  expect(searchChats(chats,[],' ')).toEqual(chats);
+ });
  it('normalizes verified YouTube video IDs and durations without trusting arbitrary image URLs',async()=>{
   const {videoCards,formatDuration}=await import('../src/lib/youtube');
   expect(formatDuration('PT1H2M3S')).toBe('1:02:03');

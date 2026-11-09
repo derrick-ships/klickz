@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 import {
   createClient,
   type SupabaseClient,
   type Session,
 } from "@supabase/supabase-js";
 import { CodexConnection } from "./codex-connection";
-import { BrandScene } from "@/components/brand-scene";
+
 import type { Config } from "@/lib/types";
 export function useAccount(isolated = false) {
   const [db, setDb] = useState<SupabaseClient | null>(null),
@@ -65,6 +65,8 @@ export function AccountSignIn({
   onSignedIn?: () => void;
   showEmailLinkHint?: boolean;
 }) {
+  const statusId=useId();
+  const [authError,setAuthError]=useState(false);
   const [signup, setSignup] = useState(false),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -78,7 +80,7 @@ export function AccountSignIn({
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
-        setStatus("");
+        setStatus("");setAuthError(false);
         try {
           const result = emailSent
             ? await db.auth.verifyOtp({ email, token: code, type: "email" })
@@ -89,19 +91,21 @@ export function AccountSignIn({
                 options: { emailRedirectTo: location.origin + "/connect" },
               })
             : await db.auth.signInWithPassword({ email, password });
-          setPassword(""); setCode("");
+          setPassword("");
           if (result.error)
             throw new Error(
-              emailSent ? "That code expired or could not be verified. Request a new code and try again." : signup
+              emailSent ? "That code could not be verified. Check the digits, or request a new code if it expired." : signup
                 ? "Could not create the account. Check your details or try signing in."
-                : "Sign-in failed. Check your email and password.",
+                : "Sign-in failed. Check your email and password. Your password was cleared; enter it again to retry.",
             );
+          setCode("");
           if (!result.data.session)
             setStatus(
               "Check your email to confirm your account, then sign in.",
             );
           else onSignedIn?.();
         } catch (e) {
+          setAuthError(true);
           setStatus(e instanceof Error ? e.message : "Could not complete this account request. Check your connection and try again.");
         } finally {
           setBusy(false);
@@ -112,8 +116,9 @@ export function AccountSignIn({
         {signup ? "Create your free account" : "Sign in to your workspace"}
       </h2>
       <p>
-        Private creations and personas. Connect your own API keys after signing
-        in.
+        This is your OpenPikzels account. Use your OpenPikzels password or an
+        email sign-in code, not your AI provider’s password. Connect your own
+        API keys after signing in.
       </p>
       <label>
         Email
@@ -121,6 +126,7 @@ export function AccountSignIn({
           type="email"
           required
           autoComplete="username"
+          aria-describedby={status?statusId:undefined}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -132,11 +138,13 @@ export function AccountSignIn({
           minLength={8}
           required
           autoComplete={signup ? "new-password" : "current-password"}
+          aria-describedby={status?statusId:undefined}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
       </label>}
-      {emailSent && <label>Email sign-in code<input id="email-signin-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))} /></label>}
+      {emailSent && <label>Email sign-in code<input id="email-signin-code" aria-describedby={status?statusId:undefined} aria-invalid={authError||undefined} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))} /></label>}
+      <p id={statusId} role="status" className={authError?"account-inline-error":undefined}>{status}</p>
       <button className="primary-button" disabled={busy}>
         {busy ? (emailSent ? "Verifying…" : signup ? "Creating account…" : "Signing in…") : emailSent ? "Verify code" : signup ? "Create account" : "Sign in"}
       </button>
@@ -146,7 +154,7 @@ export function AccountSignIn({
         disabled={busy}
         onClick={() => {
           if (emailSent) { setEmailSent(false); setCode(""); } else setSignup(!signup);
-          setStatus("");
+          setStatus("");setAuthError(false);
         }}
       >
         {emailSent ? "Use password instead" : signup
@@ -156,13 +164,13 @@ export function AccountSignIn({
       {!emailSent && <button type="button" className="neutral-button" disabled={busy} onClick={event => {
         const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
         if (!input?.reportValidity()) return;
-        setPassword(""); setEmailSent(true); setStatus("Enter the code from your latest sign-in email. This does not send another email.");
+        setPassword("");setAuthError(false); setEmailSent(true); setStatus("Enter the code from your latest sign-in email. This does not send another email.");
         requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
       }}>I already have a code</button>}
       {<button type="button" className="neutral-button" disabled={busy} onClick={async (event) => {
         const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
         if (!input?.reportValidity()) return;
-        setBusy(true); setStatus(""); setPassword("");
+        setBusy(true); setStatus("");setAuthError(false); setPassword("");
         try {
           const result = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + "/connect" } });
           if (result.error) {
@@ -174,17 +182,24 @@ export function AccountSignIn({
             }
             throw new Error("Could not send the sign-in email. If you already received a code, choose I already have a code. Otherwise try again later.");
           }
-          setEmailSent(true);
+          setCode("");setEmailSent(true);
           requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
           setStatus(showEmailLinkHint ? "Check your email for the sign-in code, then enter it here. You can also use the one-time link in that email." : "Enter the code from your email here to finish connecting this agent. The email link opens the main studio separately.");
         } catch (error) { setStatus(error instanceof Error ? error.message : "Could not send the sign-in email."); }
         finally { setBusy(false); }
       }}>{emailSent ? "Send a new sign-in code" : "Email me a sign-in code"}</button>}
-      <p role="status">{status}</p>
     </form>
   );
 }
-export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page. Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Settings. Start with get_workspace. Use list_profiles/get_profile for persona references and list_creations to inspect existing work. Use upload_reference for an image created in ChatGPT, then score_thumbnail with its actual title. Use get_fix_prompt to return a copyable prompt for editing it in ChatGPT without generating another image through an API. Only use generate_thumbnail or one_click_fix when I request an API-rendered image, with my chosen provider, quality and batch. Keep the same requestId across an uncertain retry, and check history after a timeout. Scores are visual rubrics, not a promise of CTR. Use open_studio for the interactive HTML interface when supported.`;
+export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page. Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Connections. Start with get_workspace. Use list_profiles/get_profile for persona references and list_creations to inspect existing work. Use upload_reference for an image created in ChatGPT, then score_thumbnail with its actual title. Use get_fix_prompt to return a copyable prompt for editing it in ChatGPT without generating another image through an API. Only use generate_thumbnail or one_click_fix when I request an API-rendered image, with my chosen provider, quality and batch. Keep the same requestId across an uncertain retry, and check history after a timeout. Scores are visual rubrics, not a promise of CTR. Use open_studio for the interactive HTML interface when supported.`;
+
+const providerGuides: Record<string, {name:string; purpose:string; url:string; steps:string[]}> = {
+  openai: {name:"OpenAI",purpose:"Create images and title ideas.",url:"https://developers.openai.com/api/docs/quickstart",steps:["Open OpenAI’s official setup guide and sign in to your own API account.","Create an API key in the provider dashboard and review the account’s usage and billing settings.","Copy the key into the private field below, then connect it."]},
+  google: {name:"Google",purpose:"Create images and title ideas with Gemini.",url:"https://ai.google.dev/gemini-api/docs/api-key",steps:["Open Google’s official API-key guide and sign in to Google AI Studio.","Choose your own project, create a Gemini API key and check its quota and billing settings.","Copy the key into the private field below, then connect it."]},
+  jev: {name:"Jev AI",purpose:"Assess a thumbnail and its title across five creative pillars.",url:"https://docs.typesafe.ai/introduction/quickstart",steps:["Open the official TypeSafe guide for Jev and sign in to its console.","Create an API key in your own account and review its available usage.","Copy the key into the private field below, then connect it."]},
+  youtube: {name:"YouTube",purpose:"Find channel details and thumbnail references. This does not generate images.",url:"https://developers.google.com/youtube/data/getting-started",steps:["Open the official YouTube Data API guide and choose your own Google Cloud project.","Enable YouTube Data API v3, create an API key and review its restrictions and quota.","Copy the key into the private field below, then connect it."]}
+};
+
 export function ConnectionsPage() {
   const { db, session, config, error, setError, ready } = useAccount();
   const [connections, setConnections] = useState<
@@ -203,6 +218,7 @@ export function ConnectionsPage() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
   const [higgsfield, setHiggsfield] = useState(false), [higgsfieldTools, setHiggsfieldTools] = useState<string[]>([]);
+  const guide = providerGuides[provider];
   const callbackHandled = useRef(false);
   async function api(path: string, method = "GET", body?: unknown) {
     const fresh = await db?.auth.getSession();
@@ -272,8 +288,6 @@ export function ConnectionsPage() {
           credits from your connected provider accounts.
         </p>
       </div>
-      <CodexConnection key={session?.user.id || "signed-out"} signedIn={!!session} enabled={!!config?.codexDevice} api={api} />
-      <BrandScene scene="aperture" />
       {!ready ? (
         <p role="status">Loading your connections…</p>
       ) : !db ? (
@@ -288,8 +302,9 @@ export function ConnectionsPage() {
           <section className="account-panel">
             <h2>Connect an API provider</h2>
             <p>
-              Connect OpenAI or Google to generate images and titles. Connect
-              Jev to score thumbnails. You can use either or both workflows.
+              Start with the job you want to do: OpenAI or Google creates images
+              and titles; Jev scores thumbnails. You only need the provider for
+              that job. <a href="/studio">Continue with a free draft</a> if you are not ready to connect.
             </p>
             <div className="provider-setup">
             <form
@@ -322,6 +337,16 @@ export function ConnectionsPage() {
                   <option value="jev">Jev AI</option>
                 </select>
               </label>
+              <div className="provider-key-guide" key={provider}>
+                <p id="provider-purpose"><strong>{guide.name}</strong> — {guide.purpose}</p>
+                <p>An API key is a private code that lets OpenPikzels use your provider account. It is not your password. Keep it out of chat.</p>
+                <details>
+                  <summary>How to get a {guide.name} key</summary>
+                  <ol>{guide.steps.map(step => <li key={step}>{step}</li>)}</ol>
+                  <a href={guide.url} target="_blank" rel="noopener noreferrer">Open {guide.name}’s official setup guide (new tab)</a>
+                </details>
+                <p id="provider-key-cost">Provider usage may cost money. Check your account’s current allowance and billing before generating. Saving a key makes no billable test request.</p>
+              </div>
               <label>
                 Your API key
                 <input
@@ -330,13 +355,13 @@ export function ConnectionsPage() {
                   spellCheck={false}
                   required={!connections.some((c) => c.provider === provider)}
                   minLength={12}
-                  aria-describedby="provider-key-help"
+                  aria-describedby="provider-purpose provider-key-help provider-key-cost"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
                   placeholder={connections.some((c) => c.provider === provider) ? "Leave empty to keep current key" : "Paste your key securely"}
                 />
               </label>
-              <p id="provider-key-help">Saved keys are never shown again. Leave empty to keep current key. To replace it, paste a new key.</p>
+              <p id="provider-key-help">Your key is encrypted for your account and used on the server. Its full value is never shown again. Leave empty to keep current key; paste a new key to replace it.</p>
               <button
                 className="primary-button"
                 disabled={busy || !config?.secureConnections}
@@ -358,7 +383,7 @@ export function ConnectionsPage() {
                     <p>{detail}</p>
                     <strong>
                       {c
-                        ? "Connected · ••••" + c.suffix
+                        ? "Key saved · ••••" + c.suffix
                         : "Not connected"}
                     </strong>
                     {c && (
@@ -388,9 +413,9 @@ export function ConnectionsPage() {
             )}
             <p className="dialog-footnote">
               Keys are encrypted at rest, isolated to your account and used only
-              on the server. We show only the last four characters. Provider
-              credits are separate from a ChatGPT or Gemini subscription.
-              Connecting a key makes no billable test request.
+              on the server. We show only the last four characters. API access
+              and allowances depend on your provider account; check its current
+              terms. Connecting a key makes no billable test request.
             </p>
             <a className="primary-button inline-link" href="/studio">
               Open studio
@@ -510,6 +535,7 @@ export function ConnectionsPage() {
           </section>
         </>
       )}
+      <CodexConnection key={session?.user.id || "signed-out"} signedIn={!!session} enabled={!!config?.codexDevice} api={api} />
       {error && (
         <p className="dialog-error" role="alert">
           {error}

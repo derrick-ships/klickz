@@ -1,0 +1,9 @@
+[WebServer] ⚠ Warning: Next.js ignored package-lock.json in [user] because it would include your home directory ([user]).
+[WebServer]  To use this directory, set `outputFileTracingRoot` in your Next.js config.
+[WebServer] 
+
+Running 1 test using 1 worker
+
+  ✓  1 tests/browser/accounts.spec.ts:71:1 › signed-in provider onboarding isolates key entry and shows revocable agents (5.1s)
+
+  1 passed (6.0s)

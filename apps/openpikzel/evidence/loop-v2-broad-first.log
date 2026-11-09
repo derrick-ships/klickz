@@ -1,0 +1,168 @@
+[WebServer] ⚠ Warning: Next.js ignored package-lock.json in [user] because it would include your home directory ([user]).
+[WebServer]  To use this directory, set `outputFileTracingRoot` in your Next.js config.
+[WebServer] 
+
+Running 86 tests using 1 worker
+
+  ✓  1 tests/browser/accounts.spec.ts:2:1 › OAuth registration, consent branding and Deny work through HTTP (1.5s)
+  ✓  2 tests/browser/accounts.spec.ts:50:1 › account onboarding has no fake configured providers and fits mobile (2.1s)
+  ✓  3 tests/browser/accounts.spec.ts:71:1 › signed-in provider onboarding isolates key entry and shows revocable agents (5.5s)
+  ✓  4 tests/browser/accounts.spec.ts:226:1 › email-code sign-in stays on the page and keeps password fallback (2.4s)
+  ✓  5 tests/browser/accounts.spec.ts:244:1 › email limits preserve access to an already received code (1.8s)
+  ✓  6 tests/browser/accounts.spec.ts:258:1 › local companion setup offers a real source download and fits mobile (1.9s)
+  ✓  7 tests/browser/accounts.spec.ts:270:1 › invalid email code stays editable with nearby associated feedback (1.6s)
+  ✓  8 tests/browser/analysis-overlay.spec.ts:3:1 › analysis overlay explains partial pillars and offers a free copyable prompt (3.0s)
+  ✓  9 tests/browser/audit-ux.spec.ts:3:1 › composer is the sole settings home with provider-aware identity and honest readiness (3.7s)
+  ✓  10 tests/browser/audit-ux.spec.ts:15:1 › editing keeps the selected image next to unsent instructions at desktop and narrow widths (4.4s)
+  ✓  11 tests/browser/backdrop-hover.spec.ts:3:1 › mobile backdrop preserves content through pointer transition, touch dismissal and reduced motion (4.3s)
+  ✓  12 tests/browser/brand.spec.ts:2:1 › brand decoration plays one finite take without playback controls (6.5s)
+  ✘  13 tests/browser/brand.spec.ts:15:1 › brand motion settles when editing or motion preference changes (6.6s)
+  ✘  14 tests/browser/brand.spec.ts:29:1 › reduced-motion and data-saving visitors load only the poster (7.1s)
+  ✓  15 tests/browser/brand.spec.ts:51:1 › mobile uses the branded still without downloading decorative video (2.0s)
+  ✓  16 tests/browser/codex-connection.spec.ts:11:1 › device flow works with blocked popup, completes, reads metadata and disconnects (7.6s)
+  ✓  17 tests/browser/codex-connection.spec.ts:29:1 › cancel suppresses late completion; mobile and reduced motion remain usable (8.1s)
+  ✓  18 tests/browser/codex-connection.spec.ts:46:1 › expired device code offers a new attempt without a stale code (1.6s)
+  ✓  19 tests/browser/delight.spec.ts:5:1 › a successful draft locks its pixels once without delaying or replaying history (3.8s)
+  ✓  20 tests/browser/delight.spec.ts:41:1 › pointer continuity stays interruptible while keyboard navigation is immediate (2.3s)
+  ✓  21 tests/browser/delight.spec.ts:73:1 › reduced motion keeps acknowledgment with no spatial movement or new loops (2.3s)
+  ✓  22 tests/browser/diagnostics.spec.ts:2:1 › partial diagnostic fixtures expose missing evidence and cannot silently dispatch a paid fix (8.1s)
+  ✓  23 tests/browser/gestures.spec.ts:8:1 › comparison maps pointer coordinates directly, ignores other fingers and preserves keyboard and scroll (2.8s)
+  ✓  24 tests/browser/gestures.spec.ts:15:1 › inspection has anchored zoom, direct pan, keyboard recovery and safe browser zoom (3.0s)
+  ✓  25 tests/browser/gestures.spec.ts:22:1 › pinch carries the midpoint, ignores a third touch and recovers after cancellation (2.7s)
+  ✓  26 tests/browser/gestures.spec.ts:29:1 › revision strip has visible scrolling controls without opening a different image (2.5s)
+  ✓  27 tests/browser/gestures.spec.ts:33:1 › resizing during a pan cancels the old pointer baseline (2.6s)
+  ✓  28 tests/browser/gestures.spec.ts:38:1 › comparison touch cancellation restores the committed split instead of changing it during page scroll (2.7s)
+  ✓  29 tests/browser/gestures.spec.ts:43:1 › new image sources cannot inherit a live pinch from an expired preview (1.5s)
+  ✓  30 tests/browser/gestures.spec.ts:53:1 › real browser touch input tracks comparison and image pinch without calling AI (4.2s)
+  ✓  31 tests/browser/layout.spec.ts:4:1 › compact navigation protects the workbench and returns keyboard focus (10.9s)
+  ✓  32 tests/browser/layout.spec.ts:41:1 › composer groups, small-screen settings and long content reflow deliberately (5.9s)
+  ✓  33 tests/browser/layout.spec.ts:70:1 › long persona names remain readable in dialogs and bounded in the composer (5.0s)
+  ✓  34 tests/browser/local-assets.spec.ts:11:1 › local uploaded images survive reload and export as real PNG files (1.9s)
+  ✓  35 tests/browser/local-assets.spec.ts:18:1 › existing Blob asset records remain readable without migration (1.7s)
+[{"state":"welcome ready","width":320,"violations":[],"incomplete":1},{"state":"studio blank","width":320,"violations":[],"incomplete":1},{"state":"welcome ready","width":390,"violations":[],"incomplete":1},{"state":"studio blank","width":390,"violations":[],"incomplete":1},{"state":"welcome ready","width":768,"violations":[],"incomplete":1},{"state":"studio blank","width":768,"violations":[],"incomplete":1},{"state":"welcome ready","width":1024,"violations":[],"incomplete":1},{"state":"studio blank","width":1024,"violations":[],"incomplete":1},{"state":"welcome ready","width":1100,"violations":[],"incomplete":1},{"state":"studio blank","width":1100,"violations":[],"incomplete":1},{"state":"welcome ready","width":1440,"violations":[],"incomplete":1},{"state":"studio blank","width":1440,"violations":[],"incomplete":1},{"state":"welcome ready","width":1920,"violations":[],"incomplete":1},{"state":"studio blank","width":1920,"violations":[],"incomplete":1},{"state":"model picker","width":390,"violations":[],"incomplete":1},{"state":"connections modal","width":390,"violations":[],"incomplete":1},{"state":"sign-in modal","width":390,"violations":[],"incomplete":1},{"state":"connection page signed out","width":390,"violations":[],"incomplete":1},{"state":"local companion","width":390,"violations":[],"incomplete":1},{"state":"partial analysis","width":390,"violations":[],"incomplete":1},{"state":"selected image edit","width":390,"violations":[],"incomplete":1}]
+  ✓  36 tests/browser/loop-a11y.spec.ts:4:1 › LOOP provisional automated accessibility matrix (8.4s)
+  ✓  37 tests/browser/loop-focus.spec.ts:3:1 › generation controls keep visible keyboard focus against their red surface (3.1s)
+  ✓  38 tests/browser/loop-protocol.spec.ts:3:1 › LOOP v2 page routes, required breakpoints, links and runtime errors (8.4s)
+  ✓  39 tests/browser/loop-protocol.spec.ts:34:1 › LOOP v2 account loading, setup failure and invalid form recovery (2.4s)
+{"visible":true,"storageErrors":[],"alerts":[""],"errors":[]}
+  ✓  40 tests/browser/loop-webkit-local.spec.ts:3:1 › WebKit local upload diagnostic (1.5s)
+{"width":320,"redMargins":{"top":32,"bottom":28,"left":199,"right":12,"count":1854}}
+{"width":375,"redMargins":{"top":38,"bottom":33,"left":237,"right":13,"count":2659}}
+{"width":390,"redMargins":{"top":39,"bottom":35,"left":247,"right":14,"count":2883}}
+{"width":414,"redMargins":{"top":43,"bottom":36,"left":264,"right":15,"count":3275}}
+{"width":430,"redMargins":{"top":44,"bottom":38,"left":275,"right":15,"count":3566}}
+  ✓  41 tests/browser/mobile-art.spec.ts:15:1 › mobile art preserves the red subject at all representative widths (2.7s)
+  ✓  42 tests/browser/mobile-art.spec.ts:36:1 › mobile default still preserves the corrected crop without layout shifts (4.5s)
+  ✓  43 tests/browser/navigation-blur.spec.ts:4:1 › mobile navigation keeps the artwork visible through blur and preserves the prompt (2.9s)
+  ✓  44 tests/browser/navigation-blur.spec.ts:11:1 › navigation can reverse during motion and stays instant with reduced motion and keyboard (3.7s)
+  ✓  45 tests/browser/navigation-blur.spec.ts:17:1 › voice capture controls and status are removed from the composer (1.5s)
+  ✓  46 tests/browser/navigation-blur.spec.ts:20:1 › image model picker uses supplied white logos and applies only supported choices (2.9s)
+  ✓  47 tests/browser/navigation-blur.spec.ts:27:1 › navigation backdrop stays transparent when hovered and touched (2.2s)
+  ✓  48 tests/browser/panel-after-capture.spec.ts:3:1 › capture local panel final (4.8s)
+  ✓  49 tests/browser/panel-improvements.spec.ts:6:1 › first-session typing survives immediate reload and does not create duplicate chats (2.8s)
+  ✓  50 tests/browser/panel-improvements.spec.ts:18:1 › saved edit retains its original image and draft through reload (4.2s)
+  ✓  51 tests/browser/panel-improvements.spec.ts:34:1 › setup is actionable without a paid call and preserves the draft (1.9s)
+  ✓  52 tests/browser/panel-improvements.spec.ts:42:1 › review protects image size at intermediate width and keeps reduced motion static (2.4s)
+  ✓  53 tests/browser/panel-improvements.spec.ts:50:1 › navigation before first autosave preserves the detached draft (1.6s)
+  ✓  54 tests/browser/polish.spec.ts:2:1 › mode tabs support roving keyboard navigation and visible focus (1.5s)
+  ✓  55 tests/browser/polish.spec.ts:20:1 › refined studio fits narrow, tablet and wide layouts with keyboard dialogs (4.5s)
+  ✓  56 tests/browser/product-workflows.spec.ts:4:1 › chats restore drafts, names and selected conversation after reload (3.3s)
+  ✓  57 tests/browser/product-workflows.spec.ts:17:1 › v1 library survives upgrade, comparison supports keyboard and feedback saves privately (3.4s)
+  ✓  58 tests/browser/product-workflows.spec.ts:29:1 › Persona tutorial, inline errors, three-photo permission flow and preference persist (6.9s)
+  ✓  59 tests/browser/product-workflows.spec.ts:39:1 › YouTube Style browser preserves selection across orders and saves three references (5.1s)
+  ✓  60 tests/browser/product-workflows.spec.ts:52:1 › switching immediately flushes a draft and library selection restores its own chat context (5.3s)
+  ✘  61 tests/browser/review-studio.spec.ts:5:1 › review puts the real image first, with a neighboring inspector and an actual 200px preview (4.0s)
+  ✓  62 tests/browser/review-studio.spec.ts:41:1 › unscored and failed previews stay useful, with reduced-motion and real refresh (2.3s)
+  ✓  63 tests/browser/review-studio.spec.ts:63:1 › topmost dialog owns Escape and keyboard presses keep a static control footprint (3.7s)
+  ✓  64 tests/browser/studio.spec.ts:12:1 › draft, quality, batch and persona collections survive reloads (5.7s)
+  ✓  65 tests/browser/studio.spec.ts:66:1 › image upload and one-click vertical resize produce a real 720x1280 PNG locally (2.1s)
+  ✓  66 tests/browser/studio.spec.ts:97:1 › all five modes and truthful disabled-AI boundaries are present (1.8s)
+  ✓  67 tests/browser/studio.spec.ts:129:1 › desktop and mobile editor fit their viewport (3.8s)
+  ✓  68 tests/browser/welcome.spec.ts:3:1 › fresh welcome uses the requested headline with honest costs, privacy and real setup paths (2.1s)
+  ✓  69 tests/browser/welcome.spec.ts:14:1 › entering the studio preserves local drafts and makes returning visits skip the intro (2.3s)
+  ✓  70 tests/browser/welcome.spec.ts:19:1 › welcome reflows, exposes immediate keyboard access and keeps reduced motion static (3.6s)
+  ✓  71 tests/browser/welcome.spec.ts:23:1 › fresh legacy links preserve duplicate query values without relying on a studio cookie (9ms)
+  ✓  72 tests/browser/welcome.spec.ts:28:1 › ChatGPT onboarding requires no download and requires app sign-in before provider authorization (3.6s)
+  ✓  73 tests/browser/widget.spec.ts:3:1 › MCP Apps iframe bridge shows creations, scores and clears hidden selection (2.8s)
+  ✓  74 tests/browser/workspace-races.spec.ts:25:1 › busy generation cannot switch chats through library navigation (1.8s)
+  ✓  75 tests/browser/workspace-races.spec.ts:33:1 › delayed account A resize cannot overwrite account B hydration or draft (1.8s)
+  ✓  76 tests/browser/workspace-races.spec.ts:43:1 › explicit save cannot overwrite newer edits already checkpointed during a slow creation write (2.2s)
+  ✓  77 tests/browser/workspace-races.spec.ts:51:1 › editing uses the newly selected library source and preserves the unsent brief (3.7s)
+  ✓  78 tests/browser/workspace-races.spec.ts:62:1 › typing while generation runs preserves new direction and offers a result without stealing focus (1.9s)
+  ✓  79 tests/browser/workspace-races.spec.ts:70:1 › request activity is reachable inside its modal and refresh never resubmits a request (1.4s)
+  ✓  80 tests/browser/workspace-races.spec.ts:79:1 › slow first autosave cannot steal a subsequently selected chat (2.0s)
+  ✓  81 tests/browser/workspace-races.spec.ts:94:37 › stale title response cannot enter account B (2.0s)
+  ✓  82 tests/browser/workspace-races.spec.ts:94:37 › stale title response cannot enter a new session of account A (1.9s)
+  ✓  83 tests/browser/workspace-races.spec.ts:101:1 › stale comparison cannot reopen another account image dialog (1.9s)
+  ✓  84 tests/browser/workspace-races.spec.ts:108:1 › composer locks while a slow chat navigation saves then restores editable destination (1.6s)
+  ✓  85 tests/browser/workspace-races.spec.ts:116:1 › explicit save does not reselect an old editing source after a new source is chosen (2.1s)
+  ✓  86 tests/browser/workspace-races.spec.ts:126:1 › reselecting the active chat preserves an unsent prompt (2.3s)
+
+
+  1) tests/browser/brand.spec.ts:15:1 › brand motion settles when editing or motion preference changes 
+
+    Error: Timed out 5000ms waiting for expect(locator).toHaveAttribute(expected)
+
+    Locator: locator('[data-brand-scene="aperture"]')
+    Expected string: "playing"
+    Received: <element(s) not found>
+    Call log:
+      - expect.toHaveAttribute with timeout 5000ms
+      - waiting for locator('[data-brand-scene="aperture"]')
+
+
+      22 |   await page.goto("/connect");
+      23 |   const onboarding = page.locator('[data-brand-scene="aperture"]');
+    > 24 |   await expect(onboarding).toHaveAttribute("data-motion", "playing");
+         |                            ^
+      25 |   await page.emulateMedia({ reducedMotion: "reduce" });
+      26 |   await expect(onboarding).toHaveAttribute("data-motion", "still");
+      27 |   expect(await onboarding.locator("video").evaluate(v => (v as HTMLVideoElement).paused)).toBe(true);
+        at [workspace]/tests/browser/brand.spec.ts:24:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brand-brand-motion-settles-dde2f-r-motion-preference-changes/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/browser/brand.spec.ts:29:1 › reduced-motion and data-saving visitors load only the poster 
+
+    Error: Timeout 5000ms exceeded while waiting on the predicate
+
+      34 |   await page.goto("/connect");
+      35 |   const scene = page.locator('[data-brand-scene="aperture"]');
+    > 36 |   await expect.poll(() => scene.locator("img").evaluate(i => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+         |   ^
+      37 |   await expect(scene.locator("source")).toHaveCount(0);
+      38 |   expect(videos).toHaveLength(0);
+      39 |   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+        at [workspace]/tests/browser/brand.spec.ts:36:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brand-reduced-motion-and-d-5dbc2-sitors-load-only-the-poster/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) tests/browser/review-studio.spec.ts:5:1 › review puts the real image first, with a neighboring inspector and an actual 200px preview 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 568.09375
+    Received:    151
+
+      17 |     const image = await stage.locator(".review-canvas").boundingBox(), inspector = await stage.getByRole("complementary", { name: "Scoring inspector" }).boundingBox();
+      18 |     if (width >= 1100) expect(inspector!.x).toBeGreaterThan(image!.x + image!.width);
+    > 19 |     else expect(inspector!.y).toBeGreaterThanOrEqual(image!.y + image!.height);
+         |                               ^
+      20 |     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      21 |     await page.evaluate(() => window.scrollTo(0, 0));
+      22 |     await page.screenshot({ path: `evidence/review-studio-${width}.png`, fullPage: true });
+        at [workspace]/tests/browser/review-studio.spec.ts:19:31
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/review-studio-review-puts--290e8-and-an-actual-200px-preview/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3 failed
+    tests/browser/brand.spec.ts:15:1 › brand motion settles when editing or motion preference changes 
+    tests/browser/brand.spec.ts:29:1 › reduced-motion and data-saving visitors load only the poster 
+    tests/browser/review-studio.spec.ts:5:1 › review puts the real image first, with a neighboring inspector and an actual 200px preview 
+  83 passed (4.9m)

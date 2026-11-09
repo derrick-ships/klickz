@@ -1,0 +1,8 @@
+{
+  "status": "blocked_by_denied_browser_access",
+  "score": null,
+  "price_usd": null,
+  "promptSent": false,
+  "format": "Later full prompt supersedes earlier strict JSON prompt; hypothetical description cannot be represented as live-app facts.",
+  "resolution": "docs/loop-v2-evaluator-resolution.md"
+}

@@ -1,0 +1,137 @@
+{
+  "findings": [
+    {
+      "id": "G-02",
+      "route": "/connect",
+      "state": "Signed-in provider setup; Google selected; guide expanded in focused mobile capture",
+      "selector": ".provider-key-guide, #provider-key-help, #provider-key-cost",
+      "screenshot_path": "evidence/loop-v2-provider-guide-mobile.png",
+      "severity": "P1",
+      "confidence": 0.96,
+      "status": "addressed_for_reviewed_guidance_scope",
+      "user_impact": "The former missing-information barrier is addressed: the key is explained as a private code rather than a password, numbered steps explain obtaining and returning with a provider key, billing is disclosed before connection, and key storage/replacement behavior is stated.",
+      "recommendation": "Accept the API guidance change within the reviewed scope. Stable 320px and 390px viewport evidence now shows the key input, private-storage guidance and Connect key action together without the full-page blank gap. Retain a later usability check for whether a true novice can complete the external-provider handoff.",
+      "evidence": [
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5",
+        "V7",
+        "V8",
+        "V9"
+      ],
+      "residual": "No real novice or provider-login evidence establishes that the full journey is easy. A progress indicator was not added, but the numbered guidance sufficiently addresses the central missing-path defect for this conservative batch."
+    },
+    {
+      "id": "G-05",
+      "route": "/connect",
+      "state": "Signed-out account form, source inspection only for updated copy",
+      "selector": ".account-form",
+      "severity": "P2",
+      "confidence": 0.97,
+      "status": "partially_addressed",
+      "user_impact": "The updated copy clearly identifies an OpenPikzels account and distinguishes its password from the AI provider password. However, the default heading remains Sign in to your workspace and the four separate password/create-account/already-have-code/request-code actions remain. First-time visitors still choose among several paths.",
+      "recommendation": "Accept the password-ownership clarification, but keep the action-choice/first-visit hierarchy concern open. In a later focused change, establish a clear first-visit path and group password versus email-code choices.",
+      "evidence": [
+        "V1",
+        "V6"
+      ],
+      "residual": "Supplied new screenshots show signed-in provider setup, not the changed signed-out form. Updated copy is verified in source only."
+    },
+    {
+      "id": "GV-01",
+      "route": "/connect",
+      "state": "Stable 320px and 390px Chromium key-entry viewports; earlier inconsistent full-page capture retained for provenance",
+      "selector": ".key-form",
+      "screenshot_path": "evidence/loop-v2-key-entry-chromium-320.png",
+      "severity": "P2",
+      "confidence": 0.98,
+      "status": "closed_for_key_entry_viewport_visibility",
+      "user_impact": "Both stable viewport captures visibly contain the API key field, private-storage/replacement guidance and Connect key action with no large blank gap between them. The earlier full-page discrepancy is not reproduced in these viewports.",
+      "recommendation": "Use the stable viewport captures as the key-entry visibility evidence. Keep the earlier inconsistent full-page image identified as conflicting capture evidence, not as a confirmed runtime defect.",
+      "evidence": [
+        "V3",
+        "V5",
+        "V7",
+        "V8",
+        "V9"
+      ],
+      "residual": "The cause of the earlier full-page discrepancy remains undiagnosed. Viewport visibility does not prove real provider connection or novice comprehension."
+    }
+  ],
+  "disposition": {
+    "scope": "Targeted Grandma VERIFY of G-02 and G-05 only after the conservative provider-guidance batch.",
+    "G_02": "Original P1 missing explanation/path is addressed in source and focused mobile screenshots. Stable 320px and 390px key-entry viewports resolve the local control-visibility verification gap. End-to-end novice/provider completion remains unproven.",
+    "G_05": "Partially addressed: password/account identity resolved in source; first-visit hierarchy and competing authentication choices remain P2.",
+    "other_original_findings": "G-01, G-03, G-04 and G-06 were not reassessed; their prior dispositions are unchanged.",
+    "test_evidence": "Read loop-v2-b-browser.log: 7 local fixture browser tests passed in 18.1s. This supports covered local behavior, not provider login or novice comprehension. Also read loop-v2-stable-capture.log: the targeted provider-onboarding fixture test passed (1 passed, 6.0s). The coordinator reports explicit visibility assertions; this lens directly verified the screenshot contents.",
+    "GV_01": "Closed for key-entry viewport visibility: both stable screenshots show input, helper copy and Connect key; prior full-page inconsistency remains a capture-evidence caveat, with no runtime cause assigned."
+  },
+  "evidence": [
+    {
+      "id": "V1",
+      "type": "source",
+      "path": "src/components/account/account.tsx",
+      "inspected": "Current AccountSignIn copy and unchanged four-action structure; providerGuides for OpenAI/Google/Jev/YouTube; API definition, numbered guide steps, official-guide link, billing, storage, replacement, and free-draft fallback."
+    },
+    {
+      "id": "V2",
+      "type": "source",
+      "path": "src/app/surfaces.css",
+      "selector": ".provider-key-guide, .key-form #provider-key-help",
+      "inspected": "Current guidance uses 14px text, 1.65 line height, and 44px minimum summary/link height; focus-visible rules exist. No rendered target or contrast measurement performed."
+    },
+    {
+      "id": "V3",
+      "type": "screenshot",
+      "path": "evidence/loop-v2-provider-guide-mobile.png",
+      "inspected": "Individually viewed focused 390px Google guide expanded. Steps, official guide link, billing/no-test-call explanation, key input, storage guidance and Connect key button are present."
+    },
+    {
+      "id": "V4",
+      "type": "screenshot",
+      "path": "evidence/layout-connections-1440.png",
+      "inspected": "Individually viewed desktop signed-in provider setup. Job explanation/free-draft text and Google collapsed guide fit the two-column layout. Full-page image was resized by tool."
+    },
+    {
+      "id": "V5",
+      "type": "screenshot",
+      "path": "evidence/openpikzels-provider-onboarding-mobile.png",
+      "inspected": "Individually viewed full mobile page, 390x3631 resized to 220x2048 by tool. Large blank region appears after API key input, with expected connection action/helper content missing in this capture; inconsistent with V3."
+    },
+    {
+      "id": "V6",
+      "type": "test_log",
+      "path": "loop-v2-b-browser.log",
+      "inspected": "Read full available 15-line log: seven accounts.spec.ts local fixture tests pass, including provider onboarding and email-code recovery cases."
+    },
+    {
+      "id": "V7",
+      "type": "screenshot",
+      "path": "evidence/loop-v2-key-entry-chromium-320.png",
+      "inspected": "Individually viewed at native 320px width: API definition, collapsed Google guide, billing statement, API key field, full storage/replacement helper copy and Connect key action visibly render without the prior blank gap."
+    },
+    {
+      "id": "V8",
+      "type": "screenshot",
+      "path": "evidence/loop-v2-key-entry-chromium-390.png",
+      "inspected": "Individually viewed at native 390px width: API definition, billing, key field, storage/replacement guidance and Connect key action visibly render without the prior blank gap."
+    },
+    {
+      "id": "V9",
+      "type": "test_log",
+      "path": "loop-v2-stable-capture.log",
+      "inspected": "Read all nine log lines: targeted signed-in provider-onboarding test passed (1 passed, 6.0s). Specific assertions are coordinator-reported; the log identifies the passing test."
+    }
+  ],
+  "limits": [
+    "No app edits, network requests, browser runs or provider login were performed.",
+    "No real novice testing, comprehension study, assistive-technology testing, keyboard exercise or measured contrast/target-size validation was performed.",
+    "External guide URLs were inspected as source strings only; destinations and current provider flows were not opened or verified.",
+    "New screenshots cover signed-in provider setup. Updated signed-out password explanation is source-verified only.",
+    "The earlier full-page capture inconsistency is retained for provenance; stable 320px and 390px viewports resolve the key-entry control-visibility gap without diagnosing the earlier capture cause.",
+    "Fixture account/provider status does not prove actual connection success.",
+    "Only the requested verification JSON was written."
+  ]
+}
