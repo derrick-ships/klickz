@@ -7,7 +7,7 @@ test('generation controls keep visible keyboard focus against their red surface'
  for(const width of [390,1440]){
   await page.setViewportSize({width,height:900});await page.goto('/studio');await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toBeVisible();
   const primary=page.locator('.generate-split .primary-button'),batch=page.getByRole('combobox',{name:'Images per request',exact:true});
-  await primary.focus();await page.keyboard.press('Tab');await expect(batch).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(primary).toBeFocused();
+  await expect(primary).toBeEnabled();await expect(batch).toBeEnabled();await primary.focus();await page.keyboard.press('Tab');await expect(batch).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(primary).toBeFocused();
   for(const [name,element] of [['primary',primary],['batch',batch]] as const){
    await element.focus();await expect(element).toBeFocused();await element.scrollIntoViewIfNeeded();
    const reading=await element.evaluate(el=>{const style=getComputedStyle(el),surface=getComputedStyle(el.closest('.generate-split')!);return{color:style.outlineColor,width:style.outlineWidth,offset:style.outlineOffset,style:style.outlineStyle,gradient:surface.backgroundImage,focusVisible:el.matches(':focus-visible')};});

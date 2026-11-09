@@ -3,7 +3,7 @@ const base=JSON.parse(fs.readFileSync("auth-deploy-refs.json","utf8")),old=new M
 // Discover source/test additions instead of maintaining a second, incomplete hand-written list.
 const discovered=[];
 function walk(dir){if(!fs.existsSync(dir))return;for(const item of fs.readdirSync(dir,{withFileTypes:true})){const file=path.posix.join(dir,item.name);if(item.isSymbolicLink())throw Error("Source symlinks require review: "+file);if(item.isDirectory())walk(file);else if(item.isFile())discovered.push(file);}}
-walk("src");walk("tests");
+walk("src");walk("tests");walk("docs");
 const paths=[...new Set([...base.map(x=>x.file),...discovered,"export-scanner-release.cjs","docs/scanner-feed-recompose.md"])].sort(),refs=[],gitHashes=[],changed=[];
 function sha(x){return crypto.createHash("sha1").update(x).digest("hex");}
 for(const file of paths){

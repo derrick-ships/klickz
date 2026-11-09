@@ -46,7 +46,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { FixPlan } from "@/lib/diagnostics";
-import { BrandScene } from "@/components/brand-scene";
+import {AccountSignIn} from "@/components/account/sign-in";
+import {publicStyles} from "@/lib/workspaces";
 import { PixelConfirmation } from "@/components/pixel-confirmation";
 import { imageModel } from "@/lib/image-models";
 import { AnalysisScanner } from "@/components/creative/analysis-scanner";
@@ -153,7 +154,7 @@ export default function Studio() {
     [email, setEmail] = useState(""),
     [password, setPassword] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
-  const [autoReview,setAutoReview]=useState(true),[creativeDraft,setCreativeDraft]=useState<CreativeDraft>({}),[delivery,setDelivery]=useState<DeliveryState|null>(null);
+  const [autoReview,setAutoReview]=useState(false),[creativeDraft,setCreativeDraft]=useState<CreativeDraft>({}),[delivery,setDelivery]=useState<DeliveryState|null>(null);
   const deliveryAttempt=useRef(0),selectedIdRef=useRef<string|null>(null);selectedIdRef.current=selection;
   const [directionUndo,setDirectionUndo]=useState<{before:{prompt:string;title:string;tool:Tool};after:string}|null>(null);
   const [analysisScan, setAnalysisScan] = useState<{id:number;src:string;phase:ScanPhase;reviewer:string}|null>(null);
@@ -220,10 +221,11 @@ export default function Studio() {
     if (compactNavigation && sidebar) navigationCloseRef.current?.focus();
   }, [compactNavigation, sidebar]);
   useEffect(() => {
+    if(!hydratedWorkspace)return;
     const url = new URL(location.href);
     url.searchParams.set("mode", tool);
     history.replaceState(null, "", url);
-  }, [tool]);
+  }, [tool,hydratedWorkspace]);
   useEffect(() => {
     if (dialog && !dialogRef.current?.open) {
       dialogTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -263,6 +265,7 @@ export default function Studio() {
     addEventListener("keydown", listener);
     return () => removeEventListener("keydown", listener);
   }, [compactNavigation, sidebar]);
+  useEffect(() => {if(advanced)requestAnimationFrame(()=>document.querySelector<HTMLElement>(".generate-dock")?.scrollIntoView({block:"end",behavior:"instant"}));},[advanced]);
   useEffect(() => { setSaveReceipt(0); }, [draftFingerprint]);
   useEffect(() => {
     if (!saveReceipt) return;
@@ -279,7 +282,7 @@ export default function Studio() {
     workspaceEpoch.current++;
     const d=chat.draft;chatIdRef.current=chat.id;setActiveChatId(chat.id);localStorage.setItem("openpikzels.activeChat."+(studio.user||"local"),chat.id);
     setPrompt(d.prompt||"");setTitle(d.title||"");setTool(modes.some(m=>m.id===d.tool)?d.tool as Tool:"generate");
-    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setAutoReview(d.autoReview!==false);setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);
+    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setAutoReview(localStorage.getItem("openpikzels.autoReviewConsent."+(studio.user||"local"))==="v1"&&d.autoReview!==false);setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);
     const latest=studio.creations.find(c=>c.conversation_id===chat.id&&c.id===d.selection)||studio.creations.find(c=>c.conversation_id===chat.id);
     setSelection(latest?.id||null);setParentId(latest?.image_path?latest.id:latest?.parent_id||d.parentId||null);setComposerOpen(!latest?.image_path);setTab("studio");setTitles([]);setChatSaveState("");
     if(compactNavigation){setSidebar(false);if(focus)requestAnimationFrame(()=>mainRef.current?.focus());}
@@ -313,7 +316,7 @@ export default function Studio() {
   }
   async function openChat(chat:Conversation){if(busy||chat.id===chatIdRef.current)return;await studio.run("Opening chat",async()=>{const owner=studio.user;await flushDraft();if(ownerUI.current===owner)activateChat(chat);});}
   async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();const chat=await studio.createConversation();activateChat(chat);startNew();});}
-  useEffect(()=>{workspaceEpoch.current++;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setAutoReview(true);setDirectionUndo(null);setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReview(null);setJobs([]);setDialog(null);setChatSaveState("");},[studio.user]);
+  useEffect(()=>{workspaceEpoch.current++;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setAutoReview(false);setDirectionUndo(null);setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReview(null);setJobs([]);setDialog(null);setChatSaveState("");},[studio.user]);
   useEffect(()=>{
     if(studio.loading)return;const key=studio.user||"local";if(hydratedOwner.current===key)return;hydratedOwner.current=key;
     const saved=localStorage.getItem("openpikzels.activeChat."+key),chat=studio.conversations.find(c=>c.id===saved),checkpoint=readDraftCheckpoint(localStorage,key);
@@ -322,6 +325,8 @@ export default function Studio() {
       const d=checkpoint.draft;setPrompt(d.prompt||"");setTitle(d.title||"");setTool((d.tool||"generate") as Tool);setSettings({...defaultSettings,...d.settings});
       setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setAutoReview(d.autoReview!==false);setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);
     }
+    const requested=new URL(location.href).searchParams.get("mode");
+    if(modes.some(m=>m.id===requested))setTool(requested as Tool);
     setHydratedWorkspace(key);
   },[studio.loading,studio.user,studio.conversations]);
   const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,videoUrl,selection,parentId,titleAction,includeVision,autoReview,creativeDraft};
@@ -491,7 +496,7 @@ export default function Studio() {
       ...(review?{review:(item:Creation)=>studio.analyze(item,input.title||"","",analysisVision,videoUrl)}:{}),
     });
   }
-  const autoReviewNotice=autoReview&&studio.config?.jev ? "Automatic review adds one Jev request"+(analysisVision?" and one "+analysisReviewer+" image review":"")+" per image. These use your API balances. Exact cost cannot be estimated here." : "Automatic review is off or Jev is not connected. Generated images remain available without a score.";
+  const autoReviewNotice=autoReview&&studio.config?.jev ? "Automatic review adds one Jev request"+(analysisVision?" and one "+analysisReviewer+" image review":"")+" per image. These use your API balances. Exact cost cannot be estimated here." : "Automatic review requires your opt-in and a Jev connection. Generated images remain available without a score.";
 
   async function submit() {
     const submittedFingerprint=draftFingerprint;
@@ -560,6 +565,8 @@ export default function Studio() {
     );
   }
   async function saveDraft() {
+    if(!prompt.trim()&&!title.trim()){studio.setError("Write a direction or title before saving.");return;}
+    if((payload().prompt||title).trim().length<8){studio.setError("Add at least eight characters to describe your idea.");return;}
     const savingFingerprint = draftFingerprint;
     setSaveReceipt(0);
     await studio.run("Saving draft", async () => {
@@ -567,7 +574,7 @@ export default function Studio() {
       const input = payload();
       const item = await studio.saveDraft({
         conversationId:chat.id,
-        prompt: input.prompt,
+        prompt: input.prompt || title,
         title,
         mode: input.mode,
         style: input.style,
@@ -1129,7 +1136,8 @@ export default function Studio() {
           {tab === "studio" ? (
             <>
               {hasReviewImage && resultPanel}
-              {<CreativeConversation key={(studio.user||"local")+":"+workspaceEpoch.current} contextKey={JSON.stringify({prompt,title,tool,format:settings.format})} value={creativeDraft} onChange={setCreativeDraft} config={studio.config} call={callCreative} sourceId={selected?.image_path?selection:null} sourceTitle={selected?.title||""} disabled={busy} onProposal={(proposal,source)=>{if(source!==(selected?.image_path?selection:null))return;if(proposal.kind!=="generate"&&!selected?.image_path){studio.setError("Choose a thumbnail before preparing this action.");return;}applyDirection(proposal.prompt,proposal.title||title,proposal.kind==="analyze"?"analyze":proposal.kind==="edit"?"edit":"generate");}}/>}
+              {hydratedWorkspace===(studio.user||"local")&&!studio.loading&&<CreativeConversation key={(studio.user||"local")+":"+workspaceEpoch.current} contextKey={JSON.stringify({prompt,title,tool,format:settings.format})} value={creativeDraft} onChange={setCreativeDraft} config={studio.config} call={callCreative} sourceId={selected?.image_path?selection:null} sourceTitle={selected?.title||""} disabled={busy} onProposal={(proposal,source)=>{if(source!==(selected?.image_path?selection:null))return;if(proposal.kind!=="generate"&&!selected?.image_path){studio.setError("Choose a thumbnail before preparing this action.");return;}applyDirection(proposal.prompt,proposal.title||title,proposal.kind==="analyze"?"analyze":proposal.kind==="edit"?"edit":"generate");}}/>}
+              {(hydratedWorkspace!==(studio.user||"local")||studio.loading)&&<details className="creative-conversation" inert aria-busy="true" aria-label="Loading creative chat"><summary>Creative chat <span>Brainstorm, refine, then create.</span></summary></details>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)}/>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
@@ -1183,13 +1191,10 @@ export default function Studio() {
                     ))}
                   </div>
                 </div>
-                {!selected &&
-                  studio.creations.length === 0 && (
-                    <BrandScene scene="signal" compact />
-                  )}
+                <section className="setup-before-start" aria-label="Before you start"><strong>{studio.cloud?"Your connected provider creates the image":"Free drafts. Your own AI connection for generation."}</strong><p>Generating images requires an OpenPikzels account and your own OpenAI or Google API key. Provider usage is billed to that account; ChatGPT and Claude subscriptions alone do not enable studio generation.</p>{!studio.cloud&&<a href="/connect#api">Sign in, then connect your API key</a>}</section>
                 {hasReviewImage && <button className="quiet-button review-editor-toggle" aria-expanded={showComposer} aria-controls="review-creation-controls" onClick={() => setComposerOpen((open) => !open)}>{showComposer ? "Hide prompt and settings" : "Show prompt and settings"}<ChevronDown size={14} /></button>}
                 <div className="composer" id="review-creation-controls" hidden={!showComposer}>
-                  <fieldset className="composer-inner" disabled={navigating} aria-label="Thumbnail inputs">
+                  <fieldset className="composer-inner" disabled={navigating||studio.loading} aria-label="Thumbnail inputs">
                     {tool === "title" && (
                       <div className="output-choice">
                         <button
@@ -1230,7 +1235,7 @@ export default function Studio() {
                             <Link2 size={14} />
                             Link
                           </button>
-                          <button onClick={() => setDialog("references")}>
+                          <button aria-label="Choose references from library" onClick={() => setDialog("references")}>
                             <Images size={14} />
                             Library
                           </button>
@@ -1354,6 +1359,7 @@ export default function Studio() {
                         </div>
                         <PromptEnhancer key={(studio.user||"local")+":"+workspaceEpoch.current} prompt={prompt} title={title} mode={tool} format={settings.format} config={studio.config} call={callCreative} disabled={busy} onApply={(before,after)=>{if(prompt===before)applyDirection(after);}}/>
                         {directionUndo&&<div className="direction-undo" role="status"><span>Direction updated. Review it before generating.</span><button className="neutral-button" disabled={prompt!==directionUndo.after} onClick={()=>{setPrompt(directionUndo.before.prompt);setTitle(directionUndo.before.title);setTool(directionUndo.before.tool);setDirectionUndo(null);}}>Undo direction change</button>{prompt!==directionUndo.after&&<small>Your newer edits are preserved; undo is unavailable.</small>}</div>}
+                        <div className="public-style-chips" role="group" aria-label="Quick styles">{publicStyles.map(style=><button type="button" className="tool-chip" key={style.name} aria-label={style.name+" style"} aria-pressed={!styleId&&preset===style.name} onClick={()=>{setPreset(style.name);setStyleId("");}}>{style.name}</button>)}</div>
                         <div className="reference-strip">
                           {refs.map((path, i) => (
                             <div className="reference-thumb" key={path}>
@@ -1395,7 +1401,7 @@ export default function Studio() {
                             Style
                           </button>
                           </div>
-                          <div className="composer-tool-group" role="group" aria-label="Image references">
+                          {!["recreate","edit","analyze"].includes(tool)&&<div className="composer-tool-group" role="group" aria-label="Image references">
                           <button
                             className="tool-chip"
                             onClick={() => uploadRef.current?.click()}
@@ -1405,20 +1411,20 @@ export default function Studio() {
                             {refs.length > 0 && <span>{refs.length}/6</span>}
                           </button>
                           <button
-                            className="icon-button"
+                            className="tool-chip"
                             aria-label="Import references from link"
                             onClick={() => setLinkOpen((x) => !x)}
                           >
-                            <Link2 size={15} />
+                            <Link2 size={15} />Link
                           </button>
                           <button
-                            className="icon-button"
+                            className="tool-chip"
                             aria-label="Choose references from library"
                             onClick={() => setDialog("references")}
                           >
-                            <Images size={15} />
+                            <Images size={15} />Library
                           </button>
-                          </div>
+                          </div>}
                         </div>
                         {linkOpen && !["recreate", "edit"].includes(tool) && (
                           <div className="link-input">
@@ -1559,14 +1565,14 @@ export default function Studio() {
                   <div className="request-readiness" id="request-readiness" role="group" aria-label="Before you run">
                     <p className="request-identity">{readiness.identity}</p><p>{readiness.quantity}</p>
                     <p className="request-ready" role="status">{readiness.readiness}</p>
-                    <p className="request-cost">{readiness.cost}</p>
-                    {tool!=="analyze"&&!(tool==="title"&&titleAction==="ideas")&&<div className="automatic-review"><label><input type="checkbox" checked={autoReview} disabled={busy} onChange={e=>setAutoReview(e.target.checked)}/> Analyze new images automatically</label><p>{autoReviewNotice}</p></div>}
+                    <p className="request-cost">{readiness.cost} {readiness.pricingSource&&<a href={readiness.pricingSource} target="_blank" rel="noreferrer">Provider pricing</a>}</p>{readiness.apiModel&&<details><summary>Provider details</summary><p>API model: {readiness.apiModel}</p></details>}
+                    {tool!=="analyze"&&!(tool==="title"&&titleAction==="ideas")&&<div className="automatic-review"><label><input type="checkbox" checked={autoReview} disabled={busy} onChange={e=>{setAutoReview(e.target.checked);const key="openpikzels.autoReviewConsent."+(studio.user||"local");if(e.target.checked)localStorage.setItem(key,"v1");else localStorage.removeItem(key);}}/> Analyze new images automatically</label><p>{autoReviewNotice}</p></div>}
                   </div>
                   <div className="generate-dock">
                     <div className="generate-split">
                       <button
                         className="primary-button"
-                        disabled={busy||readiness.action==="unavailable"}
+                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"}
                         aria-describedby="request-readiness"
                         onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):submit()}
                       >
@@ -1580,7 +1586,7 @@ export default function Studio() {
                         <span>
                           {busy
                             ? studio.busy
-                            : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
+                            : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
                               ? "Analyze thumbnail"
                               : tool === "title" && titleAction === "ideas"
                                 ? "Generate titles"
@@ -1614,7 +1620,7 @@ export default function Studio() {
                 <div className="composer-footer" hidden={!showComposer}>
                   <span>
                     {tool === "analyze"
-                      ? "Scores use your API credits. Resize does not."
+                      ? "Analysis and AI recomposition use your provider account."
                       : studio.cloud
                         ? <>{chatSaveState || "Draft changes save to your workspace."}{" "}{studio.live ? "Generation uses your connected API credits." : readiness.action === "connect" ? "Connect an API key to generate." : "Check Connections before generating."}</>
                         : "Your draft saves on this device. Sign in and connect an API key to generate."}
@@ -2023,51 +2029,7 @@ export default function Studio() {
               </p>
             </>
           )}
-          {dialog === "login" && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                studio.run("Signing in", async () => {
-                  await studio.login(email, password);
-                  setPassword("");
-                  setDialog(null);
-                });
-              }}
-            >
-              <p className="dialog-description">
-                Sign in to your private workspace.
-              </p>
-              <label>
-                Email
-                <input
-                  type="email"
-                  required
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </label>
-              <label>
-                Password
-                <input
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </label>
-              <button className="primary-button full-width" disabled={busy}>
-                Sign in
-              </button>
-            </form>
-          )}
-          {dialog === "login" && (
-            <p className="dialog-footnote">
-              New here?{" "}
-              <a href="/connect">Create an account and connect your keys</a>
-            </p>
-          )}
+          {dialog === "login" && (studio.authClient?<AccountSignIn db={studio.authClient} onSignedIn={()=>location.assign("/connect#api")}/>:<p>Sign in is unavailable here. Your draft stays on this device. <a href="/connect#api">Open sign-in and connections</a></p>)}
           {studio.error && (
             <p className="dialog-error" role="status">
               {studio.error}

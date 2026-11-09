@@ -24,6 +24,7 @@ export function useStudio() {
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
+  const [configStatus,setConfigStatus]=useState<"loading"|"ready"|"failed">("loading");
   const [conversations,setConversations]=useState<Conversation[]>([]),[skipPersonaTutorial,setSkipPersonaTutorial]=useState(false);
   const loadedOwner=useRef<string|null|undefined>(undefined);
   const ownerEpoch=useRef(0),chatWrites=useRef(Promise.resolve());
@@ -112,7 +113,7 @@ export function useStudio() {
     fetch("/api/config")
       .then((r) => r.json())
       .then(async (c: Config) => {
-        setConfig(c);
+        setConfig(c);setConfigStatus("ready");
         if (c.cloud) {
           const {createClient}=await import("@supabase/supabase-js");
           db.current = createClient(c.supabaseUrl, c.supabaseKey);
@@ -135,10 +136,10 @@ export function useStudio() {
           stop = () => result.data.subscription.unsubscribe();
         }
       })
-      .catch(() =>
-        setError(
+      .catch(() => {
+        setConfigStatus("failed");setError(
           "Connection settings did not load. Local drafts remain available.",
-        ),
+        );},
       );
     return () => {
       stop();
@@ -577,10 +578,11 @@ export function useStudio() {
   return {
     conversations,skipPersonaTutorial,saveConversation,createConversation,saveTutorialPreference,feedback,importYouTube,
     config,
+    authClient:db.current,
     user,
     cloud,
     live,
-    loading:loading||loadedOwner.current!==user,
+    loading:loading||configStatus==="loading"||loadedOwner.current!==user,
     creations,
     personas,
     styles,

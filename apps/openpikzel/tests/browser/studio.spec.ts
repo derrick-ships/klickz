@@ -20,7 +20,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await page.getByLabel("Quality", { exact: true }).selectOption("xhigh");
   await page.getByLabel("Planning effort", { exact: true }).selectOption("high");
   await page.getByLabel("Images per request", { exact: true }).selectOption("4");
-  await page.getByRole("button",{name:"Rendering model",exact:true}).click();await page.getByRole("button",{name:"Sunburst 2.6",exact:true}).click();
+  await page.getByRole("button",{name:/^Rendering model:/}).click();await page.getByRole("button",{name:"Sunburst 2.6",exact:true}).click();
   await page.getByLabel("Format", { exact: true }).selectOption("short");
   await page
     .getByLabel("Describe your thumbnail", { exact: true })
@@ -36,7 +36,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
     .first()
     .click();
   await expect(page.getByLabel("Images per request")).toHaveValue("1");
-  await expect(page.getByRole("button",{name:"Rendering model",exact:true})).toHaveText("Sunburst 2.6");
+  await expect(page.getByRole("button",{name:/^Rendering model:/})).toHaveText("Sunburst 2.6");
   await expect(page.getByLabel("Format", { exact: true })).toHaveValue("short");
   await page.getByRole("button", { name: "Persona", exact: true }).click();
   await page

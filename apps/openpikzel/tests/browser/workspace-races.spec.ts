@@ -285,7 +285,7 @@ test('generation reveals its saved image while automatic analysis is still pendi
  await page.route('**/api/generate',async r=>{imageCalls++;await imageHold;const input=r.request().postDataJSON(),item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999',prompt:input.prompt,title:input.title||'Fixture new image'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});
  await page.route('**/api/analyze',async r=>{scoreCalls++;await scoreHold;return r.fallback();});
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
- await expect(page.getByLabel('Analyze new images automatically')).toBeChecked();
+ await expect(page.getByLabel('Analyze new images automatically')).not.toBeChecked();await page.getByLabel('Analyze new images automatically').check();
  await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
  const activity=page.getByRole('region',{name:'Thumbnail delivery'});await expect(activity).toHaveAttribute('data-stage','generating');
  for(const width of [1440,390,320]){await settleResponsiveNavigation(page,width,900);await activity.scrollIntoViewIfNeeded();await page.screenshot({path:'evidence/delivery-generating-'+width+'.png'});}
@@ -298,7 +298,7 @@ test('automatic review failure leaves the new image saved without regenerating',
  const f=await setup(page);let images=0,scores=0;
  await page.route('**/api/generate',async r=>{images++;const item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});
  await page.route('**/api/analyze',r=>{scores++;return r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}});});
- await page.goto('/');await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByLabel('Analyze new images automatically').check();await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();
  await expect(page.getByRole('region',{name:'Thumbnail delivery'})).toHaveAttribute('data-stage','review-pending');
  expect(f.creations).toHaveLength(2);expect(images).toBe(1);expect(scores).toBe(1);await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();
 });
@@ -358,3 +358,5 @@ for(const width of [320,390])test('mobile studio navigation leaves creative chat
  await page.getByRole('button',{name:'Send message',exact:true}).click();await expect(page.getByRole('log',{name:'Creative conversation'})).toContainText('Use one clear focal point.');
  await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeVisible();expect(errors).toEqual([]);
 });
+
+test('automatic review waits for an explicit opt-in before adding a scoring call',async({page})=>{const f=await setup(page);let reviews=0;await page.route('**/api/analyze',r=>{reviews++;return r.fallback();});await page.route('**/api/generate',r=>{const item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByLabel('Analyze new images automatically')).not.toBeChecked();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();await expect(page.getByRole('region',{name:'Thumbnail delivery'})).toHaveAttribute('data-stage','image-ready');expect(reviews).toBe(0);});

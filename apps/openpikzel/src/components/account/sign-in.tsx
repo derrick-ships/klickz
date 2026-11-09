@@ -176,7 +176,7 @@ export function AccountSignIn({
         {mode === "email" || step === "code" ? "Use password instead" : showEmailLinkHint ? "Use an email link instead" : "Use an email code instead"}
       </button>
       {step === "entry" && mode === "email" && <button type="button" className="neutral-button" disabled={busy} onClick={() => {
-        if (!emailInput.current?.reportValidity()) return;
+        if (!emailInput.current?.checkValidity()){setAuthError(true);setStatus("Enter your email address first so we can verify the code for the right account.");emailInput.current?.focus();return;}
         setAuthError(false);
         showCode("Enter the code from your latest sign-in email. This does not send another email.");
       }}>I already have a code</button>}

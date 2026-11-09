@@ -4,7 +4,7 @@ test("composer is the sole settings home with provider-aware identity and honest
  await page.setViewportSize({width:1440,height:900});await page.goto("/studio?mode=generate");
  await expect(page.getByRole("button",{name:"Connections",exact:true})).toHaveCount(1);
  await expect(page.locator("aside.sidebar select,aside.sidebar .model-trigger")).toHaveCount(0);await expect(page.getByRole("button",{name:"Workspace settings",exact:true})).toHaveCount(0);
- const model=page.getByRole("button",{name:"Rendering model",exact:true});await expect(model).toHaveText("Flare 2.6");
+ const model=page.getByRole("button",{name:/^Rendering model:/});await expect(model).toHaveText("Flare 2.6");
  const info=page.locator("#request-readiness");await expect(info).toContainText("OpenAI · Flare 2.6 · gpt-image-2.6-flare");await expect(info).toContainText("Sign in and connect");await expect(info).toContainText("a reliable estimate is not available");
  await model.click();await page.getByRole("button",{name:"Gemini Pro",exact:true}).click();await expect(info).toContainText("Google · Gemini Pro · gemini-3-pro-image");
  await page.getByLabel("Images per request",{exact:true}).selectOption("4");await page.getByLabel("Format",{exact:true}).selectOption("short");await expect(info).toContainText("4 images · 9:16");

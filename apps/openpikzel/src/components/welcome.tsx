@@ -8,7 +8,7 @@ export function Welcome() {
   <main id="welcome-main">
    <section className="welcome-hero" aria-labelledby="welcome-title">
     <div className="welcome-art" aria-hidden="true"><BrandScene scene="aperture"/></div>
-    <div className="welcome-hero-copy"><p className="welcome-hook"><span aria-hidden="true"/>YouTube thumbnails are solved.</p>
+    <div className="welcome-hero-copy"><p className="welcome-hook"><span aria-hidden="true"/>Make, test and improve your thumbnail.</p>
      <h1 id="welcome-title" className="welcome-headline"><span>GET MILLIONS</span>{" "}<span>OF VIEWS</span></h1>
      <p className="welcome-subtitle">Without adding another subscription*</p>
      <p className="welcome-lead">Your next great video deserves a thumbnail that makes people stop. Create it, compare it and make the idea unmistakable—with the AI access you already have.</p>
@@ -19,7 +19,7 @@ export function Welcome() {
     <div className="welcome-hero-index" aria-hidden="true"><span>01 / THE IDEA COMES FIRST</span><span>OPENPIKZELS · YOUR THUMBNAIL STUDIO</span></div>
    </section>
    <section className="welcome-workflow" aria-labelledby="workflow-title"><div className="welcome-section-label">ONE CONTINUOUS WORKSPACE</div><h2 id="workflow-title">From “what if”<br/>to “that’s the one.”</h2>
-    <div className="welcome-steps"><article><WandSparkles aria-hidden="true"/><span>01</span><h3>Make the idea visible.</h3><p>Generate from a prompt, recreate a reference or edit an existing thumbnail. Bring your own personas and styles.</p></article><article><ScanLine aria-hidden="true"/><span>02</span><h3>See what needs work.</h3><p>Inspect clarity, idea, curiosity, emotion and attention. Get a creative assessment with specific explanations, not a prediction of clicks.</p></article><article><Layers3 aria-hidden="true"/><span>03</span><h3>Keep the better version.</h3><p>Turn feedback into a fix, compare before and after, and keep your originals. Every refinement has a starting point.</p></article></div>
+    <div className="welcome-steps"><article><WandSparkles aria-hidden="true"/><span>01</span><h3>Make the idea visible.</h3><p>Generate from a prompt, recreate a reference or edit an existing thumbnail. Bring your own personas and styles.</p></article><article><ScanLine aria-hidden="true"/><span>02</span><h3>See what needs work.</h3><p>Inspect Virality, Clarity, Idea, Curiosity and Emotion. Get a creative assessment with specific explanations, not a prediction of clicks.</p></article><article><Layers3 aria-hidden="true"/><span>03</span><h3>Keep the better version.</h3><p>Turn feedback into a fix, compare before and after, and keep your originals. Every refinement has a starting point.</p></article></div>
    </section>
    <section id="ai-access" className="welcome-access" aria-labelledby="access-title"><div className="welcome-section-label">YOUR AI. YOUR CHOICE.</div><h2 id="access-title">Bring the access.<br/>We bring the studio.</h2><p className="welcome-access-lead">Generate studio images with an OpenAI or Google API key. The optional ChatGPT connection shows models and plan usage; agent access lets compatible clients control your studio.</p>
     <div className="welcome-access-list">

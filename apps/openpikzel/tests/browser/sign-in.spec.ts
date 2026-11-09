@@ -115,3 +115,20 @@ test("sign-in fits small screens, keyboard use and reduced motion",async({page})
     }
   }
 });
+
+test("studio code sign-in continues to API setup and preserves the local direction",async({page})=>{
+ await page.route("https://test.supabase.co/auth/v1/verify**",r=>r.fulfill({json:session}));
+ await page.route("https://test.supabase.co/auth/v1/user**",r=>r.fulfill({json:user}));
+ await page.route("https://test.supabase.co/rest/v1/**",r=>r.fulfill({json:[]}));
+ await page.goto("/studio");
+ await page.getByLabel("Describe your thumbnail",{exact:true}).fill("Preserve this local direction during sign-in");
+ await page.getByRole("button",{name:"Sign in to generate",exact:true}).click();
+ const dialog=page.getByRole("dialog");
+ await dialog.getByLabel("Email",{exact:true}).fill("creator@example.com");
+ await dialog.getByRole("button",{name:"I already have a code",exact:true}).click();
+ await dialog.getByLabel("Email sign-in code",{exact:true}).fill("123456");
+ await dialog.getByRole("button",{name:"Verify code",exact:true}).click();
+ await expect(page).toHaveURL(/\/connect#api$/);
+ await expect(page.getByRole("heading",{name:"Connect an API provider",exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem("openpikzels.draftCheckpoint.local")!).draft.prompt)).toBe("Preserve this local direction during sign-in");
+});

@@ -188,10 +188,10 @@ export function ConnectionsPage() {
           <a href="/studio">Save drafts in this browser.</a>
         </p>
       ) : !session ? (
-        <AccountSignIn db={db} initialNotice={signInNotice} />
+        <section id="api" className="account-panel"><p>Step 1: sign in. Step 2: connect your own OpenAI or Google API key to generate images. Your provider bills usage separately.</p><AccountSignIn db={db} initialNotice={signInNotice} /><div id="chatgpt"><h2>ChatGPT connection after sign-in</h2><p>Sign in above to manage ChatGPT models and usage. This connection alone does not generate studio images.</p><a href="#api">Sign in to manage connections</a></div><div id="mcp"><h2>Connect your agent after sign-in</h2><p>Sign in above, then review the permissions requested by your MCP client before allowing access.</p><a href="#api">Sign in to connect an agent</a></div></section>
       ) : (
         <>
-          <section className="account-panel">
+          <section id="api" className="account-panel">
             <h2>Connect an API provider</h2>
             {connectionRead === "failed" && <div role="status"><p>Connection status unavailable. Refresh to check.</p><button className="neutral-button" disabled={busy} onClick={() => void action(refresh)}>Refresh connections</button></div>}
             <p>

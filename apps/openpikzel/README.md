@@ -44,11 +44,11 @@ Jev can score an image created inside ChatGPT without an OpenAI image API call. 
 
 The app lives in the existing private `derrick-ships/klickz` repository under `apps/openpikzel/`, draft [PR #2](https://github.com/derrick-ships/klickz/pull/2). The existing Supabase project is `app-starter-dev` / `iufiqfvufoecbuakzale`; creations, profiles, provider ciphertext and OAuth grants have RLS, and `studio-assets` is private. No service-role key is used.
 
-Vercel project `openpikzel` / `prj_QyWc3SoRUCmGsPRmwx4tm4kVhI9z` protects non-custom deployments with Vercel Authentication. The main thread independently verified that `openpikzels.com` and `www` are attached, HTTPS works and www redirects to the apex; custom domains are public. Authorized OpenAI/Jev keys and the server encryption key were configured only for the protected preview. The owner-key fallback is restricted to the exact existing owner account. Other users never receive that fallback. Production AI is disabled and has no provider keys.
+Vercel project `openpikzel` / `prj_QyWc3SoRUCmGsPRmwx4tm4kVhI9z` protects non-custom deployments with Vercel Authentication. The main thread independently verified that `openpikzels.com` and `www` are attached, HTTPS works and www redirects to the apex; custom domains are public. Authorized OpenAI/Jev keys and the server encryption key were configured only for the protected preview. The owner-key fallback is restricted to the exact existing owner account. Other users never receive that fallback. AI availability is controlled by runtime settings and the signed-in user’s provider connections. Do not infer live activation, entitlement or provider access from this historical setup note. See docs/scanner-feed-recompose.md and docs/advisory-decisions.md for verified release behavior and remaining limits.
 
 Domain connection is complete. **Authenticated app/provider validation and multiuser MCP activation remain pending.** See [RELEASE.md](RELEASE.md) for the remaining account/release gates and approval-review outcome. No paid application-provider smoke test has run yet.
 
-For a fresh local deployment copy `.env.example`, configure the browser-safe Supabase variables and a 32-byte hex `STUDIO_ENCRYPTION_KEY`. Apply the private-studio, settings/batch, private-account and diagnostics/jobs migrations for an owner-restricted preview. The separate public-release migration remains unapplied and does not remove the new restrictive jobs-owner policy; broad access needs an explicit, reviewed release change. Keep the encryption key stable; rotation requires reconnecting encrypted provider keys and agent sessions.
+For a fresh local deployment copy `.env.example`, configure the browser-safe Supabase variables and a 32-byte hex `STUDIO_ENCRYPTION_KEY`. Apply the private-studio, settings/batch, private-account and diagnostics/jobs migrations for an owner-restricted preview. Check the hosted migration ledger before applying any migration; older setup notes are not evidence that a migration is still pending. Existing account isolation, private storage and credentials must be preserved. Keep the encryption key stable; rotation requires reconnecting encrypted provider keys and agent sessions.
 
 See [STUDY.md](STUDY.md) for the implemented study adaptations: nullable diagnostic pillars, actual 200px previews, signed evidence-based fix plans, immutable variant lineage, blinded human comparison and persistent idempotency jobs.
 
@@ -58,7 +58,7 @@ A whole batch is reserved atomically before concurrent rendering. The same user/
 
 Jev image support is experimental. Scores are AI rubric assessments, not measured CTR, empirical conversion forecasts, analytics or guarantees of views. Actual performance should be tested with YouTube Test & Compare. Identity and text fidelity vary with the image model; no fine-tuned persona training pipeline is claimed.
 
-Users can create their own Supabase account from `/connect` after public release and email configuration. Setup has not created user accounts, invited users, reset passwords, purchased credits or changed billing plans.
+Users can create their own Supabase account from `/connect` after public release and email configuration. Do not create or reset accounts, invite users, purchase credits or change billing as an implicit part of setup. Those actions require their own authorization.
 
 ## Design skills installed
 
