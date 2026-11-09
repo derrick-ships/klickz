@@ -47,13 +47,7 @@ export function requireAI(provider: "openai" | "jev" | "google") {
       403,
       "AI usage is awaiting activation. Your account will use only your own connected keys.",
     );
-  if (
-    provider === "openai" &&
-    !providerContext.getStore()?.openai &&
-    providerContext.getStore()?.google
-  )
-    providerKey("google");
-  else providerKey(provider);
+  providerKey(provider);
 }
 export async function withUserProviders(
   request: Request,

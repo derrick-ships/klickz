@@ -5,7 +5,7 @@ import {
   requireAI,
   withUserProviders,
 } from "@/lib/server";
-import { AppError } from "@/lib/validation";
+import { AppError, textProviderSchema } from "@/lib/validation";
 import { ownedAsset } from "@/lib/assets";
 import { prepareIdentity } from "@/lib/providers";
 import { NextResponse } from "next/server";
@@ -13,10 +13,10 @@ export const maxDuration = 120;
 async function handle(request: Request) {
   try {
     const { db, user } = await authenticated(request);
-    requireAI("openai");
     const input = z
-      .object({ id: z.string().uuid(), kind: z.enum(["persona", "style"]) })
+      .object({ id: z.string().uuid(), kind: z.enum(["persona", "style"]), provider: textProviderSchema })
       .parse(await request.json());
+    requireAI(input.provider);
     const table =
       input.kind === "persona" ? "studio_personas" : "studio_styles";
     const { data, error } = await db
@@ -29,7 +29,7 @@ async function handle(request: Request) {
     const images = await Promise.all(
       data.refs.slice(0, 3).map((p: string) => ownedAsset(db, user.id, p)),
     );
-    const identity_brief = await prepareIdentity(images, data.name, input.kind);
+    const identity_brief = await prepareIdentity(images, data.name, input.kind, input.provider);
     const saved = await db
       .from(table)
       .update({ identity_brief, profile_status: "ready" })

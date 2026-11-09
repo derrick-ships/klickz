@@ -61,3 +61,46 @@ Typecheck, full unit suite (155 tests in 28 files), production build, 75 Chromiu
 The successful code-sign-in test continues from the studio to /connect#api and confirms the original local direction remains in its account-scoped draft checkpoint. All authentication and provider responses in browser tests are fixtures; no sign-in emails, paid model requests, billing changes or credential writes were used. The current 320/768/1024/1440 layout checks verify expanded-action reachability, horizontal fit and 44px style targets.
 
 Google activation remains deferred to Derrick's later request; see google-sign-in-preparation.md. This batch does not yet replace the existing connection-based text-provider fallback or add a detached job worker/full video analysis.
+
+## Batch 2: explicit provider roles and title preservation
+
+Titles, prompt enhancement, optional visual critique and persona/style preparation now require an explicit OpenAI or Google API choice. Shared route guards no longer substitute Google for unavailable OpenAI. Existing requests without a new role field default to OpenAI and are blocked if it is unavailable. Image and conversation selection remain independent. UI choices are persisted in the owner-scoped draft; optional visual critique is a separate checkbox that describes its extra call. MCP inputs expose the same provider selections. No provider connection or token is changed.
+
+Analysis updates the current score without overwriting the creation title. Its assessed title remains in the signed score and persisted job outcome. Tests confirm a saved analysis replays after creation-title changes with one scoring dispatch, and an unavailable selected reviewer blocks before reservation/scoring.
+
+Validation: typecheck, 162 unit tests in 30 files, production build, 76 Chromium and 75 mobile WebKit checks, two controlled performance checks and the existing budget passed. Median lab LCP 1444 ms, CLS 0.0010 and sampled INP 32 ms. Provider and account responses remain fixtures.
+
+Read-only hosted schema verification confirms studio_jobs and studio_creations, no studio_analyses table, a user/created_at index on jobs, and an existing studio_reconcile_jobs function that only marks the authenticated user's expired jobs/variants uncertain. No schema, policy, security setting, credential or billing change was made. A saved job record is not a detached worker; browser-driven automatic review can stop when the page closes.
+
+## Recovery and saved analysis history checkpoint
+
+The studio now reads recent persisted requests on sign-in/reload, refreshes active statuses every five seconds for at most ten minutes, and refreshes the library after observing completion. Stop waiting aborts/pauses the viewer's reads; it does not cancel provider work or promise a refund. The viewer never replays a paid POST. Reads and results are fenced to the current account/session; concurrent unrelated workspace actions remain guarded and now explain a busy refusal.
+
+Analysis history is served from existing succeeded analyze-job results with owned-source checks, a validated timestamp/id cursor, signed-score verification and an exact current-image digest comparison. Older, changed, malformed or different-image records are identified explicitly. History never changes the current title/score or offers a paid fix. Browser and MCP list_analyses use the same owner-scoped reader. No new database table, migration, RLS policy or security setting is needed.
+
+Typecheck, 168 unit tests in 31 files and production build pass. Five focused recovery/history/provider-choice browser checks pass in Chromium and mobile WebKit; history screenshots cover 320/768/1440. A broader regression/performance run remains due after the next context/output changes. The saved source is a checkpoint, not a deployed release.
+
+## Final tested follow-up: context, native output and truthful availability
+
+Conversation context now includes only the current owner's selected persona/style briefs (name 80, notes 800, prepared brief 2400 characters), up to six selected reference paths, and a separately labeled unexamined YouTube link. Photo references are not attached without the explicit chat checkbox; at most the first two are attached in addition to the selected source image, with the remaining images declared unviewed. Recent conversation remains capped at 12 messages / 4000 characters each. Foreign profile/reference access fails before reservation or inference. Project titles and source context are bounded. Proposals are tied to their source and context; a late proposal cannot replace a newer direction. Enhancement remains review/apply/undo and image actions still require a separate user click.
+
+Google system instructions now occupy the provider's systemInstruction field, separately from project data. This field and responseFormat were verified against the official public v1 discovery schema, without a provider inference call. The centralized instruction version is openpikzels-harness-1.1. get_workspace exposes model/role capabilities, saved-connection flags, reference limits, no-fallback behavior and explicit unsupported capabilities, without equating a saved key with entitlement or available credit.
+
+Generation now retains the full provider-returned pixel dimensions instead of cropping to 1280x720 / 720x1280. The UI reads saved image dimensions and flags a returned aspect ratio that differs from the request; it does not crop or automatically retry. Nominal native ratios permit a 3% pixel-grid rounding tolerance (Google documents 768x1376 / 1376x768 at 1K). Original source paths remain untouched. Generation/edit/recomposition/upload/layout provenance is recorded on new creations; ready-variant immutability was inspected read-only and remains unchanged. Recomposition keeps the source's chosen title. Duplicate source/reference paths are sent once. Google receives every selected supported reference instead of silently truncating after ten; documented request caps are checked before dispatch (14 Google, 16 GPT image input slots).
+
+Private provider lookup remains neutral until the current account's read completes. Account changes clear old connection flags; failed reads are labeled unknown and direct the user to refresh Connections. Sign-in remains the shared email flow. Native selects, reference naming and the extra-reference consent row are keyboard/mobile accessible.
+
+Final validation: 183 unit tests in 33 files, typecheck, production build, 82 Chromium and 81 mobile WebKit checks, two controlled performance checks and the strict existing budget passed. The local throttled mobile lab median was LCP 1388 ms, CLS 0.0010, sampled INP 40 ms; maximum immediate-feedback sample 27.9 ms, 196272 script bytes, zero third-party requests. These are local lab samples, not field p75, an SLA or live provider tests. Screenshots inspected include 320px onboarding/expanded action, analysis history and unexpected-native-ratio preservation; automated layouts also cover 768/1024/1440 and 1280x800 action reachability.
+
+All authentication/model responses in functional tests are fixtures. No paid provider test, real sign-in email, purchase, trial-credit grant, Google credential, provider activation, account/security-setting change, token read or connection removal was performed. The chosen landing-page headline and original snapshots remain intact.
+
+## Remaining limits and release state
+
+Full video watching/transcription is not implemented: analysis can use YouTube title/description metadata and chat labels a supplied link unexamined. Consumer subscription chat and Higgsfield image execution remain unsupported. Saved job/status recovery is implemented; a detached worker and automatic continuation of browser-orchestrated review after page closure are not. Workspace mutations are still serialized with an explicit busy explanation; this is not a complete per-entity reducer rewrite. Title/profile text endpoints are explicit user actions and are not claimed to have the same durable recovery coverage as generate/analyze/creative jobs. No live signed-in provider entitlement or billing outcome is established by these fixtures.
+
+The onboarding-only commit is 5d74f5759f52384d26178eb77514294bfe2d1716 (tree 4e226371d2e460dc15b060eac3204582ca51a997). Its source is separately preserved in advisory-batch1-reviewed. Main was updated only after Derrick explicitly approved that commit/deployment. Production was last verified at 7af2f410a16dc0c841d2aabe23ef0648331c4a10. The onboarding deployment has not been attempted because automatic approval review separately rejected uploading tests/release-export.test.ts; its sole added test checks inclusion of these advisory/setup docs. Exact content was verified against the approved commit, and a file-specific approval request is pending. Newer follow-up changes in this report remain uncommitted/undeployed pending their own release approval.
+
+Additional primary sources checked 2026-11-09:
+- https://generativelanguage.googleapis.com/$discovery/rest?version=v1
+- https://aistudio.google.com/docs/image-generation
+- Installed official OpenAI Node SDK image-edit parameter documentation (up to 16 GPT input images). Catalog/parameter documentation does not verify account access.

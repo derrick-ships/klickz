@@ -14,6 +14,7 @@ export const generationSchema = z
     prompt: z.string().trim().min(8).max(2400),
     title: z.string().trim().max(100).default(""),
     mode: z.enum(["generate", "recreate", "edit", "title", "fix"]),
+    intent: z.enum(["create","recompose"]).default("create"),
     conversationId: z.string().uuid().nullable().optional(),
     personaId: z.string().uuid().nullable().optional(),
     styleId: z.string().uuid().nullable().optional(),
@@ -26,6 +27,7 @@ export const generationSchema = z
     fixPlanToken: z.string().max(32000).optional(),
   })
   .superRefine((v, ctx) => {
+    if(v.intent==="recompose"&&(v.mode!=="edit"||!v.parentId||v.settings.batch!==1))ctx.addIssue({code:"custom",message:"Recomposition creates one new edit from an owned source.",path:["intent"]});
     if (["edit", "fix"].includes(v.mode) && !v.parentId && !v.referencePath)
       ctx.addIssue({
         code: "custom",
@@ -39,7 +41,9 @@ export const generationSchema = z
         path: ["referencePath"],
       });
   });
+export const textProviderSchema = z.enum(["openai", "google"]).default("openai");
 export const ideaSchema = z.object({
+  provider: textProviderSchema,
   prompt: z.string().trim().min(8).max(2400),
   audience: z.string().max(200).default("YouTube viewers"),
 });
@@ -52,6 +56,7 @@ export const reviewSchema = z
     videoUrl: z.string().trim().max(500).default(""),
     audience: z.string().trim().max(200).default(""),
     includeVision: z.boolean().default(false),
+    critiqueProvider: textProviderSchema,
     requestId: z
       .string()
       .uuid()

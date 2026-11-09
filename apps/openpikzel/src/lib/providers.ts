@@ -2,7 +2,7 @@ import {thumbnailRubric as rubric, visionInstructions, scoringInstructions, inst
 import OpenAI, { toFile } from "openai";
 import { imageModel } from "./image-models";
 import sharp from "sharp";
-import { providerKey, hasProvider } from "./provider-context";
+import { providerKey } from "./provider-context";
 import {
   actualPreview,
   diagnosticDefaults,
@@ -11,12 +11,13 @@ import {
   type DiagnosticContext,
 } from "./diagnostics";
 import { googleImage, googleText } from "./google";
-import { observationSchema, parseScores } from "./validation";
+import { observationSchema, parseScores, AppError } from "./validation";
 import {
   defaultSettings,
   pillars,
   type Settings,
   type Evaluation,
+  type TextProvider,
 } from "./types";
 const client = () =>
   new OpenAI({
@@ -33,11 +34,9 @@ export async function renderThumbnail(
   refs: Buffer[],
   settings: Settings = defaultSettings,
 ) {
-  if (settings.model.startsWith("gemini-"))
-    return sharp(await googleImage(prompt, refs, settings))
-      .resize({ ...outputSize(settings.format), fit: "cover" })
-      .png()
-      .toBuffer();
+  const selected=imageModel(settings.model);
+  if(refs.length>selected.maxReferences)throw new AppError(400,"This image model supports at most "+selected.maxReferences+" reference images. Remove extra references before running.");
+  if(selected.provider==="google")return sharp(await googleImage(prompt,refs,settings),{limitInputPixels:40000000}).rotate().png().toBuffer();
   const common = {
     model: imageModel(settings.model).apiModel,
     prompt,
@@ -61,16 +60,13 @@ export async function renderThumbnail(
   const b64 = result.data?.[0]?.b64_json;
   if (!b64) throw new Error("No image returned");
   return sharp(Buffer.from(b64, "base64"))
-    .resize({
-      ...outputSize(settings.format),
-      fit: "cover",
-      position: "attention",
-    })
+    .rotate()
     .png()
     .toBuffer();
 }
-export async function suggestTitles(prompt: string, audience: string) {
-  if (!hasProvider("openai") && hasProvider("google")) {
+export async function suggestTitles(prompt: string, audience: string, provider: TextProvider = "openai") {
+  providerKey(provider);
+  if (provider === "google") {
     const value = JSON.parse(
       await googleText(
         "Return JSON {titles:string[]} with exactly five distinct, truthful YouTube titles under 100 characters. Do not invent evidence.",
@@ -159,9 +155,11 @@ export async function observePackaging(
   title: string,
   videoBrief = "",
   previewImage?: Buffer,
+  provider: TextProvider = "openai",
 ) {
+  providerKey(provider);
   const preview = await analysisImage(image);
-  if (!hasProvider("openai") && hasProvider("google"))
+  if (provider === "google")
     return observationSchema.parse(
       JSON.parse(
         await googleText(
@@ -228,11 +226,12 @@ export async function evaluateThumbnail(
   const prepared = await analysisImage(image);
   const small = await actualPreview(image),
     smallMeta = await sharp(small).metadata();
-  const withVision =
-    context.includeVision && (hasProvider("openai") || hasProvider("google"));
+  const critiqueProvider = context.critiqueProvider || "openai";
+  if(context.includeVision) providerKey(critiqueProvider);
+  const withVision = context.includeVision;
   const observations = observationSchema.parse(
     withVision
-      ? await observePackaging(prepared, title, context.videoBrief, small)
+      ? await observePackaging(prepared, title, context.videoBrief, small, critiqueProvider)
       : {
           summary:
             "Jev scored the supplied image and title. These rubric-based prompts are suggestions; no separate vision critique was requested.",
@@ -327,7 +326,7 @@ export async function evaluateThumbnail(
     observations.promiseConflict,
   );
   diagnostic.instructionVersion = instructionVersion;
-  diagnostic.contributors = [{provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(withVision ? [{provider:hasProvider("openai") ? "OpenAI API" : "Google API",model:hasProvider("openai") ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
+  diagnostic.contributors = [{provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(withVision ? [{provider:critiqueProvider === "openai" ? "OpenAI API" : "Google API",model:critiqueProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
   return diagnostic;
 }
 // Legacy name is retained only for callers that explicitly supply a real image.
@@ -346,9 +345,11 @@ export async function prepareIdentity(
   images: Buffer[],
   name: string,
   kind: "persona" | "style",
+  provider: TextProvider = "openai",
 ) {
+  providerKey(provider);
   const prepared = await Promise.all(images.map(analysisImage));
-  if (!hasProvider("openai") && hasProvider("google"))
+  if (provider === "google")
     return (
       await googleText(
         kind === "persona"

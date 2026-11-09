@@ -21,8 +21,8 @@ export async function structuredCreativeText(provider:"openai"|"google",instruct
   throw new AppError(502,"The text request could not finish. Your draft is unchanged. Check API activity before trying again.");
  }
 }
-export async function enhancePrompt(input:{prompt:string;title:string;mode:string;format:string;provider:"openai"|"google"}){
- const result=await structuredCreativeText(input.provider,promptEnhancementInstructions,input);
+export async function enhancePrompt(input:{prompt:string;title:string;mode:string;format:string;provider:"openai"|"google"},selectedContext?:unknown){
+ const result=await structuredCreativeText(input.provider,promptEnhancementInstructions,selectedContext?{draft:input,selectedContext}:input);
  return {...result,value:enhancementSchema.parse(result.value)};
 }
 export {conversationInstructions} from "./instructions";

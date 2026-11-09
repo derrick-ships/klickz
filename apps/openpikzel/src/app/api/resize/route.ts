@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         mode: "resize",
         parent_id: original.id,
         conversation_id: original.conversation_id || null,
-        lineage: { sourceId: original.id, sourceDigest: digest(sourceBytes) },
+        lineage: { origin:"layout",nativeOutput:false,sourceId: original.id, sourceDigest: digest(sourceBytes) },
         settings: { ...original.settings, format: input.format },
         request_id: input.requestId,
         status: "generating",

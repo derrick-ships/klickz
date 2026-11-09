@@ -6,6 +6,7 @@ export type Mode =
   | "fix"
   | "resize";
 export type ImageModel = "sunburst" | "flare" | "gemini-flash" | "gemini-pro";
+export type TextProvider = "openai" | "google";
 export type Quality = "low" | "medium" | "high" | "xhigh" | "max";
 export type Complexity = "low" | "medium" | "high";
 export type Format = "long" | "short";
@@ -116,10 +117,11 @@ export type Creation = {
   request_id?: string;
   batch_id?: string;
   batch_index?: number;
-  lineage?: { sourceId: string; sourceDigest: string; fixPlanHash?: string };
+  lineage?: { origin?:"generated"|"edited"|"recomposed"|"uploaded"|"layout";nativeOutput?:boolean;sourceId?: string; sourceDigest?: string; fixPlanHash?: string };
   review?: { preference: string; order: string[]; decidedAt: string };
 };
 export type Config = {
+  connectionStatus?:"loading"|"ready"|"failed";
   promptModel?: string;
   cloud: boolean;
   ai: boolean;

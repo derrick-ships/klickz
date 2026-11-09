@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {Copy,WandSparkles,ChevronDown} from 'lucide-react';
 import {pillars,type Evaluation} from '@/lib/types';
 const names={virality:'Virality',clarity:'Clarity',idea:'Idea',curiosity:'Curiosity',emotion:'Emotion'};
-export function AnalysisPanel({score,busy,onFix}:{score:Evaluation;busy:boolean;onFix:()=>void}){
+export function AnalysisPanel({score,busy,onFix,readOnly=false}:{score:Evaluation;busy:boolean;onFix:()=>void;readOnly?:boolean}){
  const [copied,setCopied]=useState(false),fixes=pillars.map(p=>score.dimensions[p].fix).filter(Boolean);
  const prompt='Edit the attached thumbnail while preserving the person’s identity, factual video promise and exact wording unless I request otherwise. Assessed video title: '+score.title+'. Apply these evidence-based packaging suggestions:\n'+fixes.map((f,i)=>(i+1)+'. '+f).join('\n')+'\nKeep the original intact and create a new version. Do not invent a CTR or performance claim.';
  return <section className="analysis-overlay">
@@ -12,6 +12,6 @@ export function AnalysisPanel({score,busy,onFix}:{score:Evaluation;busy:boolean;
  {score.contributors?.length ? <ul className="analysis-contributors" aria-label="Analysis contributors">{score.contributors.map(c=><li key={c.role}>{c.provider} · {c.model} · {c.role==="scoring"?"Five-pillar scoring":"Image-specific guidance"}</li>)}</ul> : <p>Provider details were not recorded for this older assessment.</p>}
  {score.warnings?.length ? <ul className="analysis-evidence-notes">{score.warnings.map(w=><li key={w}>{w}</li>)}</ul> : null}
  <p className="score-disclaimer">{score.note} This is a creative assessment, not measured YouTube performance.</p>
- <div className="consent-actions"><button className="neutral-button" disabled={!fixes.length} onClick={async()=>{try{await navigator.clipboard.writeText(prompt);setCopied(true);}catch{setCopied(false);}}}><Copy size={15}/>{copied?'Prompt copied':'Copy improvement prompt'}</button><button className="primary-button" disabled={busy||score.fixBlocked} onClick={onFix}><WandSparkles size={15}/>One-click fix</button></div>
+ {!readOnly&&<div className="consent-actions"><button className="neutral-button" disabled={!fixes.length} onClick={async()=>{try{await navigator.clipboard.writeText(prompt);setCopied(true);}catch{setCopied(false);}}}><Copy size={15}/>{copied?'Prompt copied':'Copy improvement prompt'}</button><button className="primary-button" disabled={busy||score.fixBlocked} onClick={onFix}><WandSparkles size={15}/>One-click fix</button></div>}
  </section>;
 }

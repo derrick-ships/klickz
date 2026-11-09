@@ -15,6 +15,7 @@ async function setup(page:Page){
  await page.route('**/*',r=>(new URL(r.request().url()).hostname==='127.0.0.1'||/^(blob|data):/.test(r.request().url()))?r.continue():r.abort());
  const settings={model:'flare',quality:'low',complexity:'low',format:'long',batch:1},now=new Date().toISOString(),chats:any[]=[{id:chatA,user_id:A,title:'Account A chat',draft:{prompt:'A factual thumbnail from account A',settings},created_at:now,updated_at:now},{id:chatB,user_id:B,title:'Account B chat',draft:{prompt:'A separate private account B draft',settings},created_at:now,updated_at:now}],creations:any[]=[{id:'55555555-5555-4555-8555-555555555555',user_id:A,conversation_id:chatA,title:'Account A image',prompt:'A factual thumbnail from account A',mode:'generate',style:'Auto',persona_id:null,parent_id:null,image_path:A+'/image.png',status:'ready',favorite:false,settings,created_at:now}];
  chats.push({id:'88888888-8888-4888-8888-888888888888',user_id:A,title:'Account A other chat',draft:{prompt:'Another A project'},created_at:now,updated_at:now});
+ await page.route('**/api/jobs',r=>r.fulfill({json:{jobs:[]}}));
  const png=await sharp({create:{width:800,height:450,channels:3,background:'#dc384b'}}).png().toBuffer();
  await page.addInitScript(({s,A,chatA,B,chatB})=>{localStorage.setItem('sb-test-auth-token',JSON.stringify(s));localStorage.setItem('openpikzels.activeChat.'+A,chatA);localStorage.setItem('openpikzels.activeChat.'+B,chatB);},{s:session(A),A,chatA,B,chatB});
  await page.route('**/api/config',r=>r.fulfill({json:{cloud:true,ai:true,openai:true,jev:true,google:false,ownerGate:false,supabaseUrl:'https://test.supabase.co',supabaseKey:'sb_publishable_test'}}));
@@ -85,13 +86,13 @@ test('typing while generation runs preserves new direction and offers a result w
  await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(prompt).toHaveValue('My next idea must stay open while this result finishes');
 });
 test('request activity is reachable inside its modal and refresh never resubmits a request',async({page})=>{
- const f=await setup(page);let reads=0,paid=0;
- await page.route('**/api/jobs',r=>{reads++;return r.fulfill({json:{jobs:[{id:'fixture-request',operation:'generate',state:reads===1?'reconciling':'succeeded',max_provider_calls:1,created_at:'2026-11-09T12:00:00Z',result:reads>1?{creation:{id:f.creations[0].id}}:null}]}});});
+ const f=await setup(page);let reads=0,paid=0,complete=false;
+ await page.route('**/api/jobs',r=>{reads++;return r.fulfill({json:{jobs:[{id:'fixture-request',operation:'generate',state:complete?'succeeded':'reconciling',max_provider_calls:1,created_at:'2026-11-09T12:00:00Z',result:complete?{creation:{id:f.creations[0].id}}:null}]}});});
  await page.route('**/api/generate',r=>{paid++;return r.abort();});await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');
  await page.getByRole('button',{name:'Connections',exact:true}).click();const dialog=page.getByRole('dialog');
  await dialog.getByRole('button',{name:'View API activity',exact:true}).click();await expect(dialog).toContainText('Outcome uncertain');
- await dialog.getByRole('button',{name:'Refresh activity',exact:true}).focus();await page.keyboard.press('Enter');await expect(dialog).toContainText('Completed');
- await dialog.getByRole('button',{name:'Open saved result',exact:true}).click();await expect(dialog).not.toBeVisible();await expect(page.locator('.review-summary')).toContainText('Account A image');expect(reads).toBe(2);expect(paid).toBe(0);
+ complete=true;await dialog.getByRole('button',{name:'Refresh activity',exact:true}).focus();await page.keyboard.press('Enter');await expect(dialog).toContainText('Completed');
+ await dialog.getByRole('button',{name:'Open saved result',exact:true}).click();await expect(dialog).not.toBeVisible();await expect(page.locator('.review-summary')).toContainText('Account A image');expect(reads).toBeGreaterThanOrEqual(3);expect(paid).toBe(0);
 });
 test('slow first autosave cannot steal a subsequently selected chat',async({page})=>{
  const f=await setup(page);await page.addInitScript(({A})=>localStorage.removeItem('openpikzels.activeChat.'+A),{A});
@@ -194,7 +195,7 @@ test('connection lookup distinguishes loading and failure from disconnected and 
  await page.getByRole('button',{name:'Refresh connections',exact:true}).click();await expect(page.getByText('Not connected',{exact:true})).toHaveCount(4);await expect(page.getByText('No agents connected yet.',{exact:true})).toBeVisible();expect(writes).toBe(0);
 });
 
-test('analysis scanner waits for a saved result and uses supported visual guidance automatically',async({page})=>{
+test('analysis scanner waits for a saved result and includes explicitly requested visual guidance',async({page})=>{
  const f=await setup(page);await page.clock.install();let release!:()=>void;const hold=new Promise<void>(r=>release=r);let calls=0;
  await page.route('**/api/analyze',async route=>{
   calls++;const input=route.request().postDataJSON();expect(input.includeVision).toBe(true);expect(input.videoBrief).toBe("");expect(input.videoUrl).toBe("https://youtu.be/abcdefghijk");
@@ -206,7 +207,7 @@ test('analysis scanner waits for a saved result and uses supported visual guidan
  });
  await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();
  await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
- await page.getByLabel('YouTube video link (optional)',{exact:true}).fill('https://youtu.be/abcdefghijk');
+ await page.getByLabel('YouTube video link (optional)',{exact:true}).fill('https://youtu.be/abcdefghijk');await page.getByLabel('Add image-specific review to analysis (one extra provider request)',{exact:true}).check();
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  const scanner=page.getByRole('region',{name:'Thumbnail analysis activity'});
  await expect(scanner).toHaveAttribute('data-phase','running');
@@ -360,3 +361,57 @@ for(const width of [320,390])test('mobile studio navigation leaves creative chat
 });
 
 test('automatic review waits for an explicit opt-in before adding a scoring call',async({page})=>{const f=await setup(page);let reviews=0;await page.route('**/api/analyze',r=>{reviews++;return r.fallback();});await page.route('**/api/generate',r=>{const item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByLabel('Analyze new images automatically')).not.toBeChecked();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();await expect(page.getByRole('region',{name:'Thumbnail delivery'})).toHaveAttribute('data-stage','image-ready');expect(reviews).toBe(0);});
+
+test('text and image review providers require explicit selection and survive reload',async({page})=>{
+ await setup(page);let calls=0;
+ await page.route('**/api/config',r=>r.fulfill({json:{cloud:true,ai:true,openai:false,google:true,jev:true,ownerGate:false,supabaseUrl:'https://test.supabase.co',supabaseKey:'sb_publishable_test',textModels:{openai:'OpenAI fixture',google:'Google fixture'}}}));
+ await page.route('**/api/creative',r=>{calls++;expect(r.request().postDataJSON().provider).toBe('google');return r.fulfill({json:{model:'Google fixture',value:{prompt:'A revised factual thumbnail direction',changes:[]}}});});
+ await page.route('**/api/titles',r=>{calls++;expect(r.request().postDataJSON().provider).toBe('google');return r.fulfill({json:{titles:['One','Two','Three','Four','Five']}});});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
+ const provider=page.getByLabel('Text and review provider',{exact:true});await expect(provider).toHaveValue('openai');await expect(page.getByRole('button',{name:'Enhance prompt',exact:true})).toBeDisabled();expect(calls).toBe(0);
+ await provider.selectOption('google');await page.getByRole('button',{name:'Enhance prompt',exact:true}).click();await expect(page.getByRole('region',{name:'Prompt enhancement'})).toBeVisible();
+ await page.getByRole('tab',{name:'Title',exact:true}).click();await page.getByRole('button',{name:'Title ideas',exact:true}).click();await page.getByRole('button',{name:'Generate titles',exact:true}).click();await expect.poll(()=>calls).toBe(2);
+ await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByLabel('Text and review provider',{exact:true})).toHaveValue('google');
+});
+
+test('request activity recovers after reload by reading persisted outcomes without redispatch',async({page})=>{
+ const f=await setup(page);await page.clock.install();let reads=0,writes=0,complete=false;
+ const result={...f.creations[0],id:'66666666-6666-4666-8666-666666666666',title:'Recovered saved image'};
+ await page.route('**/api/generate',r=>{writes++;return r.abort();});
+ await page.route('**/api/jobs',r=>{reads++;expect(r.request().method()).toBe('GET');if(complete&&!f.creations.some(c=>c.id===result.id))f.creations.unshift(result);return r.fulfill({json:{jobs:[{id:'77777777-7777-4777-8777-777777777777',operation:'generate',state:complete?'succeeded':'running',max_provider_calls:1,result:complete?{creations:[result]}:null}]}});});
+ await page.goto('/');await expect(page.getByRole('status').filter({hasText:'1 active API request'})).toBeVisible();await page.reload();await expect.poll(()=>reads).toBeGreaterThanOrEqual(2);
+ complete=true;await page.clock.fastForward(5000);await expect(page.getByRole('status').filter({hasText:'1 active API request'})).toHaveCount(0);
+ await page.getByRole('button',{name:'API activity',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('Completed');await expect(page.getByRole('button',{name:'Open saved result',exact:true})).toBeVisible();await page.getByRole('button',{name:'Open saved result',exact:true}).click();await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toContainText('Recovered saved image');expect(writes).toBe(0);
+});
+test('stopping activity refresh never claims to cancel provider work or resubmits it',async({page})=>{
+ await setup(page);await page.clock.install();let reads=0;
+ await page.route('**/api/jobs',r=>{reads++;expect(r.request().method()).toBe('GET');return r.fulfill({json:{jobs:[{id:'77777777-7777-4777-8777-777777777777',operation:'analyze',state:'running',max_provider_calls:1}]}});});
+ await page.goto('/');await expect(page.getByRole('status').filter({hasText:'1 active API request'})).toBeVisible();await page.getByRole('button',{name:'API activity',exact:true}).click();await page.getByRole('button',{name:'Stop waiting',exact:true}).click();const stopped=reads;await page.clock.fastForward(20000);expect(reads).toBe(stopped);await expect(page.getByRole('dialog')).toContainText('Provider work may still finish and use credits');await page.getByRole('button',{name:'Refresh activity',exact:true}).click();await expect.poll(()=>reads).toBeGreaterThan(stopped);
+});
+
+test('analysis history reads prior versions without changing a title or exposing a paid fix action',async({page})=>{
+ await setup(page);let paid=0;
+ await page.route('**/api/analyze',r=>{paid++;return r.abort();});
+ await page.route('**/api/analyses?**',r=>r.fulfill({json:{analyses:[{id:'77777777-7777-4777-8777-777777777777',createdAt:'2026-11-09T10:00:00Z',verified:true,matchesCurrentImage:true,score:{source:'jev',version:3,title:'Assessed earlier title',overall:67,priority:'clarity',created_at:'2026-11-09T10:00:00Z',note:'History fixture',rubricVersion:'fixture-rubric',instructionVersion:'fixture-instructions',sourceDigest:'a'.repeat(64),vision:true,fixBlocked:false,contributors:[{provider:'Jev',model:'fixture',role:'scoring'}],dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:67,confidence:.7,observation:'Saved historical observation',strength:'Visible subject',weakness:'Competing text',fix:'Reduce competing text'}]))}}],nextCursor:null}}));
+ await page.goto('/');await page.getByRole('button',{name:'Analysis history',exact:true}).click();const dialog=page.getByRole('dialog');const version=dialog.locator('.history-version > summary').filter({hasText:'Assessed earlier title'});await expect(version).toBeVisible();await version.click();await expect(dialog).toContainText('fixture-rubric');await expect(dialog.getByRole('button',{name:'One-click fix',exact:true})).toHaveCount(0);expect(paid).toBe(0);for(const width of [320,768,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'evidence/advisory-history-'+width+'.png'});}await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(page.locator('.review-summary')).toContainText('Account A image');
+});
+
+test('native ratio warnings keep the full saved result and preserve the chosen source title',async({page})=>{
+ const f=await setup(page),original=f.creations[0];original.score={source:'jev',version:3,title:'An older assessed title',context:{title:'An older assessed title'},overall:67,priority:'clarity',created_at:new Date().toISOString(),note:'Explicit fixture',dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:67,confidence:.7,observation:'Fixture',strength:'',weakness:'',fix:''}]))};let calls=0;
+ await page.route('**/api/generate',r=>{calls++;const input=r.request().postDataJSON();expect(input.intent).toBe('recompose');expect(input.title).toBe('Account A image');const variant={...original,id:'66666666-6666-4666-8666-666666666666',score:null,mode:'edit',parent_id:original.id,settings:input.settings,lineage:{origin:'recomposed',nativeOutput:true,sourceId:original.id}};f.creations.unshift(variant);return r.fulfill({json:{creations:[variant],partial:false}});});
+ await page.goto('/');await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();await expect(page.locator('.native-output-note')).toContainText('800 × 450');await expect(page.locator('.native-output-note')).toContainText('Requested 9:16');await expect(page.locator('.native-output-note')).toContainText('Full returned image preserved');expect(calls).toBe(1);expect(f.creations.find(c=>c.id===original.id).title).toBe('Account A image');await settleResponsiveNavigation(page,320,900);await page.locator('.native-output-note').scrollIntoViewIfNeeded();await page.screenshot({path:'evidence/advisory-native-output-320.png'});
+});
+test('chat reference images require opt-in and late proposals cannot replace a newer direction',async({page})=>{
+ await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);let calls=0;
+ await page.route('**/api/creative',async r=>{calls++;const input=r.request().postDataJSON();expect(input.includeReferences).toBe(true);expect(input.referencePaths).toContain(A+'/image.png');await hold;return r.fulfill({json:{model:'fixture',value:{reply:'A reply for the earlier direction',proposal:{kind:'edit',prompt:'An earlier edit direction',title:''}}}});});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'Choose references from library',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Account A image',exact:true}).click();
+ await page.locator('.creative-conversation summary').click();const optIn=page.getByRole("checkbox",{name:/Include the first two selected reference/});await expect(optIn).not.toBeChecked();await optIn.check();await page.getByLabel('Message your creative partner').fill('How should this selected image change?');await page.getByRole('button',{name:'Send message',exact:true}).click();await expect.poll(()=>calls).toBe(1);const prompt=page.getByLabel('Describe your thumbnail',{exact:true});await prompt.fill('A newer unsent direction must be preserved');release();await expect(page.getByRole('log',{name:'Creative conversation'})).toContainText('A reply for the earlier direction');await expect(page.getByRole('button',{name:'Review in composer',exact:true})).toBeDisabled();await expect(prompt).toHaveValue('A newer unsent direction must be preserved');
+});
+
+test('authenticated provider checks stay neutral until the current account lookup finishes',async({page})=>{
+ await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);const preferences=page.waitForResponse(r=>r.url().includes('/rest/v1/studio_preferences'));
+ await page.route('**/api/config',async r=>{const privateRead=!!r.request().headers().authorization;if(privateRead)await hold;return r.fulfill({json:{cloud:true,ai:true,openai:privateRead,google:false,jev:privateRead,ownerGate:false,supabaseUrl:'https://test.supabase.co',supabaseKey:'sb_publishable_test'}});});
+ await page.goto('/');await preferences;await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+ try{await expect(page.getByRole('button',{name:'Checking your workspace…',exact:true})).toBeDisabled();}finally{release();}
+ await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeEnabled();
+});

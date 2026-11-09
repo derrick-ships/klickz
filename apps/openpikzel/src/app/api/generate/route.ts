@@ -1,3 +1,4 @@
+import {imageModel} from "@/lib/image-models";
 import {generationInstructions, instructionVersion} from "@/lib/instructions";
 import {
   authenticated,
@@ -29,7 +30,7 @@ async function handle(request: Request) {
     context = await authenticated(request);
     const { db, user } = context;
     const input = generationSchema.parse(await request.json());
-    requireAI(input.settings.model.startsWith("gemini-") ? "google" : "openai");
+    requireAI(imageModel(input.settings.model).provider);
     if (
       !input.settings.model.startsWith("gemini-") &&
       !providerContext.getStore()?.openai
@@ -40,7 +41,8 @@ async function handle(request: Request) {
       );
     if(input.conversationId){const chat=await db.from("studio_conversations").select("id").eq("id",input.conversationId).eq("user_id",user.id).maybeSingle();if(chat.error||!chat.data)throw new AppError(404,"This chat is not available in your account.");}
     let conversationId=input.conversationId||null;
-    const refs: Buffer[] = [];
+    const refs: Buffer[] = [],seenPaths=new Set<string>();
+    async function addReference(path:string){if(seenPaths.has(path))return;seenPaths.add(path);refs.push(await ownedAsset(db,user.id,path));}
     const notes: string[] = [];
     if (input.parentId) {
       const { data, error } = await db
@@ -53,7 +55,7 @@ async function handle(request: Request) {
         throw new AppError(404, "Choose a rendered thumbnail to edit.");
       if(!conversationId)conversationId=data.conversation_id||null;
       const image = await ownedAsset(db, user.id, data.image_path);
-      refs.push(image);
+      refs.push(image);seenPaths.add(data.image_path);
       notes.push(
         "The first reference is the original. Preserve the main subject and identity. Apply only the requested edits.",
       );
@@ -92,7 +94,7 @@ async function handle(request: Request) {
         ),
       ),
     ];
-    for (const path of paths) refs.push(await ownedAsset(db, user.id, path));
+    for (const path of paths) await addReference(path);
     if (paths.length)
       notes.push(
         "Additional image references guide composition and subject details. Create an original result.",
@@ -110,13 +112,14 @@ async function handle(request: Request) {
         .single();
       if (error || !data) throw new AppError(404, `${label} not found.`);
       for (const path of data.refs.slice(0, 3))
-        refs.push(await ownedAsset(db, user.id, path));
+        await addReference(path);
       notes.push(
         `${label} guidance: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos; use style references for treatment and palette.`,
       );
     }
     if (input.mode === "fix" && !fixPlan)
       throw new AppError(400, "Choose the reviewed source variant.");
+    if(refs.length>imageModel(input.settings.model).maxReferences)throw new AppError(400,"Too many references for the selected image model. Remove extra references before running.");
     const reserved = await reserveJob(
       db,
       user.id,
@@ -153,15 +156,7 @@ async function handle(request: Request) {
       batch_index: i,
       request_id: i === 0 ? input.requestId : crypto.randomUUID(),
       status: "generating",
-      ...(input.parentId
-        ? {
-            lineage: {
-              sourceId: input.parentId,
-              sourceDigest: digest(refs[0]),
-              ...(fixPlan ? { fixPlanHash: fixPlan.hash, plan: fixPlan } : {}),
-            },
-          }
-        : {}),
+      lineage:{origin:input.intent==="recompose"?"recomposed":input.mode==="edit"||input.mode==="fix"?"edited":"generated",nativeOutput:true,...(input.parentId?{sourceId:input.parentId,sourceDigest:digest(refs[0]),...(fixPlan?{fixPlanHash:fixPlan.hash,plan:fixPlan}:{})}:{})},
     }));
     const reservation = await db
       .from("studio_creations")

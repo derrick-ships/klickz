@@ -11,6 +11,7 @@ import {
   type Style,
   type Format,
   type Settings,
+  type TextProvider,
 } from "./types";
 type Asset = { id: string; blob: Blob };
 type Collection = "creations" | "personas" | "styles" | "conversations";
@@ -111,9 +112,9 @@ export function useStudio() {
   useEffect(() => {
     let stop = () => {};
     fetch("/api/config")
-      .then((r) => r.json())
+      .then((r) => {if(!r.ok)throw new Error("Connection settings did not load.");return r.json();})
       .then(async (c: Config) => {
-        setConfig(c);setConfigStatus("ready");
+        setConfig(c);
         if (c.cloud) {
           const {createClient}=await import("@supabase/supabase-js");
           db.current = createClient(c.supabaseUrl, c.supabaseKey);
@@ -124,6 +125,7 @@ export function useStudio() {
             const next = session?.user.id || null;
             if (next !== userRef.current) {
               userRef.current = next;
+              setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:next?"loading":"ready"}:current);
               ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;
               version.current++;
               setCreations([]);
@@ -135,6 +137,7 @@ export function useStudio() {
           });
           stop = () => result.data.subscription.unsubscribe();
         }
+        setConfigStatus("ready");
       })
       .catch(() => {
         setConfigStatus("failed");setError(
@@ -155,12 +158,14 @@ export function useStudio() {
   useEffect(() => {
     let active = true;
     const epoch = ownerEpoch.current;
-    if (user)
+    if (user){
+      setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:"loading"}:current);
       void headers()
         .then((h) => fetch("/api/config", { headers: h }))
-        .then((r) => r.json())
-        .then(value => { if (active && epoch === ownerEpoch.current) setConfig(value); })
-        .catch(() => {});
+        .then((r) => {if(!r.ok)throw new Error("Connection settings did not load.");return r.json();})
+        .then(value => { if (active && epoch === ownerEpoch.current) setConfig({...value,connectionStatus:"ready"}); })
+        .catch(() => {if(active&&epoch===ownerEpoch.current){setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:"failed"}:current);setError("Your provider connection status could not load. Open Connections to refresh it before using AI. Your drafts remain safe.");}});
+    }
     return () => { active = false; };
   }, [user]);
   useEffect(() => {
@@ -172,7 +177,7 @@ export function useStudio() {
     label: string,
     work: () => Promise<T>,
   ): Promise<T | undefined> {
-    if (lock.current) return;
+    if (lock.current) { setError("Another workspace action is still running. Wait for it to finish, then try this action again."); return; }
     lock.current = true;
     const startedEpoch = ownerEpoch.current;
     setBusy(label);
@@ -217,7 +222,19 @@ export function useStudio() {
     if (!res.ok) throw new Error(result.error || "The request did not finish. Check My creations before retrying.");
     return result;
   }
+  async function read(path: string, signal?: AbortSignal) {
+    const epoch=ownerEpoch.current;ensureCurrentOwner();
+    if(!cloud)throw new Error("Sign in to read your API activity.");
+    const requestHeaders=await headers();
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
+    const response=await fetch(path,{headers:requestHeaders,signal,cache:"no-store"});
+    const result=await response.json();
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
+    if(!response.ok)throw new Error(result.error||"Activity could not refresh. Your existing requests were not resubmitted.");
+    return result;
+  }
   function requireLive() {
+    if(config?.connectionStatus==="failed")throw new Error("Provider connection status is unavailable. Open Connections to refresh it before using AI.");
     if (!live)
       throw new Error(
         cloud
@@ -355,6 +372,7 @@ export function useStudio() {
       prompt: title.padEnd(8, "."),
       mode: "generate",
       style: "Uploaded",
+      lineage:{origin:"uploaded"},
       persona_id: null,
       parent_id: null,
       image_path: path,
@@ -395,6 +413,7 @@ export function useStudio() {
     videoBrief = "",
     includeVision = false,
     videoUrl = "",
+    critiqueProvider: TextProvider = "openai",
   ) {
     const epoch=ownerEpoch.current;
     if (!cloud)
@@ -406,7 +425,8 @@ export function useStudio() {
         "Scoring is not enabled in this workspace. Your saved images remain available to review and download.",
       );
     if (!config?.jev) throw new Error("Connect your Jev API key in Connections, then analyze this thumbnail again.");
-    const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl };
+    if(includeVision&&!config?.[critiqueProvider])throw new Error("Connect your selected "+(critiqueProvider==="openai"?"OpenAI":"Google")+" API key for the extra image review.");
+    const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl, critiqueProvider };
     const fingerprint = JSON.stringify(intent);
     if (pendingRequest.current?.fingerprint !== fingerprint)
       pendingRequest.current = { fingerprint, id: crypto.randomUUID() };
@@ -465,9 +485,10 @@ export function useStudio() {
   async function createConversation(){const now=new Date().toISOString();return saveConversation({id:crypto.randomUUID(),title:"New chat",draft:{},created_at:now,updated_at:now});}
   async function saveTutorialPreference(skip:boolean){const epoch=ownerEpoch.current;if(cloud){const result=await db.current!.from("studio_preferences").upsert({user_id:user,skip_persona_tutorial:skip,updated_at:new Date().toISOString()});if(result.error)throw new Error("Could not save this preference.");}else await localPut("preferences",{id:"local",skip_persona_tutorial:skip});if(epoch===ownerEpoch.current)setSkipPersonaTutorial(skip);}
   async function feedback(creationId:string,body:string){if(body.trim().length<3||body.length>2000)throw new Error("Write between 3 and 2,000 characters.");const item={id:crypto.randomUUID(),creation_id:creationId,body:body.trim(),created_at:new Date().toISOString()};if(cloud){const result=await db.current!.from("studio_feedback").insert({...item,user_id:user});if(result.error)throw new Error("Feedback could not be saved. Your text remains here.");}else await localPut("feedback",item);}
-  async function prepare(kind: "persona" | "style", id: string) {
+  async function prepare(kind: "persona" | "style", id: string, provider: TextProvider = "openai") {
     requireLive();
-    const result = await api("/api/persona/prepare", { id, kind });
+    if(!config?.[provider])throw new Error("Connect your selected "+(provider==="openai"?"OpenAI":"Google")+" API key to prepare this profile.");
+    const result = await api("/api/persona/prepare", { id, kind, provider });
     await load();
     ensureCurrentOwner();
     return result.profile;
@@ -525,6 +546,7 @@ export function useStudio() {
       ...item,
       id: crypto.randomUUID(),
       mode: "resize",
+      lineage:{origin:"layout",nativeOutput:false,sourceId:item.id},
       parent_id: item.id,
       image_path: path,
       settings: { ...(item.settings || defaultSettings), format },
@@ -582,7 +604,7 @@ export function useStudio() {
     user,
     cloud,
     live,
-    loading:loading||configStatus==="loading"||loadedOwner.current!==user,
+    loading:loading||configStatus==="loading"||!!user&&config?.connectionStatus==="loading"||loadedOwner.current!==user,
     creations,
     personas,
     styles,
@@ -607,6 +629,7 @@ export function useStudio() {
     login,
     logout,
     api,
+    read,
     authHeaders: headers,
     requireLive,
   };

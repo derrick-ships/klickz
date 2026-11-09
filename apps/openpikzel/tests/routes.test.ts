@@ -249,3 +249,5 @@ it("carries the source conversation into an MCP-style edit without a new convers
  const r=await POST(new Request("https://studio.example/api/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({prompt:"Edit the image with a clearer background",title:"Original",mode:"edit",parentId:mock.parent.id,requestId:crypto.randomUUID(),settings:defaultSettings})}));
  expect(r.status).toBe(200);expect(mock.reservations[0].conversation_id).toBe(id);
 });
+
+it("deduplicates the source path before reference dispatch and records recomposition provenance",async()=>{mock.parent.id=id;const r=await POST(request({mode:"edit",intent:"recompose",parentId:id,referencePaths:[id+"/original.png"],settings:{...defaultSettings,format:"short",batch:1}}));expect(r.status).toBe(200);expect(mock.render.mock.calls[0][1]).toHaveLength(1);expect(mock.reservations[0].lineage).toMatchObject({origin:"recomposed",nativeOutput:true,sourceId:id});});

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import sharp from "sharp";
-import { pillars, type Evaluation, type Pillar, type Settings } from "./types";
+import { pillars, type Evaluation, type Pillar, type Settings, type TextProvider } from "./types";
 import { AppError } from "./validation";
 export const rubricVersion = "openpikzels-jev-v3.1";
 export const digest = (value: Buffer | string) =>
@@ -28,6 +28,7 @@ export type DiagnosticContext = {
   videoBrief: string;
   audience: string;
   includeVision: boolean;
+  critiqueProvider?: TextProvider;
   videoEvidence?: { url: string; kind: "youtube-description" | "unavailable"; notice: string };
 };
 export const diagnosticDefaults: DiagnosticContext = {

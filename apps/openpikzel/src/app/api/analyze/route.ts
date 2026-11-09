@@ -24,7 +24,7 @@ async function handle(request: Request) {
     requireAI("jev");
     seal({ check: true }, "diagnostic-proof"); // Verify signing configuration before any paid dispatch.
     const input = reviewSchema.parse(await request.json());
-    if (input.includeVision) requireAI("openai");
+    if (input.includeVision) requireAI(input.critiqueProvider);
     if (input.videoUrl) youtubeVideoId(input.videoUrl);
     let path = input.imagePath,
       id = input.creationId;
@@ -61,12 +61,13 @@ async function handle(request: Request) {
         videoEvidence,
         audience: input.audience,
         includeVision: input.includeVision,
+        critiqueProvider: input.critiqueProvider,
       }),
     );
     if (id) {
       const saved = await db
         .from("studio_creations")
-        .update({ score, ...(assessedTitle ? {title:assessedTitle} : {}) })
+        .update({ score })
         .eq("id", id)
         .eq("user_id", user.id);
       if (saved.error) throw saved.error;
@@ -79,6 +80,7 @@ async function handle(request: Request) {
           prompt: (assessedTitle || "Uploaded thumbnail").padEnd(8, "."),
           mode: "generate",
           style: "Uploaded",
+          lineage:{origin:"uploaded"},
           image_path: path,
           status: "ready",
           score,
