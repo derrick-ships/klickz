@@ -149,6 +149,18 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
   ).toBeVisible();
   const setup = page.locator(".provider-setup");
   expect(await setup.locator(":scope > :first-child").getAttribute("class")).toContain("key-form");
+  await expect(page.locator(".provider-key-guide")).toContainText("It is not your password");
+  await expect(page.locator("#provider-key-cost")).toContainText("Saving a key makes no billable test request");
+  for (const [provider, name, host] of [["openai", "OpenAI", "developers.openai.com"], ["google", "Google", "ai.google.dev"], ["jev", "Jev AI", "docs.typesafe.ai"], ["youtube", "YouTube", "developers.google.com"]]) {
+    await page.getByLabel("Provider", {exact:true}).selectOption(provider);
+    const guide = page.locator(".provider-key-guide");
+    const summary = guide.locator("summary"); await summary.focus(); await page.keyboard.press("Enter");
+    await expect(guide.locator("details")).toHaveAttribute("open", "");
+    expect(new URL((await guide.getByRole("link").getAttribute("href"))!).hostname).toBe(host);
+    await expect(guide.getByRole("link")).toContainText(name);
+    await expect(guide.locator("li")).toHaveCount(3);
+  }
+  await page.getByLabel("Provider", {exact:true}).selectOption("openai");
   await page.getByLabel("Your API key").fill("test-key-placeholder");
   await page.getByRole("button", { name: "Connect key", exact: true }).click();
   await expect(page.getByLabel("Your API key")).toHaveValue("");
@@ -177,6 +189,12 @@ test("signed-in provider onboarding isolates key entry and shows revocable agent
     path: "evidence/openpikzels-provider-onboarding-mobile.png",
     fullPage: true,
   });
+  await expect(page.getByRole("link", {name:"Continue with a free draft", exact:true})).toHaveAttribute("href", "/studio");
+  await page.locator(".provider-key-guide summary").click();
+  await page.locator(".provider-key-guide").scrollIntoViewIfNeeded();
+  await page.screenshot({path:"evidence/loop-v2-provider-guide-mobile.png"});
+  await page.locator(".provider-key-guide summary").click();
+
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

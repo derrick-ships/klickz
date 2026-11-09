@@ -363,3 +363,15 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 /* Light inset focus stays distinct against the red generation gradient. */
 .generate-split .primary-button:focus-visible,
 .batch-select select:focus-visible { outline-color: var(--color-accent-ink); }
+
+/* Explain the selected provider at the point of key entry. */
+.provider-key-guide { padding: 14px 16px; border: 1px solid var(--color-line-strong); border-radius: 12px; background: var(--color-control-ground); }
+.provider-key-guide p, .key-form #provider-key-help { font-size: 14px; line-height: 1.65; color: var(--color-muted); }
+.provider-key-guide p:first-child { margin-top: 0; }
+.provider-key-guide p:last-child { margin-bottom: 0; }
+.provider-key-guide strong { color: var(--color-ink); }
+.provider-key-guide summary { min-height: 44px; padding-block: 10px; cursor: pointer; color: var(--color-ink); font-size: 14px; line-height: 1.6; }
+.provider-key-guide ol { padding-left: 22px; margin-block: 8px 12px; font-size: 14px; line-height: 1.65; color: var(--color-muted); }
+.provider-key-guide li + li { margin-top: 8px; }
+.provider-key-guide a { display: inline-block; min-height: 44px; padding-block: 10px; color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; font-size: 14px; line-height: 1.6; }
+.provider-key-guide summary:focus-visible, .provider-key-guide a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; border-radius: 4px; }
