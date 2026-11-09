@@ -1,3 +1,4 @@
+import { imageModel } from "./image-models";
 import { providerKey } from "./provider-context";
 import { AppError } from "./validation";
 import type { Settings } from "./types";
@@ -69,10 +70,7 @@ export async function googleImage(
   refs: Buffer[],
   settings: Settings,
 ) {
-  const model =
-    settings.model === "gemini-pro"
-      ? "gemini-3-pro-image"
-      : "gemini-3.1-flash-image";
+  const model = imageModel(settings.model).apiModel;
   const parts = await generate(
     model,
     [

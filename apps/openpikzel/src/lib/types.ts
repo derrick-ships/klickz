@@ -126,6 +126,8 @@ export type Config = {
   secureConnections?: boolean;
   higgsfield?: boolean;
   codexDevice?: boolean;
+  textModels?: {openai:string;google:string};
+  scoreModel?: string;
   mcpUrl?: string;
   supabaseUrl: string;
   supabaseKey: string;

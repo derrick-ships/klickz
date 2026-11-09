@@ -1,4 +1,5 @@
 import OpenAI, { toFile } from "openai";
+import { imageModel } from "./image-models";
 import sharp from "sharp";
 import { providerKey, hasProvider } from "./provider-context";
 import {
@@ -37,7 +38,7 @@ export async function renderThumbnail(
       .png()
       .toBuffer();
   const common = {
-    model: `gpt-image-2.6-${settings.model}`,
+    model: imageModel(settings.model).apiModel,
     prompt,
     n: 1,
     size: settings.format === "short" ? "864x1536" : "1536x864",

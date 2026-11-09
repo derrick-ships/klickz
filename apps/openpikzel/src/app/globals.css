@@ -2417,3 +2417,27 @@ select {
 }
 
 .codex-device-step{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px}.codex-device-step p{flex-basis:100%}.codex-device-code{display:block;font-size:clamp(1.5rem,5vw,2rem);font-weight:700;letter-spacing:.12em;overflow-wrap:anywhere;padding:16px;border:1px solid #ffffff24;border-radius:12px;user-select:all}.codex-connection button,.codex-connection a.neutral-button{min-height:44px}.codex-connection [role=alert]{color:#ffb4b4}.codex-connection ul{padding-left:24px;overflow-wrap:anywhere}
+
+/* Composer owns request settings; editing keeps a real source beside the brief. */
+.sidebar-workspace-status{font-size:12px;color:var(--color-muted);padding:10px 4px;margin:0}
+.edit-direction-input{min-width:0}
+.edit-direction--with-preview{display:grid;grid-template-columns:minmax(280px,.95fr) minmax(0,1.05fr);gap:22px;align-items:start}
+.edit-source-preview{min-width:0;border:1px solid var(--color-line);border-radius:12px;overflow:hidden;background:var(--color-ground)}
+.edit-source-preview summary{padding:12px;font-size:12px;font-weight:600;cursor:pointer;min-height:44px}
+.edit-source-preview summary span{font-size:11px;font-weight:400;color:var(--color-muted);margin-left:8px}
+.edit-source-preview img{display:block;width:100%;height:220px;object-fit:contain;background:var(--color-ground)}
+.edit-source-preview p{margin:0;padding:10px 12px;font-size:12px;color:var(--color-muted);overflow-wrap:anywhere}
+.edit-direction--with-preview textarea{min-height:220px}
+.request-readiness{padding:0 20px 42px;font-size:12px;line-height:1.55;color:var(--color-muted);overflow-wrap:anywhere}
+.request-readiness p{margin:0 0 5px}
+.request-readiness .request-identity{color:var(--color-ink);font-weight:500}
+.request-readiness .request-ready{color:var(--color-ink)}
+.request-readiness .request-cost{max-width:76ch;margin-top:8px}
+@media(max-width:700px){
+ .edit-direction--with-preview{grid-template-columns:minmax(0,1fr);gap:18px}
+ .edit-source-preview img{height:auto;max-height:220px}
+ .edit-direction--with-preview textarea{min-height:140px}
+ .request-readiness{padding-inline:16px}
+}
+
+.source-input--editing .upload-target{display:none}

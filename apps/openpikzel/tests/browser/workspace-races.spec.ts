@@ -46,3 +46,14 @@ test('explicit save cannot overwrite newer edits already checkpointed during a s
  await page.getByLabel('Prompt',{exact:true}).fill('The newer edited concept must survive');await expect.poll(()=>f.chats.find(c=>c.id===chatA).draft.prompt).toBe('The newer edited concept must survive');release();
  await expect(page.locator('.operation-progress')).toHaveCount(0);await page.reload();await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('The newer edited concept must survive');
 });
+
+test('editing uses the newly selected library source and preserves the unsent brief',async({page})=>{
+ const f=await setup(page),newSource={...f.creations[0],id:"99999999-9999-4999-8999-999999999999",title:"New selected source",image_path:A+"/replacement.png"};f.creations.push(newSource);
+ let submitted:any=null;await page.route("**/api/generate",async route=>{submitted=route.request().postDataJSON();await route.fulfill({status:409,json:{error:"Fixture stopped before provider dispatch"}});});
+ await page.goto("/");await page.getByRole("region",{name:"Thumbnail review studio"}).getByRole("button",{name:"Edit",exact:true}).click();
+ await page.getByLabel("Edits",{exact:true}).fill("Preserve this direction when I change the source");
+ await page.getByRole("button",{name:"Choose references from library",exact:true}).click();await page.getByRole("dialog").getByRole("button",{name:"New selected source"}).click();
+ await expect(page.getByRole("img",{name:"Editing source: New selected source",exact:true})).toBeVisible();await expect(page.getByLabel("Edits",{exact:true})).toHaveValue("Preserve this direction when I change the source");
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});const preview=page.getByRole("img",{name:"Editing source: New selected source",exact:true});await page.getByLabel("Edits",{exact:true}).scrollIntoViewIfNeeded();await expect(preview).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);if(width===1440){const a=await preview.boundingBox(),b=await page.getByLabel("Edits",{exact:true}).boundingBox();expect(a!.x+a!.width).toBeLessThan(b!.x);}else{await page.locator(".edit-source-preview summary").click();await expect(preview).toBeHidden();await page.locator(".edit-source-preview summary").click();await expect(preview).toBeVisible();}await page.screenshot({path:"evidence/audit-cloud-edit-"+width+".png"});}
+ await page.getByRole("button",{name:"Generate",exact:true}).click();await expect.poll(()=>submitted?.parentId).toBe(newSource.id);expect(submitted.prompt).toBe("Preserve this direction when I change the source");expect(submitted.settings.model).toBe("flare");
+});

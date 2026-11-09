@@ -1,4 +1,5 @@
 "use client";
+import { generationReadiness } from "@/lib/generation-readiness";
 import { jobGuidance } from "@/lib/job-state";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -396,7 +397,7 @@ export default function Studio() {
       styleId: styleId || null,
       parentId:
         mode === "edit" || mode === "fix"
-          ? parentId || selected?.id || null
+          ? (selected?.image_path ? selected.id : parentId || null)
           : null,
       referencePath: refs[0] || null,
       referencePaths: refs,
@@ -588,7 +589,7 @@ export default function Studio() {
     if (!selected) return;
     setComposerOpen(true);
     setTool(mode);
-    if (mode === "edit") { setParentId(selected.id); setPrompt(""); }
+    if (mode === "edit") { setParentId(selected.id); }
     else setTitle(selected.title);
     requestAnimationFrame(() => {
       document.getElementById(mode === "analyze" ? "video-title" : "thumbnail-prompt")?.focus({ preventScroll: true });
@@ -605,6 +606,7 @@ export default function Studio() {
   }
   const hasReviewImage = !!(selected?.image_path && studio.images[selected.image_path]);
   const showComposer = !hasReviewImage || composerOpen;
+  const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:studio.loading,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!selected?.image_path,hasReferences:refs.length>0,includeVision});
   const ResultHeading = hasReviewImage ? "h1" : "h2";
   const ComposerHeading = hasReviewImage ? "h2" : "h1";
   const resultPanel = selected ? (
@@ -919,13 +921,7 @@ export default function Studio() {
                 {studio.cloud ? "Private cloud library" : "Local library"}
               </small>
             </div>
-            <button
-              className="icon-button"
-              onClick={() => setDialog("connections")}
-              aria-label="Connections"
-            >
-              <Settings2 size={16} />
-            </button>
+
           </div>
           <div className="profile-shortcuts">
             <button onClick={() => openProfiles("personas")}>
@@ -937,30 +933,7 @@ export default function Studio() {
               Styles
             </button>
           </div>
-          <div className="sidebar-select"><Sparkles size={15}/><span>Model</span><ModelTrigger label="Image model" model={settings.model} expanded={dialog==="models"} onOpen={()=>setDialog("models")}/></div>
-          <label className="sidebar-select">
-            <Monitor size={15} />
-            <span>Format</span>
-            <select
-              aria-label="Output format"
-              value={settings.format}
-              onChange={(e) =>
-                changeSettings("format", e.target.value as Settings["format"])
-              }
-            >
-              <option value="long">Long-form</option>
-              <option value="short">Short-form</option>
-            </select>
-          </label>
-          <button
-            className="sidebar-connection"
-            onClick={() => setDialog(studio.cloud ? "connections" : "login")}
-          >
-            {studio.cloud ? <Check size={13} /> : <Link2 size={13} />}{" "}
-            {studio.cloud
-              ? "Connected workspace"
-              : "Sign in to connect"}
-          </button>
+          <p className="sidebar-workspace-status">{studio.cloud ? "Workspace signed in" : "Drafts saved on this device"}</p>
         </div>
       </aside>
       <div className="workspace-main" inert={compactNavigation && sidebar}>
@@ -1115,7 +1088,7 @@ export default function Studio() {
                     {(tool === "recreate" ||
                       tool === "analyze" ||
                       tool === "edit") && (
-                      <div className="source-input">
+                      <div className={"source-input "+(tool==="edit"&&hasReviewImage?"source-input--editing":"")}>
                         <div className="source-tabs">
                           <button
                             className={!linkOpen ? "active" : ""}
@@ -1239,6 +1212,9 @@ export default function Studio() {
                     )}
                     {tool !== "analyze" && (
                       <>
+                        <div className={tool==="edit"&&hasReviewImage ? "edit-direction edit-direction--with-preview" : "edit-direction"}>
+                          {tool==="edit"&&hasReviewImage&&<details className="edit-source-preview" open><summary>Selected image <span>Show / hide preview</span></summary><img src={studio.images[selected!.image_path!]} alt={"Editing source: "+selected!.title}/><p>{selected!.title} · Original stays saved</p></details>}
+                          <div className="edit-direction-input">
                         <div className="prompt-heading">
                           <label htmlFor="thumbnail-prompt">
                             {tool === "edit"
@@ -1266,6 +1242,8 @@ export default function Studio() {
                                   : "Describe your thumbnail. Be specific about the subject, scene, text and emotion…"
                           }
                         />
+                          </div>
+                        </div>
                         <div className="reference-strip">
                           {refs.map((path, i) => (
                             <div className="reference-thumb" key={path}>
@@ -1504,11 +1482,17 @@ export default function Studio() {
                       </>
                     )}
                   </div>
+                  <div className="request-readiness" id="request-readiness" aria-label="Before you generate">
+                    <p className="request-identity">{readiness.identity}</p><p>{readiness.quantity}</p>
+                    <p className="request-ready" role="status">{readiness.readiness}</p>
+                    <p className="request-cost">{readiness.cost}</p>
+                  </div>
                   <div className="generate-dock">
                     <div className="generate-split">
                       <button
                         className="primary-button"
                         disabled={busy}
+                        aria-describedby="request-readiness"
                         onClick={submit}
                       >
                         {busy ? (
@@ -1714,9 +1698,7 @@ export default function Studio() {
         <footer className="app-footer">
           <span>OpenPikzels</span>
           <span>Made for your next upload.</span>
-          <button onClick={() => setDialog("connections")}>
-            Workspace settings
-          </button>
+
         </footer>
       </div>
       <dialog

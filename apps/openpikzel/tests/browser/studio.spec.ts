@@ -20,7 +20,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await page.getByLabel("Quality", { exact: true }).selectOption("xhigh");
   await page.getByLabel("Intelligence", { exact: true }).selectOption("high");
   await page.getByLabel("Batch size", { exact: true }).selectOption("4");
-  await page.getByRole("button",{name:"Rendering model",exact:true}).click();await page.getByRole("button",{name:"GPT Image 2.6 Sunburst",exact:true}).click();
+  await page.getByRole("button",{name:"Rendering model",exact:true}).click();await page.getByRole("button",{name:"Sunburst 2.6",exact:true}).click();
   await page.getByLabel("Format", { exact: true }).selectOption("short");
   await page
     .getByLabel("Prompt", { exact: true })

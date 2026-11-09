@@ -30,6 +30,8 @@ export async function GET(request: Request) {
   return Response.json(
     {
       mcpUrl: mcpResource(),
+      textModels: {openai: process.env.OPENAI_TEXT_MODEL || "gpt-5.5", google: process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite"},
+      scoreModel: process.env.JEV_MODEL || "jev-latest",
       codexDevice: process.env.CODEX_DEVICE_ENABLED === "true",
       higgsfield: process.env.HIGGSFIELD_ENABLED === "true",
       cloud: !!db,
