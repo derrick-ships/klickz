@@ -2441,3 +2441,10 @@ select {
 }
 
 .source-input--editing .upload-target{display:none}
+
+/* Keep sign-in instructions readable at small widths without adding motion. */
+.signin-form > h2, .signin-form > p { margin: 0; }
+.signin-form > p { line-height: 1.6; overflow-wrap: anywhere; }
+.signin-form [role="status"]:empty { display: none; }
+.signin-form .signin-footnote { font-size: 14px; }
+.signin-form input[readonly] { color: var(--color-legacy-ink); }

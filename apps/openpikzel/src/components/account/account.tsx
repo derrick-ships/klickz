@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useId } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createClient,
   type SupabaseClient,
@@ -7,13 +7,18 @@ import {
 } from "@supabase/supabase-js";
 import { CodexConnection } from "./codex-connection";
 
+import { AccountSignIn } from "./sign-in";
+export { AccountSignIn } from "./sign-in";
+import { takeSignInLinkError } from "@/lib/sign-in-link";
+
 import type { Config } from "@/lib/types";
 export function useAccount(isolated = false) {
   const [db, setDb] = useState<SupabaseClient | null>(null),
     [session, setSession] = useState<Session | null>(null),
     [config, setConfig] = useState<Config | null>(null),
     [error, setError] = useState(""),
-    [ready, setReady] = useState(false);
+    [ready, setReady] = useState(false),
+    [signInNotice, setSignInNotice] = useState("");
   useEffect(() => {
     let active = true,
       unsubscribe = () => {};
@@ -23,6 +28,13 @@ export function useAccount(isolated = false) {
         if (!active) return;
         setConfig(c);
         if (c.cloud) {
+          if (!isolated) {
+            const failedLink = takeSignInLinkError(location.href);
+            if (failedLink) {
+              setSignInNotice(failedLink.message);
+              history.replaceState(history.state, "", failedLink.cleanUrl);
+            }
+          }
           const client = createClient(
             c.supabaseUrl,
             c.supabaseKey,
@@ -37,9 +49,10 @@ export function useAccount(isolated = false) {
               : { auth: { detectSessionInUrl: !new URL(location.href).searchParams.has("state") } },
           );
           setDb(client);
-          const { data } = await client.auth.getSession();
+          const { data, error: sessionError } = await client.auth.getSession();
           if (!active) return;
           setSession(data.session);
+          if (sessionError && !isolated) setSignInNotice("We could not finish signing you in. Request a new email below, or sign in with your password.");
           const sub = client.auth.onAuthStateChange((_, s) => setSession(s));
           unsubscribe = () => sub.data.subscription.unsubscribe();
         }
@@ -54,142 +67,7 @@ export function useAccount(isolated = false) {
       unsubscribe();
     };
   }, [isolated]);
-  return { db, session, config, error, setError, ready };
-}
-export function AccountSignIn({
-  db,
-  onSignedIn,
-  showEmailLinkHint = true,
-}: {
-  db: SupabaseClient;
-  onSignedIn?: () => void;
-  showEmailLinkHint?: boolean;
-}) {
-  const statusId=useId();
-  const [authError,setAuthError]=useState(false);
-  const [signup, setSignup] = useState(false),
-    [email, setEmail] = useState(""),
-    [password, setPassword] = useState(""),
-    [status, setStatus] = useState(""),
-    [busy, setBusy] = useState(false),
-    [emailSent, setEmailSent] = useState(false),
-    [code, setCode] = useState("");
-  return (
-    <form
-      className="account-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        setStatus("");setAuthError(false);
-        try {
-          const result = emailSent
-            ? await db.auth.verifyOtp({ email, token: code, type: "email" })
-            : signup
-            ? await db.auth.signUp({
-                email,
-                password,
-                options: { emailRedirectTo: location.origin + "/connect" },
-              })
-            : await db.auth.signInWithPassword({ email, password });
-          setPassword("");
-          if (result.error)
-            throw new Error(
-              emailSent ? "That code could not be verified. Check the digits, or request a new code if it expired." : signup
-                ? "Could not create the account. Check your details or try signing in."
-                : "Sign-in failed. Check your email and password. Your password was cleared; enter it again to retry.",
-            );
-          setCode("");
-          if (!result.data.session)
-            setStatus(
-              "Check your email to confirm your account, then sign in.",
-            );
-          else onSignedIn?.();
-        } catch (e) {
-          setAuthError(true);
-          setStatus(e instanceof Error ? e.message : "Could not complete this account request. Check your connection and try again.");
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <h2>
-        {signup ? "Create your free account" : "Sign in to your workspace"}
-      </h2>
-      <p>
-        This is your OpenPikzels account. Use your OpenPikzels password or an
-        email sign-in code, not your AI provider’s password. Connect your own
-        API keys after signing in.
-      </p>
-      <label>
-        Email
-        <input
-          type="email"
-          required
-          autoComplete="username"
-          aria-describedby={status?statusId:undefined}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </label>
-      {!emailSent && <label>
-        Password{signup ? " (at least 8 characters)" : ""}
-        <input
-          type="password"
-          minLength={8}
-          required
-          autoComplete={signup ? "new-password" : "current-password"}
-          aria-describedby={status?statusId:undefined}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </label>}
-      {emailSent && <label>Email sign-in code<input id="email-signin-code" aria-describedby={status?statusId:undefined} aria-invalid={authError||undefined} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))} /></label>}
-      <p id={statusId} role="status" className={authError?"account-inline-error":undefined}>{status}</p>
-      <button className="primary-button" disabled={busy}>
-        {busy ? (emailSent ? "Verifying…" : signup ? "Creating account…" : "Signing in…") : emailSent ? "Verify code" : signup ? "Create account" : "Sign in"}
-      </button>
-      <button
-        type="button"
-        className="neutral-button"
-        disabled={busy}
-        onClick={() => {
-          if (emailSent) { setEmailSent(false); setCode(""); } else setSignup(!signup);
-          setStatus("");setAuthError(false);
-        }}
-      >
-        {emailSent ? "Use password instead" : signup
-          ? "Already have an account? Sign in"
-          : "New here? Create an account"}
-      </button>
-      {!emailSent && <button type="button" className="neutral-button" disabled={busy} onClick={event => {
-        const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
-        if (!input?.reportValidity()) return;
-        setPassword("");setAuthError(false); setEmailSent(true); setStatus("Enter the code from your latest sign-in email. This does not send another email.");
-        requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
-      }}>I already have a code</button>}
-      {<button type="button" className="neutral-button" disabled={busy} onClick={async (event) => {
-        const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
-        if (!input?.reportValidity()) return;
-        setBusy(true); setStatus("");setAuthError(false); setPassword("");
-        try {
-          const result = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + "/connect" } });
-          if (result.error) {
-            if (result.error.status === 429) {
-              setEmailSent(true);
-              requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
-              setStatus("The sign-in email limit has been reached. If you already received a code, enter it here. Otherwise wait before requesting another email.");
-              return;
-            }
-            throw new Error("Could not send the sign-in email. If you already received a code, choose I already have a code. Otherwise try again later.");
-          }
-          setCode("");setEmailSent(true);
-          requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
-          setStatus(showEmailLinkHint ? "Check your email for the sign-in code, then enter it here. You can also use the one-time link in that email." : "Enter the code from your email here to finish connecting this agent. The email link opens the main studio separately.");
-        } catch (error) { setStatus(error instanceof Error ? error.message : "Could not send the sign-in email."); }
-        finally { setBusy(false); }
-      }}>{emailSent ? "Send a new sign-in code" : "Email me a sign-in code"}</button>}
-    </form>
-  );
+  return { db, session, config, error, setError, ready, signInNotice };
 }
 export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page. Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Connections. Start with get_workspace. Use list_profiles/get_profile for persona references and list_creations to inspect existing work. Use upload_reference for an image created in ChatGPT, then score_thumbnail with its actual title. Use get_fix_prompt to return a copyable prompt for editing it in ChatGPT without generating another image through an API. Only use generate_thumbnail or one_click_fix when I request an API-rendered image, with my chosen provider, quality and batch. Keep the same requestId across an uncertain retry, and check history after a timeout. Scores are visual rubrics, not a promise of CTR. Use open_studio for the interactive HTML interface when supported.`;
 
@@ -201,7 +79,7 @@ const providerGuides: Record<string, {name:string; purpose:string; url:string; s
 };
 
 export function ConnectionsPage() {
-  const { db, session, config, error, setError, ready } = useAccount();
+  const { db, session, config, error, setError, ready, signInNotice } = useAccount();
   const [connections, setConnections] = useState<
       { provider: string; suffix: string }[]
     >([]),
@@ -297,9 +175,9 @@ export function ConnectionsPage() {
         <a href="/studio">Back to studio</a>
       </header>
       <div className="account-intro">
-        <h1>Connect your AI</h1>
+        <h1>{session ? "Connect your AI" : "Your studio starts here"}</h1>
         <p>
-          {session ? "Connect the provider for the job you want to do. Image generation and analysis use your provider account; usage charges may apply." : "Sign in and add your own API keys. Image generation and analysis use credits from your connected provider accounts."}
+          {session ? "Connect the provider for the job you want to do. Image generation and analysis use your provider account; usage charges may apply." : "Sign in to save your thumbnails, personas and styles. You can connect an AI provider when you’re ready."}
         </p>
       </div>
       {!ready ? (
@@ -310,7 +188,7 @@ export function ConnectionsPage() {
           <a href="/studio">Save drafts in this browser.</a>
         </p>
       ) : !session ? (
-        <AccountSignIn db={db} />
+        <AccountSignIn db={db} initialNotice={signInNotice} />
       ) : (
         <>
           <section className="account-panel">
@@ -550,7 +428,7 @@ export function ConnectionsPage() {
           </section>
         </>
       )}
-      <CodexConnection key={session?.user.id || "signed-out"} signedIn={!!session} enabled={!!config?.codexDevice} api={api} />
+      {session && <CodexConnection key={session.user.id} signedIn enabled={!!config?.codexDevice} api={api} />}
       {error && (
         <p className="dialog-error" role="alert">
           {error}

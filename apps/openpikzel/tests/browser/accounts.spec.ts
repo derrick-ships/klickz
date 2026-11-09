@@ -52,7 +52,7 @@ test("account onboarding has no fake configured providers and fits mobile", asyn
 }) => {
   await page.goto("/connect");
   await expect(
-    page.getByRole("heading", { name: "Connect your AI" }),
+    page.getByRole("heading", { name: "Your studio starts here" }),
   ).toBeVisible();
   await page.screenshot({
     path: "evidence/openpikzels-connect-desktop.png",
@@ -237,14 +237,15 @@ test("email-code sign-in stays on the page and keeps password fallback", async (
  await page.route("https://test.supabase.co/auth/v1/otp**", route => route.fulfill({json:{}}));
  await page.goto("/connect");
  await page.getByLabel("Email",{exact:true}).fill("creator@example.com");
- await page.getByRole("button",{name:"Email me a sign-in code",exact:true}).click();
+ await page.getByRole("button",{name:"Email me a sign-in link",exact:true}).click();
  await expect(page.getByLabel("Email sign-in code",{exact:true})).toBeFocused();
  await expect(page.getByLabel("Password",{exact:true})).toHaveCount(0);
  await expect(page.getByRole("button",{name:"Verify code",exact:true})).toBeVisible();
  await page.getByRole("button",{name:"Use password instead",exact:true}).click();
  await expect(page.getByLabel("Password",{exact:true})).toBeVisible();
  await page.setViewportSize({width:390,height:844});
- await page.getByRole("button",{name:"Email me a sign-in code",exact:true}).click();
+ await page.getByRole("button",{name:"Use an email link instead",exact:true}).click();
+ await page.getByRole("button",{name:"I already have a code",exact:true}).click();
  await page.screenshot({path:"evidence/activation-email-code-390.png",fullPage:true});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
@@ -257,8 +258,8 @@ test("email limits preserve access to an already received code", async ({ page }
  await page.goto("/connect"); await page.getByLabel("Email",{exact:true}).fill("creator@example.com");
  await page.getByRole("button",{name:"I already have a code",exact:true}).click();
  await expect(page.getByLabel("Email sign-in code",{exact:true})).toBeFocused(); expect(emails).toBe(0);
- await page.getByRole("button",{name:"Use password instead",exact:true}).click();
- await page.getByRole("button",{name:"Email me a sign-in code",exact:true}).click();
+ await page.getByRole("button",{name:"Change email",exact:true}).click();
+ await page.getByRole("button",{name:"Email me a sign-in link",exact:true}).click();
  await expect(page.getByRole("status").filter({ hasText: "email limit has been reached" })).toBeVisible();
  await expect(page.getByLabel("Email sign-in code",{exact:true})).toBeFocused(); expect(emails).toBe(1);
 });
@@ -286,5 +287,5 @@ test("invalid email code stays editable with nearby associated feedback",async({
  await expect(code).toHaveValue("123456");await expect(code).toHaveAttribute("aria-invalid","true");await expect(code).toHaveAccessibleDescription(/could not be verified/);
  const error=page.getByRole("status").filter({hasText:"That code could not be verified"});await expect(error).toBeVisible();
  expect((await error.boundingBox())!.y).toBeLessThan((await page.getByRole("button",{name:"Verify code",exact:true}).boundingBox())!.y);
- await page.getByRole("button",{name:"Send a new sign-in code",exact:true}).click();await expect(code).toHaveValue("");await expect(code).not.toHaveAttribute("aria-invalid","true");
+ await page.getByRole("button",{name:"Send a new sign-in email",exact:true}).click();await expect(code).toHaveValue("");await expect(code).not.toHaveAttribute("aria-invalid","true");
 });

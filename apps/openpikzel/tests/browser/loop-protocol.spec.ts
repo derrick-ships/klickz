@@ -42,7 +42,7 @@ test('LOOP v2 account loading, setup failure and invalid form recovery',async({p
  await page.reload();await expect(page.getByText('Could not load your account. Refresh this page to try again.',{exact:true})).toBeVisible();await page.screenshot({path:'evidence/loop-v2-account-error-1024.png',fullPage:true});
  await page.unroute('**/api/config');await page.route('**/api/config',r=>r.fulfill({json:{cloud:true,ai:false,openai:false,jev:false,google:false,supabaseUrl:'https://test.supabase.co',supabaseKey:'sb_publishable_test'}}));
  let authCalls=0;await page.route('https://test.supabase.co/**',r=>{authCalls++;return r.abort();});
- await page.reload();const email=page.getByLabel('Email',{exact:true});await email.fill('invalid-address');await page.getByLabel('Password',{exact:true}).fill('fixture-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();
+ await page.reload();const email=page.getByLabel('Email',{exact:true});await email.fill('invalid-address');await page.getByRole('button',{name:'Email me a sign-in link',exact:true}).click();
  expect(await email.evaluate((e:HTMLInputElement)=>e.validity.typeMismatch)).toBe(true);expect(authCalls).toBe(0);await expect(email).toBeFocused();await email.fill('creator@example.test');expect(await email.evaluate((e:HTMLInputElement)=>e.validity.valid)).toBe(true);
  await writeFile('evidence/loop-v2-form-checks.json',JSON.stringify({route:'/connect',width:1024,states:['loading displayed','configuration failure displayed','recovery by reload','invalid email prevents submission','corrected email accepted by browser validation'],authCalls,providerSignInTested:false},null,2));
 });

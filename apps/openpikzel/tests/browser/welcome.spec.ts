@@ -26,6 +26,7 @@ test('fresh legacy links preserve duplicate query values without relying on a st
 });
 
 test('ChatGPT onboarding requires no download and requires app sign-in before provider authorization',async({page})=>{
+ await page.route('**/api/config',r=>r.fulfill({json:{cloud:true,ai:false,codexDevice:true,supabaseUrl:'https://test.supabase.co',supabaseKey:'sb_publishable_test'}}));
  for(const width of [390,1440]){
   await page.setViewportSize({width,height:900});
   await page.goto('/welcome');
@@ -33,9 +34,9 @@ test('ChatGPT onboarding requires no download and requires app sign-in before pr
   await page.getByRole('link',{name:'Check ChatGPT models and usage',exact:true}).click();
   await expect(page).toHaveURL(/\/connect#chatgpt$/);
   const panel=page.getByRole('region',{name:'ChatGPT models and usage'});
-  await expect(panel).toBeVisible();
-  await expect(panel).toContainText('Sign in to your workspace first');
-  await expect(panel).toContainText('No download required.');
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'Sign in to OpenPikzels',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Email me a sign-in link',exact:true})).toBeVisible();
   await expect(page.getByRole('link',{name:/download|set up local companion/i})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Continue with ChatGPT',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
