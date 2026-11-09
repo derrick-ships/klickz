@@ -6,3 +6,9 @@ describe("private draft checkpoints",()=>{
  it("rejects corrupt records and oversized inputs, and strips unexpected properties",()=>{const s=store();s.setItem("openpikzels.draftCheckpoint.local","broken");expect(readDraftCheckpoint(s,"local")).toBeNull();expect(writeDraftCheckpoint(s,"local",{chatId:null,draft:{prompt:"x".repeat(2401)}})).toBe(false);writeDraftCheckpoint(s,"local",{chatId:null,draft:{prompt:"A valid idea",apiKey:"must not persist"} as any});expect(JSON.stringify(readDraftCheckpoint(s,"local"))).not.toContain("apiKey");});
  it("reports quota or privacy-setting failures without throwing",()=>{const s={getItem:()=>{throw Error("denied")},setItem:()=>{throw Error("quota")}};expect(readDraftCheckpoint(s,"local")).toBeNull();expect(writeDraftCheckpoint(s,"local",{chatId:null,draft:{prompt:"Keep open"}})).toBe(false);});
 });
+
+it("keeps video context, review preference and private chat history across a checkpoint",()=>{
+ const values=new Map<string,string>(),s={getItem:(k:string)=>values.get(k)||null,setItem:(k:string,v:string)=>{values.set(k,v);}};
+ const draft={videoUrl:"https://youtu.be/abcdefghijk",autoReview:false,draftSavedAt:123,creativeDraft:{provider:"google" as const,modelChoice:"economy" as const,draft:"An unsent follow-up",messages:[{role:"assistant" as const,content:"A saved creative suggestion"}]}};
+ expect(writeDraftCheckpoint(s,"owner",{chatId:"project",draft})).toBe(true);expect(readDraftCheckpoint(s,"owner")?.draft).toEqual(draft);expect(readDraftCheckpoint(s,"another-owner")).toBeNull();
+});

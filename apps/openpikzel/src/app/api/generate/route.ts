@@ -1,3 +1,4 @@
+import {generationInstructions, instructionVersion} from "@/lib/instructions";
 import {
   authenticated,
   failure,
@@ -121,7 +122,7 @@ async function handle(request: Request) {
       user.id,
       input.requestId,
       "generate",
-      { ...input, referenceDigests: refs.map(digest), notes },
+      { ...input, referenceDigests: refs.map(digest), notes, instructionVersion },
       input.settings.batch,
     );
     if (reserved.replay) return NextResponse.json(reserved.replay);
@@ -182,7 +183,7 @@ async function handle(request: Request) {
           try {
             const prompt = fixPlan
               ? editorInstructions(fixPlan)
-              : `Create a professional original YouTube ${input.settings.format === "short" ? "vertical 9:16 cover" : "horizontal 16:9 thumbnail"}. Strong visual hierarchy, clear at 200 px wide, concise readable text if needed. Title context: ${input.title || input.prompt}. Visual direction: ${input.style}. User request: ${input.prompt}. ${notes.join(" ")}. Variation ${row.batch_index + 1}: explore a distinct framing while preserving the promise.`;
+              : generationInstructions({settings:input.settings,title:input.title,prompt:input.prompt,style:input.style,notes,variation:row.batch_index+1});
             const image = await renderThumbnail(prompt, refs, input.settings);
             renderReturned = true;
             const path = `${user.id}/creations/${row.id}.png`;

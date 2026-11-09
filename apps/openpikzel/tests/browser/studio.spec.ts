@@ -63,36 +63,15 @@ test("draft, quality, batch and persona collections survive reloads", async ({
     page.getByRole("img", { name: "Derrick reference" }).first(),
   ).toBeVisible();
 });
-test("image upload and one-click vertical resize produce a real 720x1280 PNG locally", async ({
-  page,
-}) => {
-  await page.goto("/?mode=analyze");
-  await page
-    .getByLabel("Upload thumbnail references")
-    .setInputFiles(await photo());
-  await expect(
-    page.getByRole("img", { name: "Selected thumbnail" }),
-  ).toBeVisible();
-  await page
-    .getByLabel("Video title", { exact: true })
-    .fill("A real video title");
-  await page
-    .getByRole("button", { name: "Resize to short-form", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Ready for another format." }),
-  ).toBeVisible();
-  const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download image", exact: true }).click();
-  const download = await downloadPromise;
-  const path = await download.path();
-  const meta = await sharp(path!).metadata();
-  expect([meta.width, meta.height, meta.format]).toEqual([720, 1280, "png"]);
-  await page.reload();
-
-  await expect(
-    page.getByRole("button", { name: "Resize to long-form", exact: true }),
-  ).toBeVisible();
+test("AI resize asks local visitors to sign in and preserves the original",async({page})=>{
+  let paid=0;await page.route("**/api/generate",r=>{paid++;return r.abort();});
+  await page.goto("/?mode=analyze");await page.getByLabel("Upload thumbnail references").setInputFiles(await photo());
+  await expect(page.getByRole("img",{name:"Selected thumbnail"})).toBeVisible();
+  await expect(page.locator(".resize-note")).toContainText("Provider usage charges apply");
+  await page.getByRole("button",{name:"AI resize to short-form",exact:true}).click();
+  await expect(page.getByRole("dialog")).toBeVisible();expect(paid).toBe(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button",{name:"AI resize to short-form",exact:true})).toBeVisible();
 });
 test("all five modes and truthful disabled-AI boundaries are present", async ({
   page,

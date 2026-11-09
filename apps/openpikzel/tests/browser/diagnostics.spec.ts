@@ -6,18 +6,20 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
   page.on("request", (r) => {
     if (r.url().endsWith("/api/generate")) paid.push(r.url());
   });
-  await page.goto("/");
-  await page.getByRole("heading", { name: "What will you create?" }).waitFor();
+  await page.goto("/?mode=analyze");
+  await page.getByLabel("Video title", {exact:true}).waitFor();
+  await page.getByLabel("Upload thumbnail references").setInputFiles("public/brand/signal.webp");
+  await expect(page.getByRole("region", {name:"Thumbnail review studio"})).toBeVisible();
   await page.evaluate(async () => {
     const req = indexedDB.open("derrick-thumbnail-studio");
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       req.onsuccess = () => resolve(req.result);
-      req.onerror = reject;
+      req.onerror = () => reject(req.error);
     });
-    const blob = await (await fetch("/brand/signal.webp")).blob();
+    const imagePath = await new Promise<string>((resolve,reject)=>{const tx=db.transaction("creations","readonly"),read=tx.objectStore("creations").getAll();read.onsuccess=()=>resolve(read.result[0]?.image_path);read.onerror=()=>reject(read.error);});
+    if(!imagePath)throw new Error("Upload fixture must be saved before injecting analysis");
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(["assets", "creations"], "readwrite");
-      tx.objectStore("assets").put({ id: "fixture-asset", blob });
+      const tx = db.transaction("creations", "readwrite");
       tx.objectStore("creations").put({
         id: "11111111-1111-4111-8111-111111111111",
         title: "Fixture: diagnostic test",
@@ -26,7 +28,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
         style: "Fixture",
         persona_id: null,
         parent_id: null,
-        image_path: "fixture-asset",
+        image_path: imagePath,
         favorite: false,
         status: "ready",
         created_at: new Date().toISOString(),
@@ -63,7 +65,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
         db.close();
         resolve();
       };
-      tx.onerror = reject;
+      tx.onerror = () => reject(tx.error);
     });
   });
   await page.reload();
@@ -137,11 +139,11 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
   await page.getByRole("button", { name: "Close dialog" }).click();
   await page.getByRole("tab", { name: "Analyze", exact: true }).click();
   await expect(
-    page.getByLabel("Video summary (needed for a full score)"),
+    page.getByLabel("YouTube video link (optional)"),
   ).toBeVisible();
   await expect(
     page.getByRole("checkbox", { name: /Add a detailed image review/ }),
-  ).not.toBeChecked();
+  ).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),

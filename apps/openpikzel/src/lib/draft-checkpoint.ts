@@ -10,7 +10,8 @@ const schema=z.object({
   personaId:z.string().optional(),styleId:z.string().optional(),preset:z.string().max(120).optional(),
   videoBrief:z.string().max(2400).optional(),selection:z.string().nullable().optional(),
   parentId:z.string().nullable().optional(),titleAction:z.enum(["image","ideas"]).optional(),
-  includeVision:z.boolean().optional(),
+  includeVision:z.boolean().optional(),videoUrl:z.string().max(500).optional(),autoReview:z.boolean().optional(),draftSavedAt:z.number().optional(),manualTitle:z.boolean().optional(),
+  creativeDraft:z.object({provider:z.enum(["openai","google"]).optional(),modelChoice:z.enum(["economy","standard"]).optional(),draft:z.string().max(2400).optional(),messages:z.array(z.object({role:z.enum(["user","assistant"]),content:z.string().max(4000)})).max(12).optional()}).optional(),
  }),
 });
 type Store=Pick<Storage,"getItem"|"setItem">;

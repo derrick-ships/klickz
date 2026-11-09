@@ -142,6 +142,8 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
         const body = JSON.parse(request.body);
         expect(Object.keys(body.questions)).toEqual(pillars);
         expect(body.state.title).toBe("A real video title");
+        expect(body.state.visualGuidance.clarity.observation).toBe("A clear focal subject");
+        expect(score.contributors?.map(c=>c.provider)).toEqual(["Jev","OpenAI API"]);
         expect(
           body.assets[body.state.thumbnail].data_base64.length,
         ).toBeGreaterThan(100);
@@ -236,3 +238,12 @@ it("routes Google image requests to the user key with native aspect ratio and fi
     ).toEqual({ aspectRatio: "9:16", imageSize: "1K" });
     expect((await sharp(result).metadata()).height).toBe(1280);
   }));
+
+it("recomposes the source through image editing and returns a real 9:16 output",async()=>providerContext.run({openai:"fixture-key"},async()=>{
+ const original=await sample(),copy=Buffer.from(original);
+ const fetcher=vi.fn().mockImplementation(async()=>response({data:[{b64_json:original.toString("base64")}]}));vi.stubGlobal("fetch",fetcher);
+ const {recomposePrompt}=await import("../src/lib/analysis-display");
+ const result=await renderThumbnail(recomposePrompt("short"),[original],{...defaultSettings,format:"short",quality:"low",batch:1});
+ const metadata=await sharp(result).metadata();expect([metadata.width,metadata.height]).toEqual([720,1280]);
+ const edits=fetcher.mock.calls.filter(([url])=>String(url).includes("/images/edits"));expect(edits).toHaveLength(1);expect(original.equals(copy)).toBe(true);
+}));

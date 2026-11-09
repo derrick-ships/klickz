@@ -382,10 +382,10 @@ export function useStudio() {
       requestId: pendingRequest.current!.id,
     });
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Check the original account for the result.");
-    pendingRequest.current = null;
     if(result.creations?.[0])await rememberCreation(result.creations[0]);
     await load();
     ensureCurrentOwner();
+    pendingRequest.current = null;
     return result as { creations: Creation[]; partial: boolean };
   }
   async function analyze(
@@ -393,17 +393,19 @@ export function useStudio() {
     title: string,
     videoBrief = "",
     includeVision = false,
+    videoUrl = "",
   ) {
+    const epoch=ownerEpoch.current;
     if (!cloud)
       throw new Error(
         "Sign in and connect your own Jev key to score thumbnails.",
       );
     if (!config?.ai)
       throw new Error(
-        "Scoring is not enabled in this workspace. You can still resize an uploaded image without AI credits.",
+        "Scoring is not enabled in this workspace. Your saved images remain available to review and download.",
       );
     if (!config?.jev) throw new Error("Connect your Jev API key in Connections, then analyze this thumbnail again.");
-    const intent = { creationId: item.id, title, videoBrief, includeVision };
+    const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl };
     const fingerprint = JSON.stringify(intent);
     if (pendingRequest.current?.fingerprint !== fingerprint)
       pendingRequest.current = { fingerprint, id: crypto.randomUUID() };
@@ -411,9 +413,10 @@ export function useStudio() {
       ...intent,
       requestId: pendingRequest.current.id,
     });
-    pendingRequest.current = null;
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Check the original account for the result.");
     await load();
     ensureCurrentOwner();
+    pendingRequest.current = null;
     return result;
   }
   async function saveProfile(kind:"persona"|"style",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]}){

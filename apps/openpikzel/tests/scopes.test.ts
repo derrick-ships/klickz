@@ -10,6 +10,7 @@ vi.mock("../src/lib/oauth/core", async () => ({
 import { POST as generate } from "../src/app/api/generate/route";
 import { POST as analyze } from "../src/app/api/analyze/route";
 import { POST as prepare } from "../src/app/api/persona/prepare/route";
+import { POST as creative } from "../src/app/api/creative/route";
 import { POST as resize } from "../src/app/api/resize/route";
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
@@ -21,6 +22,7 @@ it.each([
   ["analyze", analyze],
   ["prepare", prepare],
   ["resize", resize],
+  ["creative", creative],
 ])(
   "rejects direct %s HTTP calls when an AI grant lacks write permission",
   async (name, handler) => {

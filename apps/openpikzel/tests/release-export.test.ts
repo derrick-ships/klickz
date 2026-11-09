@@ -1,0 +1,11 @@
+import {it,expect,afterEach} from "vitest";
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,copyFileSync,rmSync,existsSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
+import {spawnSync} from "node:child_process";
+import {createHash} from "node:crypto";
+const roots:string[]=[];
+afterEach(()=>{for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true});});
+function fixture(){const root=mkdtempSync(join(tmpdir(),"openpikzels-export-"));roots.push(root);for(const dir of ["src","tests","docs"])mkdirSync(join(root,dir));writeFileSync(join(root,"src/existing.ts"),"export const existing = true;\n");writeFileSync(join(root,"src/new.ts"),"export const added = true;\n");writeFileSync(join(root,"tests/new.test.ts"),"// a source test\n");writeFileSync(join(root,"docs/scanner-feed-recompose.md"),"# Release report\n");writeFileSync(join(root,"auth-deploy-refs.json"),JSON.stringify([{file:"src/existing.ts",sha:"old-digest"}]));copyFileSync(new URL("../export-scanner-release.cjs",import.meta.url),join(root,"export-scanner-release.cjs"));return root;}
+it("exports newly discovered source and tests with exact raw and Git blob digests",()=>{const root=fixture();const run=spawnSync(process.execPath,["export-scanner-release.cjs"],{cwd:root,encoding:"utf8"});expect(run.status,run.stderr).toBe(0);const meta=JSON.parse(readFileSync(join(root,".scanner-export-meta.json"),"utf8"));expect(meta.changed.map((f:any)=>f.file)).toEqual(expect.arrayContaining(["src/existing.ts","src/new.ts","tests/new.test.ts","docs/scanner-feed-recompose.md"]));const bytes=readFileSync(join(root,"src/new.ts"));expect(meta.refs.find((f:any)=>f.file==="src/new.ts").sha).toBe(createHash("sha1").update(bytes).digest("hex"));expect(meta.gitHashes.find((f:any)=>f.path==="apps/openpikzel/src/new.ts").sha).toBe(createHash("sha1").update(Buffer.concat([Buffer.from("blob "+bytes.length+"\0"),bytes])).digest("hex"));});
+it("refuses incomplete baseline source before writing an export",()=>{const root=fixture();rmSync(join(root,"src/existing.ts"));const run=spawnSync(process.execPath,["export-scanner-release.cjs"],{cwd:root,encoding:"utf8"});expect(run.status).not.toBe(0);expect(existsSync(join(root,".scanner-export-meta.json"))).toBe(false);});

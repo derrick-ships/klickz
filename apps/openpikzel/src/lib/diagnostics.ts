@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { pillars, type Evaluation, type Pillar, type Settings } from "./types";
 import { AppError } from "./validation";
-export const rubricVersion = "openpikzels-jev-v3";
+export const rubricVersion = "openpikzels-jev-v3.1";
 export const digest = (value: Buffer | string) =>
   createHash("sha256").update(value).digest("hex");
 export function canonical(value: unknown): string {
@@ -28,6 +28,7 @@ export type DiagnosticContext = {
   videoBrief: string;
   audience: string;
   includeVision: boolean;
+  videoEvidence?: { url: string; kind: "youtube-description" | "unavailable"; notice: string };
 };
 export const diagnosticDefaults: DiagnosticContext = {
   videoBrief: "",
@@ -51,10 +52,11 @@ export function enrichDiagnostic(
   promiseConflict = false,
 ): Evaluation {
   const warnings: string[] = [];
-  if (!title.trim() || !context.videoBrief.trim())
+  if (!title.trim())
     warnings.push(
-      "Add the actual title and factual video brief to assess idea and curiosity.",
+      "Idea and Curiosity need a title to assess the image/title promise. No title was supplied or retrieved.",
     );
+  warnings.push(context.videoEvidence?.notice || "This assesses the visible thumbnail and stated title, not whether the video delivers on its promise. The video itself was not watched.");
   if (!vision)
     warnings.push(
       "Numeric Jev rubrics only. Image-specific edit plans require optional vision critique.",
@@ -68,11 +70,11 @@ export function enrichDiagnostic(
     dimensions[p] = { ...dimensions[p] };
     if (
       (p === "idea" || p === "curiosity") &&
-      (!title.trim() || !context.videoBrief.trim())
+      !title.trim()
     ) {
       dimensions[p].score = null;
       dimensions[p].missingReason =
-        "The actual title and factual video brief are both required.";
+        "No video title is available to assess the thumbnail/title pair. The video contents cannot be inferred from its thumbnail.";
     }
     if (dimensions[p].score === null && !dimensions[p].missingReason)
       dimensions[p].missingReason =
@@ -138,6 +140,7 @@ export function enrichDiagnostic(
     preview,
     rubricVersion,
     vision,
+    videoEvidence: context.videoEvidence,
     evidence,
     issues,
     warnings,
@@ -188,11 +191,11 @@ export function compileFixPlan(
       kind: "blocked",
       reason: "Analyze the current source image first.",
     };
-  if (score.fixBlocked || !score.context?.videoBrief || !score.context.title)
+  if (score.fixBlocked || !score.context?.title)
     return {
       kind: "blocked",
       reason:
-        "Add factual context and image-specific vision critique before an API fix.",
+        "A supported thumbnail/title assessment and image-specific review are required before an API fix.",
     };
   const ids = selected ?? score.issues?.map((x) => x.id) ?? [];
   if (

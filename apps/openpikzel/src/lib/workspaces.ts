@@ -1,5 +1,6 @@
+import type {CreativeDraft} from "../components/creative/creative-partner";
 import type {Creation,Settings} from './types';
-export type WorkspaceDraft={manualTitle?:boolean;draftSavedAt?:number;prompt?:string;title?:string;tool?:string;settings?:Settings;refs?:string[];personaId?:string;styleId?:string;preset?:string;videoBrief?:string;selection?:string|null;parentId?:string|null;titleAction?:"image"|"ideas";includeVision?:boolean};
+export type WorkspaceDraft={autoReview?:boolean;creativeDraft?:CreativeDraft;manualTitle?:boolean;draftSavedAt?:number;prompt?:string;title?:string;tool?:string;settings?:Settings;refs?:string[];personaId?:string;styleId?:string;preset?:string;videoBrief?:string;videoUrl?:string;selection?:string|null;parentId?:string|null;titleAction?:"image"|"ideas";includeVision?:boolean};
 export type Conversation={id:string;title:string;draft:WorkspaceDraft;created_at:string;updated_at:string};
 export function groupChats(chats:Conversation[],now=new Date()){
  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(),day=86400000,groups=new Map<string,Conversation[]>();

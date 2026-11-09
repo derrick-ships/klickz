@@ -2,6 +2,15 @@ import {test,expect,type Page} from '@playwright/test';
 import sharp from 'sharp';
 const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222',chatA='33333333-3333-4333-8333-333333333333',chatB='44444444-4444-4444-8444-444444444444';
 function session(id:string){return {access_token:'header.'+Buffer.from(JSON.stringify({sub:id,exp:4102444800})).toString('base64url')+'.signature',refresh_token:'fixture-only-refresh',expires_at:4102444800,expires_in:3600,token_type:'bearer',user:{id,aud:'authenticated',role:'authenticated',email:id===A?'a@example.test':'b@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:'2026-11-08T00:00:00Z'}};}
+async function settleResponsiveNavigation(page:Page,width:number,height:number){
+ await page.setViewportSize({width,height});
+ if(width<=1024){
+  await expect(page.locator('aside.sidebar')).toBeHidden();
+  await expect(page.locator('.workspace-main')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.workspace-main')).toHaveCSS('filter','none');
+ }else await expect(page.locator('aside.sidebar')).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+}
 async function setup(page:Page){
  await page.route('**/*',r=>(new URL(r.request().url()).hostname==='127.0.0.1'||/^(blob|data):/.test(r.request().url()))?r.continue():r.abort());
  const settings={model:'flare',quality:'low',complexity:'low',format:'long',batch:1},now=new Date().toISOString(),chats:any[]=[{id:chatA,user_id:A,title:'Account A chat',draft:{prompt:'A factual thumbnail from account A',settings},created_at:now,updated_at:now},{id:chatB,user_id:B,title:'Account B chat',draft:{prompt:'A separate private account B draft',settings},created_at:now,updated_at:now}],creations:any[]=[{id:'55555555-5555-4555-8555-555555555555',user_id:A,conversation_id:chatA,title:'Account A image',prompt:'A factual thumbnail from account A',mode:'generate',style:'Auto',persona_id:null,parent_id:null,image_path:A+'/image.png',status:'ready',favorite:false,settings,created_at:now}];
@@ -20,6 +29,14 @@ async function setup(page:Page){
   if(req.method()==='POST'&&table==='studio_conversations'){const row=req.postDataJSON();if(row.user_id!==owner)return route.fulfill({status:403,json:{error:'RLS fixture'},headers});const i=chats.findIndex(c=>c.id===row.id);if(i<0)chats.push(row);else chats[i]=row;return route.fulfill({status:201,body:'',headers});}
   const rows=data.filter(filter);return route.fulfill({json:req.headers().accept?.includes('vnd.pgrst.object')?rows[0]||null:rows,headers});
  });
+
+ await page.route('**/api/analyze',async r=>{
+  const input=r.request().postDataJSON(),item=creations.find(c=>c.id===input.creationId);
+  const score={source:'jev',version:3,title:input.title,overall:null,partial:true,priority:'clarity',created_at:now,note:'Explicit test fixture; no provider called.',vision:true,fixBlocked:true,
+    dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:null,confidence:0,missingReason:'Fixture has no measured assessment',observation:'Fixture only',strength:'',weakness:'',fix:''}]))};
+  if(item)item.score=score;return r.fulfill({json:{score,creationId:input.creationId}});
+ });
+
  return {settings,chats,creations};
 }
 test('busy generation cannot switch chats through library navigation',async({page})=>{
@@ -32,8 +49,8 @@ test('busy generation cannot switch chats through library navigation',async({pag
 });
 test('delayed account A resize cannot overwrite account B hydration or draft',async({page,context})=>{
  const f=await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
- await page.route('**/api/resize',async route=>{entered();await hold;await route.fulfill({json:{creation:{...f.creations[0],id:'77777777-7777-4777-8777-777777777777',mode:'resize',parent_id:f.creations[0].id,settings:{...f.settings,format:'short'}}}});});
- await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Resize to short-form',exact:true}).click();await waiting;
+ await page.route('**/api/generate',async route=>{entered();await hold;await route.fulfill({json:{creations:[{...f.creations[0],id:'77777777-7777-4777-8777-777777777777',mode:'edit',parent_id:f.creations[0].id,settings:{...f.settings,format:'short'}}],partial:false}});});
+ await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();await waiting;
  await page.evaluate(s=>{localStorage.setItem('sb-test-auth-token',JSON.stringify(s));const bc=new BroadcastChannel('sb-test-auth-token');bc.postMessage({event:'SIGNED_IN',session:s});setTimeout(()=>bc.close(),100);},session(B));
  await expect(page.locator('.chat-title')).toContainText('Account B chat');release();
  await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByRole('alert').filter({hasText:'Your account changed'})).toHaveCount(0);await expect(page.locator('.chat-title')).toContainText('Account B chat');await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue('A separate private account B draft');
@@ -145,7 +162,7 @@ test('ready actions describe each task and generated labels never become video t
  await page.getByRole('tab',{name:'Edit',exact:true}).click();await expect(page.getByRole('button',{name:'Apply AI edit',exact:true})).toBeVisible();
  await page.getByRole('tab',{name:'Title',exact:true}).click();await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Title ideas',exact:true}).click();await expect(page.getByRole('button',{name:'Generate titles',exact:true})).toBeVisible();
- await page.getByRole('tab',{name:'Prompt',exact:true}).click();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
+ await page.getByRole('tab',{name:'Prompt',exact:true}).click();await page.getByLabel('Analyze new images automatically').uncheck();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Your thumbnail.',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Set up analysis',exact:true}).click();
  await expect(page.getByLabel('Video title',{exact:true})).toHaveValue('');expect(generated.title).toBe('');
@@ -175,4 +192,169 @@ test('connection lookup distinguishes loading and failure from disconnected and 
  await expect(page.getByText('Not connected',{exact:true})).toHaveCount(0);release();
  await expect(page.getByText('Connection status unavailable. Refresh to check.',{exact:true})).toBeVisible();await expect(page.getByText('No agents connected yet.',{exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Refresh connections',exact:true}).click();await expect(page.getByText('Not connected',{exact:true})).toHaveCount(4);await expect(page.getByText('No agents connected yet.',{exact:true})).toBeVisible();expect(writes).toBe(0);
+});
+
+test('analysis scanner waits for a saved result and uses supported visual guidance automatically',async({page})=>{
+ const f=await setup(page);await page.clock.install();let release!:()=>void;const hold=new Promise<void>(r=>release=r);let calls=0;
+ await page.route('**/api/analyze',async route=>{
+  calls++;const input=route.request().postDataJSON();expect(input.includeVision).toBe(true);expect(input.videoBrief).toBe("");expect(input.videoUrl).toBe("https://youtu.be/abcdefghijk");
+  await hold;
+  const score={source:"jev",version:3,title:input.title,overall:67,priority:"clarity",created_at:new Date().toISOString(),note:"Explicit fixture; no providers called.",vision:true,fixBlocked:false,
+   contributors:[{provider:"Jev",model:"fixture",role:"scoring"},{provider:"OpenAI API",model:"fixture",role:"image-review"}],
+   warnings:["The video itself was not watched."],dimensions:Object.fromEntries(["virality","clarity","idea","curiosity","emotion"].map(p=>[p,{score:67,confidence:.7,observation:"Fixture image evidence",strength:"One subject",weakness:"Small text",fix:"Simplify text"}]))};
+  f.creations[0].score=score;await route.fulfill({json:{score,creationId:f.creations[0].id}});
+ });
+ await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();
+ await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
+ await page.getByLabel('YouTube video link (optional)',{exact:true}).fill('https://youtu.be/abcdefghijk');
+ await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
+ const scanner=page.getByRole('region',{name:'Thumbnail analysis activity'});
+ await expect(scanner).toHaveAttribute('data-phase','running');
+ await page.clock.fastForward(60000);
+ expect(Number((await scanner.locator('.scanner-counter').innerText()).split('/')[0])).toBeLessThan(100);
+ await expect(scanner).toContainText('not measured progress');
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});await scanner.scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'evidence/scanner-active-'+width+'.png'});}
+ await page.emulateMedia({reducedMotion:"reduce"});
+ await expect.poll(()=>scanner.locator('.scanner-sweep').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+ release();await expect(page.getByRole('dialog')).toContainText('OpenPikzels Score');
+ await expect(page.locator('.analysis-scanner')).toHaveAttribute('data-phase','succeeded');
+ await expect(page.locator('.analysis-scanner .scanner-counter')).toContainText('100');
+ await expect(page.getByRole('dialog')).toContainText('OpenAI API');expect(calls).toBe(1);
+});
+
+test('failed analysis never shows completion and retries keep the same request identity',async({page})=>{
+ await setup(page);const ids:string[]=[];
+ await page.route('**/api/analyze',r=>{ids.push(r.request().postDataJSON().requestId);return r.fulfill({status:502,json:{error:"Fixture analysis could not finish"}});});
+ await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('Actual video title');
+ await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
+ const scanner=page.getByRole('region',{name:'Thumbnail analysis activity'});
+ await expect(scanner).toHaveAttribute('data-phase','failed');await expect(scanner).toContainText('check saved results before retrying');
+ expect(Number((await scanner.locator('.scanner-counter').innerText()).split('/')[0])).toBeLessThan(100);
+ await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
+ await expect.poll(()=>ids.length).toBe(2);expect(ids[0]).toBe(ids[1]);await expect(scanner).toHaveAttribute('data-phase','failed');
+});
+
+test('AI resize dispatches one source-based recomposition and retains the original and draft',async({page})=>{
+ const f=await setup(page),original={...f.creations[0]};let calls=0,submitted:any;
+ await page.route('**/api/generate',async r=>{
+  calls++;const input=r.request().postDataJSON();submitted=input;expect(input.mode).toBe("edit");expect(input.parentId).toBe(original.id);expect(input.referencePaths).toEqual([original.image_path]);
+  expect(input.settings.format).toBe("short");expect(input.settings.batch).toBe(1);expect(input.prompt).toContain("vertical 9:16");expect(input.prompt).toContain("Do not merely crop");
+  const copy={...original,id:"77777777-7777-4777-8777-777777777777",mode:"edit",parent_id:original.id,settings:input.settings,prompt:input.prompt};f.creations.unshift(copy);
+  await r.fulfill({json:{creations:[copy],partial:false}});
+ });
+ await page.goto('/');await expect(page.locator('.resize-note')).toContainText('Provider usage charges apply');
+ await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();
+ await expect(page.getByRole('button',{name:'AI resize to long-form',exact:true})).toBeVisible();expect(calls).toBe(1);expect(submitted.title).toBe(original.title);
+ expect(f.creations.find(c=>c.id===original.id)).toEqual(original);
+ expect(f.chats.find(c=>c.id===chatA).draft.prompt).toBe('A factual thumbnail from account A');
+});
+
+test('failed AI resize preserves the source and never falls back to a padded image',async({page})=>{
+ const f=await setup(page);let fallback=0;const ids:string[]=[];
+ await page.route('**/api/resize',r=>{fallback++;return r.abort();});
+ await page.route('**/api/generate',r=>{ids.push(r.request().postDataJSON().requestId);return r.fulfill({status:502,json:{error:"Fixture generation unavailable"}});});
+ await page.goto('/');await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();
+ await expect(page.getByRole('alert').filter({hasText:'Fixture generation unavailable'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'AI resize to short-form',exact:true})).toBeEnabled();
+ await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();
+ await expect.poll(()=>ids.length).toBe(2);expect(ids[0]).toBe(ids[1]);expect(fallback).toBe(0);expect(f.creations).toHaveLength(1);
+});
+
+test('analysis retry reuses the job after a successful response but failed library refresh',async({page})=>{
+ const f=await setup(page);const ids:string[]=[];let failRefresh=false;
+ await page.route('https://test.supabase.co/rest/v1/studio_creations*',async r=>{
+  if(failRefresh && r.request().method()==='GET'){failRefresh=false;return r.fulfill({status:400,json:{message:'Fixture refresh failed'},headers:{'access-control-allow-origin':'*'}});}
+  return r.fallback();
+ });
+ await page.route('**/api/analyze',async r=>{
+  ids.push(r.request().postDataJSON().requestId);if(ids.length===1)failRefresh=true;
+  const score={source:'jev',version:3,title:'A factual title',overall:60,priority:'clarity',created_at:new Date().toISOString(),note:'Fixture; no providers called.',vision:false,fixBlocked:true,
+   dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:60,confidence:.5,observation:'Fixture',strength:'Fixture',weakness:'Fixture',fix:'Fixture'}]))};
+  f.creations[0].score=score;return r.fulfill({json:{score,creationId:f.creations[0].id}});
+ });
+ await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual title');
+ await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
+ await expect(page.locator('.analysis-scanner')).toHaveAttribute('data-phase','failed');
+ await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
+ await expect.poll(()=>ids.length).toBe(2);expect(ids[1]).toBe(ids[0]);
+ await expect(page.getByRole('dialog')).toContainText('OpenPikzels Score');
+});
+
+test('generation reveals its saved image while automatic analysis is still pending',async({page})=>{
+ const f=await setup(page);let releaseImage!:()=>void,releaseScore!:()=>void;const imageHold=new Promise<void>(r=>releaseImage=r),scoreHold=new Promise<void>(r=>releaseScore=r);let imageCalls=0,scoreCalls=0;
+ await page.route('**/api/generate',async r=>{imageCalls++;await imageHold;const input=r.request().postDataJSON(),item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999',prompt:input.prompt,title:input.title||'Fixture new image'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});
+ await page.route('**/api/analyze',async r=>{scoreCalls++;await scoreHold;return r.fallback();});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
+ await expect(page.getByLabel('Analyze new images automatically')).toBeChecked();
+ await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
+ const activity=page.getByRole('region',{name:'Thumbnail delivery'});await expect(activity).toHaveAttribute('data-stage','generating');
+ for(const width of [1440,390,320]){await settleResponsiveNavigation(page,width,900);await activity.scrollIntoViewIfNeeded();await page.screenshot({path:'evidence/delivery-generating-'+width+'.png'});}
+ await page.emulateMedia({reducedMotion:'reduce'});await expect(activity.locator('.delivery-light')).toHaveCSS('animation-name','none');
+ releaseImage();await expect(activity).toHaveAttribute('data-stage','analyzing');await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();expect(scoreCalls).toBe(1);
+ releaseScore();await expect(activity).toHaveAttribute('data-stage','ready');expect(imageCalls).toBe(1);
+});
+
+test('automatic review failure leaves the new image saved without regenerating',async({page})=>{
+ const f=await setup(page);let images=0,scores=0;
+ await page.route('**/api/generate',async r=>{images++;const item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});
+ await page.route('**/api/analyze',r=>{scores++;return r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}});});
+ await page.goto('/');await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Thumbnail delivery'})).toHaveAttribute('data-stage','review-pending');
+ expect(f.creations).toHaveLength(2);expect(images).toBe(1);expect(scores).toBe(1);await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();
+});
+
+test('prompt enhancement is reviewed, reversible, and never generates an image',async({page})=>{
+ await setup(page);let images=0;await page.route('**/api/generate',r=>{images++;return r.abort();});
+ await page.route('**/api/creative',r=>{expect(r.request().postDataJSON().task).toBe('enhance');return r.fulfill({json:{model:'gpt-5.4-nano',value:{prompt:'A factual studio portrait, one clear subject and a readable headline.',changes:['Clarified composition']}}});});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
+ const composer=page.getByLabel('Describe your thumbnail',{exact:true}),before=await composer.inputValue();
+ await page.getByRole('button',{name:'Enhance prompt',exact:true}).click();await expect(page.getByRole('region',{name:'Prompt enhancement'})).toBeVisible();await expect(composer).toHaveValue(before);
+ await page.getByRole('button',{name:'Apply enhancement',exact:true}).click();await expect(composer).toHaveValue('A factual studio portrait, one clear subject and a readable headline.');
+ await page.getByRole('button',{name:'Undo direction change',exact:true}).click();await expect(composer).toHaveValue(before);expect(images).toBe(0);
+});
+
+test('late prompt enhancement cannot replace newer user text and failed retries keep request ID',async({page})=>{
+ await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);const ids:string[]=[];
+ await page.route('**/api/creative',async r=>{ids.push(r.request().postDataJSON().requestId);if(ids.length===1)return r.fulfill({status:502,json:{error:'Fixture temporary text failure'}});await hold;return r.fulfill({json:{model:'fixture',value:{prompt:'A proposed clear portrait with warm light.',changes:[]}}});});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'Enhance prompt',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:'Fixture temporary text failure'})).toBeVisible();
+ await page.getByRole('button',{name:'Enhance prompt',exact:true}).click();await expect.poll(()=>ids.length).toBe(2);expect(ids[0]).toBe(ids[1]);
+ const input=page.getByLabel('Describe your thumbnail',{exact:true});await input.fill('A newer unsent direction must survive this response');release();await expect(page.getByRole('button',{name:'Apply enhancement',exact:true})).toBeDisabled();await expect(input).toHaveValue('A newer unsent direction must survive this response');
+});
+
+test('creative chat chooses a separate Google model and prepares image actions without executing them',async({page})=>{
+ const f=await setup(page);let imageCalls=0;
+ await page.route('**/api/config',r=>r.fulfill({json:{cloud:true,ai:true,openai:true,google:true,jev:true,supabaseUrl:'https://test.supabase.co',supabaseKey:'sb_publishable_test',promptModel:'gpt-5.4-nano',textModels:{openai:'configured-openai',google:'configured-google'}}}));
+ await page.route('**/api/generate',r=>{imageCalls++;return r.abort();});
+ await page.route('**/api/creative',r=>{const input=r.request().postDataJSON();expect(input.provider).toBe('google');expect(input.conversationId).toBe(chatA);expect(input.creationId).toBe(f.creations[0].id);expect(input.task).toBe('chat');expect(input.direction).toBe('A factual thumbnail from account A');return r.fulfill({json:{model:'configured-google',value:{reply:'Try a single face and one clear visual contrast.',proposal:{kind:'edit',prompt:'Brighten the selected face; keep the exact headline and background.',title:''}}}});});
+ await page.goto('/');await page.locator('.creative-conversation summary').click();await page.getByLabel('Conversation model',{exact:true}).selectOption('google:economy');await page.getByLabel('Message your creative partner').fill('How could we simplify this thumbnail?');await page.getByRole('button',{name:'Send message',exact:true}).click();
+ await expect(page.getByRole('log',{name:'Creative conversation'})).toContainText('Try a single face');expect(imageCalls).toBe(0);
+ await page.getByRole('button',{name:'Review in composer',exact:true}).click();await expect(page.getByLabel('What should change?',{exact:true})).toHaveValue('Brighten the selected face; keep the exact headline and background.');
+ await expect(page.getByLabel('Rendering model')).toContainText('Flare');expect(imageCalls).toBe(0);
+ await expect.poll(()=>f.chats.find(c=>c.id===chatA).draft.creativeDraft?.messages?.length).toBe(2);
+ for(const width of [1440,390,320]){await settleResponsiveNavigation(page,width,1000);await page.locator('.creative-conversation').scrollIntoViewIfNeeded();await page.screenshot({path:'evidence/creative-chat-'+width+'.png'});}
+ await page.reload();await page.locator('.creative-conversation summary').click();await expect(page.getByRole('log',{name:'Creative conversation'})).toContainText('Try a single face');await expect(page.getByLabel('Conversation model')).toHaveValue('google:economy');
+});
+
+test('a late creative reply cannot enter another project',async({page})=>{
+ const f=await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);
+ await page.route('**/api/creative',async r=>{await hold;return r.fulfill({json:{model:'fixture',value:{reply:'Private reply for the original project only.',proposal:null}}});});
+ await page.goto('/');await page.locator('.creative-conversation summary').click();await page.getByLabel('Message your creative partner').fill('Discuss this original project thumbnail');await page.getByRole('button',{name:'Send message',exact:true}).click();await expect(page.getByRole('button',{name:'Thinking…',exact:true})).toBeVisible();
+ await page.locator('aside.sidebar').getByRole('button',{name:'Open chat: Account A other chat',exact:true}).click();release();
+ await page.locator('.creative-conversation summary').click();await expect(page.getByRole('log',{name:'Creative conversation'})).not.toContainText('Private reply');
+ expect(f.chats.find(c=>c.title==='Account A other chat').draft.creativeDraft?.messages||[]).toHaveLength(0);
+});
+
+for(const width of [320,390])test('mobile studio navigation leaves creative chat usable at '+width+'px',async({page})=>{
+ await page.setViewportSize({width,height:900});await setup(page);
+ const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.route('**/api/creative',r=>r.fulfill({json:{model:'fixture',value:{reply:'Use one clear focal point.',proposal:null}}}));
+ await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');
+ await expect(page.locator('aside.sidebar')).toBeHidden();
+ await page.getByRole('button',{name:'Open sidebar',exact:true}).click();await expect(page.locator('aside.sidebar')).toBeVisible();
+ await expect(page.locator('.workspace-main')).toHaveAttribute('inert','');await expect(page.locator('.workspace-main')).toHaveCSS('filter','blur(6px)');
+ await page.getByRole('button',{name:'Close sidebar',exact:true}).click();await settleResponsiveNavigation(page,width,900);
+ await page.locator('.creative-conversation summary').click();
+ await page.getByLabel('Message your creative partner').fill('Simplify the selected thumbnail');
+ await page.getByRole('button',{name:'Send message',exact:true}).click();await expect(page.getByRole('log',{name:'Creative conversation'})).toContainText('Use one clear focal point.');
+ await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeVisible();expect(errors).toEqual([]);
 });

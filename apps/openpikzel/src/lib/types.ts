@@ -67,9 +67,12 @@ export type Evaluation = {
   sourceDigest?: string;
   inputDigest?: string;
   rubricVersion?: string;
+  instructionVersion?: string;
   context?: { title: string; videoBrief: string; audience: string };
   preview?: { width: number; height: number; digest: string };
   vision?: boolean;
+  contributors?: { provider: string; model: string; role: "scoring" | "image-review" }[];
+  videoEvidence?: { url: string; kind: "youtube-description" | "unavailable"; notice: string };
   evidence?: {
     id: string;
     pillar: Pillar;
@@ -117,6 +120,7 @@ export type Creation = {
   review?: { preference: string; order: string[]; decidedAt: string };
 };
 export type Config = {
+  promptModel?: string;
   cloud: boolean;
   ai: boolean;
   openai: boolean;

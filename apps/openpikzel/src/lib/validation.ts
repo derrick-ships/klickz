@@ -49,6 +49,7 @@ export const reviewSchema = z
     imagePath: z.string().max(400).optional(),
     title: z.string().trim().max(100).default(""),
     videoBrief: z.string().trim().max(2400).default(""),
+    videoUrl: z.string().trim().max(500).default(""),
     audience: z.string().trim().max(200).default(""),
     includeVision: z.boolean().default(false),
     requestId: z

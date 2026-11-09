@@ -3,16 +3,16 @@ import {reviewFixture} from "./helpers/review-fixture";
 test.beforeEach(async({page})=>{
  await page.route("**/*",r=>(new URL(r.request().url()).hostname==="127.0.0.1"||/^(blob|data):/.test(r.request().url()))?r.continue():r.abort());
 });
-test("analysis setup preserves a real title and summary across modes and reload",async({page})=>{
+test("analysis setup preserves a real title and video link across modes and reload",async({page})=>{
  await reviewFixture(page,false);
  await page.getByRole("button",{name:"Set up analysis",exact:true}).click();
- const title=page.getByLabel("Video title",{exact:true}),brief=page.getByLabel("Video summary (needed for a full score)",{exact:true});
+ const title=page.getByLabel("Video title",{exact:true}),brief=page.getByLabel("YouTube video link (optional)",{exact:true});
  await expect(title).toBeFocused();
- await title.fill("My actual video title, not the image brief");await brief.fill("A seven-day studio rebuild with a limited budget.");
+ await title.fill("My actual video title, not the image brief");await brief.fill("https://www.youtube.com/watch?v=abcdefghijk");
  await page.getByRole("tab",{name:"Prompt",exact:true}).click();await page.getByRole("button",{name:"Set up analysis",exact:true}).click();
  await expect(title).toHaveValue("My actual video title, not the image brief");
- await expect(brief).toHaveValue("A seven-day studio rebuild with a limited budget.");
- await expect(page.locator(".diagnostic-context")).toContainText("Without both, Idea, Curiosity and the overall score stay blank.");
+ await expect(brief).toHaveValue("https://www.youtube.com/watch?v=abcdefghijk");
+ await expect(page.locator(".diagnostic-context")).toContainText("No written summary is required.");
  await page.reload();await page.getByRole("button",{name:"Set up analysis",exact:true}).click();
  await expect(title).toHaveValue("My actual video title, not the image brief");
  for(const width of [1440,390,320]){

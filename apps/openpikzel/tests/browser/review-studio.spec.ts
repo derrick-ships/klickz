@@ -32,7 +32,7 @@ test("review puts the real image first, with a neighboring inspector and an actu
   const preview = page.getByRole("button", { name: "Toggle phone feed preview" });
   await preview.click(); await expect(preview).toHaveAttribute("aria-pressed", "true");
   expect((await stage.locator(".result-image").boundingBox())!.width).toBe(200);
-  await expect(stage.getByText("Feed preview at 200 px")).toBeVisible();
+  await expect(stage.getByText("Browse · thumbnail at 200 px")).toBeVisible();
   await page.screenshot({ path: "evidence/review-studio-feed-1440.png", fullPage: true });
   await preview.click();
   await stage.getByRole("button", { name: "Analyze", exact: true }).click();

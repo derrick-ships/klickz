@@ -1,3 +1,4 @@
+import {defaultPromptModel} from "@/lib/instructions";
 import { publicSupabaseConfig } from "@/lib/config";
 import { mcpResource } from "@/lib/crypto";
 import { authenticated } from "@/lib/server";
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
     {
       mcpUrl: mcpResource(),
       textModels: {openai: process.env.OPENAI_TEXT_MODEL || "gpt-5.5", google: process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite"},
+      promptModel: process.env.OPENAI_PROMPT_MODEL || defaultPromptModel,
       scoreModel: process.env.JEV_MODEL || "jev-latest",
       codexDevice: process.env.CODEX_DEVICE_ENABLED === "true",
       higgsfield: process.env.HIGGSFIELD_ENABLED === "true",

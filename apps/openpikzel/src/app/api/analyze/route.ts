@@ -5,6 +5,8 @@ import {
   withUserProviders,
 } from "@/lib/server";
 import { reviewSchema, AppError } from "@/lib/validation";
+import { readVideoEvidence, youtubeVideoId } from "@/lib/video-context";
+import { hasProvider, providerKey } from "@/lib/provider-context";
 import { evaluateThumbnail } from "@/lib/providers";
 import { ownedAsset } from "@/lib/assets";
 import { digest } from "@/lib/diagnostics";
@@ -23,6 +25,7 @@ async function handle(request: Request) {
     seal({ check: true }, "diagnostic-proof"); // Verify signing configuration before any paid dispatch.
     const input = reviewSchema.parse(await request.json());
     if (input.includeVision) requireAI("openai");
+    if (input.videoUrl) youtubeVideoId(input.videoUrl);
     let path = input.imagePath,
       id = input.creationId;
     if (id) {
@@ -49,10 +52,13 @@ async function handle(request: Request) {
     if (reserved.replay) return Response.json(reserved.replay);
     jobId = input.requestId;
     await updateJob(db, user.id, jobId, "running");
+    const videoEvidence = input.videoUrl ? await readVideoEvidence(input.videoUrl, hasProvider("youtube") ? providerKey("youtube") : undefined) : undefined;
+    const assessedTitle = input.title || videoEvidence?.title || "";
     dispatched = true;
     const score = signDiagnostic(
-      await evaluateThumbnail(image, input.title, input.requestId, {
-        videoBrief: input.videoBrief,
+      await evaluateThumbnail(image, assessedTitle, input.requestId, {
+        videoBrief: videoEvidence?.description || input.videoBrief,
+        videoEvidence,
         audience: input.audience,
         includeVision: input.includeVision,
       }),
@@ -60,7 +66,7 @@ async function handle(request: Request) {
     if (id) {
       const saved = await db
         .from("studio_creations")
-        .update({ score, title: input.title || "Untitled thumbnail" })
+        .update({ score, ...(assessedTitle ? {title:assessedTitle} : {}) })
         .eq("id", id)
         .eq("user_id", user.id);
       if (saved.error) throw saved.error;
@@ -69,8 +75,8 @@ async function handle(request: Request) {
         .from("studio_creations")
         .insert({
           user_id: user.id,
-          title: input.title || "Untitled thumbnail",
-          prompt: (input.title || "Uploaded thumbnail").padEnd(8, "."),
+          title: assessedTitle || "Untitled thumbnail",
+          prompt: (assessedTitle || "Uploaded thumbnail").padEnd(8, "."),
           mode: "generate",
           style: "Uploaded",
           image_path: path,

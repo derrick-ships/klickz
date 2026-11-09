@@ -104,6 +104,8 @@ describe("real Streamable HTTP MCP transport and Apps resources", () => {
         "get_fix_prompt",
         "one_click_fix",
         "resize_thumbnail",
+        "recompose_thumbnail",
+        "enhance_prompt",
       ]),
     );
     expect(
@@ -153,4 +155,12 @@ describe("real Streamable HTTP MCP transport and Apps resources", () => {
     );
     expect(browser.status).toBe(403);
   });
+});
+
+it("requires both AI and write scopes for source recomposition",async()=>{
+ for(const scope of [["studio:read"],["studio:read","studio:ai"]]){
+  state.scope=scope;
+  const result=await(await call("tools/call",{name:"recompose_thumbnail",arguments:{creationId:"11111111-1111-4111-8111-111111111111",format:"short",requestId:"22222222-2222-4222-8222-222222222222"}})).json();
+  expect(result.result.isError).toBe(true);
+ }
 });
