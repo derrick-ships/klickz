@@ -203,12 +203,16 @@ export function useStudio() {
     };
   }
   async function api(path: string, body: unknown) {
+    const epoch=ownerEpoch.current;ensureCurrentOwner();
+    const requestHeaders=await headers();
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
     const res = await fetch(path, {
       method: "POST",
-      headers: await headers(),
+      headers: requestHeaders,
       body: JSON.stringify(body),
     });
     const result = await res.json();
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
     if (!res.ok) throw new Error(result.error || "The request did not finish. Check My creations before retrying.");
     return result;
   }
@@ -235,6 +239,7 @@ export function useStudio() {
     ensureCurrentOwner();
   }
   async function upload(file: File) {
+    const epoch=ownerEpoch.current;ensureCurrentOwner();
     if (
       !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
       file.size > 5 * 1024 * 1024
@@ -259,6 +264,7 @@ export function useStudio() {
         "image/png",
       ),
     );
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
     const id = cloud
       ? `${user}/references/${crypto.randomUUID()}.png`
       : crypto.randomUUID();
@@ -269,14 +275,19 @@ export function useStudio() {
       if (error)
         throw new Error("The image could not upload. Check your connection and try again.");
     } else await localPut("assets", { id, blob });
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
     return id;
   }
   async function importReference(url: string) {
+    const epoch=ownerEpoch.current;ensureCurrentOwner();
+    const requestHeaders=await headers();
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
     const res = await fetch("/api/reference", {
       method: "POST",
-      headers: await headers(),
+      headers: requestHeaders,
       body: JSON.stringify({ url }),
     });
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
     if (!res.ok) {
       const value = await res.json();
       throw new Error(value.error || "Could not import the image. Check that the link is public, or upload the file instead.");
@@ -435,6 +446,7 @@ export function useStudio() {
        else if(mode==="selection")next={...current,draft:{...current.draft,selection:chat.draft.selection},updated_at:chat.updated_at};
        else next={...current,draft:{...chat.draft,manualTitle:current.draft.manualTitle},title:current.title==="New chat"&&!current.draft.manualTitle&&chat.draft.prompt?.trim()?chat.draft.prompt.trim().slice(0,80):current.title,updated_at:chat.updated_at};
       }
+      if(mode==="draft"||mode==="full")next={...next,draft:{...next.draft,draftSavedAt:chat.draft.draftSavedAt??Date.parse(chat.updated_at)}};
       await put("conversations",next);
       if(epoch!==ownerEpoch.current)throw new Error("Your account changed. This chat stays in its original workspace.");
       setConversations(items=>[next,...items.filter(c=>c.id!==next.id)].sort((a,b)=>b.updated_at.localeCompare(a.updated_at)));return next;

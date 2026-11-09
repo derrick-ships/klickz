@@ -248,3 +248,16 @@ test("local companion setup offers a real source download and fits mobile", asyn
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
  await page.screenshot({path:"evidence/local-companion-guide-390.png",fullPage:true});
 });
+
+test("invalid email code stays editable with nearby associated feedback",async({page})=>{
+ await page.route("**/*",r=>new URL(r.request().url()).hostname==="127.0.0.1"?r.continue():r.abort());
+ await page.route("**/api/config",r=>r.fulfill({json:{cloud:true,ai:true,ownerGate:false,secureConnections:true,supabaseUrl:"https://test.supabase.co",supabaseKey:"sb_publishable_test"}}));
+ await page.route("https://test.supabase.co/auth/v1/verify**",r=>r.fulfill({status:403,json:{code:"otp_expired",msg:"Token has expired or is invalid"}}));
+ await page.route("https://test.supabase.co/auth/v1/otp**",r=>r.fulfill({json:{}}));
+ await page.goto("/connect");await page.getByLabel("Email",{exact:true}).fill("creator@example.test");await page.getByRole("button",{name:"I already have a code",exact:true}).click();
+ const code=page.getByLabel("Email sign-in code",{exact:true});await code.fill("123456");await page.getByRole("button",{name:"Verify code",exact:true}).click();
+ await expect(code).toHaveValue("123456");await expect(code).toHaveAttribute("aria-invalid","true");await expect(code).toHaveAccessibleDescription(/could not be verified/);
+ const error=page.getByRole("status").filter({hasText:"That code could not be verified"});await expect(error).toBeVisible();
+ expect((await error.boundingBox())!.y).toBeLessThan((await page.getByRole("button",{name:"Verify code",exact:true}).boundingBox())!.y);
+ await page.getByRole("button",{name:"Send a new sign-in code",exact:true}).click();await expect(code).toHaveValue("");await expect(code).not.toHaveAttribute("aria-invalid","true");
+});

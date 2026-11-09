@@ -47,7 +47,8 @@
 .creation-workbench [hidden] { display: none !important; }
 .review-image-arrive { animation: review-image-arrive 180ms var(--ease-out); }
 @keyframes review-image-arrive { from { opacity: .8; } to { opacity: 1; } }
-@media (min-width: 1100px) {
+.review-stage { container-type: inline-size; }
+@container (min-width: 960px) {
   .review-stage .review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-8); align-items: start; }
   .review-stage .review-media { position: sticky; top: var(--space-6); }
   .review-stage .review-inspector { margin: 0; border-top: 0; padding-top: 0; border-left: 1px solid var(--color-line); padding-left: var(--space-6); }

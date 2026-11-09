@@ -332,3 +332,34 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
 .account-panel details { margin-top: var(--space-4); overflow-wrap: anywhere; }
 .account-panel summary { cursor: pointer; padding-block: var(--space-3); }
 .account-panel details p, .account-panel details ul { margin-top: var(--space-3); }
+
+/* Panel review: keep essential actions readable and independently operable. */
+.selection-chip-group { display:flex; align-items:center; border:1px solid var(--color-line); border-radius:999px; max-width:100%; }
+.selection-chip-group .selection-chip { border:0; min-height:44px; border-radius:999px 0 0 999px; }
+.selection-remove { width:44px; min-width:44px; min-height:44px; display:grid; place-items:center; border:0; border-left:1px solid var(--color-line); background:transparent; color:var(--color-muted); border-radius:0 999px 999px 0; }
+.result-ready { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; margin-block:16px; border:1px solid var(--color-line); border-radius:12px; }
+.job-id { overflow-wrap:anywhere; }
+.request-readiness { font-size:13px; line-height:1.6; }
+.welcome-cost-inline { max-width:52ch; margin-top:16px; color:var(--color-muted); font-size:14px; line-height:1.6; }
+@media(max-width:760px){
+ .topbar-actions .quiet-button { font-size:12px; gap:6px; }
+ .topbar { flex-wrap:wrap; }
+ .settings-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+ .settings-row .advanced-button { grid-column:1/-1; justify-self:end; width:auto; min-width:96px; font-size:13px; gap:6px; }
+ .result-ready { flex-direction:column; align-items:flex-start; }
+}
+@media(max-width:380px){
+ .settings-row > .model-trigger { grid-column:1/-1; }
+ .settings-row > label { grid-column:1/-1; }
+ .settings-row .advanced-button { grid-column:1/-1; }
+}
+
+.save-draft-button { min-height:44px; padding:10px 14px; border:1px solid var(--color-line); border-radius:10px; color:var(--color-ink); font-size:14px; }
+.composer-footer { flex-wrap:wrap; }
+.composer-footer > span { flex:1 1 180px; }
+
+fieldset.composer-inner { border:0; margin:0; min-width:0; }
+
+/* Light inset focus stays distinct against the red generation gradient. */
+.generate-split .primary-button:focus-visible,
+.batch-select select:focus-visible { outline-color: var(--color-accent-ink); }

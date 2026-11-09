@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 import {
   createClient,
   type SupabaseClient,
   type Session,
 } from "@supabase/supabase-js";
 import { CodexConnection } from "./codex-connection";
-import { BrandScene } from "@/components/brand-scene";
+
 import type { Config } from "@/lib/types";
 export function useAccount(isolated = false) {
   const [db, setDb] = useState<SupabaseClient | null>(null),
@@ -65,6 +65,8 @@ export function AccountSignIn({
   onSignedIn?: () => void;
   showEmailLinkHint?: boolean;
 }) {
+  const statusId=useId();
+  const [authError,setAuthError]=useState(false);
   const [signup, setSignup] = useState(false),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -78,7 +80,7 @@ export function AccountSignIn({
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
-        setStatus("");
+        setStatus("");setAuthError(false);
         try {
           const result = emailSent
             ? await db.auth.verifyOtp({ email, token: code, type: "email" })
@@ -89,19 +91,21 @@ export function AccountSignIn({
                 options: { emailRedirectTo: location.origin + "/connect" },
               })
             : await db.auth.signInWithPassword({ email, password });
-          setPassword(""); setCode("");
+          setPassword("");
           if (result.error)
             throw new Error(
-              emailSent ? "That code expired or could not be verified. Request a new code and try again." : signup
+              emailSent ? "That code could not be verified. Check the digits, or request a new code if it expired." : signup
                 ? "Could not create the account. Check your details or try signing in."
-                : "Sign-in failed. Check your email and password.",
+                : "Sign-in failed. Check your email and password. Your password was cleared; enter it again to retry.",
             );
+          setCode("");
           if (!result.data.session)
             setStatus(
               "Check your email to confirm your account, then sign in.",
             );
           else onSignedIn?.();
         } catch (e) {
+          setAuthError(true);
           setStatus(e instanceof Error ? e.message : "Could not complete this account request. Check your connection and try again.");
         } finally {
           setBusy(false);
@@ -121,6 +125,7 @@ export function AccountSignIn({
           type="email"
           required
           autoComplete="username"
+          aria-describedby={status?statusId:undefined}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -132,11 +137,13 @@ export function AccountSignIn({
           minLength={8}
           required
           autoComplete={signup ? "new-password" : "current-password"}
+          aria-describedby={status?statusId:undefined}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
       </label>}
-      {emailSent && <label>Email sign-in code<input id="email-signin-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))} /></label>}
+      {emailSent && <label>Email sign-in code<input id="email-signin-code" aria-describedby={status?statusId:undefined} aria-invalid={authError||undefined} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))} /></label>}
+      <p id={statusId} role="status" className={authError?"account-inline-error":undefined}>{status}</p>
       <button className="primary-button" disabled={busy}>
         {busy ? (emailSent ? "Verifying…" : signup ? "Creating account…" : "Signing in…") : emailSent ? "Verify code" : signup ? "Create account" : "Sign in"}
       </button>
@@ -146,7 +153,7 @@ export function AccountSignIn({
         disabled={busy}
         onClick={() => {
           if (emailSent) { setEmailSent(false); setCode(""); } else setSignup(!signup);
-          setStatus("");
+          setStatus("");setAuthError(false);
         }}
       >
         {emailSent ? "Use password instead" : signup
@@ -156,13 +163,13 @@ export function AccountSignIn({
       {!emailSent && <button type="button" className="neutral-button" disabled={busy} onClick={event => {
         const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
         if (!input?.reportValidity()) return;
-        setPassword(""); setEmailSent(true); setStatus("Enter the code from your latest sign-in email. This does not send another email.");
+        setPassword("");setAuthError(false); setEmailSent(true); setStatus("Enter the code from your latest sign-in email. This does not send another email.");
         requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
       }}>I already have a code</button>}
       {<button type="button" className="neutral-button" disabled={busy} onClick={async (event) => {
         const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="email"]');
         if (!input?.reportValidity()) return;
-        setBusy(true); setStatus(""); setPassword("");
+        setBusy(true); setStatus("");setAuthError(false); setPassword("");
         try {
           const result = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + "/connect" } });
           if (result.error) {
@@ -174,13 +181,12 @@ export function AccountSignIn({
             }
             throw new Error("Could not send the sign-in email. If you already received a code, choose I already have a code. Otherwise try again later.");
           }
-          setEmailSent(true);
+          setCode("");setEmailSent(true);
           requestAnimationFrame(() => document.getElementById("email-signin-code")?.focus());
           setStatus(showEmailLinkHint ? "Check your email for the sign-in code, then enter it here. You can also use the one-time link in that email." : "Enter the code from your email here to finish connecting this agent. The email link opens the main studio separately.");
         } catch (error) { setStatus(error instanceof Error ? error.message : "Could not send the sign-in email."); }
         finally { setBusy(false); }
       }}>{emailSent ? "Send a new sign-in code" : "Email me a sign-in code"}</button>}
-      <p role="status">{status}</p>
     </form>
   );
 }
@@ -272,8 +278,6 @@ export function ConnectionsPage() {
           credits from your connected provider accounts.
         </p>
       </div>
-      <CodexConnection key={session?.user.id || "signed-out"} signedIn={!!session} enabled={!!config?.codexDevice} api={api} />
-      <BrandScene scene="aperture" />
       {!ready ? (
         <p role="status">Loading your connections…</p>
       ) : !db ? (
@@ -358,7 +362,7 @@ export function ConnectionsPage() {
                     <p>{detail}</p>
                     <strong>
                       {c
-                        ? "Connected · ••••" + c.suffix
+                        ? "Key saved · ••••" + c.suffix
                         : "Not connected"}
                     </strong>
                     {c && (
@@ -510,6 +514,7 @@ export function ConnectionsPage() {
           </section>
         </>
       )}
+      <CodexConnection key={session?.user.id || "signed-out"} signedIn={!!session} enabled={!!config?.codexDevice} api={api} />
       {error && (
         <p className="dialog-error" role="alert">
           {error}
