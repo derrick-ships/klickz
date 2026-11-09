@@ -122,3 +122,16 @@ test('explicit save does not reselect an old editing source after a new source i
  await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByRole('img',{name:'Editing source: New selected source',exact:true})).toBeVisible();
  await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByRole('img',{name:'Editing source: New selected source',exact:true})).toBeVisible();
 });
+
+test('reselecting the active chat preserves an unsent prompt',async({page})=>{
+ const f=await setup(page);await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
+ const prompt=page.getByLabel('Prompt',{exact:true});await prompt.fill('This latest brief must survive clicking my current chat');
+ await page.screenshot({path:'evidence/loop-v2-active-chat-before.png',fullPage:true});
+ await page.getByRole('button',{name:'Open chat: Account A chat',exact:true}).click();
+ await expect(page.locator('.operation-progress')).toHaveCount(0);
+ await page.screenshot({path:'evidence/loop-v2-active-chat-result.png',fullPage:true});
+ await expect(prompt).toHaveValue('This latest brief must survive clicking my current chat');
+ await expect.poll(()=>f.chats.find(c=>c.id===f.chats[0].id)?.draft.prompt).toBe('This latest brief must survive clicking my current chat');
+ await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
+ await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('This latest brief must survive clicking my current chat');
+});
