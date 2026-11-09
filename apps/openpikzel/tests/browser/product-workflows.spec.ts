@@ -3,14 +3,14 @@ import sharp from 'sharp';
 const image=async(color:string,name='reference.png')=>({name,mimeType:'image/png',buffer:await sharp({create:{width:800,height:450,channels:3,background:color}}).png().toBuffer()});
 test('chats restore drafts, names and selected conversation after reload',async({page})=>{
  await page.goto('/');await page.getByRole('button',{name:'New chat',exact:true}).click();
- await page.getByLabel('Prompt',{exact:true}).fill('A skeleton holding a smartphone, a clear visual promise');
+ await page.getByLabel('Describe your thumbnail',{exact:true}).fill('A skeleton holding a smartphone, a clear visual promise');
  await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');
  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('heading',{name:'Concept saved.'})).toBeVisible();
  await page.getByRole('button',{name:'Rename chat',exact:true}).click();await page.getByLabel('Chat name',{exact:true}).fill('Split Face Thumbnails');await page.getByRole('button',{name:'Save chat name',exact:true}).click();
- await page.getByRole('button',{name:'New chat',exact:true}).click();await page.getByLabel('Prompt',{exact:true}).fill('A mansion comparison with a truthful before and after');await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');
+ await page.getByRole('button',{name:'New chat',exact:true}).click();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('A mansion comparison with a truthful before and after');await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');
  await page.getByLabel('Search your chats').fill('Split Face');
  await page.getByRole('button',{name:'Open chat: Split Face Thumbnails',exact:true}).click();
- await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue(/skeleton holding/);await page.reload();await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue(/skeleton holding/);
+ await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue(/skeleton holding/);await page.reload();await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue(/skeleton holding/);
  await expect(page.locator('.chat-title')).toContainText('Split Face Thumbnails');
  await page.screenshot({path:'evidence/product-chats-desktop.png',fullPage:true});
 });
@@ -50,15 +50,15 @@ test('YouTube Style browser preserves selection across orders and saves three re
 });
 
 test('switching immediately flushes a draft and library selection restores its own chat context',async({page})=>{
- await page.goto('/');await page.getByRole('button',{name:'New chat',exact:true}).click();await page.getByLabel('Prompt',{exact:true}).fill('Chat A original private draft');await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');
- await page.getByRole('button',{name:'New chat',exact:true}).click();await page.getByLabel('Prompt',{exact:true}).fill('Chat B independent saved draft');await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');
+ await page.goto('/');await page.getByRole('button',{name:'New chat',exact:true}).click();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('Chat A original private draft');await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');
+ await page.getByRole('button',{name:'New chat',exact:true}).click();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('Chat B independent saved draft');await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');
  await page.locator('.chat-row').filter({hasText:'Chat A original private draft'}).click();
- await page.getByLabel('Prompt',{exact:true}).fill('Chat A last-second edit must not be lost');
+ await page.getByLabel('Describe your thumbnail',{exact:true}).fill('Chat A last-second edit must not be lost');
  await page.locator('.chat-row').filter({hasText:'Chat B independent saved draft'}).click();
- await page.locator('.chat-row').filter({hasText:'Chat A original private draft'}).click();await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('Chat A last-second edit must not be lost');
+ await page.locator('.chat-row').filter({hasText:'Chat A original private draft'}).click();await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue('Chat A last-second edit must not be lost');
  await page.getByRole('button',{name:'My creations',exact:true}).click();
  await page.locator('.creation-grid article').filter({hasText:'Chat B independent saved draft'}).getByRole('button').first().click();
- await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('Chat B independent saved draft');
+ await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue('Chat B independent saved draft');
  await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');
- await page.getByRole('button',{name:'Rename chat',exact:true}).click();await page.getByLabel('Chat name',{exact:true}).fill('Manual name must stay');await page.getByRole('button',{name:'Save chat name'}).click();await page.getByLabel('Prompt',{exact:true}).fill('A typed revision after renaming');await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');await page.reload();await expect(page.locator('.chat-title')).toContainText('Manual name must stay');
+ await page.getByRole('button',{name:'Rename chat',exact:true}).click();await page.getByLabel('Chat name',{exact:true}).fill('Manual name must stay');await page.getByRole('button',{name:'Save chat name'}).click();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('A typed revision after renaming');await expect(page.locator('.chat-save-state')).toHaveText('Saved on this device');await page.reload();await expect(page.locator('.chat-title')).toContainText('Manual name must stay');
 });

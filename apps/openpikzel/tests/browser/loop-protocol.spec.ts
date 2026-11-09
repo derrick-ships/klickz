@@ -16,7 +16,7 @@ test('LOOP v2 page routes, required breakpoints, links and runtime errors',async
    errors.length=0;failed.length=0;const consoleErrors:string[]=[];
    const collect=(message:any)=>{if(message.type()==='error')consoleErrors.push(message.text());};page.on('console',collect);
    const response=await page.goto(route);await expect(page.locator('h1').first()).toBeVisible();
-   if(route==='/studio')await expect(page.getByLabel('Prompt',{exact:true})).toBeVisible();
+   if(route==='/studio')await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toBeVisible();
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
    const links=await page.locator('a[href]').evaluateAll(as=>as.map(a=>({label:a.textContent?.trim(),href:(a as HTMLAnchorElement).href})));
    for(const link of links){const u=new URL(link.href);if(u.origin!=='http://127.0.0.1:3000')continue;

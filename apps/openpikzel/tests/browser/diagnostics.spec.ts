@@ -73,6 +73,16 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     .click();
   await expect(page.locator(".score-header")).toContainText("Partial");
   await expect(page.getByText("Not assessed", { exact: true })).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Review suggested fixes", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Review suggested fixes", exact: true }).evaluate((button: HTMLButtonElement) => button.click());
+  expect(paid).toHaveLength(0);
+  // Also retain server-side blocked-plan coverage with an otherwise reviewable UI fixture.
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>(resolve => { const r = indexedDB.open("derrick-thumbnail-studio"); r.onsuccess = () => resolve(r.result); });
+    await new Promise<void>((resolve, reject) => { const tx = db.transaction("creations", "readwrite"), store = tx.objectStore("creations"), read = store.get("11111111-1111-4111-8111-111111111111"); read.onsuccess = () => store.put({...read.result, score: {...read.result.score, fixBlocked: false}}); tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => reject(tx.error); });
+  });
+  await page.reload();
+  await page.locator(".history-item").filter({ hasText: "Fixture: diagnostic test" }).click();
   await page.route("**/api/fix-plan", (r) =>
     r.fulfill({
       json: {
@@ -82,7 +92,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     }),
   );
   await page
-    .getByRole("button", { name: "One-click fix", exact: true })
+    .getByRole("button", { name: "Review suggested fixes", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Review one-click fix" }),
@@ -127,7 +137,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
   await page.getByRole("button", { name: "Close dialog" }).click();
   await page.getByRole("tab", { name: "Analyze", exact: true }).click();
   await expect(
-    page.getByLabel("What actually happens in the video?"),
+    page.getByLabel("Video summary (needed for a full score)"),
   ).toBeVisible();
   await expect(
     page.getByRole("checkbox", { name: /Add a detailed image review/ }),

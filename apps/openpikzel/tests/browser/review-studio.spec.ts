@@ -6,7 +6,7 @@ test("review puts the real image first, with a neighboring inspector and an actu
   const paid: string[] = []; page.on("request", r => { if (/\/api\/(generate|analyze)$/.test(r.url())) paid.push(r.url()); });
   await reviewFixture(page);
   const stage = page.getByRole("region", { name: "Thumbnail review studio" });
-  await expect(page.getByLabel("Prompt", { exact: true })).toBeHidden();
+  await expect(page.getByLabel("Describe your thumbnail", { exact: true })).toBeHidden();
   await expect(stage.locator(".score-header")).toContainText("Partial");
   await expect(stage.getByText("Not assessed", { exact: true })).toHaveCount(2);
   for (const name of ["Virality score", "Clarity score", "Emotion score"])
@@ -41,7 +41,7 @@ test("review puts the real image first, with a neighboring inspector and an actu
   await page.getByRole("button", { name: "Hide prompt and settings" }).click();
   await expect(page.getByLabel("Video title", { exact: true })).toBeHidden();
   await page.getByRole("tab", { name: "Prompt", exact: true }).click();
-  await expect(page.getByLabel("Prompt", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Describe your thumbnail", { exact: true })).toBeVisible();
   expect(paid).toEqual([]);
 });
 
@@ -49,7 +49,7 @@ test("unscored and failed previews stay useful, with reduced-motion and real ref
   await reviewFixture(page, false);
   await page.emulateMedia({ reducedMotion: "reduce" });
   const stage = page.getByRole("region", { name: "Thumbnail review studio" });
-  await expect(stage.getByRole("heading", { name: "Review the packaging" })).toBeVisible();
+  await expect(stage.getByRole("heading", { name: "Review thumbnail and title" })).toBeVisible();
   expect(await stage.locator(".result-image img").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
   await expect(stage.locator("figure")).toHaveAttribute("aria-busy", "false");
   await expect(stage.getByText("Loading image…", { exact: true })).toHaveCount(0);
@@ -61,7 +61,7 @@ test("unscored and failed previews stay useful, with reduced-motion and real ref
   await stage.getByRole("button", { name: "Refresh preview" }).click();
   await expect(stage.locator(".result-image img")).toBeVisible();
   await expect(stage.locator("figcaption")).toContainText("1344 × 752");
-  await stage.getByRole("button", { name: "Open analysis" }).click();
+  await stage.getByRole("button", { name: "Set up analysis" }).click();
   await expect(page.getByLabel("Video title", { exact: true })).toBeFocused();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: "evidence/review-studio-analysis-controls.png", fullPage: true });
@@ -76,7 +76,7 @@ test("topmost dialog owns Escape and keyboard presses keep a static control foot
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).not.toBeVisible(); await expect(personas).toBeFocused();
     if (width <= 1024) { await page.keyboard.press("Escape"); await expect(page.getByRole("button", { name: "Open sidebar", exact: true })).toBeFocused(); }
-    const controls = page.getByRole("button", { name: "Controls", exact: true }); await controls.focus();
+    const controls = page.getByRole("button", { name: "Generation settings", exact: true }); await controls.focus();
     const before = await controls.boundingBox(); await page.keyboard.down("Space");
     expect(await controls.evaluate(el => getComputedStyle(el).transform)).toBe("none");
     expect(await controls.boundingBox()).toEqual(before); await page.keyboard.up("Space");

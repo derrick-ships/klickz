@@ -218,6 +218,9 @@ export function ConnectionsPage() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
   const [higgsfield, setHiggsfield] = useState(false), [higgsfieldTools, setHiggsfieldTools] = useState<string[]>([]);
+  const [connectionRead, setConnectionRead] = useState<"loading" | "succeeded" | "failed">("loading");
+  const connectionEpoch = useRef(0), connectionOwner = useRef("");
+  connectionOwner.current = session?.user.id || "";
   const guide = providerGuides[provider];
   const callbackHandled = useRef(false);
   async function api(path: string, method = "GET", body?: unknown) {
@@ -236,17 +239,29 @@ export function ConnectionsPage() {
     return data;
   }
   async function refresh() {
+    const epoch = ++connectionEpoch.current, owner = connectionOwner.current;
+    setConnectionRead("loading");
+    try {
     const [c, g, h] = await Promise.all([
       api("/api/providers"),
       api("/api/oauth/grants"),
       config?.higgsfield ? api("/api/connections/higgsfield") : Promise.resolve({ connected: false }),
     ]);
+    if (epoch !== connectionEpoch.current || owner !== connectionOwner.current) return;
     setConnections(c.connections);
     setGrants(g.grants);
     setHiggsfield(h.connected);
+    setConnectionRead("succeeded");
+    } catch (e) {
+      if (epoch !== connectionEpoch.current || owner !== connectionOwner.current) return;
+      setConnectionRead("failed");
+      throw e;
+    }
   }
   useEffect(() => {
+    setConnections([]); setGrants([]); setHiggsfield(false); setHiggsfieldTools([]); setConnectionRead("loading");
     if (session) void refresh().catch((e) => setError(e.message));
+    return () => { connectionEpoch.current++; };
   }, [session?.user.id]);
   useEffect(() => {
     if (!session || callbackHandled.current) return;
@@ -284,8 +299,7 @@ export function ConnectionsPage() {
       <div className="account-intro">
         <h1>Connect your AI</h1>
         <p>
-          Sign in and add your own API keys. Image generation and analysis use
-          credits from your connected provider accounts.
+          {session ? "Connect the provider for the job you want to do. Image generation and analysis use your provider account; usage charges may apply." : "Sign in and add your own API keys. Image generation and analysis use credits from your connected provider accounts."}
         </p>
       </div>
       {!ready ? (
@@ -301,6 +315,7 @@ export function ConnectionsPage() {
         <>
           <section className="account-panel">
             <h2>Connect an API provider</h2>
+            {connectionRead === "failed" && <div role="status"><p>Connection status unavailable. Refresh to check.</p><button className="neutral-button" disabled={busy} onClick={() => void action(refresh)}>Refresh connections</button></div>}
             <p>
               Start with the job you want to do: OpenAI or Google creates images
               and titles; Jev scores thumbnails. You only need the provider for
@@ -382,11 +397,11 @@ export function ConnectionsPage() {
                     <h3>{name}</h3>
                     <p>{detail}</p>
                     <strong>
-                      {c
+                      {connectionRead === "loading" ? "Checking connections…" : connectionRead === "failed" ? "Status unavailable" : c
                         ? "Key saved · ••••" + c.suffix
                         : "Not connected"}
                     </strong>
-                    {c && (
+                    {c && connectionRead === "succeeded" && (
                       <button
                         className="neutral-button"
                         disabled={busy}
@@ -424,13 +439,13 @@ export function ConnectionsPage() {
           <section className="account-panel">
             <h2>Higgsfield</h2>
             <p>Connect your own Higgsfield account through its secure sign-in page. Tokens stay encrypted. Generating through MCP uses your Higgsfield credits, including on Unlimited plans.</p>
-            <p role="status">{!config?.higgsfield ? "Higgsfield connection is awaiting activation." : higgsfield ? "Higgsfield is connected." : "Higgsfield is not connected."}</p>
+            <p role="status">{!config?.higgsfield ? "Higgsfield connection is awaiting activation." : connectionRead === "loading" ? "Checking Higgsfield connection…" : connectionRead === "failed" ? "Higgsfield status unavailable." : higgsfield ? "Higgsfield is connected." : "Higgsfield is not connected."}</p>
             <div className="connection-actions">
-              <button className="primary-button" disabled={busy || !config?.secureConnections || !config?.higgsfield} onClick={() => void action(async () => {
+              <button className="primary-button" disabled={busy || connectionRead !== "succeeded" || !config?.secureConnections || !config?.higgsfield} onClick={() => void action(async () => {
                 const result = await api("/api/connections/higgsfield", "POST", { action: "start" });
                 location.assign(result.authorizationUrl);
               })}>{higgsfield ? "Reconnect Higgsfield" : "Connect Higgsfield"}</button>
-              {higgsfield && <>
+              {higgsfield && connectionRead === "succeeded" && <>
                 <button className="neutral-button" disabled={busy} onClick={() => void action(async () => {
                   const result = await api("/api/connections/higgsfield?check=true"); setHiggsfieldTools(result.tools.map((tool: { name: string }) => tool.name));
                   setNotice("Higgsfield connection checked. No generation was requested.");
@@ -502,7 +517,7 @@ export function ConnectionsPage() {
           </section>
           <section className="account-panel">
             <h2>Connected agents</h2>
-            {!grants.length ? (
+            {connectionRead === "loading" ? <p role="status">Loading connected agents…</p> : connectionRead === "failed" ? <p>Connected agents could not be loaded. Refresh connections to check.</p> : !grants.length ? (
               <p>No agents connected yet.</p>
             ) : (
               grants.map((g) => (

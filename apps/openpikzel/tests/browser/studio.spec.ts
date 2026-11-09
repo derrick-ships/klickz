@@ -16,14 +16,14 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await expect(
     page.getByRole("heading", { name: "What will you create?" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await page.getByRole("button", { name: "Generation settings", exact: true }).click();
   await page.getByLabel("Quality", { exact: true }).selectOption("xhigh");
-  await page.getByLabel("Intelligence", { exact: true }).selectOption("high");
-  await page.getByLabel("Batch size", { exact: true }).selectOption("4");
+  await page.getByLabel("Planning effort", { exact: true }).selectOption("high");
+  await page.getByLabel("Images per request", { exact: true }).selectOption("4");
   await page.getByRole("button",{name:"Rendering model",exact:true}).click();await page.getByRole("button",{name:"Sunburst 2.6",exact:true}).click();
   await page.getByLabel("Format", { exact: true }).selectOption("short");
   await page
-    .getByLabel("Prompt", { exact: true })
+    .getByLabel("Describe your thumbnail", { exact: true })
     .fill("I spent 30 days offline and got my focus back");
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(
@@ -35,7 +35,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
     .getByRole("button", { name: /I spent 30 days offline/ })
     .first()
     .click();
-  await expect(page.getByLabel("Batch size")).toHaveValue("1");
+  await expect(page.getByLabel("Images per request")).toHaveValue("1");
   await expect(page.getByRole("button",{name:"Rendering model",exact:true})).toHaveText("Sunburst 2.6");
   await expect(page.getByLabel("Format", { exact: true })).toHaveValue("short");
   await page.getByRole("button", { name: "Persona", exact: true }).click();
@@ -83,7 +83,7 @@ test("image upload and one-click vertical resize produce a real 720x1280 PNG loc
     page.getByRole("heading", { name: "Ready for another format." }),
   ).toBeVisible();
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download", exact: true }).click();
+  await page.getByRole("button", { name: "Download image", exact: true }).click();
   const download = await downloadPromise;
   const path = await download.path();
   const meta = await sharp(path!).metadata();
@@ -102,7 +102,7 @@ test("all five modes and truthful disabled-AI boundaries are present", async ({
   for (const name of ["Recreate", "Prompt", "Analyze", "Edit", "Title"])
     await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
   await page
-    .getByLabel("Prompt", { exact: true })
+    .getByLabel("Describe your thumbnail", { exact: true })
     .fill("A clear and specific video concept");
   await page.getByRole("button", { name: "Sign in to generate", exact: true }).click();
   await expect(

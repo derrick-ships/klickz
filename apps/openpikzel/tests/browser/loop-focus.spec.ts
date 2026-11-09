@@ -5,8 +5,8 @@ test('generation controls keep visible keyboard focus against their red surface'
  await page.route('**/api/config',r=>r.fulfill({json:{cloud:false,ai:false,openai:false,jev:false,google:false}}));
  const readings:any[]=[];
  for(const width of [390,1440]){
-  await page.setViewportSize({width,height:900});await page.goto('/studio');await expect(page.getByLabel('Prompt',{exact:true})).toBeVisible();
-  const primary=page.locator('.generate-split .primary-button'),batch=page.getByRole('combobox',{name:'Batch size',exact:true});
+  await page.setViewportSize({width,height:900});await page.goto('/studio');await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toBeVisible();
+  const primary=page.locator('.generate-split .primary-button'),batch=page.getByRole('combobox',{name:'Images per request',exact:true});
   await primary.focus();await page.keyboard.press('Tab');await expect(batch).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(primary).toBeFocused();
   for(const [name,element] of [['primary',primary],['batch',batch]] as const){
    await element.focus();await expect(element).toBeFocused();await element.scrollIntoViewIfNeeded();

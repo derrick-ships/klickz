@@ -24,7 +24,7 @@ test("refined studio fits narrow, tablet and wide layouts with keyboard dialogs"
   for (const [width, height] of [[320, 740], [390, 844], [768, 1024], [1440, 1000]]) {
     await page.setViewportSize({ width, height });
     await page.goto("/?mode=generate");
-    await page.getByLabel("Prompt", { exact: true }).fill("A deliberately long visual direction with readable wording, a consistent subject, practical lighting and a clear focal point. ".repeat(10));
+    await page.getByLabel("Describe your thumbnail", { exact: true }).fill("A deliberately long visual direction with readable wording, a consistent subject, practical lighting and a clear focal point. ".repeat(10));
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const tabs = page.getByRole("tablist");
     for (const tab of await tabs.getByRole("tab").all()) {
@@ -36,8 +36,8 @@ test("refined studio fits narrow, tablet and wide layouts with keyboard dialogs"
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).not.toBeVisible();
     if (width === 390 || width === 1440) {
-      await page.getByLabel("Prompt", { exact: true }).fill("");
-      await page.getByLabel("Prompt", { exact: true }).blur();
+      await page.getByLabel("Describe your thumbnail", { exact: true }).fill("");
+      await page.getByLabel("Describe your thumbnail", { exact: true }).blur();
       await page.screenshot({ path: `evidence/openpikzels-polished-${width}.png`, fullPage: true });
     }
   }

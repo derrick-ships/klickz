@@ -52,14 +52,14 @@ test("composer groups, small-screen settings and long content reflow deliberatel
     if (width <= 760) expect((await references.boundingBox())!.y).toBeGreaterThan((await subject.boundingBox())!.y);
     const model = page.getByLabel("Rendering model");
     await model.click();await page.getByRole("button",{name:"Gemini Pro",exact:true}).click();
-    await page.getByLabel("Prompt", { exact: true }).fill("Una composición cinematográfica con un personaje consistente y referencias bien definidas. ".repeat(30));
+    await page.getByLabel("Describe your thumbnail", { exact: true }).fill("Una composición cinematográfica con un personaje consistente y referencias bien definidas. ".repeat(30));
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.getByRole("button", { name: "Persona", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Your personas" })).toBeVisible();
     await page.screenshot({ path: `evidence/layout-personas-${width}.png`, fullPage: true });
     await page.keyboard.press("Escape");
-    await page.getByLabel("Prompt", { exact: true }).fill("");
-    await page.getByLabel("Prompt", { exact: true }).blur();
+    await page.getByLabel("Describe your thumbnail", { exact: true }).fill("");
+    await page.getByLabel("Describe your thumbnail", { exact: true }).blur();
     await page.screenshot({ path: `evidence/layout-editor-${width}.png`, fullPage: true });
   }
   // 320 CSS px also covers reflow at 200% for a 640px browser window.

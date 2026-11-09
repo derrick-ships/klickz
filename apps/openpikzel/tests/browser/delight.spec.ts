@@ -6,13 +6,13 @@ test("a successful draft locks its pixels once without delaying or replaying his
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/?mode=generate");
-    await page.getByLabel("Prompt", { exact: true }).fill("");
+    await page.getByLabel("Describe your thumbnail", { exact: true }).fill("");
     const save = page.getByRole("button", { name: /Save draft/ });
     await save.click();
     await expect(page.getByRole("alert").filter({ hasText: "at least eight characters" })).toContainText("at least eight characters");
     await expect(save).toHaveAttribute("data-confirmed", "false");
     await expect(page.locator(".pixel-confirmation")).toHaveCount(0);
-    await page.getByLabel("Prompt", { exact: true }).fill("A clear red thumbnail concept with one unmistakable subject");
+    await page.getByLabel("Describe your thumbnail", { exact: true }).fill("A clear red thumbnail concept with one unmistakable subject");
     await save.click();
     await expect(save).toHaveAttribute("data-confirmed", "true");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved to your library." })).toBeVisible();
@@ -28,7 +28,7 @@ test("a successful draft locks its pixels once without delaying or replaying his
     await save.click();
     await expect(save).toHaveAttribute("data-confirmed", "true");
     expect(await page.locator(".pixel-confirmation").count()).toBe(1);
-    await page.getByLabel("Prompt", { exact: true }).fill("An updated thumbnail concept that has not yet been saved");
+    await page.getByLabel("Describe your thumbnail", { exact: true }).fill("An updated thumbnail concept that has not yet been saved");
     await expect(save).toHaveAttribute("data-confirmed", "false");
     await expect(page.locator(".pixel-confirmation")).toHaveCount(0);
     await page.reload();
@@ -60,7 +60,7 @@ test("pointer continuity stays interruptible while keyboard navigation is immedi
   await expect(page.getByRole("button", { name: "Close sidebar", exact: true })).toBeFocused();
   expect(await sidebar.evaluate(el => getComputedStyle(el).transitionDuration.split(",")[0].trim())).toBe("0s");
   await page.keyboard.press("Escape");
-  const controls = page.getByRole("button", { name: "Controls", exact: true });
+  const controls = page.getByRole("button", { name: "Generation settings", exact: true });
   await controls.click();
   const advanced = page.locator(".advanced-controls");
   expect(await advanced.evaluate(el => getComputedStyle(el).animationName)).toBe("control-unfold");
@@ -74,7 +74,7 @@ test("reduced motion keeps acknowledgment with no spatial movement or new loops"
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/?mode=generate");
-  await page.getByLabel("Prompt", { exact: true }).fill("A thoughtful thumbnail with clear visual direction");
+  await page.getByLabel("Describe your thumbnail", { exact: true }).fill("A thoughtful thumbnail with clear visual direction");
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page.locator(".pixel-confirmation")).toBeVisible();
   const rect = page.locator(".pixel-confirmation rect").first();

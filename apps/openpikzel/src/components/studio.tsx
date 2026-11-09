@@ -354,7 +354,8 @@ export default function Studio() {
        else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaId("");setStyleId("");setVideoBrief("");setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
       }
       setParentId(item.image_path?item.id:item.parent_id);
-      setComposerOpen(false);setSaveReceipt(0);setSelection(item.id);setTitle(item.title);
+      setComposerOpen(false);setSaveReceipt(0);setSelection(item.id);
+      setTitle(current => item.conversation_id && item.conversation_id === activeChatId ? current : (studio.conversations.find(c => c.id === item.conversation_id)?.draft.title ?? item.score?.context?.title ?? ""));
       if(item.settings)setSettings({...defaultSettings,...item.settings,batch:1});setTab("studio");
       if(compactNavigation){setSidebar(false);requestAnimationFrame(()=>mainRef.current?.focus());}
       return true;
@@ -483,6 +484,8 @@ export default function Studio() {
           setTitles(result.titles);
           return;
         }
+        if (tool === "title" && !title.trim() && !prompt.trim())
+          throw new Error("Add a video title or direction before generating.");
         const chat=await ensureChat();
         const input = {...payload(),conversationId:chat.id};
         if (input.prompt.length < 8)
@@ -495,7 +498,7 @@ export default function Studio() {
           throw new Error("Choose an image to edit.");
         const result = await studio.generate(input);
         if(draftFingerprintRef.current===submittedFingerprint){
-          setSelection(result.creations[0].id);setTitle(result.creations[0].title);setComposerOpen(false);
+          setSelection(result.creations[0].id);setComposerOpen(false);
           requestAnimationFrame(() => reviewHeadingRef.current?.focus());
         }else{
           setPendingResult(result.creations[0].id);
@@ -651,7 +654,7 @@ export default function Studio() {
     setComposerOpen(true);
     setTool(mode);
     if (mode === "edit") { setParentId(selected.id); }
-    else setTitle(selected.title);
+    // Keep the user's video title; selected.title may only be an asset label.
     requestAnimationFrame(() => {
       document.getElementById(mode === "analyze" ? "video-title" : "thumbnail-prompt")?.focus({ preventScroll: true });
       document.querySelector(".creation-workbench")?.scrollIntoView({ behavior: "instant", block: "start" });
@@ -761,7 +764,7 @@ export default function Studio() {
                           }
                         >
                           <Download size={15} />
-                          Download
+                          Download image
                         </button>
                       </div>
                       <div className="image-secondary-actions"><button className="quiet-button" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="quiet-button" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="quiet-button" disabled={busy} onClick={()=>{setRefs([selected.image_path!]);setTool("recreate");setComposerOpen(true);}}>Recreate this thumbnail</button><button className="quiet-button" onClick={()=>setDialog("feedback")}>Leave feedback</button></div>
@@ -780,8 +783,13 @@ export default function Studio() {
                           ? (readiness.action==="signin"?"Your instructions are saved on this device. Sign in to generate when you are ready.":readiness.action==="connect"?"Your instructions are saved. Connect your "+readiness.provider+" API key to generate.":"Your instructions are saved. Generate an image with your connected API credits when you are ready.")
                           : selected.status === "failed"
                             ? "This image did not finish generating. Your instructions are saved; check My creations before retrying."
-                            : "This image is still processing. Check My creations before starting another request."}
+                            : selected.status === "ready"
+                              ? "This image preview is unavailable. Refresh the preview to check again."
+                              : selected.status === "reconciling"
+                                ? "The request outcome is uncertain. Check My creations and provider history before starting another request."
+                                : "This image is still processing. Check My creations before starting another request."}
                       </span>
+                      {selected.status === "ready" && <button className="neutral-button" disabled={busy} onClick={() => studio.run("Refreshing preview", studio.load)}>Refresh preview</button>}
                       <button
                         className="neutral-button"
                         onClick={() => resume(selected)}
@@ -827,11 +835,11 @@ export default function Studio() {
                         </div>
                         <button
                           className="primary-button fix-button"
-                          disabled={busy}
+                          disabled={busy || !!score.fixBlocked}
                           onClick={fix}
                         >
                           <WandSparkles size={16} />
-                          One-click fix
+                          Review suggested fixes
                         </button>
                       </div>
                       <div className="score-body">
@@ -898,10 +906,10 @@ export default function Studio() {
                     </aside>
                   ) : hasReviewImage ? (
                     <aside className="review-inspector review-inspector--empty" aria-label="Scoring inspector">
-                      <h2>Review the packaging</h2>
-                      <p>Analyze this image with its video title to review the five pillars.</p>
+                      <h2>Review thumbnail and title</h2>
+                      <p>Add your video title and summary to review this thumbnail across five criteria.</p>
                       <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
-                      <button className="neutral-button" onClick={() => openReviewEditor("analyze")}>Open analysis</button>
+                      <button className="neutral-button" onClick={() => openReviewEditor("analyze")}>Set up analysis</button>
                       <p className="score-disclaimer">Analysis uses your connected API credits. Scores are visual estimates, not measured CTR.</p>
                     </aside>
                   ) : null}
@@ -1237,20 +1245,22 @@ export default function Studio() {
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
                           placeholder="The title your audience will see"
+                          aria-describedby={tool === "analyze" ? "video-title-guidance" : undefined}
                         />
                       </div>
                     )}
                     {tool === "analyze" && (
                       <div className="diagnostic-context">
+                        <p id="video-title-guidance">Enter the video title viewers will see. Thumbnail instructions are not a video title.</p>
                         <label htmlFor="video-brief">
-                          What actually happens in the video?
+                          Video summary (needed for a full score)
                         </label>
                         <textarea
                           id="video-brief"
                           value={videoBrief}
                           onChange={(e) => setVideoBrief(e.target.value)}
                           maxLength={2400}
-                          placeholder="Describe what viewers will see or learn, and any facts the thumbnail must keep. Optional for a visual-only score."
+                          placeholder="What will viewers see or learn? Include facts the thumbnail must not change."
                         />
                         <label className="vision-choice">
                           <input
@@ -1262,9 +1272,8 @@ export default function Studio() {
                           Google request)
                         </label>
                         <p>
-                          Idea and Curiosity need both a title and a video
-                          summary. Without them, those pillars and the overall
-                          score stay blank.
+                          For a full score, add the video title and a short summary.
+                          Without both, Idea, Curiosity and the overall score stay blank.
                         </p>
                       </div>
                     )}
@@ -1276,12 +1285,12 @@ export default function Studio() {
                         <div className="prompt-heading">
                           <label htmlFor="thumbnail-prompt">
                             {tool === "edit"
-                              ? "Edits"
+                              ? "What should change?"
                               : tool === "recreate"
-                                ? "Make it yours"
+                                ? "What should change?"
                                 : tool === "title" && titleAction === "ideas"
                                   ? "Video idea"
-                                  : "Prompt"}
+                                  : "Describe your thumbnail"}
                           </label>
                           <span>{prompt.length}/2400</span>
                         </div>
@@ -1292,12 +1301,12 @@ export default function Studio() {
                           onChange={(e) => setPrompt(e.target.value)}
                           placeholder={
                             tool === "recreate"
-                              ? "Describe what to add, remove or replace…"
+                              ? "Describe what to change from the reference, and what should stay. For example: replace the desk with a kitchen; keep the split-screen layout."
                               : tool === "edit"
-                                ? "Change the background, improve the lighting, make the text bolder…"
+                                ? "Name the change and what to keep. For example: brighten the face; keep the headline and background."
                                 : tool === "title"
                                   ? "Describe your video, audience, or visual direction…"
-                                  : "Describe your thumbnail. Be specific about the subject, scene, text and emotion…"
+                                  : "Who or what is the focus? Describe the scene, mood and any words to show. Put exact wording in quotation marks."
                           }
                         />
                           </div>
@@ -1388,14 +1397,14 @@ export default function Studio() {
                     )}
                     {tool === "analyze" ? (
                       <p className="analysis-helper">
-                        Image + title. Five pillars. A clear next step.
+                        You can review the image alone, or add context for a full score.
                       </p>
                     ) : (
                       <>
                         {settings.model.startsWith("gemini-") && (
                           <p className="dialog-footnote">
                             Google uses its native 1K image output. Quality and
-                            intelligence controls apply to Sunburst and Flare.
+                            planning effort controls apply to Sunburst and Flare.
                           </p>
                         )}
                         <div className="settings-row">
@@ -1430,7 +1439,7 @@ export default function Studio() {
                             aria-expanded={advanced}
                           >
                             <SlidersHorizontal size={14} />
-                            Controls
+                            Generation settings
                           </button>
                         </div>
                         {advanced && (
@@ -1456,9 +1465,9 @@ export default function Studio() {
                               </select>
                             </label>
                             <label>
-                              Intelligence
+                              Planning effort
                               <select
-                                aria-label="Intelligence"
+                                aria-label="Planning effort"
                                 disabled={settings.model.startsWith("gemini-")}
                                 value={settings.complexity}
                                 onChange={(e) =>
@@ -1496,16 +1505,15 @@ export default function Studio() {
                               </select>
                             </label>
                             <p>
-                              Quality controls detail. Intelligence controls
-                              planning. Higher settings can take longer and use
-                              more API credit.
+                              Quality controls image detail. Planning effort controls preparation.
+                              Higher settings may take longer and cost more with your provider.
                             </p>
                           </div>
                         )}
                       </>
                     )}
                   </fieldset>
-                  <div className="request-readiness" id="request-readiness" role="group" aria-label="Before you generate">
+                  <div className="request-readiness" id="request-readiness" role="group" aria-label="Before you run">
                     <p className="request-identity">{readiness.identity}</p><p>{readiness.quantity}</p>
                     <p className="request-ready" role="status">{readiness.readiness}</p>
                     <p className="request-cost">{readiness.cost}</p>
@@ -1532,15 +1540,15 @@ export default function Studio() {
                               ? "Analyze thumbnail"
                               : tool === "title" && titleAction === "ideas"
                                 ? "Generate titles"
-                                : "Generate"}
+                                : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create thumbnail"}
                         </span>
                       </button>
                       {tool !== "analyze" &&
                         !(tool === "title" && titleAction === "ideas") && (
                           <label className="batch-select">
-                            <span className="sr-only">Batch size</span>
+                            <span className="sr-only">Images per request</span>
                             <select
-                              aria-label="Batch size"
+                              aria-label="Images per request"
                               value={settings.batch}
                               disabled={busy}
                               onChange={(e) =>
@@ -1563,8 +1571,8 @@ export default function Studio() {
                   <span>
                     {tool === "analyze"
                       ? "Scores use your API credits. Resize does not."
-                      : studio.live
-                        ? "Generation uses your connected API credits."
+                      : studio.cloud
+                        ? <>{chatSaveState || "Draft changes save to your workspace."}{" "}{studio.live ? "Generation uses your connected API credits." : readiness.action === "connect" ? "Connect an API key to generate." : "Check Connections before generating."}</>
                         : "Your draft saves on this device. Sign in and connect an API key to generate."}
                   </span>
                   {tool !== "analyze" && (
@@ -1668,7 +1676,7 @@ export default function Studio() {
               <div className="section-heading">
                 <div>
                   <h1>Your creations</h1>
-                  <p>Every idea. Every iteration. All yours.</p>
+                  <p>Find your saved thumbnails and drafts.</p>
                 </div>
                 <button className="neutral-button" onClick={newChat}>
                   <Plus size={16} />
@@ -1701,17 +1709,17 @@ export default function Studio() {
                 <div className="library-empty">
                   <FolderOpen size={30} />
                   <h2>
-                    {studio.creations.length
-                      ? "No matching creations."
+                    {search || onlyFavorites
+                      ? "No creations match these filters."
                       : "Start with your next idea."}
                   </h2>
                   <p>
-                    {studio.creations.length
-                      ? "Try another search or clear your filters."
+                    {search || onlyFavorites
+                      ? "Clear your search and favorites filter to see your creations."
                       : "Upload an image, write a prompt, or save a concept."}
                   </p>
-                  <button className="neutral-button" onClick={newChat}>
-                    Create a thumbnail
+                  <button className="neutral-button" onClick={() => { if (search || onlyFavorites) { setSearch(""); setOnlyFavorites(false); } else void newChat(); }}>
+                    {search || onlyFavorites ? "Clear filters" : "Create a thumbnail"}
                   </button>
                 </div>
               )}

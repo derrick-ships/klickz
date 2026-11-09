@@ -13,7 +13,7 @@ test("LOOP provisional automated accessibility matrix",async({page})=>{
  for(const width of [320,390,768,1024,1100,1440,1920]){
   await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});
   await page.goto("/welcome");await scan("welcome ready");expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-  await page.goto("/studio");await expect(page.getByLabel("Prompt",{exact:true})).toBeVisible();await scan("studio blank");expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  await page.goto("/studio");await expect(page.getByLabel("Describe your thumbnail",{exact:true})).toBeVisible();await scan("studio blank");expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  }
  await page.setViewportSize({width:390,height:844});
  await page.getByRole("button",{name:"Rendering model",exact:true}).click();await scan("model picker");await page.keyboard.press("Escape");await expect(page.getByRole("button",{name:"Rendering model",exact:true})).toBeFocused();

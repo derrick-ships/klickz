@@ -25,7 +25,7 @@ async function setup(page:Page){
 test('busy generation cannot switch chats through library navigation',async({page})=>{
  const f=await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('**/api/generate',async route=>{entered();await hold;const result={...f.creations[0],id:'66666666-6666-4666-8666-666666666666',title:'Completed in account A',created_at:new Date().toISOString()};f.creations.unshift(result);await route.fulfill({json:{creations:[result],partial:false}});});
- await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'Generate',exact:true}).click();await waiting;
+ await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();await waiting;
  await expect(page.getByRole('button',{name:'My creations',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Open chat: Account A other chat',exact:true})).toBeDisabled();
  await page.getByRole('button',{name:'My creations',exact:true}).evaluate((e:HTMLButtonElement)=>e.click());await expect(page.locator('.chat-title')).toContainText('Account A chat');release();await expect(page.getByRole('heading',{name:'Your thumbnail.',exact:true})).toBeVisible();await expect(page.locator('.review-summary')).toContainText('Completed in account A');
  expect(f.chats.find(c=>c.id===chatB).draft.prompt).toBe('A separate private account B draft');
@@ -36,34 +36,34 @@ test('delayed account A resize cannot overwrite account B hydration or draft',as
  await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Resize to short-form',exact:true}).click();await waiting;
  await page.evaluate(s=>{localStorage.setItem('sb-test-auth-token',JSON.stringify(s));const bc=new BroadcastChannel('sb-test-auth-token');bc.postMessage({event:'SIGNED_IN',session:s});setTimeout(()=>bc.close(),100);},session(B));
  await expect(page.locator('.chat-title')).toContainText('Account B chat');release();
- await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByRole('alert').filter({hasText:'Your account changed'})).toHaveCount(0);await expect(page.locator('.chat-title')).toContainText('Account B chat');await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('A separate private account B draft');
+ await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByRole('alert').filter({hasText:'Your account changed'})).toHaveCount(0);await expect(page.locator('.chat-title')).toContainText('Account B chat');await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue('A separate private account B draft');
  expect(f.chats.find(c=>c.id===chatB).draft.prompt).toBe('A separate private account B draft');
 });
 
 test('explicit save cannot overwrite newer edits already checkpointed during a slow creation write',async({page})=>{
  const f=await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('https://test.supabase.co/rest/v1/studio_creations*',async route=>{if(route.request().method()!=='POST')return route.fallback();entered();await hold;f.creations.push(route.request().postDataJSON());await route.fulfill({status:201,body:'',headers:{'access-control-allow-origin':'*'}});});
- await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByLabel('Prompt',{exact:true}).fill('The first submitted image concept');await page.getByRole('button',{name:'Save draft',exact:true}).click();await waiting;
- await page.getByLabel('Prompt',{exact:true}).fill('The newer edited concept must survive');await expect.poll(()=>f.chats.find(c=>c.id===chatA).draft.prompt).toBe('The newer edited concept must survive');release();
- await expect(page.locator('.operation-progress')).toHaveCount(0);await page.reload();await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('The newer edited concept must survive');
+ await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('The first submitted image concept');await page.getByRole('button',{name:'Save draft',exact:true}).click();await waiting;
+ await page.getByLabel('Describe your thumbnail',{exact:true}).fill('The newer edited concept must survive');await expect.poll(()=>f.chats.find(c=>c.id===chatA).draft.prompt).toBe('The newer edited concept must survive');release();
+ await expect(page.locator('.operation-progress')).toHaveCount(0);await page.reload();await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue('The newer edited concept must survive');
 });
 
 test('editing uses the newly selected library source and preserves the unsent brief',async({page})=>{
  const f=await setup(page),newSource={...f.creations[0],id:"99999999-9999-4999-8999-999999999999",title:"New selected source",image_path:A+"/replacement.png"};f.creations.push(newSource);
  let submitted:any=null;await page.route("**/api/generate",async route=>{submitted=route.request().postDataJSON();await route.fulfill({status:409,json:{error:"Fixture stopped before provider dispatch"}});});
  await page.goto("/");await page.getByRole("region",{name:"Thumbnail review studio"}).getByRole("button",{name:"Edit",exact:true}).click();
- await page.getByLabel("Edits",{exact:true}).fill("Preserve this direction when I change the source");
+ await page.getByLabel("What should change?",{exact:true}).fill("Preserve this direction when I change the source");
  await page.getByRole("button",{name:"Choose references from library",exact:true}).click();await page.getByRole("dialog").getByRole("button",{name:"New selected source"}).click();
- await expect(page.getByRole("img",{name:"Editing source: New selected source",exact:true})).toBeVisible();await expect(page.getByLabel("Edits",{exact:true})).toHaveValue("Preserve this direction when I change the source");
- for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});const preview=page.getByRole("img",{name:"Editing source: New selected source",exact:true});await page.getByLabel("Edits",{exact:true}).scrollIntoViewIfNeeded();await expect(preview).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);if(width===1440){const a=await preview.boundingBox(),b=await page.getByLabel("Edits",{exact:true}).boundingBox();expect(a!.x+a!.width).toBeLessThan(b!.x);}else{await page.locator(".edit-source-preview summary").click();await expect(preview).toBeHidden();await page.locator(".edit-source-preview summary").click();await expect(preview).toBeVisible();}await page.screenshot({path:"evidence/audit-cloud-edit-"+width+".png"});}
- await page.getByRole("button",{name:"Generate",exact:true}).click();await expect.poll(()=>submitted?.parentId).toBe(newSource.id);expect(submitted.prompt).toBe("Preserve this direction when I change the source");expect(submitted.settings.model).toBe("flare");
+ await expect(page.getByRole("img",{name:"Editing source: New selected source",exact:true})).toBeVisible();await expect(page.getByLabel("What should change?",{exact:true})).toHaveValue("Preserve this direction when I change the source");
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});const preview=page.getByRole("img",{name:"Editing source: New selected source",exact:true});await page.getByLabel("What should change?",{exact:true}).scrollIntoViewIfNeeded();await expect(preview).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);if(width===1440){const a=await preview.boundingBox(),b=await page.getByLabel("What should change?",{exact:true}).boundingBox();expect(a!.x+a!.width).toBeLessThan(b!.x);}else{await page.locator(".edit-source-preview summary").click();await expect(preview).toBeHidden();await page.locator(".edit-source-preview summary").click();await expect(preview).toBeVisible();}await page.screenshot({path:"evidence/audit-cloud-edit-"+width+".png"});}
+ await page.getByRole("button",{name:"Apply AI edit",exact:true}).click();await expect.poll(()=>submitted?.parentId).toBe(newSource.id);expect(submitted.prompt).toBe("Preserve this direction when I change the source");expect(submitted.settings.model).toBe("flare");
 });
 
 test('typing while generation runs preserves new direction and offers a result without stealing focus',async({page})=>{
  const f=await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('**/api/generate',async route=>{entered();await hold;const result={...f.creations[0],id:'66666666-6666-4666-8666-666666666666',title:'Completed result',created_at:new Date().toISOString()};f.creations.unshift(result);await route.fulfill({json:{creations:[result],partial:false}});});
- await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'Generate',exact:true}).click();await waiting;
- const prompt=page.getByLabel('Prompt',{exact:true});await prompt.fill('My next idea must stay open while this result finishes');release();
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();await waiting;
+ const prompt=page.getByLabel('Describe your thumbnail',{exact:true});await prompt.fill('My next idea must stay open while this result finishes');release();
  await expect(page.getByRole('button',{name:'View result',exact:true})).toBeVisible();await expect(prompt).toHaveValue('My next idea must stay open while this result finishes');await expect(prompt).toBeFocused();
  await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(prompt).toHaveValue('My next idea must stay open while this result finishes');
 });
@@ -80,11 +80,11 @@ test('slow first autosave cannot steal a subsequently selected chat',async({page
  const f=await setup(page);await page.addInitScript(({A})=>localStorage.removeItem('openpikzels.activeChat.'+A),{A});
  let release!:()=>void,entered!:()=>void,held=false;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('https://test.supabase.co/rest/v1/studio_conversations*',async r=>{if(r.request().method()==='POST'&&!held){held=true;entered();await hold;}await r.fallback();});
- await page.goto('/');await expect(page.getByRole('button',{name:'Open chat: Account A other chat',exact:true})).toBeVisible();await page.getByLabel('Prompt',{exact:true}).fill('Detached first draft must still be saved');await waiting;
- await page.getByLabel('Prompt',{exact:true}).fill('Latest detached revision must still be saved');
+ await page.goto('/');await expect(page.getByRole('button',{name:'Open chat: Account A other chat',exact:true})).toBeVisible();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('Detached first draft must still be saved');await waiting;
+ await page.getByLabel('Describe your thumbnail',{exact:true}).fill('Latest detached revision must still be saved');
  const navigation=page.getByRole('button',{name:'Open chat: Account A other chat',exact:true}).click();release();await navigation;await expect(page.locator('.chat-title')).toContainText('Account A other chat');
  await expect.poll(()=>f.chats.some(c=>c.draft.prompt==='Latest detached revision must still be saved')).toBe(true);
- await expect(page.locator('.chat-title')).toContainText('Account A other chat');await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('Another A project');
+ await expect(page.locator('.chat-title')).toContainText('Account A other chat');await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue('Another A project');
 });
 
 async function switchAccount(page:Page,id:string){
@@ -106,7 +106,7 @@ test('stale comparison cannot reopen another account image dialog',async({page})
  await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByRole('dialog')).not.toBeVisible();await expect(page.locator('.chat-title')).toContainText('Account B chat');
 });
 test('composer locks while a slow chat navigation saves then restores editable destination',async({page})=>{
- await setup(page);await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();const prompt=page.getByLabel('Prompt',{exact:true});await prompt.fill('Preserve this brief before the chat changes');
+ await setup(page);await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();const prompt=page.getByLabel('Describe your thumbnail',{exact:true});await prompt.fill('Preserve this brief before the chat changes');
  let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('https://test.supabase.co/rest/v1/studio_conversations*',async r=>{if(r.request().method()==='POST'){entered();await hold;}await r.fallback();});
  await page.getByRole('button',{name:'Open chat: Account A other chat',exact:true}).click();await waiting;
@@ -117,7 +117,7 @@ test('explicit save does not reselect an old editing source after a new source i
  const f=await setup(page),source={...f.creations[0],id:'99999999-9999-4999-8999-999999999999',title:'New selected source',image_path:A+'/replacement.png'};f.creations.push(source);
  let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('https://test.supabase.co/rest/v1/studio_creations*',async r=>{if(r.request().method()!=='POST')return r.fallback();entered();await hold;f.creations.push(r.request().postDataJSON());await r.fulfill({status:201,body:'',headers:{'access-control-allow-origin':'*'}});});
- await page.goto('/');await page.getByRole('region',{name:'Thumbnail review studio'}).getByRole('button',{name:'Edit',exact:true}).click();await page.getByLabel('Edits',{exact:true}).fill('Keep my newest image as the editing source');await page.getByRole('button',{name:'Save draft',exact:true}).click();await waiting;
+ await page.goto('/');await page.getByRole('region',{name:'Thumbnail review studio'}).getByRole('button',{name:'Edit',exact:true}).click();await page.getByLabel("What should change?",{exact:true}).fill('Keep my newest image as the editing source');await page.getByRole('button',{name:'Save draft',exact:true}).click();await waiting;
  await page.getByRole('button',{name:'Choose references from library',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'New selected source'}).click();release();
  await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByRole('img',{name:'Editing source: New selected source',exact:true})).toBeVisible();
  await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByRole('img',{name:'Editing source: New selected source',exact:true})).toBeVisible();
@@ -125,7 +125,7 @@ test('explicit save does not reselect an old editing source after a new source i
 
 test('reselecting the active chat preserves an unsent prompt',async({page})=>{
  const f=await setup(page);await page.goto('/');await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
- const prompt=page.getByLabel('Prompt',{exact:true});await prompt.fill('This latest brief must survive clicking my current chat');
+ const prompt=page.getByLabel('Describe your thumbnail',{exact:true});await prompt.fill('This latest brief must survive clicking my current chat');
  await page.screenshot({path:'evidence/loop-v2-active-chat-before.png',fullPage:true});
  await page.getByRole('button',{name:'Open chat: Account A chat',exact:true}).click();
  await expect(page.locator('.operation-progress')).toHaveCount(0);
@@ -133,5 +133,46 @@ test('reselecting the active chat preserves an unsent prompt',async({page})=>{
  await expect(prompt).toHaveValue('This latest brief must survive clicking my current chat');
  await expect.poll(()=>f.chats.find(c=>c.id===f.chats[0].id)?.draft.prompt).toBe('This latest brief must survive clicking my current chat');
  await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
- await expect(page.getByLabel('Prompt',{exact:true})).toHaveValue('This latest brief must survive clicking my current chat');
+ await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue('This latest brief must survive clicking my current chat');
+});
+
+test('ready actions describe each task and generated labels never become video titles',async({page})=>{
+ const f=await setup(page);let generated:any=null;
+ await page.route('**/api/generate',async route=>{generated=route.request().postDataJSON();const item={...f.creations[0],id:'66666666-6666-4666-8666-666666666666',title:generated.prompt.slice(0,80)};f.creations.unshift(item);await route.fulfill({json:{creations:[item],partial:false}});});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
+ await page.getByRole('tab',{name:'Recreate',exact:true}).click();await expect(page.getByRole('button',{name:'Create variation',exact:true})).toBeVisible();
+ await page.getByRole('tab',{name:'Edit',exact:true}).click();await expect(page.getByRole('button',{name:'Apply AI edit',exact:true})).toBeVisible();
+ await page.getByRole('tab',{name:'Title',exact:true}).click();await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Title ideas',exact:true}).click();await expect(page.getByRole('button',{name:'Generate titles',exact:true})).toBeVisible();
+ await page.getByRole('tab',{name:'Prompt',exact:true}).click();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Your thumbnail.',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Set up analysis',exact:true}).click();
+ await expect(page.getByLabel('Video title',{exact:true})).toHaveValue('');expect(generated.title).toBe('');
+ await expect(page.getByRole('button',{name:'Analyze thumbnail',exact:true})).toBeVisible();
+});
+
+test('blank title mode stops before dispatch and preserves entered title after recovery',async({page})=>{
+ await setup(page);let paid=0;
+ await page.route('**/api/generate',async r=>{paid++;await r.fulfill({status:409,json:{error:'Fixture stops before provider dispatch'}});});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('');
+ await page.getByRole('tab',{name:'Title',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('');
+ await expect(page.locator('#request-readiness')).toContainText('Add a video title or direction before generating.');
+ await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:'Add a video title or direction before generating.'})).toBeVisible();expect(paid).toBe(0);
+ await page.getByLabel('Video title',{exact:true}).fill('Seven days rebuilding my studio');await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
+ await expect.poll(()=>paid).toBe(1);await expect(page.getByLabel('Video title',{exact:true})).toHaveValue('Seven days rebuilding my studio');
+});
+test('ready image without a preview offers only a read refresh',async({page})=>{
+ const f=await setup(page);f.creations[0].image_path=null;let paid=0;await page.route('**/api/generate',r=>{paid++;return r.abort();});
+ await page.goto('/');await expect(page.getByText('This image preview is unavailable. Refresh the preview to check again.',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Refresh preview',exact:true}).click();await expect(page.locator('.operation-progress')).toHaveCount(0);expect(paid).toBe(0);
+});
+test('connection lookup distinguishes loading and failure from disconnected and recovers without a write',async({page})=>{
+ await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);let reads=0,writes=0;
+ await page.route('**/api/providers',async r=>{if(r.request().method()!=='GET')writes++;reads++;if(reads===1){await hold;return r.fulfill({status:503,json:{error:'Fixture lookup unavailable'}});}return r.fulfill({json:{connections:[]}});});
+ await page.route('**/api/oauth/grants',r=>r.fulfill({json:{grants:[]}}));
+ await page.goto('/connect');await expect(page.getByText('Checking connections…',{exact:true})).toHaveCount(4);await expect(page.getByText('Loading connected agents…',{exact:true})).toBeVisible();
+ await expect(page.getByText('Not connected',{exact:true})).toHaveCount(0);release();
+ await expect(page.getByText('Connection status unavailable. Refresh to check.',{exact:true})).toBeVisible();await expect(page.getByText('No agents connected yet.',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Refresh connections',exact:true}).click();await expect(page.getByText('Not connected',{exact:true})).toHaveCount(4);await expect(page.getByText('No agents connected yet.',{exact:true})).toBeVisible();expect(writes).toBe(0);
 });

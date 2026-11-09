@@ -16,7 +16,7 @@ test("brand motion settles when editing or motion preference changes", async ({ 
   await page.goto("/?mode=generate");
   const scene = page.locator('[data-brand-scene="signal"]');
   await expect(scene).toHaveAttribute("data-motion", "playing");
-  await page.getByLabel("Prompt", { exact: true }).focus();
+  await page.getByLabel("Describe your thumbnail", { exact: true }).focus();
   await expect(scene).toHaveAttribute("data-motion", "still");
   expect(await scene.locator("video").evaluate(v => (v as HTMLVideoElement).paused)).toBe(true);
   await page.goto("/welcome");
