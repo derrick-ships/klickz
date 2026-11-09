@@ -1,0 +1,960 @@
+{
+  "method": "Local production build, signed-out/local configuration, reduced motion. External links are inventoried, not contacted. Ready page states only; not all authenticated/loading/error states.",
+  "reports": [
+    {
+      "route": "/",
+      "state": "ready, local signed-out configuration",
+      "width": 320,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/welcome",
+      "state": "ready, local signed-out configuration",
+      "width": 320,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to introduction",
+          "href": "http://127.0.0.1:3000/welcome#welcome-main"
+        },
+        {
+          "label": "OpenPikzels.",
+          "href": "http://127.0.0.1:3000/welcome"
+        },
+        {
+          "label": "Open studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Start creating free",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Choose your AI access ↓",
+          "href": "http://127.0.0.1:3000/welcome#ai-access"
+        },
+        {
+          "label": "Generate with API keysUse your own OpenAI or Google connection for supported image and text tasks, and Jev for scoring. Keys are encrypted; saved values are never shown again.Provider API pricing and available balance apply.",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Check ChatGPT models and usageSee available models and plan usage through browser sign-in. This connection alone does not generate studio images. No download required.Sign in on OpenAI’s page using a one-time code. Plan limits apply; studio image generation uses a separate API connection.",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        },
+        {
+          "label": "Connect an agentGive a compatible MCP client access to your OpenPikzels workflow. Bring an image from your chat, request a score or get a fix prompt to take back.Provider-backed tools use your connected API access and may incur usage costs.",
+          "href": "http://127.0.0.1:3000/connect#mcp"
+        },
+        {
+          "label": "Codex access",
+          "href": "https://developers.openai.com/codex/auth/"
+        },
+        {
+          "label": "Claude Code plan eligibility",
+          "href": "https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan"
+        },
+        {
+          "label": "Make your next thumbnail",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "ChatGPT connection",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        }
+      ]
+    },
+    {
+      "route": "/studio",
+      "state": "ready, local signed-out configuration",
+      "width": 320,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/connect",
+      "state": "ready, local signed-out configuration",
+      "width": 320,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Back to studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Save drafts in this browser.",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/local-companion",
+      "state": "ready, local signed-out configuration",
+      "width": 320,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Download local companion",
+          "href": "http://127.0.0.1:3000/downloads/openpikzels-local-companion.zip"
+        },
+        {
+          "label": "Open installed companion",
+          "href": "http://127.0.0.1:48763/"
+        },
+        {
+          "label": "Install Node.js",
+          "href": "https://nodejs.org/en/download"
+        },
+        {
+          "label": "Official Claude Code setup",
+          "href": "https://code.claude.com/docs/en/setup"
+        },
+        {
+          "label": "Official Codex setup",
+          "href": "https://learn.chatgpt.com/docs/cli"
+        },
+        {
+          "label": "Manage API and MCP connections",
+          "href": "http://127.0.0.1:3000/connect"
+        }
+      ]
+    },
+    {
+      "route": "/oauth/consent?request=fixture",
+      "state": "ready, local signed-out configuration",
+      "width": 320,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "state": "ready, local signed-out configuration",
+      "width": 768,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/welcome",
+      "state": "ready, local signed-out configuration",
+      "width": 768,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to introduction",
+          "href": "http://127.0.0.1:3000/welcome#welcome-main"
+        },
+        {
+          "label": "OpenPikzels.",
+          "href": "http://127.0.0.1:3000/welcome"
+        },
+        {
+          "label": "Open studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Start creating free",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Choose your AI access ↓",
+          "href": "http://127.0.0.1:3000/welcome#ai-access"
+        },
+        {
+          "label": "Generate with API keysUse your own OpenAI or Google connection for supported image and text tasks, and Jev for scoring. Keys are encrypted; saved values are never shown again.Provider API pricing and available balance apply.",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Check ChatGPT models and usageSee available models and plan usage through browser sign-in. This connection alone does not generate studio images. No download required.Sign in on OpenAI’s page using a one-time code. Plan limits apply; studio image generation uses a separate API connection.",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        },
+        {
+          "label": "Connect an agentGive a compatible MCP client access to your OpenPikzels workflow. Bring an image from your chat, request a score or get a fix prompt to take back.Provider-backed tools use your connected API access and may incur usage costs.",
+          "href": "http://127.0.0.1:3000/connect#mcp"
+        },
+        {
+          "label": "Codex access",
+          "href": "https://developers.openai.com/codex/auth/"
+        },
+        {
+          "label": "Claude Code plan eligibility",
+          "href": "https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan"
+        },
+        {
+          "label": "Make your next thumbnail",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "ChatGPT connection",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        }
+      ]
+    },
+    {
+      "route": "/studio",
+      "state": "ready, local signed-out configuration",
+      "width": 768,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/connect",
+      "state": "ready, local signed-out configuration",
+      "width": 768,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Back to studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Save drafts in this browser.",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/local-companion",
+      "state": "ready, local signed-out configuration",
+      "width": 768,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Download local companion",
+          "href": "http://127.0.0.1:3000/downloads/openpikzels-local-companion.zip"
+        },
+        {
+          "label": "Open installed companion",
+          "href": "http://127.0.0.1:48763/"
+        },
+        {
+          "label": "Install Node.js",
+          "href": "https://nodejs.org/en/download"
+        },
+        {
+          "label": "Official Claude Code setup",
+          "href": "https://code.claude.com/docs/en/setup"
+        },
+        {
+          "label": "Official Codex setup",
+          "href": "https://learn.chatgpt.com/docs/cli"
+        },
+        {
+          "label": "Manage API and MCP connections",
+          "href": "http://127.0.0.1:3000/connect"
+        }
+      ]
+    },
+    {
+      "route": "/oauth/consent?request=fixture",
+      "state": "ready, local signed-out configuration",
+      "width": 768,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "state": "ready, local signed-out configuration",
+      "width": 1024,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/welcome",
+      "state": "ready, local signed-out configuration",
+      "width": 1024,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to introduction",
+          "href": "http://127.0.0.1:3000/welcome#welcome-main"
+        },
+        {
+          "label": "OpenPikzels.",
+          "href": "http://127.0.0.1:3000/welcome"
+        },
+        {
+          "label": "Open studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Start creating free",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Choose your AI access ↓",
+          "href": "http://127.0.0.1:3000/welcome#ai-access"
+        },
+        {
+          "label": "Generate with API keysUse your own OpenAI or Google connection for supported image and text tasks, and Jev for scoring. Keys are encrypted; saved values are never shown again.Provider API pricing and available balance apply.",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Check ChatGPT models and usageSee available models and plan usage through browser sign-in. This connection alone does not generate studio images. No download required.Sign in on OpenAI’s page using a one-time code. Plan limits apply; studio image generation uses a separate API connection.",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        },
+        {
+          "label": "Connect an agentGive a compatible MCP client access to your OpenPikzels workflow. Bring an image from your chat, request a score or get a fix prompt to take back.Provider-backed tools use your connected API access and may incur usage costs.",
+          "href": "http://127.0.0.1:3000/connect#mcp"
+        },
+        {
+          "label": "Codex access",
+          "href": "https://developers.openai.com/codex/auth/"
+        },
+        {
+          "label": "Claude Code plan eligibility",
+          "href": "https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan"
+        },
+        {
+          "label": "Make your next thumbnail",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "ChatGPT connection",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        }
+      ]
+    },
+    {
+      "route": "/studio",
+      "state": "ready, local signed-out configuration",
+      "width": 1024,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/connect",
+      "state": "ready, local signed-out configuration",
+      "width": 1024,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Back to studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Save drafts in this browser.",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/local-companion",
+      "state": "ready, local signed-out configuration",
+      "width": 1024,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Download local companion",
+          "href": "http://127.0.0.1:3000/downloads/openpikzels-local-companion.zip"
+        },
+        {
+          "label": "Open installed companion",
+          "href": "http://127.0.0.1:48763/"
+        },
+        {
+          "label": "Install Node.js",
+          "href": "https://nodejs.org/en/download"
+        },
+        {
+          "label": "Official Claude Code setup",
+          "href": "https://code.claude.com/docs/en/setup"
+        },
+        {
+          "label": "Official Codex setup",
+          "href": "https://learn.chatgpt.com/docs/cli"
+        },
+        {
+          "label": "Manage API and MCP connections",
+          "href": "http://127.0.0.1:3000/connect"
+        }
+      ]
+    },
+    {
+      "route": "/oauth/consent?request=fixture",
+      "state": "ready, local signed-out configuration",
+      "width": 1024,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "state": "ready, local signed-out configuration",
+      "width": 1440,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/welcome",
+      "state": "ready, local signed-out configuration",
+      "width": 1440,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to introduction",
+          "href": "http://127.0.0.1:3000/welcome#welcome-main"
+        },
+        {
+          "label": "OpenPikzels.",
+          "href": "http://127.0.0.1:3000/welcome"
+        },
+        {
+          "label": "Open studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Start creating free",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Choose your AI access ↓",
+          "href": "http://127.0.0.1:3000/welcome#ai-access"
+        },
+        {
+          "label": "Generate with API keysUse your own OpenAI or Google connection for supported image and text tasks, and Jev for scoring. Keys are encrypted; saved values are never shown again.Provider API pricing and available balance apply.",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Check ChatGPT models and usageSee available models and plan usage through browser sign-in. This connection alone does not generate studio images. No download required.Sign in on OpenAI’s page using a one-time code. Plan limits apply; studio image generation uses a separate API connection.",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        },
+        {
+          "label": "Connect an agentGive a compatible MCP client access to your OpenPikzels workflow. Bring an image from your chat, request a score or get a fix prompt to take back.Provider-backed tools use your connected API access and may incur usage costs.",
+          "href": "http://127.0.0.1:3000/connect#mcp"
+        },
+        {
+          "label": "Codex access",
+          "href": "https://developers.openai.com/codex/auth/"
+        },
+        {
+          "label": "Claude Code plan eligibility",
+          "href": "https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan"
+        },
+        {
+          "label": "Make your next thumbnail",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "ChatGPT connection",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        }
+      ]
+    },
+    {
+      "route": "/studio",
+      "state": "ready, local signed-out configuration",
+      "width": 1440,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/connect",
+      "state": "ready, local signed-out configuration",
+      "width": 1440,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Back to studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Save drafts in this browser.",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/local-companion",
+      "state": "ready, local signed-out configuration",
+      "width": 1440,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Download local companion",
+          "href": "http://127.0.0.1:3000/downloads/openpikzels-local-companion.zip"
+        },
+        {
+          "label": "Open installed companion",
+          "href": "http://127.0.0.1:48763/"
+        },
+        {
+          "label": "Install Node.js",
+          "href": "https://nodejs.org/en/download"
+        },
+        {
+          "label": "Official Claude Code setup",
+          "href": "https://code.claude.com/docs/en/setup"
+        },
+        {
+          "label": "Official Codex setup",
+          "href": "https://learn.chatgpt.com/docs/cli"
+        },
+        {
+          "label": "Manage API and MCP connections",
+          "href": "http://127.0.0.1:3000/connect"
+        }
+      ]
+    },
+    {
+      "route": "/oauth/consent?request=fixture",
+      "state": "ready, local signed-out configuration",
+      "width": 1440,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "state": "ready, local signed-out configuration",
+      "width": 1920,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/welcome",
+      "state": "ready, local signed-out configuration",
+      "width": 1920,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to introduction",
+          "href": "http://127.0.0.1:3000/welcome#welcome-main"
+        },
+        {
+          "label": "OpenPikzels.",
+          "href": "http://127.0.0.1:3000/welcome"
+        },
+        {
+          "label": "Open studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Start creating free",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Choose your AI access ↓",
+          "href": "http://127.0.0.1:3000/welcome#ai-access"
+        },
+        {
+          "label": "Generate with API keysUse your own OpenAI or Google connection for supported image and text tasks, and Jev for scoring. Keys are encrypted; saved values are never shown again.Provider API pricing and available balance apply.",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Check ChatGPT models and usageSee available models and plan usage through browser sign-in. This connection alone does not generate studio images. No download required.Sign in on OpenAI’s page using a one-time code. Plan limits apply; studio image generation uses a separate API connection.",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        },
+        {
+          "label": "Connect an agentGive a compatible MCP client access to your OpenPikzels workflow. Bring an image from your chat, request a score or get a fix prompt to take back.Provider-backed tools use your connected API access and may incur usage costs.",
+          "href": "http://127.0.0.1:3000/connect#mcp"
+        },
+        {
+          "label": "Codex access",
+          "href": "https://developers.openai.com/codex/auth/"
+        },
+        {
+          "label": "Claude Code plan eligibility",
+          "href": "https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan"
+        },
+        {
+          "label": "Make your next thumbnail",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "ChatGPT connection",
+          "href": "http://127.0.0.1:3000/connect#chatgpt"
+        }
+      ]
+    },
+    {
+      "route": "/studio",
+      "state": "ready, local signed-out configuration",
+      "width": 1920,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "Skip to studio",
+          "href": "http://127.0.0.1:3000/studio?mode=generate#studio-content"
+        },
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/connect",
+      "state": "ready, local signed-out configuration",
+      "width": 1920,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Back to studio",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Save drafts in this browser.",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    },
+    {
+      "route": "/local-companion",
+      "state": "ready, local signed-out configuration",
+      "width": 1920,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        },
+        {
+          "label": "Connections",
+          "href": "http://127.0.0.1:3000/connect"
+        },
+        {
+          "label": "Download local companion",
+          "href": "http://127.0.0.1:3000/downloads/openpikzels-local-companion.zip"
+        },
+        {
+          "label": "Open installed companion",
+          "href": "http://127.0.0.1:48763/"
+        },
+        {
+          "label": "Install Node.js",
+          "href": "https://nodejs.org/en/download"
+        },
+        {
+          "label": "Official Claude Code setup",
+          "href": "https://code.claude.com/docs/en/setup"
+        },
+        {
+          "label": "Official Codex setup",
+          "href": "https://learn.chatgpt.com/docs/cli"
+        },
+        {
+          "label": "Manage API and MCP connections",
+          "href": "http://127.0.0.1:3000/connect"
+        }
+      ]
+    },
+    {
+      "route": "/oauth/consent?request=fixture",
+      "state": "ready, local signed-out configuration",
+      "width": 1920,
+      "status": 200,
+      "overflow": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "links": [
+        {
+          "label": "OpenPikzels",
+          "href": "http://127.0.0.1:3000/studio"
+        }
+      ]
+    }
+  ],
+  "internalPageLinks": [
+    {
+      "route": "/studio",
+      "status": 200
+    },
+    {
+      "route": "/welcome",
+      "status": 200
+    },
+    {
+      "route": "/connect",
+      "status": 200
+    }
+  ],
+  "blockedExternalOrigins": []
+}

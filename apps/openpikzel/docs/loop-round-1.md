@@ -1,3 +1,5 @@
+> Continuation update: the exact protocol was recovered. Current work, remaining gates and verified changes are in [loop-v2-continuation.md](loop-v2-continuation.md). The record below preserves the earlier candidate assessment; its missing-protocol status is historical.
+
 # OpenPikzels — LOOP round 1 candidate
 
 Status: **incomplete release gate; not a completed LOOP round**. This candidate has not been promoted to main or deployed to production.

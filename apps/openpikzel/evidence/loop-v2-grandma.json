@@ -1,0 +1,306 @@
+{
+  "findings": [
+    {
+      "id": "G-01",
+      "route": "/welcome",
+      "state": "First visit; desktop landing capture",
+      "selector": ".welcome-headline, .welcome-outcome",
+      "screenshot_path": "evidence/panel-after-01-welcome.png",
+      "severity": "P2",
+      "confidence": 0.98,
+      "user_impact": "The dominant promise 'GET MILLIONS OF VIEWS' is much easier to perceive than the qualification 'Views are not guaranteed.' A distracted, trust-sensitive newcomer can form an outcome expectation before noticing the qualification.",
+      "recommendation": "Use an accurate outcome-oriented headline about making a clear thumbnail; keep the qualification readable beside the promise. Retain the visible disclosure that image generation uses paid provider access.",
+      "evidence": [
+        "E4",
+        "E5"
+      ],
+      "basis": "Screenshot hierarchy and exact source copy; no conversion or user-comprehension test."
+    },
+    {
+      "id": "G-02",
+      "route": "/connect and /studio",
+      "state": "Signed out; first generation setup; signed-in key form inspected in source only",
+      "selector": ".account-form, .key-form, .request-readiness",
+      "screenshot_path": "evidence/panel-after-07-connect-mobile.png",
+      "severity": "P1",
+      "confidence": 0.94,
+      "user_impact": "The first-time low-tech user is told to connect an API key before generating, but the reviewed setup offers no plain explanation of what the key is or step-by-step path to obtain one. The signed-in source asks for Provider and Your API key. A person who only has a ChatGPT subscription can reach a form they cannot complete.",
+      "recommendation": "Provide a short guided setup: explain that an API key is separate provider access, give provider-specific 'Get a key' guidance, explain billing before the handoff, and preserve a clear 'Continue with a free draft' route. Show which step comes next.",
+      "evidence": [
+        "E1",
+        "E3",
+        "E6",
+        "E7"
+      ],
+      "basis": "Visible prerequisite plus source inspection of provider setup; actual account creation and provider behavior untested."
+    },
+    {
+      "id": "G-03",
+      "route": "/studio",
+      "state": "Mobile edit of a saved fixture draft, 390px capture",
+      "selector": ".chat-save-state, .chat-timeline small, .edit-source-preview summary span",
+      "screenshot_path": "evidence/panel-after-edit-390.png",
+      "severity": "P2",
+      "confidence": 0.97,
+      "user_impact": "The messages that tell a distracted user whether work is saved and which revision they are viewing are among the smallest text on the screen. CSS specifies 10px for save state and revision metadata, and 11px for preview guidance. A low-vision user can read the large headline while missing the information needed to resume confidently.",
+      "recommendation": "Raise status and revision text to a readable body scale, shorten metadata into plain labels such as 'Saved on this device' and 'Edited draft', and place the current saved state close to the editing action.",
+      "evidence": [
+        "E2",
+        "E8",
+        "E9"
+      ],
+      "basis": "Screenshot and CSS font sizes. No measured contrast failure or browser zoom result is asserted."
+    },
+    {
+      "id": "G-04",
+      "route": "/studio",
+      "state": "Mobile edit of a saved fixture draft, full-page capture",
+      "selector": ".chat-timeline, .edit-source-preview, .request-readiness, .generate-split",
+      "screenshot_path": "evidence/panel-after-edit-390.png",
+      "severity": "P2",
+      "confidence": 0.92,
+      "user_impact": "The mobile editing task spans a long page: revision cards, mode controls, full source preview, edit text, references, settings, billing information, generation action, then saved-concept confirmation. The edit text and primary action are far apart. A distracted newcomer must scroll past many optional decisions to discover how to finish.",
+      "recommendation": "Keep a compact source thumbnail and editing instruction visible near the primary action; put optional persona, style, reference and model controls behind a clearly labeled expansion. Preserve the cost and connection summary immediately before generation. Ensure a saved confirmation is visible near the action.",
+      "evidence": [
+        "E2",
+        "E7",
+        "E9"
+      ],
+      "basis": "Observed full-page order and source-open preview. No claim about measured scroll count, sticky behavior or task-completion rate."
+    },
+    {
+      "id": "G-05",
+      "route": "/connect",
+      "state": "Signed-out mobile account screen",
+      "selector": ".account-form",
+      "screenshot_path": "evidence/panel-after-07-connect-mobile.png",
+      "severity": "P2",
+      "confidence": 0.95,
+      "user_impact": "The page begins with 'Sign in to your workspace' although a first-time visitor has no workspace account yet. Four stacked actions ask them to choose between password sign-in, creating an account, possessing a code, and requesting a code. Nothing explains up front that the password belongs to OpenPikzels rather than the AI provider discussed on the same page.",
+      "recommendation": "Label the account explicitly as an OpenPikzels account, provide a clear first-visit create-account path, and group password versus email-code methods under a simple choice. Add brief nearby guidance that email codes are an alternative when the user does not know their password.",
+      "evidence": [
+        "E3",
+        "E6"
+      ],
+      "basis": "Visible copy and form branches; no actual sign-in or recovery flow tested."
+    },
+    {
+      "id": "G-06",
+      "route": "/studio",
+      "state": "Signed-out empty Prompt studio",
+      "selector": ".mode-tabs, .request-identity",
+      "screenshot_path": "evidence/panel-after-02-studio.png",
+      "severity": "P3",
+      "confidence": 0.93,
+      "user_impact": "The default creation mode is called 'Prompt', with Persona and a raw model identifier ('gpt-image-2.6-flare') visible before the first result. These terms add learning effort to the simple job of making a thumbnail and can obscure the plain instruction to describe the image.",
+      "recommendation": "Use 'Create' or 'Describe an image' for the first mode, explain Persona as a saved person/reference when first opened, and keep the human-readable model name in the main summary with technical identifiers in details.",
+      "evidence": [
+        "E1",
+        "E7"
+      ],
+      "basis": "Visible copy and corresponding source labels; comprehension is inferred for the specified persona."
+    }
+  ],
+  "blockers": [
+    {
+      "type": "validation_gap",
+      "description": "This was a read-only review of four supplied screenshots and relevant source. Actual interaction, zoom/reflow, keyboard recovery, browser target bounds, screen-reader announcements and measured rendered contrast were not tested.",
+      "impact": "Do not treat this review as an accessibility conformance pass.",
+      "evidence": [
+        "E1",
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    {
+      "type": "scope_boundary",
+      "description": "No live site, browser tests, network requests, provider calls, or other lens reports were accessed. Supplied fixture content is not evidence of real generation quality or model performance.",
+      "impact": "Generation and authentication success remain unverified by this lens."
+    }
+  ],
+  "delight": [
+    {
+      "id": "GD-01",
+      "route": "/studio",
+      "state": "Mobile saved edit",
+      "selector": ".edit-source-preview, saved concept card",
+      "screenshot_path": "evidence/panel-after-edit-390.png",
+      "observation": "The source is visibly retained with 'Original stays saved', while the result area says 'Concept saved' and explains that instructions are saved on this device. These are concrete reassurance cues for someone afraid of losing their original.",
+      "evidence": [
+        "E2",
+        "E7"
+      ],
+      "limitation": "The screenshot shows the cues; persistence/recovery was not independently exercised."
+    },
+    {
+      "id": "GD-02",
+      "route": "/connect",
+      "state": "Signed-out form and recovery source",
+      "selector": ".account-form input, .account-form .primary-button",
+      "screenshot_path": "evidence/panel-after-07-connect-mobile.png",
+      "observation": "The form uses visible Email and Password labels, broad full-width actions and an email-code option. The inspected source explains when a failed sign-in clears the password and gives concrete retry guidance.",
+      "evidence": [
+        "E3",
+        "E6"
+      ],
+      "limitation": "Form submission and screen-reader announcement were not exercised."
+    },
+    {
+      "id": "GD-03",
+      "route": "/studio and /welcome",
+      "state": "Before first generation",
+      "selector": ".request-readiness, .welcome-cost-inline",
+      "screenshot_path": "evidence/panel-after-02-studio.png",
+      "observation": "Paid provider usage and the API prerequisite are stated before generation. The studio primary action explicitly says 'Sign in to generate', and local-draft saving is stated nearby.",
+      "evidence": [
+        "E1",
+        "E4",
+        "E5",
+        "E7"
+      ],
+      "limitation": "Disclosure comprehension and provider charges were not tested."
+    },
+    {
+      "id": "GD-04",
+      "route": "/studio",
+      "state": "Source sizing for mode and batch controls",
+      "selector": ".mode-tabs button, .batch-select select",
+      "observation": "Reviewed surface styles give mode buttons and the batch select a minimum 44px height. This supports comfortable targets even though the small labels still need attention.",
+      "evidence": [
+        "E10"
+      ],
+      "limitation": "Source minimums are not a measurement of all rendered targets or an accessibility pass."
+    }
+  ],
+  "jobs_to_be_done": [
+    {
+      "job": "When I first arrive, understand what I can make and what it will cost before creating an account.",
+      "evidence": [
+        "E1",
+        "E3",
+        "E4"
+      ],
+      "related_findings": [
+        "G-01",
+        "G-02",
+        "G-05"
+      ]
+    },
+    {
+      "job": "When I describe a thumbnail, know the next action without learning model terminology.",
+      "evidence": [
+        "E1"
+      ],
+      "related_findings": [
+        "G-02",
+        "G-06"
+      ]
+    },
+    {
+      "job": "When I return after an interruption, see which image I am editing and whether my changes are safely saved.",
+      "evidence": [
+        "E2"
+      ],
+      "related_findings": [
+        "G-03",
+        "G-04"
+      ]
+    },
+    {
+      "job": "When I cannot use a password, recover through a clearly explained alternative and continue my draft.",
+      "evidence": [
+        "E3",
+        "E6"
+      ],
+      "related_findings": [
+        "G-05"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E1",
+      "type": "screenshot",
+      "path": "evidence/panel-after-02-studio.png",
+      "inspected": "Individually viewed; 1440px desktop studio, signed out, empty Prompt mode."
+    },
+    {
+      "id": "E2",
+      "type": "screenshot",
+      "path": "evidence/panel-after-edit-390.png",
+      "inspected": "Individually viewed; 390x2248 mobile edit fixture, rendered by tool at 355x2048. No target dimensions inferred from resized display."
+    },
+    {
+      "id": "E3",
+      "type": "screenshot",
+      "path": "evidence/panel-after-07-connect-mobile.png",
+      "inspected": "Individually viewed; 390px signed-out mobile connection form."
+    },
+    {
+      "id": "E4",
+      "type": "screenshot",
+      "path": "evidence/panel-after-01-welcome.png",
+      "inspected": "Individually viewed; 1440x3101 full welcome page, rendered by tool at 951x2048. Text size findings corroborated from CSS."
+    },
+    {
+      "id": "E5",
+      "type": "source",
+      "path": "src/components/welcome.tsx",
+      "lines": "12–17, 24–33",
+      "inspected": "Hero copy, API access explanation, local-draft cost disclosure and privacy text."
+    },
+    {
+      "id": "E6",
+      "type": "source",
+      "path": "src/components/account/account.tsx",
+      "lines": "64–193, 279–395",
+      "inspected": "Account labels, authentication options, retry messages, provider/key setup and billing/security disclosure. Signed-in state source only."
+    },
+    {
+      "id": "E7",
+      "type": "source",
+      "path": "src/components/studio.tsx",
+      "lines": "86–92, 780, 1274, 1508–1568",
+      "inspected": "Mode names, saved-concept guidance, open selected-image preview, request summary and generation action."
+    },
+    {
+      "id": "E8",
+      "type": "source",
+      "path": "src/app/creative.css",
+      "selector": ".chat-save-state, .chat-timeline small",
+      "inspected": "10px save-state and revision metadata; timeline cards and 44px revision-navigation controls."
+    },
+    {
+      "id": "E9",
+      "type": "source",
+      "path": "src/app/globals.css",
+      "lines": "2425–2440",
+      "inspected": "Selected-image preview styling, 11px preview hint and request summary layout."
+    },
+    {
+      "id": "E10",
+      "type": "source",
+      "path": "src/app/surfaces.css",
+      "lines": "123, 200, 209, 342–343",
+      "inspected": "44px batch/mode minimum heights; generation action sizes; request summary 13px and landing cost disclosure 14px."
+    },
+    {
+      "id": "E11",
+      "type": "source",
+      "path": "src/app/welcome.css",
+      "selector": ".welcome-headline, .welcome-outcome",
+      "inspected": "Headline maximum 110px and outcome disclaimer 12px. No contrast ratio calculated."
+    },
+    {
+      "id": "E12",
+      "type": "scope",
+      "commit": "de11970bd2c733aca2e615638035135b3ffa2763",
+      "branch": "codex/openpikzels-loop-round1",
+      "inspected": "Commit and branch supplied by coordinator; source/screenshot review only, no independent runtime equivalence check.",
+      "lens": "Grandma",
+      "profile": "First-time, low-tech, low-vision, distracted, trust-sensitive",
+      "independence": "No other lens reports read."
+    }
+  ]
+}

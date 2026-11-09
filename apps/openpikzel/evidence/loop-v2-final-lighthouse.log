@@ -1,0 +1,56 @@
+
+> openpikzel@1.0.0 perf:lighthouse
+> node scripts/lighthouse-gate.mjs
+
+
+Three-run mobile Lighthouse gate (production build)
+✅  .lighthouseci/ directory writable
+✅  Configuration file found
+✅  Chrome installation found
+Healthcheck passed!
+
+Started a web server with "npm run start -- --port 3001"...
+Running Lighthouse 3 time(s) on http://127.0.0.1:3001/
+Run #1...done.
+Run #2...done.
+Run #3...done.
+Running Lighthouse 3 time(s) on http://127.0.0.1:3001/studio
+Run #1...done.
+Run #2...done.
+Run #3...done.
+Done running Lighthouse!
+
+Checking assertions against 2 URL(s), 6 total run(s)
+
+All results processed!
+
+Dumping 6 reports to disk at [workspace]/evidence/lighthouse/mobile...
+Done writing reports to disk.
+
+Done running autorun.
+
+Three-run desktop Lighthouse gate (production build)
+✅  .lighthouseci/ directory writable
+✅  Configuration file found
+✅  Chrome installation found
+Healthcheck passed!
+
+Started a web server with "npm run start -- --port 3001"...
+Running Lighthouse 3 time(s) on http://127.0.0.1:3001/
+Run #1...done.
+Run #2...done.
+Run #3...done.
+Running Lighthouse 3 time(s) on http://127.0.0.1:3001/studio
+Run #1...done.
+Run #2...done.
+Run #3...done.
+Done running Lighthouse!
+
+Checking assertions against 2 URL(s), 6 total run(s)
+
+All results processed!
+
+Dumping 6 reports to disk at [workspace]/evidence/lighthouse/desktop...
+Done writing reports to disk.
+
+Done running autorun.

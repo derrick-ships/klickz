@@ -1,0 +1,37 @@
+[WebServer] ⚠ Warning: Next.js ignored package-lock.json in [user] because it would include your home directory ([user]).
+[WebServer]  To use this directory, set `outputFileTracingRoot` in your Next.js config.
+[WebServer] 
+
+Running 1 test using 1 worker
+
+  ✘  1 tests/browser/workspace-races.spec.ts:126:1 › reselecting the active chat preserves an unsent prompt (7.0s)
+
+
+  1) tests/browser/workspace-races.spec.ts:126:1 › reselecting the active chat preserves an unsent prompt 
+
+    Error: Timed out 5000ms waiting for expect(locator).toHaveValue(expected)
+
+    Locator: getByLabel('Prompt', { exact: true })
+    Expected string: "This latest brief must survive clicking my current chat"
+    Received string: "A factual thumbnail from account A"
+    Call log:
+      - expect.toHaveValue with timeout 5000ms
+      - waiting for getByLabel('Prompt', { exact: true })
+        9 × locator resolved to <textarea maxlength="2400" id="thumbnail-prompt" placeholder="Describe your thumbnail. Be specific about the subject, scene, text and emotion…">A factual thumbnail from account A</textarea>
+          - unexpected value "A factual thumbnail from account A"
+
+
+      131 |  await expect(page.locator('.operation-progress')).toHaveCount(0);
+      132 |  await page.screenshot({path:'evidence/loop-v2-active-chat-result.png',fullPage:true});
+    > 133 |  await expect(prompt).toHaveValue('This latest brief must survive clicking my current chat');
+          |                       ^
+      134 | });
+      135 |
+        at [workspace]/tests/browser/workspace-races.spec.ts:133:23
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/workspace-races-reselectin-681e8--preserves-an-unsent-prompt/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/browser/workspace-races.spec.ts:126:1 › reselecting the active chat preserves an unsent prompt 

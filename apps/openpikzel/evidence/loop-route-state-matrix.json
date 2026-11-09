@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "provisional; exact LOOP v2 protocol unavailable",
+  "status": "Exact LOOP v2 received; coverage incomplete and release gate failed",
   "round": 1,
   "baseline": "fd62c88f33f11de10daabdb081578833a52e654c plus reviewed uncommitted candidate",
   "releaseGate": "blocked",
@@ -186,8 +186,8 @@
   ],
   "gates": {
     "exactProtocol": {
-      "status": "blocked",
-      "reason": "No parent-conversation read tool; personal-context lookup unavailable; full protocol requested."
+      "status": "received",
+      "reason": "Original LOOP v2 recovered; see docs/loop-v2-original.txt and evaluator resolution."
     },
     "independentEvaluation": {
       "status": "denied",
@@ -206,9 +206,14 @@
       "reason": "Bounded source calculations found and corrected inset focus contrast; rendered focus samples checked. Artwork/popup/transient states and remaining axe incomplete nodes are not fully resolved."
     },
     "fullCoverage": {
-      "status": "unproven",
-      "reason": "No exact route/state inventory or coverage threshold supplied; untested states do not pass."
+      "status": "failed",
+      "reason": "Six page routes and 29 route handlers enumerated. Thirty ready-page/width combinations tested; authenticated, provider and recovery state coverage remains incomplete. Untested states fail."
     }
   },
-  "candidateSourceCommit": "de11970bd2c733aca2e615638035135b3ffa2763"
+  "candidateSourceCommit": "de11970bd2c733aca2e615638035135b3ffa2763",
+  "continuationInventory": "loop-v2-source-inventory.json",
+  "continuationChecks": [
+    "loop-v2-route-checks.json",
+    "loop-v2-form-checks.json"
+  ]
 }

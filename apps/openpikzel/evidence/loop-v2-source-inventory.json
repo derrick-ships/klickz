@@ -1,0 +1,559 @@
+{
+  "protocol": "LOOP v2 original now available",
+  "sourceCommit": "de11970bd2c733aca2e615638035135b3ffa2763",
+  "method": "Enumerated Next page.tsx and route.ts source files; runtime query states, public/static assets, config rewrites and provider states are not proven exhaustive.",
+  "pages": 6,
+  "handlers": 29,
+  "breakpoints": [
+    320,
+    768,
+    1024,
+    1440,
+    1920
+  ],
+  "routeStateGate": "FAILED: untested combinations remain",
+  "routes": [
+    {
+      "route": "/.well-known/oauth-authorization-server",
+      "source": "src/app/.well-known/oauth-authorization-server/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/.well-known/oauth-protected-resource/mcp",
+      "source": "src/app/.well-known/oauth-protected-resource/mcp/route.ts",
+      "kind": "handler",
+      "methods": [],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/.well-known/oauth-protected-resource",
+      "source": "src/app/.well-known/oauth-protected-resource/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/analyze",
+      "source": "src/app/api/analyze/route.ts",
+      "kind": "handler",
+      "methods": [],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/compare",
+      "source": "src/app/api/compare/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/config",
+      "source": "src/app/api/config/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/connections/codex",
+      "source": "src/app/api/connections/codex/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/connections/higgsfield",
+      "source": "src/app/api/connections/higgsfield/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/fix-plan",
+      "source": "src/app/api/fix-plan/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/generate",
+      "source": "src/app/api/generate/route.ts",
+      "kind": "handler",
+      "methods": [],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/jobs",
+      "source": "src/app/api/jobs/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/oauth/consent",
+      "source": "src/app/api/oauth/consent/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/oauth/grants",
+      "source": "src/app/api/oauth/grants/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET",
+        "DELETE"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/persona/prepare",
+      "source": "src/app/api/persona/prepare/route.ts",
+      "kind": "handler",
+      "methods": [],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/profiles",
+      "source": "src/app/api/profiles/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/providers",
+      "source": "src/app/api/providers/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/reference",
+      "source": "src/app/api/reference/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/resize",
+      "source": "src/app/api/resize/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/review",
+      "source": "src/app/api/review/route.ts",
+      "kind": "handler",
+      "methods": [],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/titles",
+      "source": "src/app/api/titles/route.ts",
+      "kind": "handler",
+      "methods": [],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/youtube/reference",
+      "source": "src/app/api/youtube/reference/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/api/youtube",
+      "source": "src/app/api/youtube/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/connect",
+      "source": "src/app/connect/page.tsx",
+      "kind": "page",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "ready/local/signed-out",
+          "status": "tested-local-v2"
+        },
+        {
+          "state": "authenticated, empty/loading/error/success and breakpoint combinations",
+          "status": "not-exhaustively-covered"
+        }
+      ]
+    },
+    {
+      "route": "/integrations/higgsfield/client.json",
+      "source": "src/app/integrations/higgsfield/client.json/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/integrations/local-companion/client.json",
+      "source": "src/app/integrations/local-companion/client.json/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/local-companion",
+      "source": "src/app/local-companion/page.tsx",
+      "kind": "page",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "ready/local/signed-out",
+          "status": "tested-local-v2"
+        },
+        {
+          "state": "authenticated, empty/loading/error/success and breakpoint combinations",
+          "status": "not-exhaustively-covered"
+        }
+      ]
+    },
+    {
+      "route": "/mcp",
+      "source": "src/app/mcp/route.ts",
+      "kind": "handler",
+      "methods": [
+        "OPTIONS"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/oauth/authorize",
+      "source": "src/app/oauth/authorize/route.ts",
+      "kind": "handler",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/oauth/consent",
+      "source": "src/app/oauth/consent/page.tsx",
+      "kind": "page",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "ready/local/signed-out",
+          "status": "partial-existing-evidence"
+        },
+        {
+          "state": "authenticated, empty/loading/error/success and breakpoint combinations",
+          "status": "not-exhaustively-covered"
+        }
+      ]
+    },
+    {
+      "route": "/oauth/register",
+      "source": "src/app/oauth/register/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST",
+        "OPTIONS"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/oauth/revoke",
+      "source": "src/app/oauth/revoke/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST",
+        "OPTIONS"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/oauth/token",
+      "source": "src/app/oauth/token/route.ts",
+      "kind": "handler",
+      "methods": [
+        "POST",
+        "OPTIONS"
+      ],
+      "states": [
+        {
+          "state": "every method: authenticated/unauthenticated, validation, success, provider/network failure, retry/concurrency",
+          "status": "not-exhaustively-covered",
+          "note": "Existing unit and fixture tests are evidence for selected contracts only; this row does not pass by association."
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "source": "src/app/page.tsx",
+      "kind": "page",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "ready/local/signed-out",
+          "status": "partial-existing-evidence"
+        },
+        {
+          "state": "authenticated, empty/loading/error/success and breakpoint combinations",
+          "status": "not-exhaustively-covered"
+        }
+      ]
+    },
+    {
+      "route": "/studio",
+      "source": "src/app/studio/page.tsx",
+      "kind": "page",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "ready/local/signed-out",
+          "status": "tested-local-v2"
+        },
+        {
+          "state": "authenticated, empty/loading/error/success and breakpoint combinations",
+          "status": "not-exhaustively-covered"
+        }
+      ]
+    },
+    {
+      "route": "/welcome",
+      "source": "src/app/welcome/page.tsx",
+      "kind": "page",
+      "methods": [
+        "GET"
+      ],
+      "states": [
+        {
+          "state": "ready/local/signed-out",
+          "status": "tested-local-v2"
+        },
+        {
+          "state": "authenticated, empty/loading/error/success and breakpoint combinations",
+          "status": "not-exhaustively-covered"
+        }
+      ]
+    }
+  ]
+}

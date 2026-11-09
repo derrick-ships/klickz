@@ -1,0 +1,331 @@
+{
+  "findings": [
+    {
+      "id": "POWER-01",
+      "title": "Reopening the active chat can replace the latest draft with a stale snapshot",
+      "route": "/studio",
+      "state": "An existing chat has new edits inside the 300 ms autosave window or while its save is pending; user clicks that same selected chat row.",
+      "selector": ".chat-row[aria-current='true']",
+      "source_reference": "src/components/creative/chat.tsx:9; src/components/studio.tsx:263-300,314-334",
+      "severity": "P1",
+      "confidence": 1,
+      "user_impact": "The active row remains clickable. openChat captures its Conversation argument, awaits flushDraft(), then activateChat(chat) restores the older captured draft. The successful flush does not refresh that argument. The restored fields can then be checkpointed/autosaved over the new text, undermining trust in rapid navigation.",
+      "recommendation": "Make reopening the already active chat a no-op, or activate the updated Conversation returned by the flush/read. Add a focused regression that types and immediately clicks the current row, then verifies text and persisted draft after reload.",
+      "evidence_ids": [
+        "POWER-E01",
+        "POWER-E02",
+        "POWER-E15"
+      ],
+      "verification": "Reproduced by root-owned local browser regression: expected the latest brief, received the original account A prompt. Independently inspected the failure log and captures; this remains fixture evidence."
+    },
+    {
+      "id": "POWER-02",
+      "title": "Small library actions reload every collection and every local image",
+      "route": "/studio → My creations",
+      "state": "A repeat user favorites, saves, resizes, or deletes an item in a large library.",
+      "selector": ".creation-grid; [aria-label^='Favorite ']",
+      "source_reference": "src/lib/use-studio.ts:38-106,536-550; src/lib/local-db.ts:15-29; src/components/studio.tsx:1699",
+      "severity": "P2",
+      "confidence": 0.98,
+      "user_impact": "favorite() and remove() await load(), which fetches all four cloud collections and signs all image paths, or reads all local stores including every asset. Local loading revokes and recreates every object URL. The library maps every matching card. Work and memory therefore grow with the full collection for a one-item operation; cloud retrieval also has no explicit pagination or completeness check.",
+      "recommendation": "Update the changed record in memory, fetch images on demand, and introduce explicit paginated library retrieval with a visible count/load-more or windowed list. Keep asset URL lifetimes scoped to changed assets. Benchmark realistic large libraries before setting a performance target.",
+      "evidence_ids": [
+        "POWER-E03",
+        "POWER-E04",
+        "POWER-E05"
+      ],
+      "verification": "Read/write and rendering behavior verified in source; no latency or large-data benchmark performed."
+    },
+    {
+      "id": "POWER-03",
+      "title": "Deleting local creations does not reclaim their image storage",
+      "route": "/studio → My creations",
+      "state": "A local user repeatedly uploads or resizes thumbnails and deletes old creations.",
+      "selector": ".creation-card [aria-label^='Delete ']",
+      "source_reference": "src/lib/use-studio.ts:536-545; src/lib/local-db.ts:3,54-69; src/lib/use-studio.ts:86-106",
+      "severity": "P2",
+      "confidence": 0.98,
+      "user_impact": "remove('creations', id) deletes only the creation row. The assets store retains its image and load() continues materializing every retained blob. Deleting old work therefore does not reduce local image storage or loading work; accumulation can eventually interfere with new saves under browser storage limits.",
+      "recommendation": "Add reference-aware local asset garbage collection, preserving paths still used by drafts, personas, styles, conversations, and linked revisions. Expose storage usage and reclaim only assets that are truly unreferenced.",
+      "evidence_ids": [
+        "POWER-E03",
+        "POWER-E04",
+        "POWER-E06"
+      ],
+      "verification": "Verified local implementation; no claim about cloud storage cleanup or measured quota exhaustion."
+    },
+    {
+      "id": "POWER-04",
+      "title": "Library deletion has confirmation but no recovery",
+      "route": "/studio → My creations",
+      "state": "User confirms deletion of the wrong creation while cleaning up iterations.",
+      "selector": ".creation-card [aria-label^='Delete ']",
+      "source_reference": "src/components/studio.tsx:637-642,2073-2078; src/lib/use-studio.ts:536-545; src/lib/local-db.ts:54-69",
+      "severity": "P2",
+      "confidence": 0.99,
+      "user_impact": "The native confirmation immediately leads to row deletion. There is no retained undo payload, trash state, or recovery action in this path. A frequent cleanup action has an avoidable permanent-error cost.",
+      "recommendation": "Use a short undo window backed by a retained record or soft-delete/trash, with clear recovery feedback. Preserve the existing original/revision relationship until the deletion becomes final.",
+      "evidence_ids": [
+        "POWER-E06",
+        "POWER-E07"
+      ],
+      "verification": "Source-confirmed deletion path; no destructive action executed."
+    },
+    {
+      "id": "POWER-05",
+      "title": "Managing many iterations requires repeated one-item actions",
+      "route": "/studio → My creations",
+      "state": "User needs to favorite, export, or remove several results, or locate only drafts versus finished images.",
+      "selector": ".library-filters; .creation-grid; .creation-card",
+      "source_reference": "src/components/studio.tsx:644-648,1678-1699,2025-2083; src/lib/use-studio.ts:552-560",
+      "severity": "P2",
+      "confidence": 0.98,
+      "user_impact": "The library exposes text search and favorites, then renders individual open/favorite/delete controls. Downloads are available after opening an individual image. There is no multi-selection state or batch library action in this implementation, and no status/format filter or sort control. Repeated production cleanup and handoff require many navigation and confirmation steps.",
+      "recommendation": "Add optional selection mode with a selected count and bulk favorite/export, plus recoverable bulk delete. Add compact status and format filters and clear-all. Preserve the existing simple single-item flow as the default.",
+      "evidence_ids": [
+        "POWER-E05",
+        "POWER-E07",
+        "POWER-E08"
+      ],
+      "verification": "Source inventory of library controls; generation batch size is supported separately and is not being reported as absent."
+    },
+    {
+      "id": "POWER-06",
+      "title": "Chat search does not search the current autosaved draft",
+      "route": "/studio",
+      "state": "A named chat contains a new autosaved prompt that has not been explicitly saved as a creation.",
+      "selector": "input[aria-label='Search your chats']",
+      "source_reference": "src/lib/workspaces.ts:9; src/components/creative/chat.tsx:8-10; src/components/studio.tsx:314-334",
+      "severity": "P2",
+      "confidence": 0.99,
+      "user_impact": "searchChats matches chat.title and creation.prompt only. A manually named chat whose fresh draft contains the sought phrase is excluded until that phrase also exists in a saved creation. Autosaved ideas can consequently appear missing during a return visit.",
+      "recommendation": "Include draft.prompt, draft.title, and optionally draft.videoBrief in chat search, with normalized matching. Verify a renamed chat is found by text that exists only in its persisted draft.",
+      "evidence_ids": [
+        "POWER-E02",
+        "POWER-E09"
+      ],
+      "verification": "Source-confirmed search predicate; no new runtime search performed."
+    },
+    {
+      "id": "POWER-07",
+      "title": "The editor offers little keyboard acceleration for repeated creation work",
+      "route": "/studio?mode=edit and /studio?mode=generate",
+      "state": "A keyboard user repeatedly finishes prompts, saves drafts, finds chats, and starts the next iteration.",
+      "selector": "#thumbnail-prompt; .save-draft-button; .new-chat; input[aria-label='Search your chats']",
+      "source_reference": "src/components/studio.tsx:231-252,1087-1108,1288-1302,1574-1580; src/components/creative/chat.tsx:8-14",
+      "severity": "P3",
+      "confidence": 0.96,
+      "user_impact": "Sidebar toggle has Ctrl/Cmd+B, creation tabs have arrow/Home/End handling, and URL import supports Enter. The prompt has no submission handler and the core save/new-chat/search actions have no accelerator in these components, so repeated use requires traversing the full control sequence or switching to the pointer.",
+      "recommendation": "Add discoverable, nonconflicting shortcuts for save draft and focus chat search, then optionally Ctrl/Cmd+Enter for the currently available primary action with the same busy/readiness checks and cost disclosure. Supply a concise shortcut help surface and avoid firing actions during IME composition.",
+      "evidence_ids": [
+        "POWER-E10",
+        "POWER-E11"
+      ],
+      "verification": "Source-confirmed available keyboard handlers; this is an efficiency improvement, not a claim that the controls are keyboard inaccessible."
+    }
+  ],
+  "blockers": [
+    {
+      "id": "POWER-B01",
+      "description": "Live generation, scoring, authentication, and real backend persistence were not exercised. Task scope forbids paid/live calls and browser access to openpikzels.com and chatgpt.com. Existing captures and tests use fixtures and cannot establish real backend success.",
+      "evidence_ids": [
+        "POWER-E11",
+        "POWER-E12"
+      ]
+    },
+    {
+      "id": "POWER-B02",
+      "description": "No browser runner or benchmark was executed by this lens because root owns execution. Root reproduced POWER-01 and supplied a failing local regression. Large-library performance and quota effects still need measured validation. No general pass is inferred from source review.",
+      "evidence_ids": [
+        "POWER-E01",
+        "POWER-E03",
+        "POWER-E12",
+        "POWER-E15"
+      ]
+    }
+  ],
+  "delight": [
+    {
+      "id": "POWER-D01",
+      "description": "Rapid editing has a useful recovery foundation: immediate local checkpoint, a 300 ms workspace save, explicit sync feedback, and flush-before-navigation. Preserve these behaviors while fixing active-chat reopening.",
+      "route": "/studio",
+      "evidence_ids": [
+        "POWER-E02",
+        "POWER-E11"
+      ]
+    },
+    {
+      "id": "POWER-D02",
+      "description": "Revision history keeps prompts, thumbnails, model labels, and linked revision information together. Previous/next buttons, a focusable region, and reduced-motion behavior support repeat comparison without abandoning chat context.",
+      "route": "/studio",
+      "evidence_ids": [
+        "POWER-E01",
+        "POWER-E11"
+      ]
+    },
+    {
+      "id": "POWER-D03",
+      "description": "Generation completion compares the submitted draft fingerprint with the current draft and offers the result without replacing newer direction. Existing browser logs include tests for typing during generation and explicit-save races.",
+      "route": "/studio",
+      "evidence_ids": [
+        "POWER-E13",
+        "POWER-E12"
+      ]
+    },
+    {
+      "id": "POWER-D04",
+      "description": "The review surface groups Edit, Analyze, Resize, and Download near the image; mobile editing visibly preserves the selected source and says the original stays saved. Batch generation offers 1×, 2×, and 4× while chat activation resets batch to 1, limiting accidental repeat multiplicity.",
+      "route": "/studio",
+      "evidence_ids": [
+        "POWER-E11",
+        "POWER-E08",
+        "POWER-E02"
+      ]
+    }
+  ],
+  "jobs_to_be_done": [
+    {
+      "id": "POWER-J01",
+      "job": "When I jump among active projects, keep every unsent edit intact so I can resume at production speed.",
+      "finding_ids": [
+        "POWER-01",
+        "POWER-06"
+      ]
+    },
+    {
+      "id": "POWER-J02",
+      "job": "When I accumulate hundreds of iterations, let me find and organize the relevant work without making each small action reload the entire library.",
+      "finding_ids": [
+        "POWER-02",
+        "POWER-05"
+      ]
+    },
+    {
+      "id": "POWER-J03",
+      "job": "When I clean up old work, let me recover mistakes and reclaim storage without breaking surviving references.",
+      "finding_ids": [
+        "POWER-03",
+        "POWER-04"
+      ]
+    },
+    {
+      "id": "POWER-J04",
+      "job": "When a prompt is ready, let me save and move through the workflow using a small, predictable keyboard vocabulary.",
+      "finding_ids": [
+        "POWER-07"
+      ]
+    },
+    {
+      "id": "POWER-J05",
+      "job": "When I return to a named chat, find it by the fresh idea I remember, even if that idea never became a rendered thumbnail.",
+      "finding_ids": [
+        "POWER-06"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "POWER-E01",
+      "type": "source",
+      "reference": "src/components/creative/chat.tsx:6-10,16-27; src/components/studio.tsx:263-300",
+      "observation": "Active chat rows call onOpen and are disabled only by busy. openChat awaits flushDraft and activates the passed object. Timeline sorts and renders revisions with navigation buttons.",
+      "commit": "de11970bd2c733aca2e615638035135b3ffa2763"
+    },
+    {
+      "id": "POWER-E02",
+      "type": "source",
+      "reference": "src/components/studio.tsx:263-334",
+      "observation": "activateChat restores passed draft; batch is reset to 1. flushDraft saves current ref. Autosave writes checkpoint, waits 300 ms, and writes conversation.",
+      "commit": "de11970bd2c733aca2e615638035135b3ffa2763"
+    },
+    {
+      "id": "POWER-E03",
+      "type": "source",
+      "reference": "src/lib/use-studio.ts:38-106,536-550",
+      "observation": "load retrieves collections and assets wholesale; local load revokes and recreates all object URLs; favorite and remove invoke load."
+    },
+    {
+      "id": "POWER-E04",
+      "type": "source",
+      "reference": "src/lib/local-db.ts:15-29,54-69",
+      "observation": "localAll uses getAll and reconstructs asset Blobs; localDelete deletes one record from the requested store."
+    },
+    {
+      "id": "POWER-E05",
+      "type": "source",
+      "reference": "src/components/studio.tsx:644-648,1678-1699",
+      "observation": "Library filter predicate includes only favorites and title/prompt text; library renders all filtered cards."
+    },
+    {
+      "id": "POWER-E06",
+      "type": "source",
+      "reference": "src/lib/use-studio.ts:536-545; src/lib/local-db.ts:54-69",
+      "observation": "Creation removal has no local asset cleanup or soft-delete/undo storage."
+    },
+    {
+      "id": "POWER-E07",
+      "type": "source",
+      "reference": "src/components/studio.tsx:637-642,2025-2083",
+      "observation": "Delete uses a native confirmation followed by remove. Cards expose individual open, favorite, and delete actions."
+    },
+    {
+      "id": "POWER-E08",
+      "type": "source",
+      "reference": "src/components/studio.tsx:740-765,1540-1558; src/lib/use-studio.ts:552-560",
+      "observation": "Selected result has a single-image download action; generation batch selector offers 1, 2, 4."
+    },
+    {
+      "id": "POWER-E09",
+      "type": "source",
+      "reference": "src/lib/workspaces.ts:9; src/components/creative/chat.tsx:8-10",
+      "observation": "Chat search matches chat.title or a linked creation.prompt, excluding conversation draft text."
+    },
+    {
+      "id": "POWER-E10",
+      "type": "source",
+      "reference": "src/components/studio.tsx:231-252,1087-1108,1174-1188,1288-1302; src/components/creative/chat.tsx:14",
+      "observation": "Reviewed keyboard paths: global sidebar toggle/focus containment, creation tabs, URL Enter, rename form. Prompt has onChange only; no core workflow accelerator in reviewed source."
+    },
+    {
+      "id": "POWER-E11",
+      "type": "screenshots",
+      "references": [
+        "evidence/panel-after-edit-390.png",
+        "evidence/panel-after-review-1100.png"
+      ],
+      "observation": "Inspected both full captures. Mobile edit shows source preview and linked saved draft; desktop review shows grouped actions and timeline. Fixture labels are visible; these images do not establish live provider behavior."
+    },
+    {
+      "id": "POWER-E12",
+      "type": "existing_test_logs",
+      "references": [
+        "evidence/loop-run-chromium.log",
+        "evidence/loop-run-webkit.log"
+      ],
+      "observation": "Read log tails: Chromium reports 61 passed; WebKit reports 25 passed and 1 skipped. Includes navigation, draft-race, and pending-result tests. Logs are prior evidence, not newly executed by this lens and not proof of real backend behavior."
+    },
+    {
+      "id": "POWER-E13",
+      "type": "source",
+      "reference": "src/components/studio.tsx:457-537",
+      "observation": "submit compares submitted/current fingerprints; newer direction triggers pendingResult and preserves draft. Explicit save also checks whether draft changed."
+    },
+    {
+      "id": "POWER-E14",
+      "type": "scope",
+      "reference": "Independent Power User lens",
+      "observation": "Read named source, adjacent chat source, the two specified captures, existing browser log tails, and root's targeted active-chat reproduction log and captures. No other lens reports were opened. No app source edits, live requests, deployments, destructive actions, or browser test runs by this lens. Snapshot commit identity supplied by root agent; no .git metadata."
+    },
+    {
+      "id": "POWER-E15",
+      "type": "root_owned_local_browser_regression",
+      "references": [
+        "loop-v2-active-chat.log",
+        "evidence/loop-v2-active-chat-before.png",
+        "evidence/loop-v2-active-chat-result.png",
+        "tests/browser/workspace-races.spec.ts:126-133"
+      ],
+      "observation": "Root's targeted test failed: Prompt expected 'This latest brief must survive clicking my current chat', received 'A factual thumbnail from account A'. Before capture visibly contains the latest brief; result collapses the composer. Log confirms restored old textarea value. Inspected these artifacts directly; no real backend success asserted."
+    }
+  ]
+}

@@ -1,0 +1,849 @@
+{
+  "protocol": "LOOP v2",
+  "stage": "3. CRITIC PANEL — adversarial triage",
+  "recorded_date": "2026-11-09",
+  "method": {
+    "reviewer": "One critical synthesis agent applying seven explicit roles after the four independent sequential lens reports. These are distinct review perspectives, not seven independent reviewers or human experts.",
+    "source_commit": "de11970bd2c733aca2e615638035135b3ffa2763 (root-supplied identity; remote snapshot lacks .git)",
+    "inputs": [
+      "evidence/loop-v2-grandma.json",
+      "evidence/loop-v2-competitor.json",
+      "evidence/loop-v2-power.json",
+      "evidence/loop-v2-designer.json"
+    ],
+    "direct_checks": [
+      "Read current openChat/activateChat/flushDraft source, search predicate, signed-in provider form",
+      "Inspected active-chat failure log and result screenshot",
+      "Individually viewed mobile edit and signed-out connection screenshots",
+      "Read actual screen-reader incomplete report, prior build/test/performance report excerpt and source route inventory"
+    ],
+    "constraints": [
+      "No application edits, test execution, network, browser access, paid calls or deployment by panel",
+      "Denied production browser and ChatGPT access not retried",
+      "Other screenshot/source observations attributed to the lens report rather than represented as fresh direct inspection"
+    ],
+    "severity_definition": {
+      "P0": "Critical broad loss/security/availability incident established by evidence",
+      "P1": "Loss of user work or a primary task barrier for the intended user; must resolve before release under this protocol",
+      "P2": "Material usability, trust, craft or repeat-use issue with viable existing path",
+      "P3": "Polish or efficiency opportunity"
+    },
+    "ranking": "Operational convention: weights P0=4, P1=3, P2=2, P3=1 multiplied by confidence (0–1) and impact (1–5). These weights are declared for reproducibility, not supplied by user. Confidence concerns the cited observation; downstream abandonment is a hypothesis unless measured."
+  },
+  "roles": [
+    {
+      "role": "Accessibility",
+      "finding_ids": [
+        "T02",
+        "T03",
+        "T05"
+      ],
+      "severity": "P1",
+      "confidence": 0.94,
+      "user_impact": 5,
+      "what_makes_users_leave": "A low-vision newcomer cannot confidently read save/revision status or understand how to obtain the credential required for the next action.",
+      "evidence": [
+        "evidence/loop-v2-grandma.json:G-02,G-03",
+        "src/components/account/account.tsx:290-395",
+        "evidence/panel-after-edit-390.png",
+        "evidence/loop-screen-reader.json"
+      ],
+      "supported": "Essential status copy is visibly small; provider setup lacks plain key guidance.",
+      "rejected": "Zero automated violations or Lighthouse accessibility 100 does not establish screen-reader, contrast, or complete keyboard conformance.",
+      "fake_pass_risks": [
+        "Treating VoiceOver timeout as pass because harness exited cleanly",
+        "Counting axe incomplete contrast as successful contrast",
+        "Claiming universal 16px body floor absent in current CSS"
+      ],
+      "signoff": false
+    },
+    {
+      "role": "Visual Craft",
+      "finding_ids": [
+        "T05",
+        "T11",
+        "T12",
+        "T17",
+        "T18"
+      ],
+      "severity": "P2",
+      "confidence": 0.97,
+      "user_impact": 4,
+      "what_makes_users_leave": "Editing on a phone requires navigating a tall sequence in which image, instruction and finish actions are separated.",
+      "evidence": [
+        "evidence/loop-v2-designer.json:DES-V2-01,02,03,04,06",
+        "evidence/panel-after-edit-390.png",
+        "evidence/panel-after-07-connect-mobile.png"
+      ],
+      "supported": "Source/reference/history/settings stack is visibly lengthy; authentication alternatives have equal visual weight.",
+      "rejected": "Static screenshots cannot prove animation smoothness, mobile touch behavior or all intermediate layouts.",
+      "fake_pass_risks": [
+        "Polishing wordmark while draft loss remains",
+        "Calling emulator screenshots physical-device tests",
+        "Hiding charge/readiness guidance to achieve cleaner screenshots"
+      ],
+      "signoff": false
+    },
+    {
+      "role": "Trust/Conversion",
+      "finding_ids": [
+        "T02",
+        "T09",
+        "T10",
+        "T13",
+        "T14"
+      ],
+      "severity": "P1",
+      "confidence": 0.94,
+      "user_impact": 5,
+      "what_makes_users_leave": "The product asks for account and provider access before a newcomer understands the setup or sees what the work will produce.",
+      "evidence": [
+        "evidence/loop-v2-competitor.json:C1,C2,C4,C6",
+        "src/components/account/account.tsx:290-395",
+        "evidence/panel-after-07-connect-mobile.png"
+      ],
+      "supported": "Key guidance and ownership/cost explanation should sit at the input decision; partial-score uncertainty should precede a fix decision.",
+      "rejected": "No conversion-rate claim is justified. The fixed headline must remain; only qualification hierarchy can change. Saved-key suffix does not prove encryption at rest.",
+      "fake_pass_risks": [
+        "Presenting fixture score as real AI output",
+        "Making free provider-usage promises",
+        "Treating saved connection as validated provider generation",
+        "Reclassifying absence of proof as proof of product failure"
+      ],
+      "signoff": false
+    },
+    {
+      "role": "Performance",
+      "finding_ids": [
+        "T06",
+        "T07"
+      ],
+      "severity": "P2",
+      "confidence": 0.98,
+      "user_impact": 3,
+      "what_makes_users_leave": "As retained local images accumulate, repeated actions may require progressively more work and storage.",
+      "evidence": [
+        "evidence/loop-v2-power.json:POWER-02,03",
+        "evidence/loop-verification.json:performance,lighthouse"
+      ],
+      "supported": "Prior production-build lab results are strong for the tested small fixtures; full collection reload and retained assets are source-supported growth risks.",
+      "rejected": "No large-library latency or quota failure was measured; do not report a performance incident from code inspection alone.",
+      "fake_pass_risks": [
+        "Using initial-page Lighthouse to certify large-library interactions",
+        "Calling three lab samples real-user p75",
+        "Applying previous candidate metrics to a changed build without rerun"
+      ],
+      "signoff": false
+    },
+    {
+      "role": "Content/IA",
+      "finding_ids": [
+        "T02",
+        "T04",
+        "T11",
+        "T14",
+        "T15"
+      ],
+      "severity": "P1",
+      "confidence": 0.94,
+      "user_impact": 5,
+      "what_makes_users_leave": "The user cannot identify the correct account/key or find an idea they know they saved.",
+      "evidence": [
+        "src/lib/workspaces.ts:9",
+        "src/components/account/account.tsx:290-395",
+        "evidence/loop-v2-grandma.json:G-05",
+        "evidence/loop-v2-designer.json:DES-V2-02"
+      ],
+      "supported": "Draft-only search terms are excluded. Provider field needs plain-language purpose, next step and official guidance.",
+      "rejected": "Do not remove API model IDs entirely; current requirement needs verified identity, which can remain in details.",
+      "fake_pass_risks": [
+        "Renaming controls without fixing discoverability logic",
+        "Inventing operator/support/policy links",
+        "Assuming subscription always entails or never entails specific API credits"
+      ],
+      "signoff": false
+    },
+    {
+      "role": "Adversarial QA",
+      "finding_ids": [
+        "T01",
+        "T04",
+        "T08"
+      ],
+      "severity": "P1",
+      "confidence": 1,
+      "user_impact": 5,
+      "what_makes_users_leave": "Selecting the current chat replaces their latest text, despite visible saving cues.",
+      "evidence": [
+        "src/components/studio.tsx:263-300",
+        "loop-v2-active-chat.log",
+        "evidence/loop-v2-active-chat-result.png",
+        "tests/browser/workspace-races.spec.ts:126-133",
+        "evidence/loop-v2-source-inventory.json"
+      ],
+      "supported": "Targeted reproduction expected latest brief but received original prompt; captured Conversation is reactivated after flush.",
+      "rejected": "Previous 61 Chromium tests did not cover this state. A later passing test must include persisted reload, not just immediate textarea state.",
+      "fake_pass_risks": [
+        "Overwriting failure screenshots before retaining before evidence",
+        "Claiming complete routes from six happy-path pages",
+        "Calling missing evaluator output malformed and retrying denied access",
+        "Treating OAuth fixture as an actual consent grant"
+      ],
+      "signoff": false
+    },
+    {
+      "role": "Business Value",
+      "finding_ids": [
+        "T01",
+        "T02",
+        "T09",
+        "T15",
+        "T16"
+      ],
+      "severity": "P1",
+      "confidence": 1,
+      "user_impact": 5,
+      "what_makes_users_leave": "Loss of work destroys confidence, and unexplained API setup prevents reaching the first useful generation.",
+      "evidence": [
+        "evidence/loop-v2-power.json:POWER-01",
+        "evidence/loop-v2-competitor.json:C1,C2,C5",
+        "evidence/loop-v2-grandma.json:G-02"
+      ],
+      "supported": "Protect drafts and reduce setup ambiguity before adding bulk features or a broad new visual system. A truthful sample can clarify the workflow later.",
+      "rejected": "No independent price estimate, rating, measured conversion, guaranteed views or superiority over competitors is established.",
+      "fake_pass_risks": [
+        "Building generic power features solely because hypothetical evaluator description lists them",
+        "Price inflation through estimated implementation hours instead of independent review",
+        "Treating seven perspectives from one agent as seven independent human reviewers"
+      ],
+      "signoff": false
+    }
+  ],
+  "triage": [
+    {
+      "id": "T01",
+      "route": "/studio",
+      "state": "An existing chat has new edits inside the 300 ms autosave window or while its save is pending; user clicks that same selected chat row.",
+      "selector": ".chat-row[aria-current='true']",
+      "severity": "P1",
+      "confidence": 1,
+      "impact": 5,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 15,
+      "user_impact": "The active row remains clickable. openChat captures its Conversation argument, awaits flushDraft(), then activateChat(chat) restores the older captured draft. The successful flush does not refresh that argument. The restored fields can then be checkpointed/autosaved over the new text, undermining trust in rapid navigation.",
+      "evidence": {
+        "report": "evidence/loop-v2-power.json",
+        "finding": "POWER-01",
+        "source": "src/components/creative/chat.tsx:9; src/components/studio.tsx:263-300,314-334",
+        "screenshot": null,
+        "references": [
+          "POWER-E01",
+          "POWER-E02",
+          "POWER-E15"
+        ]
+      },
+      "merged_findings": [
+        "grandma"
+      ],
+      "decision": "Accept: reproducible current-draft replacement is loss of user work. Fix before any release.",
+      "status": "open",
+      "recommendation": "Make reopening the already active chat a no-op, or activate the updated Conversation returned by the flush/read. Add a focused regression that types and immediately clicks the current row, then verifies text and persisted draft after reload."
+    },
+    {
+      "id": "T02",
+      "route": "/connect and /studio",
+      "state": "Signed out; first generation setup; signed-in key form inspected in source only",
+      "selector": ".account-form, .key-form, .request-readiness",
+      "severity": "P1",
+      "confidence": 0.94,
+      "impact": 5,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 14.1,
+      "user_impact": "The first-time low-tech user is told to connect an API key before generating, but the reviewed setup offers no plain explanation of what the key is or step-by-step path to obtain one. The signed-in source asks for Provider and Your API key. A person who only has a ChatGPT subscription can reach a form they cannot complete.",
+      "evidence": {
+        "report": "evidence/loop-v2-grandma.json",
+        "finding": "G-02",
+        "source": null,
+        "screenshot": "evidence/panel-after-07-connect-mobile.png",
+        "references": [
+          "E1",
+          "E3",
+          "E6",
+          "E7"
+        ]
+      },
+      "merged_findings": [
+        "competitor:C2",
+        "grandma:G-05",
+        "designer:DES-V2-05"
+      ],
+      "decision": "Merge first-provider setup and sign-in ambiguity. Known low-tech users cannot infer API onboarding. High task-blocking risk; no claim provider authentication is broken.",
+      "status": "open",
+      "recommendation": "Provide a short guided setup: explain that an API key is separate provider access, give provider-specific 'Get a key' guidance, explain billing before the handoff, and preserve a clear 'Continue with a free draft' route. Show which step comes next."
+    },
+    {
+      "id": "T04",
+      "route": "/studio",
+      "state": "A named chat contains a new autosaved prompt that has not been explicitly saved as a creation.",
+      "selector": "input[aria-label='Search your chats']",
+      "severity": "P2",
+      "confidence": 0.99,
+      "impact": 4,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 7.92,
+      "user_impact": "searchChats matches chat.title and creation.prompt only. A manually named chat whose fresh draft contains the sought phrase is excluded until that phrase also exists in a saved creation. Autosaved ideas can consequently appear missing during a return visit.",
+      "evidence": {
+        "report": "evidence/loop-v2-power.json",
+        "finding": "POWER-06",
+        "source": "src/lib/workspaces.ts:9; src/components/creative/chat.tsx:8-10; src/components/studio.tsx:314-334",
+        "screenshot": null,
+        "references": [
+          "POWER-E02",
+          "POWER-E09"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept source-confirmed draft discoverability gap.",
+      "status": "open",
+      "recommendation": "Include draft.prompt, draft.title, and optionally draft.videoBrief in chat search, with normalized matching. Verify a renamed chat is found by text that exists only in its persisted draft."
+    },
+    {
+      "id": "T03",
+      "route": "/studio",
+      "state": "Mobile edit of a saved fixture draft, 390px capture",
+      "selector": ".chat-save-state, .chat-timeline small, .edit-source-preview summary span",
+      "severity": "P2",
+      "confidence": 0.97,
+      "impact": 4,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 7.76,
+      "user_impact": "The messages that tell a distracted user whether work is saved and which revision they are viewing are among the smallest text on the screen. CSS specifies 10px for save state and revision metadata, and 11px for preview guidance. A low-vision user can read the large headline while missing the information needed to resume confidently.",
+      "evidence": {
+        "report": "evidence/loop-v2-grandma.json",
+        "finding": "G-03",
+        "source": null,
+        "screenshot": "evidence/panel-after-edit-390.png",
+        "references": [
+          "E2",
+          "E8",
+          "E9"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept small essential status text; source supports font sizes, not a measured contrast failure.",
+      "status": "open",
+      "recommendation": "Raise status and revision text to a readable body scale, shorten metadata into plain labels such as 'Saved on this device' and 'Edited draft', and place the current saved state close to the editing action."
+    },
+    {
+      "id": "T05",
+      "route": "/studio",
+      "state": "390px, editing a saved draft with selected source",
+      "selector": ".edit-source-preview, .chat-strip, .composer, .composer-footer",
+      "severity": "P2",
+      "confidence": 0.97,
+      "impact": 4,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 7.76,
+      "user_impact": "The editing task is buried in a very tall mobile composition. The screenshot places history cards above the heading, a full source preview above the edit field, another reference thumbnail below it, and generation and saving near the bottom. A creator must repeatedly scroll between the image, instruction and action.",
+      "evidence": {
+        "report": "evidence/loop-v2-designer.json",
+        "finding": "DES-V2-01",
+        "source": null,
+        "screenshot": null,
+        "references": [
+          "DES-E03",
+          "DES-E08",
+          "DES-E10"
+        ]
+      },
+      "merged_findings": [
+        "grandma:G-04"
+      ],
+      "decision": "Merge mobile edit vertical burden; no task-completion timing measured.",
+      "status": "open",
+      "recommendation": "On narrow screens lead with the current image and edit field as a compact working pair. Collapse history behind an explicit version count and make the existing source preview disclosure compact by default after source selection. Keep the original image easily recoverable and keep Save draft and the applicable generation action adjacent to the edit task. Do not hide readiness or provider-charge information."
+    },
+    {
+      "id": "T08",
+      "route": "/studio → My creations",
+      "state": "User confirms deletion of the wrong creation while cleaning up iterations.",
+      "selector": ".creation-card [aria-label^='Delete ']",
+      "severity": "P2",
+      "confidence": 0.99,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.94,
+      "user_impact": "The native confirmation immediately leads to row deletion. There is no retained undo payload, trash state, or recovery action in this path. A frequent cleanup action has an avoidable permanent-error cost.",
+      "evidence": {
+        "report": "evidence/loop-v2-power.json",
+        "finding": "POWER-04",
+        "source": "src/components/studio.tsx:637-642,2073-2078; src/lib/use-studio.ts:536-545; src/lib/local-db.ts:54-69",
+        "screenshot": null,
+        "references": [
+          "POWER-E06",
+          "POWER-E07"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept no undo in deletion path. Do not infer all undo/history absent across app.",
+      "status": "open",
+      "recommendation": "Use a short undo window backed by a retained record or soft-delete/trash, with clear recovery feedback. Preserve the existing original/revision relationship until the deletion becomes final."
+    },
+    {
+      "id": "T06",
+      "route": "/studio → My creations",
+      "state": "A repeat user favorites, saves, resizes, or deletes an item in a large library.",
+      "selector": ".creation-grid; [aria-label^='Favorite ']",
+      "severity": "P2",
+      "confidence": 0.98,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.88,
+      "user_impact": "favorite() and remove() await load(), which fetches all four cloud collections and signs all image paths, or reads all local stores including every asset. Local loading revokes and recreates every object URL. The library maps every matching card. Work and memory therefore grow with the full collection for a one-item operation; cloud retrieval also has no explicit pagination or completeness check.",
+      "evidence": {
+        "report": "evidence/loop-v2-power.json",
+        "finding": "POWER-02",
+        "source": "src/lib/use-studio.ts:38-106,536-550; src/lib/local-db.ts:15-29; src/components/studio.tsx:1699",
+        "screenshot": null,
+        "references": [
+          "POWER-E03",
+          "POWER-E04",
+          "POWER-E05"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept full-collection reload mechanism; observed latency not established. Benchmark before large refactor.",
+      "status": "open",
+      "recommendation": "Update the changed record in memory, fetch images on demand, and introduce explicit paginated library retrieval with a visible count/load-more or windowed list. Keep asset URL lifetimes scoped to changed assets. Benchmark realistic large libraries before setting a performance target."
+    },
+    {
+      "id": "T07",
+      "route": "/studio → My creations",
+      "state": "A local user repeatedly uploads or resizes thumbnails and deletes old creations.",
+      "selector": ".creation-card [aria-label^='Delete ']",
+      "severity": "P2",
+      "confidence": 0.98,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.88,
+      "user_impact": "remove('creations', id) deletes only the creation row. The assets store retains its image and load() continues materializing every retained blob. Deleting old work therefore does not reduce local image storage or loading work; accumulation can eventually interfere with new saves under browser storage limits.",
+      "evidence": {
+        "report": "evidence/loop-v2-power.json",
+        "finding": "POWER-03",
+        "source": "src/lib/use-studio.ts:536-545; src/lib/local-db.ts:3,54-69; src/lib/use-studio.ts:86-106",
+        "screenshot": null,
+        "references": [
+          "POWER-E03",
+          "POWER-E04",
+          "POWER-E06"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept retained local assets; quota exhaustion remains a plausible consequence, not an observed incident. Reference-aware cleanup required.",
+      "status": "open",
+      "recommendation": "Add reference-aware local asset garbage collection, preserving paths still used by drafts, personas, styles, conversations, and linked revisions. Expose storage usage and reclaim only assets that are truly unreferenced."
+    },
+    {
+      "id": "T11",
+      "route": "/studio",
+      "state": "Signed-out empty prompt at 1024px and 1440px",
+      "selector": ".request-readiness, .request-identity, .composer-footer",
+      "severity": "P2",
+      "confidence": 0.98,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.88,
+      "user_impact": "The bottom third of the composer is dominated by repeated model/provider/format identity and setup explanations. The raw API model identifier receives near-primary text emphasis, while the immediately usable Save draft action sits outside the card in low-emphasis styling. This makes the free drafting path feel secondary to a blocked generation path.",
+      "evidence": {
+        "report": "evidence/loop-v2-designer.json",
+        "finding": "DES-V2-02",
+        "source": null,
+        "screenshot": null,
+        "references": [
+          "DES-E02",
+          "DES-E06",
+          "DES-E10"
+        ]
+      },
+      "merged_findings": [
+        "grandma:G-06"
+      ],
+      "decision": "Accept metadata hierarchy concern; keep verified model identity accessible, preserve charge disclosure.",
+      "status": "open",
+      "recommendation": "Keep one concise visible readiness summary, show the human-readable model and format once, put raw API identifiers in an optional details disclosure, and keep the provider-charge explanation beside the generation action. Give Save draft a clear secondary action position and label in the same action group. Preserve the explicit sign-in requirement."
+    },
+    {
+      "id": "T14",
+      "route": "/welcome",
+      "state": "First visit; desktop landing capture",
+      "selector": ".welcome-headline, .welcome-outcome",
+      "severity": "P2",
+      "confidence": 0.98,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.88,
+      "user_impact": "The dominant promise 'GET MILLIONS OF VIEWS' is much easier to perceive than the qualification 'Views are not guaranteed.' A distracted, trust-sensitive newcomer can form an outcome expectation before noticing the qualification.",
+      "evidence": {
+        "report": "evidence/loop-v2-grandma.json",
+        "finding": "G-01",
+        "source": null,
+        "screenshot": "evidence/panel-after-01-welcome.png",
+        "references": [
+          "E4",
+          "E5"
+        ]
+      },
+      "merged_findings": [
+        "competitor:C3"
+      ],
+      "decision": "Accept qualification hierarchy concern; reject replacing the explicitly required headline. Improve nearby readable qualification instead; no conversion estimate.",
+      "status": "open",
+      "recommendation": "Use an accurate outcome-oriented headline about making a clear thumbnail; keep the qualification readable beside the promise. Retain the visible disclosure that image generation uses paid provider access."
+    },
+    {
+      "id": "T10",
+      "route": "/studio",
+      "state": "Review with explicit partial-score fixture",
+      "selector": ".score-header, .pillar-list, .score-disclaimer",
+      "severity": "P2",
+      "confidence": 0.97,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.82,
+      "user_impact": "The score and Virality bars dominate the review, while experimental-status and uncertainty wording appear below the detailed rubric. Visitors may infer a predictive quality grade from the numbers despite the existing caveats. This also makes the experience resemble Pikzels instead of clearly differentiating its evidence and limits. The values in the inspected capture are fixtures, not measured or provider-generated results.",
+      "evidence": {
+        "report": "evidence/loop-v2-competitor.json",
+        "finding": "C4",
+        "source": null,
+        "screenshot": "evidence/panel-after-review-1100.png",
+        "references": [
+          "L4",
+          "L8",
+          "O1",
+          "O4"
+        ]
+      },
+      "merged_findings": [
+        "designer:DES-V2-08"
+      ],
+      "decision": "Accept assessment qualification and missing-context hierarchy issue. Fixture demonstrates presentation only.",
+      "status": "open",
+      "recommendation": "Retain the creative rubric but put 'Creative assessment — not measured CTR' immediately next to the score, with the evidence, missing context and actionable note before the bars. Explain what partial means at the point of the score. Demonstrate the score-free comparison and copyable improvement prompt as concrete choices; validate real audience performance separately."
+    },
+    {
+      "id": "T09",
+      "route": "/welcome",
+      "state": "Anonymous introduction",
+      "selector": ".welcome-hero, .welcome-workflow",
+      "severity": "P2",
+      "confidence": 0.95,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.7,
+      "user_impact": "The page asks creators to move their thumbnail workflow on the strength of brand artwork and prose. It shows no concrete input-to-output example or inspectable before/after demonstrating the saved effort. A visitor cannot judge output quality before accepting account and API setup. The review capture is explicitly a fixture and cannot supply production proof.",
+      "evidence": {
+        "report": "evidence/loop-v2-competitor.json",
+        "finding": "C1",
+        "source": null,
+        "screenshot": "evidence/panel-after-01-welcome.png",
+        "references": [
+          "L1",
+          "L4",
+          "L5",
+          "O2",
+          "O4"
+        ]
+      },
+      "merged_findings": [
+        "designer:DES-V2-07"
+      ],
+      "decision": "Calibrate original P1 to P2: absence of worked proof is observed, but prevents neither local drafting nor an existing user's workflow; conversion effect unmeasured. This does not clear real-provider validation or release gates.",
+      "status": "open",
+      "recommendation": "Preserve GET MILLIONS OF VIEWS / Without adding another subscription*. Add one clearly attributed, reproducible thumbnail case beneath the hero: actual brief, reference permission, output, specific review note and revised output. Label any demo or fixture accurately. Offer an inspectable sample before connection; do not invent performance or generation claims."
+    },
+    {
+      "id": "T12",
+      "route": "/studio",
+      "state": "1100px review with partial analysis fixture",
+      "selector": ".review-layout, .review-canvas, .review-inspector; src/app/review.css",
+      "severity": "P2",
+      "confidence": 0.94,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.64,
+      "user_impact": "At the supplied middle desktop width the full image and its controls consume almost the first screen, while the active analysis explanation is much farther down. The image is no longer beside its feedback, weakening the core visual-review task and requiring memory and repeated scrolling.",
+      "evidence": {
+        "report": "evidence/loop-v2-designer.json",
+        "finding": "DES-V2-03",
+        "source": null,
+        "screenshot": null,
+        "references": [
+          "DES-E04",
+          "DES-E11"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept intermediate-width feedback distance as craft issue; do not undo protective image stacking without responsive tests.",
+      "status": "open",
+      "recommendation": "Design an intentional intermediate review layout below the current 960px container breakpoint: a compact image preview retained near the active analysis, or a clearly bounded sticky preview that does not obscure keyboard focus. Keep the full-size view available. Validate the composition with long real titles and incomplete assessments before claiming the problem resolved."
+    },
+    {
+      "id": "T13",
+      "route": "/connect",
+      "state": "Anonymous mobile connection onboarding",
+      "selector": ".account-form, .welcome-privacy",
+      "severity": "P2",
+      "confidence": 0.93,
+      "impact": 3,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 5.58,
+      "user_impact": "The creator must trust a new service with an account and eventually provider access. Detailed local-versus-cloud storage information exists in an expandable section on the welcome page, while the visible mobile sign-in state mainly reassures about the optional ChatGPT connection. The trust explanation is poorly placed for the actual API-key decision; this is a disclosure placement gap, not a finding that encryption is broken.",
+      "evidence": {
+        "report": "evidence/loop-v2-competitor.json",
+        "finding": "C6",
+        "source": null,
+        "screenshot": "evidence/panel-after-07-connect-mobile.png",
+        "references": [
+          "L3",
+          "L5",
+          "L6",
+          "O1",
+          "O6"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept trust disclosure placement; not evidence of failed encryption.",
+      "status": "open",
+      "recommendation": "Surface a short account/API explanation at the connection decision: which data stays on this device, which is stored by OpenPikzels, which goes to the selected provider, how to disconnect, and where to read details. Give operator/support and applicable policy links if available and verified. Keep ChatGPT-plan access clearly secondary to the requested image-generation task."
+    },
+    {
+      "id": "T16",
+      "route": "/studio → My creations",
+      "state": "User needs to favorite, export, or remove several results, or locate only drafts versus finished images.",
+      "selector": ".library-filters; .creation-grid; .creation-card",
+      "severity": "P2",
+      "confidence": 0.98,
+      "impact": 2,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 3.92,
+      "user_impact": "The library exposes text search and favorites, then renders individual open/favorite/delete controls. Downloads are available after opening an individual image. There is no multi-selection state or batch library action in this implementation, and no status/format filter or sort control. Repeated production cleanup and handoff require many navigation and confirmation steps.",
+      "evidence": {
+        "report": "evidence/loop-v2-power.json",
+        "finding": "POWER-05",
+        "source": "src/components/studio.tsx:644-648,1678-1699,2025-2083; src/lib/use-studio.ts:552-560",
+        "screenshot": null,
+        "references": [
+          "POWER-E05",
+          "POWER-E07",
+          "POWER-E08"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept bulk and filtering opportunity, not essential to current single-image task. Add only after data protection and setup.",
+      "status": "open",
+      "recommendation": "Add optional selection mode with a selected count and bulk favorite/export, plus recoverable bulk delete. Add compact status and format filters and clear-all. Preserve the existing simple single-item flow as the default."
+    },
+    {
+      "id": "T15",
+      "route": "/welcome",
+      "state": "Evaluating whether to switch",
+      "selector": ".welcome-steps, #ai-access",
+      "severity": "P2",
+      "confidence": 0.94,
+      "impact": 2,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 3.76,
+      "user_impact": "The advertised core jobs overlap heavily with Pikzels and other thumbnail products. The page gives no concise decision aid explaining why bringing API access is worth the setup, or when a creator should retain an existing tool. Model choice alone is insufficient against Higgsfield's advertised multi-model workflow. The strongest apparent distinction—local drafts plus bringing images and improvement prompts through an agent—is explained as connection mechanics rather than a creator outcome.",
+      "evidence": {
+        "report": "evidence/loop-v2-competitor.json",
+        "finding": "C5",
+        "source": null,
+        "screenshot": "evidence/panel-after-01-welcome.png",
+        "references": [
+          "L1",
+          "L5",
+          "L6",
+          "L9",
+          "O1",
+          "O2",
+          "O4"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept insufficient explicit switching rationale. Competitor marketing pages are advertised capabilities, not parity tests.",
+      "status": "open",
+      "recommendation": "Add a dated comparison organized by jobs and switching tradeoffs: first usable result, billing model, existing-image workflow, review evidence, version comparison, ownership/storage and export. Give a short 'best fit' statement for creators wanting provider choice and agent-assisted iteration. Mark source-inspected, live-verified and unverified capabilities separately. Do not claim competitors lack features from marketing-page omissions; treat the conditional Higgsfield connection as unverified until activated and tested."
+    },
+    {
+      "id": "T18",
+      "route": "/welcome, /studio, /connect",
+      "state": "Marketing header, studio sidebar/topbar, account header",
+      "selector": ".welcome-brand, .wordmark, .workspace-name, .account-header .brand",
+      "severity": "P3",
+      "confidence": 0.99,
+      "impact": 2,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 1.98,
+      "user_impact": "The identity shifts from a bold compact wordmark with baseline red punctuation on the welcome page, to a bold studio mark with a raised pixel, to a light account wordmark and small plain mobile studio name. This makes connected parts of the product feel less deliberately unified.",
+      "evidence": {
+        "report": "evidence/loop-v2-designer.json",
+        "finding": "DES-V2-06",
+        "source": null,
+        "screenshot": null,
+        "references": [
+          "DES-E01",
+          "DES-E02",
+          "DES-E03",
+          "DES-E05",
+          "DES-E07",
+          "DES-E09",
+          "DES-E13"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept inconsistent wordmark craft. Preserve existing brand identity.",
+      "status": "open",
+      "recommendation": "Define one reusable wordmark with an explicit compact variant: consistent weight, letter spacing and raised red pixel. Allow size to change for context, while preserving the same mark. Keep the red/dark brand and all required headline text."
+    },
+    {
+      "id": "T17",
+      "route": "/studio",
+      "state": "390px edit settings and generation action",
+      "selector": ".settings-row select, .batch-select select, .model-trigger",
+      "severity": "P3",
+      "confidence": 0.96,
+      "impact": 2,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 1.92,
+      "user_impact": "The native aspect-ratio selector and batch control show a noticeably different control face from the custom model picker and sculpted buttons. In the mobile screenshot the ratio field appears as a thin inset strip and the batch selector has platform arrows, reducing consistency and perceived finish. This is a visual observation, not a measured touch-target failure.",
+      "evidence": {
+        "report": "evidence/loop-v2-designer.json",
+        "finding": "DES-V2-04",
+        "source": null,
+        "screenshot": null,
+        "references": [
+          "DES-E03",
+          "DES-E06",
+          "DES-E09",
+          "DES-E12"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept select visual mismatch. Preserve native keyboard/forced-colors semantics.",
+      "status": "open",
+      "recommendation": "Retain native select behavior but normalize its visible height, padding, background and indicator within the shared control geometry; use appearance:none only with a clear replacement indicator and preserved focus/forced-colors behavior. Align the ratio field with ModelTrigger and keep batch quantity legible inside the split action."
+    },
+    {
+      "id": "T19",
+      "route": "/studio?mode=edit and /studio?mode=generate",
+      "state": "A keyboard user repeatedly finishes prompts, saves drafts, finds chats, and starts the next iteration.",
+      "selector": "#thumbnail-prompt; .save-draft-button; .new-chat; input[aria-label='Search your chats']",
+      "severity": "P3",
+      "confidence": 0.96,
+      "impact": 2,
+      "impact_scale": "1 minor inconvenience; 2 repeated friction; 3 meaningful task effort/trust; 4 substantial exclusion/recovery burden; 5 work loss or primary task barrier",
+      "rank": 1.92,
+      "user_impact": "Sidebar toggle has Ctrl/Cmd+B, creation tabs have arrow/Home/End handling, and URL import supports Enter. The prompt has no submission handler and the core save/new-chat/search actions have no accelerator in these components, so repeated use requires traversing the full control sequence or switching to the pointer.",
+      "evidence": {
+        "report": "evidence/loop-v2-power.json",
+        "finding": "POWER-07",
+        "source": "src/components/studio.tsx:231-252,1087-1108,1288-1302,1574-1580; src/components/creative/chat.tsx:8-14",
+        "screenshot": null,
+        "references": [
+          "POWER-E10",
+          "POWER-E11"
+        ]
+      },
+      "merged_findings": [],
+      "decision": "Accept efficiency opportunity; current controls are not proved keyboard-inaccessible.",
+      "status": "open",
+      "recommendation": "Add discoverable, nonconflicting shortcuts for save draft and focus chat search, then optionally Ctrl/Cmd+Enter for the currently available primary action with the same busy/readiness checks and cost disclosure. Supply a concise shortcut help surface and avoid firing actions during IME composition."
+    }
+  ],
+  "p1_decisions": [
+    {
+      "id": "T01",
+      "decision": "Retain P1; fixture reproduction plus source establishes active-chat draft overwrite.",
+      "required_evidence_to_close": "Immediate current-row reselect retains latest prompt and settings; persisted reload retains draft; different-chat and account-switch regressions remain green."
+    },
+    {
+      "id": "T02",
+      "decision": "Merge G-02 and C2 as P1 newcomer setup barrier; also absorb G-05 and DES-V2-05 as related secondary friction.",
+      "required_evidence_to_close": "Plain account/key ownership and selected-provider purpose; official obtain-key guidance; costs before handoff; clear local-draft alternative; masked/blank-keeps-current behavior retained; new/returning/no-key/saved-key/mobile/keyboard/error paths checked. Usability improvement is not proof of real-provider activation."
+    },
+    {
+      "id": "T09",
+      "decision": "Original C1 P1 calibrated to P2 because no failed task or measured conversion loss follows solely from absent product proof. It stays open. No change to release gates or required real-provider validation.",
+      "required_evidence_to_close": "Truthful inspectable worked example whose provenance and scope are explicit. A fixture can explain UI but cannot establish actual AI quality."
+    }
+  ],
+  "unsupported_or_conflicting_recommendations": [
+    {
+      "source": "G-01",
+      "rejected": "Replace exact required hero headline",
+      "reason": "User explicitly requires its wording; improve qualification prominence instead."
+    },
+    {
+      "source": "Evaluator hypothetical description",
+      "rejected": "Assert density toggle, custom fields, bulk select, universal 16px body or live command palette already exist",
+      "reason": "Not established by inspected app."
+    },
+    {
+      "source": "Any fixture capture",
+      "rejected": "Use as production/provider result evidence",
+      "reason": "Fixture proves presentation only."
+    }
+  ],
+  "divergence_opportunities": [
+    {
+      "type": "conservative",
+      "idea": "Repair active-chat continuity and draft search; readable save status and inline provider key guidance.",
+      "evidence": [
+        "T01",
+        "T02",
+        "T03",
+        "T04"
+      ],
+      "risk": "Small isolated changes; preserves working data and provider behavior."
+    },
+    {
+      "type": "structural",
+      "idea": "Job-first connection path that returns to the preserved draft and connects only the provider needed for the chosen task.",
+      "evidence": [
+        "T02",
+        "T05",
+        "T11"
+      ],
+      "risk": "Larger state/routing changes require explicit auth recovery and draft retention tests."
+    },
+    {
+      "type": "wildcard_new_pattern",
+      "idea": "A no-charge rehearsal receipt: use a user's existing image and local actions to show input, saved original, action and output lineage before enabling provider calls. Explicitly label local demo scope and offer exportable improvement brief.",
+      "evidence": [
+        "T09",
+        "T13",
+        "T15"
+      ],
+      "risk": "Do not imply real AI generation or scoring; prove the local path and avoid adding another obligatory onboarding step."
+    }
+  ],
+  "release_gate": {
+    "panel_signoff": false,
+    "round_pass": false,
+    "open_p0": 0,
+    "open_p1": [
+      "T01",
+      "T02"
+    ],
+    "status": "FAIL / incomplete verification",
+    "blocking_evidence": [
+      "evidence/loop-v2-source-inventory.json says untested route/state combinations remain",
+      "evidence/loop-screen-reader.json reports incomplete readings and timeout",
+      "Gradient/overlap contrast remains incomplete in existing axe evidence",
+      "Production browser and fresh independent ChatGPT review denied; no new permission inferred",
+      "Real provider output and complete new-user activation are not established by fixture tests"
+    ],
+    "evaluator": "No rating or price exists. Long final evaluator prompt supersedes short format for submission, but its hypothetical claims cannot be represented as verified live facts.",
+    "next_step": "Root selects DIVERGE concept, makes small batches, preserves before evidence and verifies changed flows. Do not merge/deploy or assert complete round while gates remain failed."
+  }
+}

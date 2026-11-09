@@ -1,0 +1,15 @@
+[WebServer] ⚠ Warning: Next.js ignored package-lock.json in [user] because it would include your home directory ([user]).
+[WebServer]  To use this directory, set `outputFileTracingRoot` in your Next.js config.
+[WebServer] 
+
+Running 7 tests using 1 worker
+
+  ✓  1 tests/browser/accounts.spec.ts:2:1 › OAuth registration, consent branding and Deny work through HTTP (1.8s)
+  ✓  2 tests/browser/accounts.spec.ts:50:1 › account onboarding has no fake configured providers and fits mobile (2.3s)
+  ✓  3 tests/browser/accounts.spec.ts:71:1 › signed-in provider onboarding isolates key entry and shows revocable agents (5.7s)
+  ✓  4 tests/browser/accounts.spec.ts:226:1 › email-code sign-in stays on the page and keeps password fallback (2.1s)
+  ✓  5 tests/browser/accounts.spec.ts:244:1 › email limits preserve access to an already received code (1.8s)
+  ✓  6 tests/browser/accounts.spec.ts:258:1 › local companion setup offers a real source download and fits mobile (2.0s)
+  ✓  7 tests/browser/accounts.spec.ts:270:1 › invalid email code stays editable with nearby associated feedback (1.6s)
+
+  7 passed (18.1s)

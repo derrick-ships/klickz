@@ -1,0 +1,337 @@
+{
+  "findings": [
+    {
+      "id": "C1",
+      "route": "/welcome",
+      "state": "Anonymous introduction",
+      "selector": ".welcome-hero, .welcome-workflow",
+      "screenshot_path": "evidence/panel-after-01-welcome.png",
+      "severity": "P1",
+      "confidence": 0.95,
+      "user_impact": "The page asks creators to move their thumbnail workflow on the strength of brand artwork and prose. It shows no concrete input-to-output example or inspectable before/after demonstrating the saved effort. A visitor cannot judge output quality before accepting account and API setup. The review capture is explicitly a fixture and cannot supply production proof.",
+      "recommendation": "Preserve GET MILLIONS OF VIEWS / Without adding another subscription*. Add one clearly attributed, reproducible thumbnail case beneath the hero: actual brief, reference permission, output, specific review note and revised output. Label any demo or fixture accurately. Offer an inspectable sample before connection; do not invent performance or generation claims.",
+      "citations": [
+        "L1",
+        "L4",
+        "L5",
+        "O2",
+        "O4"
+      ]
+    },
+    {
+      "id": "C2",
+      "route": "/studio → /connect",
+      "state": "Anonymous first image attempt",
+      "selector": "#thumbnail-prompt, .account-form, .request-cost",
+      "screenshot_path": "evidence/panel-after-02-studio.png",
+      "severity": "P1",
+      "confidence": 0.98,
+      "user_impact": "The visitor lands on a blank prompt, then must sign in and supply a provider key to produce an image; scoring needs a different provider. The mobile connection page presents four authentication actions before any demonstrated thumbnail value. This is meaningful switching effort against alternatives advertising accessible first renders. It is a conversion problem, not evidence that the authentication or provider flows fail.",
+      "recommendation": "Make the first-run path a short explicit sequence: save a draft, choose generation or analysis, connect only the provider that job needs, return to the preserved draft. Put a viewable sample and a provider-setup checklist before account creation; collapse secondary sign-in methods while retaining code recovery. State which capabilities the visitor can try without credentials.",
+      "citations": [
+        "L2",
+        "L3",
+        "L6",
+        "L7",
+        "O1",
+        "O2",
+        "O3"
+      ]
+    },
+    {
+      "id": "C3",
+      "route": "/welcome → /studio",
+      "state": "Subscription proposition and pre-run cost disclosure",
+      "selector": ".welcome-subtitle, .welcome-cost-inline, .welcome-cost, .request-cost",
+      "screenshot_path": "evidence/panel-after-02-studio.png",
+      "severity": "P2",
+      "confidence": 0.98,
+      "user_impact": "The no-subscription proposition is qualified honestly, but a user cannot compare their likely cost with a credit plan: every operation receives the same statement that cost cannot be estimated reliably. Existing AI subscription access can still be mistaken for image-generation entitlement when skim-reading the hero, even though the lower access section explicitly explains the distinction.",
+      "recommendation": "Keep the required headline and subtitle. Bring a compact qualification into the same visual unit: OpenPikzels subscription fee is zero; studio generation requires separate provider API access and usage billing. Add a dated, sourced comparison of billing mechanisms and what is included; distinguish local drafts, image generation and Jev analysis. Link the selected provider's current pricing and show actual billed usage only when available. Do not invent estimates or promise that this is cheaper for everyone.",
+      "citations": [
+        "L1",
+        "L2",
+        "L5",
+        "L7",
+        "O1",
+        "O3",
+        "O5"
+      ]
+    },
+    {
+      "id": "C4",
+      "route": "/studio",
+      "state": "Review with explicit partial-score fixture",
+      "selector": ".score-header, .pillar-list, .score-disclaimer",
+      "screenshot_path": "evidence/panel-after-review-1100.png",
+      "severity": "P2",
+      "confidence": 0.97,
+      "user_impact": "The score and Virality bars dominate the review, while experimental-status and uncertainty wording appear below the detailed rubric. Visitors may infer a predictive quality grade from the numbers despite the existing caveats. This also makes the experience resemble Pikzels instead of clearly differentiating its evidence and limits. The values in the inspected capture are fixtures, not measured or provider-generated results.",
+      "recommendation": "Retain the creative rubric but put 'Creative assessment — not measured CTR' immediately next to the score, with the evidence, missing context and actionable note before the bars. Explain what partial means at the point of the score. Demonstrate the score-free comparison and copyable improvement prompt as concrete choices; validate real audience performance separately.",
+      "citations": [
+        "L4",
+        "L8",
+        "O1",
+        "O4"
+      ]
+    },
+    {
+      "id": "C5",
+      "route": "/welcome",
+      "state": "Evaluating whether to switch",
+      "selector": ".welcome-steps, #ai-access",
+      "screenshot_path": "evidence/panel-after-01-welcome.png",
+      "severity": "P2",
+      "confidence": 0.94,
+      "user_impact": "The advertised core jobs overlap heavily with Pikzels and other thumbnail products. The page gives no concise decision aid explaining why bringing API access is worth the setup, or when a creator should retain an existing tool. Model choice alone is insufficient against Higgsfield's advertised multi-model workflow. The strongest apparent distinction—local drafts plus bringing images and improvement prompts through an agent—is explained as connection mechanics rather than a creator outcome.",
+      "recommendation": "Add a dated comparison organized by jobs and switching tradeoffs: first usable result, billing model, existing-image workflow, review evidence, version comparison, ownership/storage and export. Give a short 'best fit' statement for creators wanting provider choice and agent-assisted iteration. Mark source-inspected, live-verified and unverified capabilities separately. Do not claim competitors lack features from marketing-page omissions; treat the conditional Higgsfield connection as unverified until activated and tested.",
+      "citations": [
+        "L1",
+        "L5",
+        "L6",
+        "L9",
+        "O1",
+        "O2",
+        "O4"
+      ]
+    },
+    {
+      "id": "C6",
+      "route": "/connect",
+      "state": "Anonymous mobile connection onboarding",
+      "selector": ".account-form, .welcome-privacy",
+      "screenshot_path": "evidence/panel-after-07-connect-mobile.png",
+      "severity": "P2",
+      "confidence": 0.93,
+      "user_impact": "The creator must trust a new service with an account and eventually provider access. Detailed local-versus-cloud storage information exists in an expandable section on the welcome page, while the visible mobile sign-in state mainly reassures about the optional ChatGPT connection. The trust explanation is poorly placed for the actual API-key decision; this is a disclosure placement gap, not a finding that encryption is broken.",
+      "recommendation": "Surface a short account/API explanation at the connection decision: which data stays on this device, which is stored by OpenPikzels, which goes to the selected provider, how to disconnect, and where to read details. Give operator/support and applicable policy links if available and verified. Keep ChatGPT-plan access clearly secondary to the requested image-generation task.",
+      "citations": [
+        "L3",
+        "L5",
+        "L6",
+        "O1",
+        "O6"
+      ]
+    }
+  ],
+  "blockers": [
+    {
+      "id": "B1",
+      "scope": "Live validation",
+      "detail": "Public browser access to openpikzels.com and chatgpt.com was explicitly denied. Neither was accessed, and no alternate route was used. No browser tests, accounts, trials, credentials, paid generation, messages or deployments were performed. Production functionality, provider entitlement, generation quality and runtime onboarding remain unverified."
+    },
+    {
+      "id": "B2",
+      "scope": "Source provenance",
+      "detail": "The supplied source commit is de11970bd2c733aca2e615638035135b3ffa2763. The authorized Mac directory returned 'not a git repository' to git rev-parse HEAD, so this review cannot independently bind the inspected snapshot to that commit. Inspected source and capture paths are enumerated below."
+    },
+    {
+      "id": "B3",
+      "scope": "Competitor evidence",
+      "detail": "Official public pages establish advertised positioning and pricing, not independently tested product behavior. Higgsfield's pricing page exposed navigation but no readable tier prices; no numerical Higgsfield price comparison is asserted. Directly opened Pikzels pricing differs from the search snippet in some credit details; the direct page is the basis for the summary and stale details are omitted."
+    },
+    {
+      "id": "B4",
+      "scope": "Proof quality",
+      "detail": "The review screenshot explicitly states 'Fixture' and 'No provider was called'. It demonstrates layout and caveats only. There is no evidence here that its image, score, or fix is a genuine generated outcome or that any design increases views."
+    }
+  ],
+  "delight": [
+    {
+      "id": "D1",
+      "observation": "Local drafts and explicit on-device saving offer immediate low-commitment work before connecting a provider. This can serve a useful creator job if the first-run UI makes that value tangible.",
+      "citations": [
+        "L2",
+        "L5",
+        "L7"
+      ]
+    },
+    {
+      "id": "D2",
+      "observation": "The product already distinguishes ChatGPT models/usage from studio image generation and says a paid subscription does not make APIs free. Preserve that accuracy alongside the required brand headline.",
+      "citations": [
+        "L1",
+        "L3",
+        "L5"
+      ]
+    },
+    {
+      "id": "D3",
+      "observation": "Original preservation, score-free comparison, prompt provenance and copyable improvement prompts create a credible iteration workflow beyond generating one image. These are visible controls or source-inspected paths, not verified end-to-end outcomes.",
+      "citations": [
+        "L4",
+        "L6",
+        "L8"
+      ]
+    },
+    {
+      "id": "D4",
+      "observation": "The partial fixture exposes unassessed dimensions and qualifies AI confidence as unmeasured. That is more useful than silently fabricating a complete score; make these limits prominent.",
+      "citations": [
+        "L4",
+        "L8"
+      ]
+    }
+  ],
+  "jobs_to_be_done": [
+    {
+      "id": "J1",
+      "job": "When I have an idea but no image, let me see a credible first thumbnail before I invest in setup.",
+      "switching_test": "Demonstrate a real example and distinguish the free local draft from the paid-provider render.",
+      "citations": [
+        "L1",
+        "L2",
+        "O2",
+        "O3"
+      ]
+    },
+    {
+      "id": "J2",
+      "job": "When I already have AI access or an image, help me reuse it without paying for another application subscription.",
+      "switching_test": "Explain exactly which existing assets/access work, the remaining API billing, and the steps to move a result into and out of the studio.",
+      "citations": [
+        "L5",
+        "L6",
+        "L9"
+      ]
+    },
+    {
+      "id": "J3",
+      "job": "When a cover feels weak, tell me what to change and let me compare revisions without losing the original.",
+      "switching_test": "Show evidence-backed notes, missing context, reversible versions and score-free comparison using real permitted examples.",
+      "citations": [
+        "L4",
+        "L8",
+        "O1",
+        "O4"
+      ]
+    },
+    {
+      "id": "J4",
+      "job": "When choosing among thumbnail tools, help me compare recurring cost, setup effort and the workflow I will actually use.",
+      "switching_test": "Use dated primary-source claims, disclose billing conditions, and mark unverified parity rather than presenting an all-green feature matrix.",
+      "citations": [
+        "L5",
+        "L7",
+        "O1",
+        "O2",
+        "O3",
+        "O5"
+      ]
+    },
+    {
+      "id": "J5",
+      "job": "When I provide references, likenesses and provider access, let me understand where they go and how to remove access.",
+      "switching_test": "Bring storage, provider processing and revocation details to the relevant connection decision.",
+      "citations": [
+        "L3",
+        "L5",
+        "L6",
+        "O6"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "L1",
+      "type": "local_capture",
+      "path": "evidence/panel-after-01-welcome.png",
+      "observed": "Required headline and subtitle; hero uses abstract red/black frame artwork; API cost and outcome caveats; three workflow steps; API, ChatGPT and agent access choices; expandable storage explanation."
+    },
+    {
+      "id": "L2",
+      "type": "local_capture",
+      "path": "evidence/panel-after-02-studio.png",
+      "observed": "Anonymous blank studio. Recreate/Prompt/Analyze/Edit/Title modes, Persona/Style/references, model selector, API requirement, unestimated cost, Sign in to generate, local save."
+    },
+    {
+      "id": "L3",
+      "type": "local_capture",
+      "path": "evidence/panel-after-07-connect-mobile.png",
+      "observed": "Anonymous mobile form with email/password and four authentication actions; optional ChatGPT usage panel explicitly says studio images need a separate API connection."
+    },
+    {
+      "id": "L4",
+      "type": "local_capture",
+      "path": "evidence/panel-after-review-1100.png",
+      "observed": "Explicit fixture result, Partial rubric, visible Virality/Clarity/Emotion values, unassessed Idea/Curiosity, experimental caveat, image actions and provenance."
+    },
+    {
+      "id": "L5",
+      "type": "local_source",
+      "path": "src/components/welcome.tsx",
+      "observed": "Full component inspected: branding, CTA destinations, provider-plan qualification, agent explanation, complete storage disclosure; no product-output example in this welcome component."
+    },
+    {
+      "id": "L6",
+      "type": "local_source",
+      "path": "src/components/account/account.tsx",
+      "observed": "AccountSignIn and connection excerpts inspected; password and OTP alternatives; generation via OpenAI/Google and scoring via Jev; encrypted-key claims; agent instructions for upload_reference, score_thumbnail and get_fix_prompt."
+    },
+    {
+      "id": "L7",
+      "type": "local_source",
+      "path": "src/lib/generation-readiness.ts",
+      "observed": "Readiness branches identify account/provider requirements and operation; all operations return a general no-reliable-cost-estimate string; provider balance/model access checked when run."
+    },
+    {
+      "id": "L8",
+      "type": "local_source",
+      "path": "src/components/studio.tsx; src/components/creative/analysis.tsx",
+      "observed": "Targeted review/control excerpts inspected: score layout and below-rubric caveat, original preservation, Compare without scores, experimental assessment, copyable improvement prompt and YouTube Test & Compare guidance."
+    },
+    {
+      "id": "L9",
+      "type": "local_source",
+      "path": "src/components/account/account.tsx:404",
+      "observed": "Higgsfield connection is conditional on configuration; copy states own Higgsfield credits are used through MCP, including Unlimited plans. Activation and runtime behavior were not tested."
+    },
+    {
+      "id": "O1",
+      "type": "official_public_page",
+      "url": "https://pikzels.com/pricing",
+      "accessed": "2026-11-09",
+      "observed": "Advertises prompt generation, recreate, edit, personas/styles, titles, scoring and one-click fixes. Premium displays $28/month billed annually at $336 and 18,000 annual credits; thumbnails consume 10–20 credits. The page also displays $40 beside the discounted annual rate. Offers a free start and states generations remain private. This is vendor marketing, not validated performance."
+    },
+    {
+      "id": "O2",
+      "type": "official_public_page",
+      "url": "https://higgsfield.ai/ai-thumbnail-generator",
+      "accessed": "2026-11-09",
+      "observed": "Advertises title/photo input, multiple image models under a subscription, styles, platform sizes, variant generation and a free start. The public page illustrates thumbnail workflows. Feature and performance statements are vendor claims and were not tested."
+    },
+    {
+      "id": "O3",
+      "type": "official_public_page",
+      "url": "https://thumbnailbench.com/pricing",
+      "accessed": "2026-11-09",
+      "observed": "Lists eight initial free credits, no card, a watermark on free downloads, and Creator at $15/month for 70 credits. Advertises one image per credit; planning/review do not consume credits, while fix renders do. YouTube connection is explicitly early access."
+    },
+    {
+      "id": "O4",
+      "type": "official_public_page",
+      "url": "https://thumbnailbench.com/",
+      "accessed": "2026-11-09",
+      "observed": "Positions the product around five concepts with paired titles, real-face thumbnails and actionable review notes instead of invented scores. Shows example images; also contains an unresolved review placeholder. Advertises publishing and performance readback with a test-account caveat. These are not independently verified capabilities."
+    },
+    {
+      "id": "O5",
+      "type": "official_public_page",
+      "url": "https://higgsfield.ai/pricing",
+      "accessed": "2026-11-09",
+      "observed": "Direct open returned navigation/login/footer but no readable plan prices. Pricing comparison is unresolved."
+    },
+    {
+      "id": "O6",
+      "type": "official_public_page",
+      "url": "https://thumbnailbench.com/terms",
+      "accessed": "2026-11-09",
+      "observed": "Public terms identify the operator, explain output ownership qualifications and privacy, address third-party processing and optional YouTube connection, and provide contact paths. Cited only as a trust-disclosure comparison, not legal advice."
+    },
+    {
+      "id": "M1",
+      "type": "method",
+      "observed": "Independent Competitor lens; no other lens reports read. Authorized Desktop Commander device b5c93a5f-b295-4502-9042-a53a47499738; root [workspace]. No app files changed. Public competitor pages were read-only. Severity is prioritization of observed product/communication gaps, not a release pass or measured conversion result."
+    }
+  ]
+}

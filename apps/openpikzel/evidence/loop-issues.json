@@ -1,6 +1,6 @@
 {
   "round": 1,
-  "status": "provisional; exact LOOP v2 protocol unavailable",
+  "status": "Earlier candidate issues preserved; exact protocol now received. See loop-v2-critic-panel.json and loop-v2-verification.json for current disposition.",
   "issues": [
     {
       "id": "POWER-01",
