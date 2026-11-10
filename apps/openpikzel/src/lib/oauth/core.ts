@@ -4,8 +4,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { publicSupabaseConfig } from "../config";
 import { AppError } from "../validation";
 import { appOrigin, hash, mcpResource, now, seal, unseal } from "../crypto";
-export const scopes = ["studio:read", "studio:write", "studio:ai"] as const;
-export type Scope = (typeof scopes)[number];
+import { scopes, type Scope } from "./scopes";
+export { scopes, type Scope, scopeCopy, localAgentLinked } from "./scopes";
+export function requireScope(oauth: { scope: readonly string[] } | undefined, scope: Scope) {
+  if (!oauth?.scope.includes(scope))
+    throw new AppError(403, "Your agent lacks permission for this action.");
+}
 export type Client = {
   name: string;
   redirects: string[];

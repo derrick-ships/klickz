@@ -246,6 +246,22 @@ describe("PostgreSQL migration and row isolation", () => {
       ),
     ).rejects.toThrow();
   });
+  it("accepts a studio:agent grant and still rejects an unknown scope", async () => {
+    await asUser(alice);
+    const client = "a".repeat(64),
+      grant = "77777777-7777-4777-8777-777777777777";
+    await db.exec(
+      `insert into studio_oauth_grants(id,user_id,client_id,client_name,redirect_uri,scope,expires_at) values('${grant}','${alice}','${client}','Local companion','https://127.0.0.1/callback',array['studio:read','studio:agent'],now()+interval '30 days')`,
+    );
+    expect(
+      (await db.query("select id from studio_oauth_grants where id='"+grant+"'")).rows,
+    ).toHaveLength(1);
+    await expect(
+      db.exec(
+        `insert into studio_oauth_grants(id,user_id,client_id,client_name,redirect_uri,scope,expires_at) values('88888888-8888-4888-8888-888888888888','${alice}','${client}','Local companion','https://127.0.0.1/callback',array['studio:admin'],now()+interval '30 days')`,
+      ),
+    ).rejects.toThrow();
+  });
 });
 
 describe('creative conversations and feedback ownership',()=>{

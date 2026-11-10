@@ -74,6 +74,9 @@ export async function createCompanion({port=48763,runner=makeRunner(),login=laun
     await login(providerName(input.provider));return send(200,{message:'Complete sign-in in the official CLI window, then refresh sign-in status here.'});
    }
    if(req.url==='/api/cancel'){active?.abort();return send(200,{cancelled:true});}
+   if(req.url==='/api/account/link'){const result=await engine.linkAccount(agent,origin);res.setHeader('Set-Cookie',result.cookie);return send(200,{url:result.url,state:result.state});}
+   if(req.url==='/api/account/status')return send(200,await engine.accountStatus(agent));
+   if(req.url==='/api/account/unlink')return send(200,await engine.unlinkAccount(agent));
    if(req.url!=='/api/run')return send(404,{error:'Unknown local action.'});
    if(active)return send(409,{error:'A task is already running. Wait or cancel it.'});
    const controller=new AbortController();active=controller;

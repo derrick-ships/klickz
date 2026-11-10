@@ -5,20 +5,25 @@ const mock = vi.hoisted(() => ({
   uses: new Set<string>(),
   user: "11111111-1111-4111-8111-111111111111",
   owner: true,
+  refreshFails: false,
+  grantWriteError: null as { message: string } | null,
 }));
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     auth: {
       getUser: async () => ({ data: { user: { id: mock.user } }, error: null }),
-      refreshSession: async () => ({
-        data: {
-          session: {
-            access_token: jwt(),
-            refresh_token: "next-session-refresh",
-          },
-        },
-        error: null,
-      }),
+      refreshSession: async () =>
+        mock.refreshFails
+          ? { data: { session: null }, error: { message: "expired" } }
+          : {
+              data: {
+                session: {
+                  access_token: jwt(),
+                  refresh_token: "next-session-refresh",
+                },
+              },
+              error: null,
+            },
     },
     rpc: async () => ({ data: mock.owner, error: null }),
     from: (table: string) => {
@@ -57,8 +62,12 @@ vi.mock("@supabase/supabase-js", () => ({
             else mock.uses.add(value.nonce_hash);
           }
           if (action === "update") {
-            const old = mock.grants.get(filters.id);
-            if (old) mock.grants.set(filters.id, { ...old, ...value });
+            if (table === "studio_oauth_grants" && mock.grantWriteError)
+              error = mock.grantWriteError;
+            else {
+              const old = mock.grants.get(filters.id);
+              if (old) mock.grants.set(filters.id, { ...old, ...value });
+            }
           }
           return Promise.resolve({ error, data: null }).then(resolve);
         },
@@ -80,12 +89,15 @@ import {
   issueCode,
   exchange,
   resolveAccess,
+  localAgentLinked,
+  scopeCopy,
 } from "../src/lib/oauth/core";
 import { seal, unseal, mcpResource } from "../src/lib/crypto";
 import { GET as resourceMetadata } from "../src/app/.well-known/oauth-protected-resource/route";
 import { GET as authorizationMetadata } from "../src/app/.well-known/oauth-authorization-server/route";
 import { GET as authorize } from "../src/app/oauth/authorize/route";
 import { POST as consent } from "../src/app/api/oauth/consent/route";
+import { POST as revoke } from "../src/app/oauth/revoke/route";
 const verifier = "a".repeat(64),
   challenge = createHash("sha256").update(verifier).digest("base64url");
 function setup() {
@@ -115,6 +127,8 @@ beforeEach(() => {
   mock.grants.clear();
   mock.uses.clear();
   mock.owner = true;
+  mock.refreshFails = false;
+  mock.grantWriteError = null;
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("resource-bound MCP OAuth", () => {
@@ -288,5 +302,77 @@ describe("resource-bound MCP OAuth", () => {
     expect(unseal(token, "provider:a:openai")).toEqual({
       key: "private-placeholder",
     });
+  });
+});
+
+describe("studio:agent grants", () => {
+  it("accepts studio:agent and uses the exact consent copy", () => {
+    const { url } = setup();
+    url.searchParams.set("scope", "studio:read studio:agent");
+    expect(parseAuthorization(url).scope).toEqual(["studio:read", "studio:agent"]);
+    expect(scopeCopy["studio:agent"].heading).toBe(
+      "Let your local agent keep memory and send you cards",
+    );
+  });
+
+  it("treats an active studio:agent grant as a linked local agent", () => {
+    expect(
+      localAgentLinked([
+        { scope: ["studio:read", "studio:agent"], revoked_at: null },
+      ]),
+    ).toBe(true);
+    expect(
+      localAgentLinked([{ scope: ["studio:read", "studio:agent"], revoked_at: "2026-11-10" }]),
+    ).toBe(false);
+    expect(localAgentLinked([{ scope: ["studio:read"], revoked_at: null }])).toBe(false);
+  });
+});
+
+describe("OAuth token revocation", () => {
+  async function issued() {
+    const { auth, c } = setup();
+    const code = await issueCode(auth, jwt(), "session-refresh");
+    const tokens = await exchange(
+      new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: c.client_id,
+        code,
+        code_verifier: verifier,
+        redirect_uri: auth.redirect,
+        resource: mcpResource(),
+      }),
+    );
+    return { c, tokens };
+  }
+  function revokeRequest(clientId: string, token: string) {
+    return new Request("https://openpikzels.com/oauth/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id: clientId, token }).toString(),
+    });
+  }
+
+  it("marks the grant revoked when session refresh fails", async () => {
+    const { c, tokens } = await issued();
+    mock.refreshFails = true;
+    const result = await revoke(revokeRequest(c.client_id, tokens.refresh_token));
+    expect(result.status).toBe(200);
+    const grant = [...mock.grants.values()][0];
+    expect(grant.revoked_at).toBeTruthy();
+  });
+
+  it("returns 200 for an unknown token", async () => {
+    const { c } = setup();
+    const result = await revoke(revokeRequest(c.client_id, "unknown-token"));
+    expect(result.status).toBe(200);
+    expect(mock.grants.size).toBe(0);
+  });
+
+  it("returns 5xx when a database write fails", async () => {
+    const { c, tokens } = await issued();
+    mock.grantWriteError = { message: "write failed" };
+    const result = await revoke(revokeRequest(c.client_id, tokens.refresh_token));
+    expect(result.status).toBeGreaterThanOrEqual(500);
+    expect([...mock.grants.values()][0].revoked_at).toBeFalsy();
   });
 });

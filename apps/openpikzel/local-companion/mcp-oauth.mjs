@@ -8,14 +8,14 @@ export class McpOAuth{
  unseal(value){try{const b=Buffer.from(value,'base64url'),d=createDecipheriv('aes-256-gcm',this.cookieKey,b.subarray(0,12));d.setAuthTag(b.subarray(-16));return JSON.parse(Buffer.concat([d.update(b.subarray(12,-16)),d.final()]).toString());}catch{throw new Error('Sign-in context expired. Start sign-in again.');}}
  cookie(state,value){return 'op_mcp_'+state+'='+value+'; HttpOnly; SameSite=Lax; Path=/api/mcp/oauth/callback; Max-Age='+(value?'600':'0');}
  async discover(config){await safeUrl(config.url);return discoverOAuthServerInfo(config.url,{fetchFn:this.fetch});}
- async start(agent,config,origin){
+ async start(agent,config,origin,{scope}={}){
   if(config.transport==='stdio'||!config.url)throw new Error('This server uses local process authentication.');
   const id=this.id(agent,config.name),state=randomBytes(24).toString('hex'),ctx={agent,name:config.name,url:config.url,state,expires:this.now()+600000,verifier:''};
   const stored=await this.vault.get(id)||{};if(stored.resourceUrl&&stored.resourceUrl!==new URL(config.url).href)throw new Error('Disconnect this server before using a different resource URL.');stored.resourceUrl=new URL(config.url).href;let authorizationUrl;
   const provider={
    redirectUrl:origin+'/api/mcp/oauth/callback',
    clientMetadataUrl:'https://openpikzels.com/integrations/local-companion/client.json',
-   clientMetadata:{client_name:'OpenPikzels local companion',redirect_uris:[origin+'/api/mcp/oauth/callback'],grant_types:['authorization_code','refresh_token'],response_types:['code'],token_endpoint_auth_method:'none'},
+   clientMetadata:{client_name:'OpenPikzels local companion',redirect_uris:[origin+'/api/mcp/oauth/callback'],grant_types:['authorization_code','refresh_token'],response_types:['code'],token_endpoint_auth_method:'none',...(scope?{scope}:{})},
    state:()=>state,clientInformation:()=>stored.client,
    saveClientInformation:async client=>{stored.client=client;await this.vault.set(id,stored);},
    tokens:()=>undefined,saveTokens:async tokens=>{stored.tokens={...tokens,expires_at:tokens.expires_in?this.now()+tokens.expires_in*1000:undefined};await this.vault.set(id,stored);},
@@ -25,7 +25,7 @@ export class McpOAuth{
    discoveryState:()=>stored.discovery,
    invalidateCredentials:async()=>{delete stored.tokens;await this.vault.set(id,stored);}
   };
-  const result=await auth(provider,{serverUrl:config.url,fetchFn:this.fetch});
+  const result=await auth(provider,{serverUrl:config.url,fetchFn:this.fetch,scope});
   if(result!=='REDIRECT'||!authorizationUrl||!ctx.verifier)throw new Error('The server did not provide an interactive sign-in flow.');
   await safeUrl(authorizationUrl);
   this.states.set(state,{agent,name:config.name,expires:ctx.expires});

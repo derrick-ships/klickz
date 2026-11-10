@@ -1,10 +1,6 @@
 import { unseal, hash } from "@/lib/crypto";
-import {
-  activeGrant,
-  type GrantToken,
-  readClient,
-  database,
-} from "@/lib/oauth/core";
+import { type GrantToken, readClient, database } from "@/lib/oauth/core";
+import { AppError } from "@/lib/validation";
 import { limitedText, oauthHeaders } from "@/lib/oauth/http";
 export async function POST(request: Request) {
   try {
@@ -17,21 +13,29 @@ export async function POST(request: Request) {
     } catch {
       token = unseal<GrantToken>(form.get("token") || "", "oauth-refresh");
     }
-    if (token.client === hash(client)) {
-      if (token.refresh) {
-        const refreshed = await database(token.access).auth.refreshSession({
-          refresh_token: token.refresh,
-        });
-        if (!refreshed.data.session) throw new Error("Session expired");
+    if (token.client !== hash(client))
+      return new Response(null, { status: 200, headers: oauthHeaders });
+    if (token.refresh) {
+      const refreshed = await database(token.access).auth.refreshSession({
+        refresh_token: token.refresh,
+      });
+      if (refreshed.data?.session)
         token.access = refreshed.data.session.access_token;
-      }
-      const { db } = await activeGrant(token);
-      await db
-        .from("studio_oauth_grants")
-        .update({ revoked_at: new Date().toISOString() })
-        .eq("id", token.grant);
     }
-  } catch {}
+    const result = await database(token.access)
+      .from("studio_oauth_grants")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", token.grant)
+      .eq("client_id", token.client);
+    if (result.error)
+      throw new AppError(503, "Agent access could not be revoked.");
+  } catch (error) {
+    if (error instanceof AppError && error.status >= 500)
+      return new Response(null, {
+        status: error.status,
+        headers: oauthHeaders,
+      });
+  }
   return new Response(null, { status: 200, headers: oauthHeaders });
 }
 export function OPTIONS() {
