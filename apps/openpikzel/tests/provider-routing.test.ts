@@ -41,3 +41,13 @@ it("blocks an unavailable selected text role and offers Google only after an exp
  expect(generationReadiness({...input,textProvider:"google"}).identity).toBe("Google · Google model");
  expect(generationReadiness({...input,textProvider:"google"}).action).toBe("run");
 });
+
+it("accepts anthropic as a vision reviewer and leaves the title provider schema unchanged",()=>{
+ expect(reviewSchema.parse({imagePath:"user/source.png",critiqueProvider:"anthropic"}).critiqueProvider).toBe("anthropic");
+ expect(()=>ideaSchema.parse({prompt:"An actual video idea",provider:"anthropic"})).toThrow();
+});
+it("does not silently retry an OpenAI vision call after Claude fails",async()=>providerContext.run({anthropic:"sk-ant-test-0000FAKE",openai:"openai-should-not-be-used",jev:"jev-fixture"},async()=>{
+ const fetcher=vi.fn().mockResolvedValue(new Response("upstream failure",{status:500}));vi.stubGlobal("fetch",fetcher);
+ await expect(observePackaging(await image(),"A factual title","",undefined,"anthropic")).rejects.toThrow("Image review did not finish");
+ expect(fetcher).toHaveBeenCalledTimes(1);expect(String(fetcher.mock.calls[0][0])).toBe("https://api.anthropic.com/v1/messages");
+}));

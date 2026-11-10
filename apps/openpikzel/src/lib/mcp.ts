@@ -154,7 +154,7 @@ export async function createMcpServer(token: string) {
           (k) => !!keys[k as keyof typeof keys],
         ),
         aiEnabled: process.env.AI_ENABLED === "true",
-        capabilities:providerCapabilities({ai:process.env.AI_ENABLED==="true",openai:!!keys.openai,google:!!keys.google,jev:!!keys.jev,youtube:!!keys.youtube,promptModel:process.env.OPENAI_PROMPT_MODEL,textModels:{openai:process.env.OPENAI_TEXT_MODEL||"gpt-5.5",google:process.env.GOOGLE_TEXT_MODEL||"gemini-3.5-flash-lite"},scoreModel:process.env.JEV_MODEL}),
+        capabilities:providerCapabilities({ai:process.env.AI_ENABLED==="true",openai:!!keys.openai,google:!!keys.google,jev:!!keys.jev,anthropic:!!keys.anthropic,youtube:!!keys.youtube,promptModel:process.env.OPENAI_PROMPT_MODEL,textModels:{openai:process.env.OPENAI_TEXT_MODEL||"gpt-5.5",google:process.env.GOOGLE_TEXT_MODEL||"gemini-3.5-flash-lite"},scoreModel:process.env.JEV_MODEL}),
         guide: agentGuide,
         scope: oauth.scope,
       };
@@ -388,7 +388,7 @@ export async function createMcpServer(token: string) {
       videoUrl: z.string().max(500).default(""),
       audience: z.string().max(200).default(""),
       includeVision: z.boolean().default(false),
-      critiqueProvider: z.enum(["openai","google"]).default("openai"),
+      critiqueProvider: z.enum(["openai","google","anthropic"]).default("openai"),
       requestId: z.string().uuid(),
     },
     "studio:ai",
