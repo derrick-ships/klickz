@@ -43,6 +43,7 @@ export async function safeUrl(input){const u=new URL(input);if(u.protocol!=='htt
  if(!records.length||records.some(r=>!publicAddress(r.address)))throw new Error('Private and local network MCP addresses are blocked.');return u;}
 export async function safeFetch(input,init={}){
  const url=await safeUrl(typeof input==='string'?input:input.url||String(input));
+ const maxBytes=init.maxBytes??4*1024*1024;
  return new Promise((resolve,reject)=>{
   const headers=new Headers(init.headers),body=init.body instanceof URLSearchParams?init.body.toString():init.body;
   const request=httpsRequest(url,{method:init.method||'GET',headers:Object.fromEntries(headers),agent:false,lookup:(host,options,callback)=>{
@@ -56,7 +57,7 @@ export async function safeFetch(input,init={}){
    request.setTimeout(0);
    const status=response.statusCode||500;
    if(status>=300&&status<400&&response.headers.location){response.destroy();reject(new Error('MCP redirects require an explicit server URL.'));return;}
-   let bytes=0;const limiter=new Transform({transform(chunk,encoding,done){bytes+=chunk.length;done(bytes>4*1024*1024?new Error('MCP response exceeds the local limit.'):null,chunk);}});
+   let bytes=0;const limiter=new Transform({transform(chunk,encoding,done){bytes+=chunk.length;done(bytes>maxBytes?new Error('MCP response exceeds the local limit.'):null,chunk);}});
    response.pipe(limiter);response.on('error',e=>limiter.destroy(e));limiter.on('error',()=>response.destroy());
    const responseHeaders=new Headers();for(const [key,value]of Object.entries(response.headers))if(value!==undefined)responseHeaders.set(key,Array.isArray(value)?value.join(', '):value);
    const stream=[204,205,304].includes(status)?null:Readable.toWeb(limiter);if(!stream)response.resume();
