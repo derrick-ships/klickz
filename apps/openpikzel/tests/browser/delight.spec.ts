@@ -86,3 +86,154 @@ test("reduced motion keeps acknowledgment with no spatial movement or new loops"
   await expect(page.locator("[data-brand-scene] source")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 });
+
+// OP-11: score count-up and pillar fills (DELIGHT.md approved exception 2). Local IndexedDB fixtures only; no provider request.
+import { recordScoreTicks, seedScores, ticks, fills, clearTicks } from "./helpers/score-reveal";
+
+const mixed = { virality: 88, clarity: 72, idea: null, curiosity: 100, emotion: 0 };
+
+test("a new score counts up once with staggered pillar fills, and never replays", async ({ page }) => {
+  const paid: string[] = []; page.on("request", r => { if (/\/api\/(generate|analyze)$/.test(r.url())) paid.push(r.url()); });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await recordScoreTicks(page);
+  await seedScores(page, [{ overall: 72, pillars: mixed }]);
+  const panel = page.getByRole("complementary", { name: "Scoring inspector" }), heading = panel.locator(".score-header h2");
+  await expect(panel).toHaveAttribute("data-reveal", "settled");
+  await expect(heading).toHaveText("72/100");
+  await expect(page.getByRole("heading", { name: "72/100", exact: true })).toBeVisible();
+  await expect(heading.locator(".score-count")).not.toHaveAttribute("aria-hidden", /.*/);
+  await expect(heading.locator(".sr-only")).toHaveCount(0);
+
+  const log = await ticks(page), running = log.filter(r => r.reveal === "running");
+  expect(running.length).toBeGreaterThan(4);
+  const values = running.map(r => Number(r.value));
+  expect(values[0]).toBe(0);
+  for (let i = 1; i < values.length; i++) expect(values[i]).toBeGreaterThanOrEqual(values[i - 1]);
+  expect(Math.max(...values)).toBeLessThanOrEqual(72);
+  // Ticks are hidden from assistive tech; the accessible text holds only the final value.
+  for (const r of running) { expect(r.hidden).toBe("true"); expect(r.sr).toBe("72"); }
+  // The "/100" beside the number never moves while the digits change.
+  const slash = running.map(r => r.slash!); expect(Math.max(...slash) - Math.min(...slash)).toBeLessThanOrEqual(1);
+  const span = log.find(r => r.reveal === "settled")!.t - running[0].t;
+  expect(span).toBeGreaterThan(550); expect(span).toBeLessThan(1500);
+
+  // Pillar bars: transform-only fill, 450ms ease-out, 50ms stagger by position, once. "Not assessed" has no bar.
+  expect(await fills(page)).toEqual([
+    { label: "Virality score", name: "pillar-fill", delay: "0s", duration: "0.45s", easing: "cubic-bezier(0.23, 1, 0.32, 1)", iterations: "1" },
+    { label: "Clarity score", name: "pillar-fill", delay: "0.05s", duration: "0.45s", easing: "cubic-bezier(0.23, 1, 0.32, 1)", iterations: "1" },
+    { label: "Curiosity score", name: "pillar-fill", delay: "0.15s", duration: "0.45s", easing: "cubic-bezier(0.23, 1, 0.32, 1)", iterations: "1" },
+    { label: "Emotion score", name: "pillar-fill", delay: "0.2s", duration: "0.45s", easing: "cubic-bezier(0.23, 1, 0.32, 1)", iterations: "1" },
+  ]);
+  expect(await panel.locator(".pillar-meter progress").first().evaluate(el => getComputedStyle(el).animationName)).toBe("none");
+  await expect(panel.getByText("Not assessed", { exact: true })).toHaveCount(1);
+  await expect(panel.getByRole("progressbar", { name: "Virality score", exact: true })).toHaveAttribute("value", "88");
+  await expect(panel.getByRole("progressbar", { name: "Emotion score", exact: true })).toHaveAttribute("value", "0");
+
+  // Re-renders (pillar switches) and a reload never replay it; neither does the analysis dialog.
+  await panel.getByRole("button", { name: /Curiosity/ }).click();
+  await page.reload();
+  await expect(heading).toHaveText("72/100");
+  await page.waitForTimeout(900);
+  expect((await ticks(page)).filter(r => r.reveal === "running")).toEqual([]);
+  await panel.getByRole("button", { name: "Open analysis details" }).click();
+  await expect(page.getByRole("dialog").locator(".score-ring strong")).toHaveText("72/100");
+  await expect(page.getByRole("dialog").locator(".score-ring .score-count")).not.toHaveAttribute("aria-hidden", /.*/);
+  expect(paid).toEqual([]);
+});
+
+test("a result arriving mid-reveal takes over from 0, and switching back shows the earlier one still", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await recordScoreTicks(page);
+  await page.clock.install();
+  await seedScores(page, [{ title: "Fixture: first result", overall: 64, pillars: { virality: 64, clarity: 64, idea: 64, curiosity: 64, emotion: 64 } },
+    { title: "Fixture: second result", overall: 91, pillars: { virality: 91, clarity: 91, idea: 91, curiosity: 91, emotion: 91 } }],
+    // Hold the page clock so the count is frozen until the test advances it.
+    async () => page.clock.pauseAt(await page.evaluate(() => Date.now() + 5000)));
+  const panel = page.getByRole("complementary", { name: "Scoring inspector" }), heading = panel.locator(".score-header h2");
+  await expect(panel).toHaveAttribute("data-reveal", "running");
+  // Count partway, then bring in the other result.
+  await page.clock.runFor(200);
+  const firstFinal = Number(await heading.locator(".sr-only").textContent()), secondFinal = firstFinal === 64 ? 91 : 64;
+  expect([64, 91]).toContain(firstFinal);
+  expect(Number(await heading.locator(".score-count").evaluate(el => el.lastChild!.textContent))).toBeLessThan(firstFinal);
+  await expect(page.getByRole("heading", { name: new RegExp(`^${firstFinal}\\s?/100$`) })).toBeVisible();
+  await clearTicks(page);
+  await page.getByRole("button", { name: secondFinal === 91 ? "Open Fixture: second result" : "Open Fixture: first result", exact: true }).first().click();
+  await expect(heading).toContainText(`${secondFinal}/100`);
+  await page.clock.runFor(16);
+  const takeover = (await ticks(page)).filter(r => r.reveal === "running");
+  expect(Number(takeover[0].value)).toBeLessThan(15);
+  expect(takeover.every(r => r.sr === String(secondFinal) && r.hidden === "true")).toBe(true);
+  await page.clock.runFor(1000);
+  await expect(heading).toHaveText(`${secondFinal}/100`);
+  await expect(panel).toHaveAttribute("data-reveal", "settled");
+  // Back to the first one: it was claimed when it started, so it shows its final value without counting.
+  await clearTicks(page);
+  await page.getByRole("button", { name: firstFinal === 64 ? "Open Fixture: first result" : "Open Fixture: second result", exact: true }).first().click();
+  await expect(heading).toHaveText(`${firstFinal}/100`);
+  await page.clock.runFor(1000);
+  expect((await ticks(page)).filter(r => r.reveal === "running")).toEqual([]);
+});
+
+test("reduced motion shows final scores at once and the reveal stays claimed", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await recordScoreTicks(page);
+  await seedScores(page, [{ overall: 72, pillars: mixed }]);
+  const panel = page.getByRole("complementary", { name: "Scoring inspector" }), heading = panel.locator(".score-header h2");
+  await expect(heading).toHaveText("72/100");
+  const log = await ticks(page);
+  expect(log.length).toBeGreaterThan(0);
+  expect(log.every(r => r.reveal === "settled" && r.text === "72/100" && r.hidden === null)).toBe(true);
+  expect(await panel.locator(".pillar-meter progress").first().evaluate(el => ({ name: getComputedStyle(el).animationName, transform: getComputedStyle(el).transform }))).toEqual({ name: "none", transform: "none" });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.reload();
+  await expect(heading).toHaveText("72/100");
+  await page.waitForTimeout(900);
+  expect((await ticks(page)).filter(r => r.reveal === "running")).toEqual([]);
+});
+
+test("edge scores, partial results and long labels stay steady at every width", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await recordScoreTicks(page);
+  await seedScores(page, [{ overall: 100, pillars: { virality: 100, clarity: 0, idea: null, curiosity: null, emotion: 100 } }]);
+  const panel = page.getByRole("complementary", { name: "Scoring inspector" }), heading = panel.locator(".score-header h2");
+  await expect(panel).toHaveAttribute("data-reveal", "settled");
+  await expect(heading).toHaveText("100/100");
+  const running = (await ticks(page)).filter(r => r.reveal === "running");
+  expect(running.length).toBeGreaterThan(2);
+  const slash = running.map(r => r.slash!); expect(Math.max(...slash) - Math.min(...slash)).toBeLessThanOrEqual(1);
+  // A long label wraps inside its pillar; the bar keeps the pillar's width.
+  await panel.locator(".pillar span").first().evaluate(el => { el.textContent = "Virality across every surface where this thumbnail will appear"; });
+  for (const width of [390, 320, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    // Measure pillar and bar in the same frame, after the resize has settled.
+    await expect.poll(() => panel.locator(".pillar").first().evaluate(async el => {
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const pillar = el.getBoundingClientRect(), meter = el.querySelector(".pillar-meter")!.getBoundingClientRect();
+      return meter.right <= pillar.right + 0.5 && meter.left >= pillar.left - 0.5 && meter.width > pillar.width * 0.6;
+    })).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
+test("a zero score settles on its first frame", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await recordScoreTicks(page);
+  await seedScores(page, [{ overall: 0, pillars: { virality: 0, clarity: 0, idea: 0, curiosity: 0, emotion: 0 } }]);
+  const panel = page.getByRole("complementary", { name: "Scoring inspector" }), heading = panel.locator(".score-header h2");
+  await expect(panel).toHaveAttribute("data-reveal", "settled");
+  await expect(heading).toHaveText("0/100");
+  expect((await ticks(page)).every(r => r.value === "0")).toBe(true);
+});
+
+test("a partial score shows Partial and its bars without any reveal", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await recordScoreTicks(page);
+  await seedScores(page, [{ overall: null, pillars: { virality: 65, clarity: 65, idea: null, curiosity: null, emotion: 65 } }]);
+  const panel = page.getByRole("complementary", { name: "Scoring inspector" }), heading = panel.locator(".score-header h2");
+  await expect(heading).toHaveText("Partial");
+  await page.waitForTimeout(900);
+  expect((await ticks(page)).filter(r => r.reveal === "running")).toEqual([]);
+  expect(await panel.locator(".pillar-meter progress").first().evaluate(el => getComputedStyle(el).animationName)).toBe("none");
+});

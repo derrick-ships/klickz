@@ -237,6 +237,33 @@ test('failed analysis never shows completion and retries keep the same request i
  expect(Number((await scanner.locator('.scanner-counter').innerText()).split('/')[0])).toBeLessThan(100);
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  await expect.poll(()=>ids.length).toBe(2);expect(ids[0]).toBe(ids[1]);await expect(scanner).toHaveAttribute('data-phase','failed');
+ await expect(page.locator('.score-count')).toHaveCount(0);
+});
+
+test('a fresh analysis counts up once in its dialog, then the score panel shows it still',async({page})=>{
+ const f=await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);
+ await page.addInitScript(()=>{const w=window as any;w.__counts=[];new MutationObserver(()=>{for(const el of document.querySelectorAll('.score-count')){const where=el.closest('.score-panel')?'panel':'dialog',pad=el.querySelector('.score-count-pad')?.textContent||'',row=where+'|'+(el.getAttribute('aria-hidden')||'-')+'|'+(el.textContent||'').slice(pad.length);if(w.__counts.at(-1)!==row)w.__counts.push(row);}}).observe(document,{subtree:true,childList:true,characterData:true,attributes:true});});
+ await page.route('**/api/analyze',async route=>{
+  const input=route.request().postDataJSON();await hold;
+  const score={source:'jev',version:3,title:input.title,overall:67,priority:'clarity',created_at:new Date().toISOString(),note:'Explicit fixture; no providers called.',vision:false,fixBlocked:true,
+   dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:67,confidence:.7,observation:'Fixture',strength:'Fixture',weakness:'Fixture',fix:'Fixture'}]))};
+  f.creations[0].score=score;await route.fulfill({json:{score,creationId:f.creations[0].id}});
+ });
+ await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
+ await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Thumbnail analysis activity'})).toHaveAttribute('data-phase','running');
+ await expect(page.locator('.score-count')).toHaveCount(0);
+ release();
+ const ring=page.getByRole('dialog').locator('.score-ring');
+ await expect(ring.locator('strong')).toHaveText('67/100');await expect(ring).toHaveAttribute('aria-label','67 out of100');
+ await expect(ring.locator('.score-count')).not.toHaveAttribute('aria-hidden',/.*/);
+ const dialogTicks=(await page.evaluate(()=>(window as any).__counts as string[])).filter(r=>r.startsWith('dialog|true|')).map(r=>Number(r.split('|')[2]));
+ expect(dialogTicks.length).toBeGreaterThan(2);expect(dialogTicks[0]).toBeLessThan(20);expect(Math.max(...dialogTicks)).toBeLessThan(67);
+ await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeHidden();
+ const panel=page.getByRole('complementary',{name:'Scoring inspector'});
+ await expect(panel.locator('.score-header h2')).toHaveText('67/100');await expect(panel).toHaveAttribute('data-reveal','settled');
+ await page.waitForTimeout(900);
+ expect((await page.evaluate(()=>(window as any).__counts as string[])).filter(r=>r.startsWith('panel|true|'))).toEqual([]);
 });
 
 test('AI resize dispatches one source-based recomposition and retains the original and draft',async({page})=>{
