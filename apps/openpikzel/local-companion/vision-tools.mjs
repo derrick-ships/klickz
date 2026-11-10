@@ -32,19 +32,7 @@ function imagePathFrom(value){
  return IMAGE_PATH.test(path)?path:'';
 }
 
-function quotedImagePath(value){
- const path=imagePathFrom(value);
- if(!path)return '';
- const parts=path.split(/\s+/);
- if(parts.length<2)return path;
- const lead=parts.slice(0,-1);
- const last=parts[parts.length-1];
- if(!imagePathFrom(last))return path;
- if(lead.every(part=>part.length<=3||/[./_0-9-]/.test(part)))return path;
- return '';
-}
-
-export function listedImagePaths(brief){
+export async function listedImagePaths(brief,{workspace,resolveImage=resolveWorkspaceImage}={}){
  const text=String(brief);
  const found=[];
  const seen=new Set();
@@ -54,14 +42,35 @@ export function listedImagePaths(brief){
   seen.add(path);
   found.push(path);
  };
- const remainder=text.replace(/(["`])([^"`\n]*)\1/g,(_match,_quote,inner)=>{
-  const path=quotedImagePath(inner);
-  if(path){
-   add(path);
-   return ' '.repeat(_match.length);
+ const addResolved=path=>{
+  if(!path||seen.has(path))return;
+  seen.add(path);
+  found.push(path);
+ };
+ async function longestQuotedPath(inner){
+  const trimmed=trimPathPunctuation(inner);
+  if(!trimmed||!workspace)return '';
+  const words=trimmed.split(/\s+/).filter(Boolean);
+  for(let i=0;i<words.length;i++){
+   const candidate=words.slice(i).join(' ');
+   try{
+    await resolveImage(workspace,candidate);
+    return candidate;
+   }catch{}
   }
-  return ' '+inner+' ';
- });
+  return '';
+ }
+ let remainder='';
+ let last=0;
+ const quoted=/(["`])([^"`\n]*)\1/g;
+ for(const match of text.matchAll(quoted)){
+  remainder+=text.slice(last,match.index);
+  const path=await longestQuotedPath(match[2]);
+  if(path)addResolved(path);
+  remainder+=' '.repeat(match[0].length);
+  last=match.index+match[0].length;
+ }
+ remainder+=text.slice(last);
  for(const token of remainder.split(/[\s;]+/))add(token);
  return found;
 }
@@ -77,7 +86,7 @@ export async function resolveWorkspaceImage(workspace,inputPath){
 
 export async function workspaceImages(workspace,brief){
  const files=[];
- for(const path of listedImagePaths(brief)){
+ for(const path of await listedImagePaths(brief,{workspace})){
   try{files.push(await resolveWorkspaceImage(workspace,path));}catch{}
  }
  return files;

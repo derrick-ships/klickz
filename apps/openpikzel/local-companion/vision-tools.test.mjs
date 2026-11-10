@@ -50,6 +50,15 @@ async function fourColorNoisePng({width=4200,height=4200,seed=20261110}={}){
  return sharp(raw,{raw:{width,height,channels:3}}).png({compressionLevel:1,palette:true,colours:4,dither:0}).toBuffer();
 }
 
+
+async function listedFrom(t,brief,names){
+ const directory=await mkdtemp(join(tmpdir(),'openpikzels-paths-'));
+ t.after(()=>rm(directory,{recursive:true,force:true}));
+ await mkdir(directory,{recursive:true,mode:0o700});
+ for(const name of names)await fixture(directory,name);
+ return listedImagePaths(brief,{workspace:directory});
+}
+
 function attachedPaths(args){
  const attached=[];
  for(let i=0;i<args.length;i++)if(args[i]==='-i')attached.push(args[i+1]);
@@ -264,35 +273,43 @@ test('Codex -i attaches the original workspace file and still rejects files over
  assert.ok(info.size<=IMAGE_LIMIT);
 });
 
-test('listedImagePaths reads unquoted tokens and quoted spaced names, and ignores decoy extensions',()=>{
- assert.deepEqual(listedImagePaths('Analyze downloads/x.png'),['downloads/x.png']);
- assert.deepEqual(listedImagePaths('Summarize x.png'),['x.png']);
- assert.deepEqual(listedImagePaths('Write titles from screenshot downloads/x.png'),['downloads/x.png']);
- assert.deepEqual(listedImagePaths('Compare x.png and y.png'),['x.png','y.png']);
- assert.deepEqual(listedImagePaths('Make 3 thumbnails like ref.png'),['ref.png']);
- assert.deepEqual(listedImagePaths('Caption downloads/x.png please'),['downloads/x.png']);
- assert.deepEqual(listedImagePaths('look at "a b.png"'),['a b.png']);
- assert.deepEqual(listedImagePaths("check 'a b.png' now"),['b.png']);
- assert.deepEqual(listedImagePaths('a b.png'),['b.png']);
- assert.deepEqual(listedImagePaths('foo.png.exe'),[]);
- assert.deepEqual(listedImagePaths('please open foo.png.exe'),[]);
- assert.deepEqual(listedImagePaths('Please describe downloads/x.png'),['downloads/x.png']);
- assert.deepEqual(listedImagePaths('describe downloads/x.png'),['downloads/x.png']);
+test('listedImagePaths reads unquoted tokens and quoted spaced names, and ignores decoy extensions',async t=>{
+ assert.deepEqual(await listedImagePaths('Analyze downloads/x.png'),['downloads/x.png']);
+ assert.deepEqual(await listedImagePaths('Summarize x.png'),['x.png']);
+ assert.deepEqual(await listedImagePaths('Write titles from screenshot downloads/x.png'),['downloads/x.png']);
+ assert.deepEqual(await listedImagePaths('Compare x.png and y.png'),['x.png','y.png']);
+ assert.deepEqual(await listedImagePaths('Make 3 thumbnails like ref.png'),['ref.png']);
+ assert.deepEqual(await listedImagePaths('Caption downloads/x.png please'),['downloads/x.png']);
+ assert.deepEqual(await listedFrom(t,'look at "a b.png"',['a b.png']),['a b.png']);
+ assert.deepEqual(await listedImagePaths("check 'a b.png' now"),['b.png']);
+ assert.deepEqual(await listedImagePaths('a b.png'),['b.png']);
+ assert.deepEqual(await listedImagePaths('foo.png.exe'),[]);
+ assert.deepEqual(await listedImagePaths('please open foo.png.exe'),[]);
+ assert.deepEqual(await listedImagePaths('Please describe downloads/x.png'),['downloads/x.png']);
+ assert.deepEqual(await listedImagePaths('describe downloads/x.png'),['downloads/x.png']);
 });
 
-test('listedImagePaths strips trailing sentence punctuation but not extra extensions',()=>{
- assert.deepEqual(listedImagePaths('see x.png.'),['x.png']);
- assert.deepEqual(listedImagePaths('see x.png,'),['x.png']);
- assert.deepEqual(listedImagePaths('Caption downloads/x.png.'),['downloads/x.png']);
- assert.deepEqual(listedImagePaths('Compare x.png and y.png!'),['x.png','y.png']);
- assert.deepEqual(listedImagePaths('look at "a b.png".'),['a b.png']);
- assert.deepEqual(listedImagePaths('open foo.png.exe.'),[]);
+test('listedImagePaths strips trailing sentence punctuation but not extra extensions',async t=>{
+ assert.deepEqual(await listedImagePaths('see x.png.'),['x.png']);
+ assert.deepEqual(await listedImagePaths('see x.png,'),['x.png']);
+ assert.deepEqual(await listedImagePaths('Caption downloads/x.png.'),['downloads/x.png']);
+ assert.deepEqual(await listedImagePaths('Compare x.png and y.png!'),['x.png','y.png']);
+ assert.deepEqual(await listedFrom(t,'look at "a b.png".',['a b.png']),['a b.png']);
+ assert.deepEqual(await listedImagePaths('open foo.png.exe.'),[]);
 });
-test('listedImagePaths ignores apostrophes, splits on semicolons, and scans non-path quotes',()=>{
- assert.deepEqual(listedImagePaths("Use Derrick's logo.png and don't crop"),['logo.png']);
- assert.deepEqual(listedImagePaths("I'm sending x.png, it's the cover"),['x.png']);
- assert.deepEqual(listedImagePaths('x.png;y.jpg'),['x.png','y.jpg']);
- assert.deepEqual(listedImagePaths('Derrick\'s "a b.png"'),['a b.png']);
- assert.deepEqual(listedImagePaths('look at `a b.png`'),['a b.png']);
- assert.deepEqual(listedImagePaths('please "compare x.png"'),['x.png']);
+test('listedImagePaths ignores apostrophes, splits on semicolons, and scans non-path quotes',async t=>{
+ assert.deepEqual(await listedImagePaths("Use Derrick's logo.png and don't crop"),['logo.png']);
+ assert.deepEqual(await listedImagePaths("I'm sending x.png, it's the cover"),['x.png']);
+ assert.deepEqual(await listedImagePaths('x.png;y.jpg'),['x.png','y.jpg']);
+ assert.deepEqual(await listedFrom(t,'Derrick\'s "a b.png"',['a b.png']),['a b.png']);
+ assert.deepEqual(await listedFrom(t,'look at `a b.png`',['a b.png']),['a b.png']);
+ assert.deepEqual(await listedFrom(t,'please "compare x.png"',['x.png']),['x.png']);
+});
+
+test('listedImagePaths resolves quoted spans to the longest existing workspace path',async t=>{
+ assert.deepEqual(await listedFrom(t,'describe "Screenshot 2026-11-10 at 7.54.00.png"',['Screenshot 2026-11-10 at 7.54.00.png']),['Screenshot 2026-11-10 at 7.54.00.png']);
+ assert.deepEqual(await listedFrom(t,'"my cover photo.png"',['my cover photo.png']),['my cover photo.png']);
+ assert.deepEqual(await listedFrom(t,'"Final Thumbnail.png"',['Final Thumbnail.png']),['Final Thumbnail.png']);
+ assert.deepEqual(await listedFrom(t,'"foto portada.png"',['foto portada.png']),['foto portada.png']);
+ assert.deepEqual(await listedFrom(t,'"describe x.png"',['x.png']),['x.png']);
 });
