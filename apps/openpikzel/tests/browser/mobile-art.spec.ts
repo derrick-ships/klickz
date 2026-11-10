@@ -30,7 +30,7 @@ test("mobile art preserves the red subject at all representative widths", async 
   }
 });
 
-test("mobile default still preserves the corrected crop without layout shifts", async ({page}) => {
+test("mobile welcome art renders and stays still", async ({page}) => {
   test.setTimeout(60000);
   for(const width of widths) {
     await page.setViewportSize({width,height:932});
