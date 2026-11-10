@@ -259,11 +259,15 @@ test('a fresh analysis counts up once in its dialog, then the score panel shows 
  await expect(ring.locator('.score-count')).not.toHaveAttribute('aria-hidden',/.*/);
  const dialogTicks=(await page.evaluate(()=>(window as any).__counts as string[])).filter(r=>r.startsWith('dialog|true|')).map(r=>Number(r.split('|')[2]));
  expect(dialogTicks.length).toBeGreaterThan(2);expect(dialogTicks[0]).toBeLessThan(20);expect(Math.max(...dialogTicks)).toBeLessThanOrEqual(67);expect(dialogTicks.filter(v=>v<67).length).toBeGreaterThan(1);
+ // The dialog has its own polite region (the page behind the modal is inert); the panel region stays silent, so nothing is announced twice.
+ await expect(page.getByRole('dialog').locator('[data-score-announcer]')).toHaveText('OpenPikzels Score 67 out of 100');
+ await expect(page.locator('[data-score-announcer]').filter({hasText:'OpenPikzels'})).toHaveCount(1);
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeHidden();
  const panel=page.getByRole('complementary',{name:'Scoring inspector'});
  await expect(panel.locator('.score-header h2')).toHaveText('67/100');await expect(panel).toHaveAttribute('data-reveal','settled');
  await page.waitForTimeout(900);
  expect((await page.evaluate(()=>(window as any).__counts as string[])).filter(r=>r.startsWith('panel|true|'))).toEqual([]);
+ await expect(page.locator('[data-score-announcer]')).toHaveCount(1);await expect(page.locator('[data-score-announcer]')).toHaveText('');
 });
 
 test('AI resize dispatches one source-based recomposition and retains the original and draft',async({page})=>{

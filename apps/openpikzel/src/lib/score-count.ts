@@ -94,16 +94,59 @@ export function revealKey(
   return stamp ? creationId + ":" + stamp : null;
 }
 
-export type RevealPlan = "animate" | "final" | "wait";
-/** Decide, and claim, a reveal. Only "animate" consumes the run; reduced motion consumes it too. */
+/**
+ * Tracks whether the selected result's score arrived during this session. The key present when a
+ * creation is first selected (or the studio mounts) is its baseline: showing it is static. Only a
+ * change to a new key while it stays selected counts as an arrival. Re-selecting re-baselines.
+ */
+export function createArrivalTracker() {
+  let subject: string | null = null, baseline: string | null = null;
+  return {
+    /** `fresh`: the creation itself appeared this session (for example a new generation), so it has no older score. */
+    observe(id: string | null, key: string | null, fresh = false): boolean {
+      if (id !== subject) { subject = id; baseline = fresh ? null : key; }
+      return !!key && key !== baseline;
+    },
+  };
+}
+
+/**
+ * Remembers which creations were in this account's library when it finished loading. Creations that
+ * appear later (new generations, whose score may now arrive together with the image) are new this
+ * session. Until a load for the current owner finishes, nothing is new.
+ */
+export function createLibrarySnapshot() {
+  let owner: string | null | undefined, sawLoading = false, ids: Set<string> | null = null;
+  return {
+    observe(nextOwner: string | null, loading: boolean, creationIds: readonly string[]): boolean {
+      if (nextOwner !== owner) { owner = nextOwner; ids = null; sawLoading = loading; }
+      if (loading) sawLoading = true;
+      else if (sawLoading && !ids) ids = new Set(creationIds);
+      return !!ids;
+    },
+    isNew(id: string | null | undefined): boolean { return !!id && !!ids && !ids.has(id); },
+  };
+}
+
+/** What a polite live region receives once per reveal: the final value only. */
+export function scoreAnnouncement(overall: number) {
+  return "OpenPikzels Score " + overall + " out of 100";
+}
+
+/**
+ * "animate": count now. "settle": reduced motion, show final and announce once. "static": show final,
+ * no ticks, no announcement. "wait": arrived, but covered (for example by the analysis dialog).
+ * Only a score that arrived this session can reveal; localStorage guards against replay on reload.
+ */
+export type RevealPlan = "animate" | "settle" | "static" | "wait";
 export function planReveal(input: {
-  key: string | null; overall: number | null; reduced: boolean; paused: boolean; seen: SeenRegistry;
+  key: string | null; overall: number | null; reduced: boolean; paused: boolean; arrived: boolean; seen: SeenRegistry;
 }): RevealPlan {
-  const { key, overall, reduced, paused, seen } = input;
-  if (!key || overall === null || seen.has(key)) return "final";
+  const { key, overall, reduced, paused, arrived, seen } = input;
+  if (!key || overall === null || !arrived || seen.has(key)) return "static";
   if (paused) return "wait";
   seen.add(key);
-  return reduced ? "final" : "animate";
+  return reduced ? "settle" : "animate";
 }
 
 /** Time-based count. Frames only sample the clock, so dropped frames never change the end value. */

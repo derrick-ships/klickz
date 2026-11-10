@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   COUNT_UP_MS, PILLAR_FILL_MS, PILLAR_STAGGER_MS, EASE_OUT_COUNT,
   easeOut, countUpValue, createSeenRegistry, planReveal, runCountUp, revealKey,
+  createArrivalTracker, createLibrarySnapshot, scoreAnnouncement,
 } from "../src/lib/score-count";
 
 function memoryStorage() {
@@ -152,22 +153,111 @@ describe("run-once guard", () => {
 
 describe("planReveal", () => {
   const seen = () => createSeenRegistry(memoryStorage());
-  it("animates a new score once, then shows it still", () => {
+  const base = { reduced: false, paused: false, arrived: true };
+  it("animates a score that arrived this session once, then shows it still", () => {
     const r = seen();
-    expect(planReveal({ key: "c1:t", overall: 72, reduced: false, paused: false, seen: r })).toBe("animate");
-    expect(planReveal({ key: "c1:t", overall: 72, reduced: false, paused: false, seen: r })).toBe("final");
+    expect(planReveal({ ...base, key: "c1:t", overall: 72, seen: r })).toBe("animate");
+    expect(planReveal({ ...base, key: "c1:t", overall: 72, seen: r })).toBe("static");
   });
-  it("shows final values at once with reduced motion and never replays later", () => {
+  it("repro 1: an old-dated score in a fresh registry stays static unless it arrived this session", () => {
+    const key = revealKey("c-old", { created_at: "2026-01-01T00:00:00Z" });
+    expect(planReveal({ ...base, arrived: false, key, overall: 64, seen: seen() })).toBe("static");
+    expect(planReveal({ ...base, arrived: true, key, overall: 64, seen: seen() })).toBe("animate");
+  });
+  it("repro 2: an entry evicted by 200 newer ones stays static unless it arrived this session", () => {
+    const storage = memoryStorage(), r = createSeenRegistry(storage);
+    r.add("c1:old");
+    for (let i = 0; i < 200; i++) r.add("c" + i + ":new");
+    const reloaded = createSeenRegistry(storage);
+    expect(reloaded.has("c1:old")).toBe(false);
+    expect(planReveal({ ...base, arrived: false, key: "c1:old", overall: 70, seen: reloaded })).toBe("static");
+  });
+  it("a static view never consumes the reveal", () => {
     const r = seen();
-    expect(planReveal({ key: "c1:t", overall: 72, reduced: true, paused: false, seen: r })).toBe("final");
-    expect(planReveal({ key: "c1:t", overall: 72, reduced: false, paused: false, seen: r })).toBe("final");
+    expect(planReveal({ ...base, arrived: false, key: "c1:t", overall: 72, seen: r })).toBe("static");
+    expect(r.has("c1:t")).toBe(false);
+  });
+  it("settles at once with reduced motion (announced, no ticks) and never replays later", () => {
+    const r = seen();
+    expect(planReveal({ ...base, reduced: true, key: "c1:t", overall: 72, seen: r })).toBe("settle");
+    expect(planReveal({ ...base, key: "c1:t", overall: 72, seen: r })).toBe("static");
   });
   it("does not animate partial results and waits while hidden behind a dialog", () => {
     const r = seen();
-    expect(planReveal({ key: "c1:t", overall: null, reduced: false, paused: false, seen: r })).toBe("final");
-    expect(planReveal({ key: "c2:t", overall: 60, reduced: false, paused: true, seen: r })).toBe("wait");
-    expect(planReveal({ key: "c2:t", overall: 60, reduced: false, paused: false, seen: r })).toBe("animate");
-    expect(planReveal({ key: null, overall: 60, reduced: false, paused: false, seen: r })).toBe("final");
+    expect(planReveal({ ...base, key: "c1:t", overall: null, seen: r })).toBe("static");
+    expect(planReveal({ ...base, paused: true, key: "c2:t", overall: 60, seen: r })).toBe("wait");
+    expect(planReveal({ ...base, key: "c2:t", overall: 60, seen: r })).toBe("animate");
+    expect(planReveal({ ...base, key: null, overall: 60, seen: r })).toBe("static");
+  });
+});
+
+describe("arrival tracker (in-session score arrivals)", () => {
+  it("treats a score that is already there at selection as not arrived", () => {
+    const t = createArrivalTracker();
+    expect(t.observe("c1", "c1:2026-01-01")).toBe(false);
+    expect(t.observe("c1", "c1:2026-01-01")).toBe(false);
+  });
+  it("a transition during the session still animates: no score, or an older score, to a new score", () => {
+    const t = createArrivalTracker();
+    expect(t.observe("c1", null)).toBe(false);
+    expect(t.observe("c1", "c1:t1")).toBe(true);
+    expect(t.observe("c1", "c1:t1")).toBe(true); // stable across re-renders while selected
+    const u = createArrivalTracker();
+    expect(u.observe("c2", "c2:old")).toBe(false);
+    expect(u.observe("c2", "c2:new")).toBe(true);
+  });
+  it("re-baselines on every selection, so revisits are static", () => {
+    const t = createArrivalTracker();
+    t.observe("c1", null); expect(t.observe("c1", "c1:t1")).toBe(true);
+    expect(t.observe("c2", "c2:x")).toBe(false);
+    expect(t.observe("c1", "c1:t1")).toBe(false);
+    expect(t.observe(null, null)).toBe(false);
+  });
+});
+
+describe("arrival tracker: creations new this session", () => {
+  it("a creation that appeared this session counts its first score as arrived, even if it comes with the image", () => {
+    const t = createArrivalTracker();
+    expect(t.observe("new", "new:t1", true)).toBe(true);
+    expect(t.observe("old", "old:t0", false)).toBe(false);
+  });
+});
+
+describe("library snapshot (which creations existed when this account's library loaded)", () => {
+  it("knows nothing while loading, then treats only later creations as new", () => {
+    const lib = createLibrarySnapshot();
+    expect(lib.observe("u1", true, [])).toBe(false);
+    lib.observe("u1", false, ["a", "b"]);
+    expect(lib.isNew("a")).toBe(false);
+    lib.observe("u1", false, ["c", "a", "b"]);
+    expect(lib.isNew("c")).toBe(true);
+    expect(lib.isNew("a")).toBe(false);
+  });
+  it("is static until the first load finishes, so an initial library is never new", () => {
+    const lib = createLibrarySnapshot();
+    lib.observe("u1", true, []);
+    expect(lib.isNew("a")).toBe(false);
+    lib.observe("u1", false, ["a"]);
+    expect(lib.isNew("a")).toBe(false);
+  });
+  it("re-snapshots after an account switch only once that account's load finishes", () => {
+    const lib = createLibrarySnapshot();
+    lib.observe("u1", true, []); lib.observe("u1", false, ["a"]);
+    // The first render after the switch still holds the previous account's rows and loading=false.
+    lib.observe("u2", false, ["a"]);
+    expect(lib.isNew("x")).toBe(false);
+    lib.observe("u2", true, ["a"]);
+    lib.observe("u2", false, ["x", "y"]);
+    expect(lib.isNew("x")).toBe(false);
+    lib.observe("u2", false, ["z", "x", "y"]);
+    expect(lib.isNew("z")).toBe(true);
+  });
+});
+
+describe("scoreAnnouncement", () => {
+  it("holds only the final value", () => {
+    expect(scoreAnnouncement(78)).toBe("OpenPikzels Score 78 out of 100");
+    expect(scoreAnnouncement(0)).toBe("OpenPikzels Score 0 out of 100");
   });
 });
 

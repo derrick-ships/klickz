@@ -57,7 +57,7 @@ import {publicStyles} from "@/lib/workspaces";
 import { PixelConfirmation } from "@/components/pixel-confirmation";
 import { imageModel } from "@/lib/image-models";
 import { AnalysisScanner } from "@/components/creative/analysis-scanner";
-import { ScoreNumber, useScoreReveal } from "@/components/creative/score-count";
+import { ScoreAnnouncer, ScoreNumber, useScoreArrival, useScoreReveal } from "@/components/creative/score-count";
 import { revealKey } from "@/lib/score-count";
 import { recomposePrompt, type ScanPhase } from "@/lib/analysis-display";
 import { ReviewCanvas } from "@/components/review-canvas";
@@ -213,10 +213,15 @@ export default function Studio() {
       selected?.score && [2, 3].includes(selected.score.version)
         ? selected.score
         : null;
-  // OP-11: a new score counts up once. An explicit analysis reveals in its dialog first, so the
-  // panel waits while that analysis is finishing and while the dialog covers it.
-  const scoreReveal = useScoreReveal(revealKey(selected?.id, score), score?.overall ?? null, {
+  // OP-11: a score counts up once, and only when it arrives this session: while its creation is
+  // selected, or with a creation that appeared after the library loaded (a new generation). A score
+  // already there at load or selection is static. An explicit analysis reveals in its dialog first,
+  // so the panel waits while that analysis is finishing and while the dialog covers it.
+  const scoreKey = revealKey(selected?.id, score),
+    scoreArrived = useScoreArrival(studio.user, studio.loading, studio.creations.map((c) => c.id), selected?.id ?? null, scoreKey);
+  const scoreReveal = useScoreReveal(scoreKey, score?.overall ?? null, {
     paused: dialog === "analysis" || analysisScan?.phase === "running",
+    arrived: scoreArrived,
   });
   useEffect(() => {
     const initial = new URL(location.href).searchParams.get("mode");
@@ -1154,6 +1159,8 @@ export default function Studio() {
         </div>
       </aside>
       <div className="workspace-main" inert={compactNavigation && sidebar}>
+        {/* OP-11: announces a newly revealed panel score once (the analysis dialog has its own region). */}
+        <ScoreAnnouncer text={scoreReveal.announce} />
         <header className="topbar">
           <div className="topbar-left">
             {!sidebar && (
@@ -1868,7 +1875,7 @@ export default function Studio() {
           {(dialog==="personas"||dialog==="styles")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedId={dialog==="personas"?personaId:styleId} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis-history"&&selected&&<AnalysisHistory key={selected.id+studio.user} creationId={selected.id} read={studio.read}/>}
-          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={fix} resultKey={revealKey(selected?.id, score)}/>}
+          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={fix} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
           {dialog === "references" && (
