@@ -25,6 +25,8 @@ The public-domain target is `https://openpikzels.com/mcp`. Domain connection and
 | `suggest_titles` | Five title ideas | AI |
 | `generate_thumbnail` | Prompt, title, recreate or edit | Write + AI |
 | `score_thumbnail` | Actual image/title Jev evaluation | Write + AI |
+| `analyze_thumbnail` | OpenPikzels Analyze: score a creation, uploaded path, or small base64 image, then return a fix plan | Write + AI |
+| `create_upload_url` | Short-lived signed upload URL; pass the returned imagePath to analyze_thumbnail | Write |
 | `get_fix_prompt` | Copyable improvement prompt from a saved score | Read |
 | `create_fix_plan` | Review evidence-backed changes and preservation constraints; no AI call | Write |
 | `one_click_fix` | Apply a reviewed plan token as one new image; original preserved | Write + AI |
