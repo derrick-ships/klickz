@@ -3,6 +3,7 @@ import { pillars } from "../src/lib/types";
 const state = vi.hoisted(() => ({
   scope: ["studio:read", "studio:write", "studio:ai"],
   score: {} as any,
+  memory: [] as any[],
 }));
 vi.mock("../src/lib/oauth/core", async () => {
   const actual = await vi.importActual<any>("../src/lib/oauth/core");
@@ -15,28 +16,108 @@ vi.mock("../src/lib/oauth/core", async () => {
         oauth: { scope: state.scope },
         db: {
           from: (table: string) => {
+            let action = "select",
+              value: any,
+              filters: Record<string, string> = {},
+              pattern = "",
+              limit = 20;
             const chain: any = {
+              insert: (v: any) => {
+                action = "insert";
+                value = v;
+                return chain;
+              },
+              delete: () => {
+                action = "delete";
+                return chain;
+              },
               select: () => chain,
-              eq: () => chain,
+              eq: (k: string, v: string) => {
+                filters[k] = v;
+                return chain;
+              },
+              ilike: (_k: string, v: string) => {
+                pattern = v.replaceAll("%", "").toLowerCase();
+                return chain;
+              },
               order: () => chain,
-              limit: () => chain,
-              single: async () => ({
-                data: {
-                  id: "11111111-1111-4111-8111-111111111111",
-                  title: "The actual video title",
-                  image_path: "image",
-                  score: state.score,
-                },
-                error: null,
-              }),
-              then: (resolve: any) =>
-                Promise.resolve({
+              limit: (n: number) => {
+                limit = n;
+                return chain;
+              },
+              single: async () => {
+                if (table === "studio_agent_memory" && action === "insert") {
+                  const row = {
+                    id: "ccccccc1-ccc1-4cc1-8cc1-ccccccccccc1",
+                    created_at: "2026-11-10T11:50:00.000Z",
+                    tags: [],
+                    ...value,
+                  };
+                  state.memory.push(row);
+                  return {
+                    data: {
+                      id: row.id,
+                      fact: row.fact,
+                      tags: row.tags,
+                      created_at: row.created_at,
+                    },
+                    error: null,
+                  };
+                }
+                return {
+                  data: {
+                    id: "11111111-1111-4111-8111-111111111111",
+                    title: "The actual video title",
+                    image_path: "image",
+                    score: state.score,
+                  },
+                  error: null,
+                };
+              },
+              then: (resolve: any) => {
+                if (table === "studio_agent_memory") {
+                  if (action === "delete") {
+                    const before = state.memory.length;
+                    state.memory = state.memory.filter(
+                      (row) =>
+                        !(
+                          filters.id === row.id &&
+                          filters.user_id === row.user_id
+                        ),
+                    );
+                    return Promise.resolve({
+                      data: null,
+                      error: null,
+                      count: before - state.memory.length,
+                    }).then(resolve);
+                  }
+                  const data = state.memory
+                    .filter(
+                      (row) =>
+                        (!filters.user_id || row.user_id === filters.user_id) &&
+                        (!pattern ||
+                          String(row.fact).toLowerCase().includes(pattern)),
+                    )
+                    .sort((a, b) =>
+                      String(b.created_at).localeCompare(String(a.created_at)),
+                    )
+                    .slice(0, limit)
+                    .map(({ id, fact, tags, created_at }) => ({
+                      id,
+                      fact,
+                      tags,
+                      created_at,
+                    }));
+                  return Promise.resolve({ data, error: null }).then(resolve);
+                }
+                return Promise.resolve({
                   data:
                     table === "studio_provider_keys"
                       ? [{ provider: "jev" }]
                       : [],
                   error: null,
-                }).then(resolve),
+                }).then(resolve);
+              },
             };
             return chain;
           },
@@ -70,6 +151,7 @@ const call = (method: string, params: unknown, id = 1) =>
 beforeEach(() => {
   vi.stubEnv("APP_ORIGIN", "https://openpikzels.com");
   state.scope = ["studio:read", "studio:write", "studio:ai"];
+  state.memory = [];
   state.score = {
     version: 2,
     title: "The actual video title",
@@ -163,4 +245,49 @@ it("requires both AI and write scopes for source recomposition",async()=>{
   const result=await(await call("tools/call",{name:"recompose_thumbnail",arguments:{creationId:"11111111-1111-4111-8111-111111111111",format:"short",requestId:"22222222-2222-4222-8222-222222222222"}})).json();
   expect(result.result.isError).toBe(true);
  }
+});
+
+it("lists memory tools and rejects remember_fact without studio:agent", async () => {
+  const tools = await (await call("tools/list", {})).json();
+  expect(tools.result.tools.map((t: any) => t.name)).toEqual(
+    expect.arrayContaining(["remember_fact", "recall_facts", "forget_fact"]),
+  );
+  const denied = await (
+    await call("tools/call", {
+      name: "remember_fact",
+      arguments: { fact: "The usual hook is a close-up face.", agent: "default" },
+    })
+  ).json();
+  expect(denied.result.isError).toBe(true);
+});
+
+it("remembers, recalls and forgets a fact when studio:agent is granted", async () => {
+  state.scope = ["studio:read", "studio:write", "studio:ai", "studio:agent"];
+  const saved = await (
+    await call("tools/call", {
+      name: "remember_fact",
+      arguments: { fact: "The usual hook is a close-up face.", tags: ["hook"], agent: "default" },
+    })
+  ).json();
+  expect(saved.result.isError).not.toBe(true);
+  const fact = saved.result.structuredContent;
+  expect(fact.fact).toBe("The usual hook is a close-up face.");
+  const recalled = await (
+    await call("tools/call", {
+      name: "recall_facts",
+      arguments: { query: "hook" },
+    })
+  ).json();
+  expect(recalled.result.structuredContent.facts).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: fact.id, fact: "The usual hook is a close-up face." }),
+    ]),
+  );
+  const forgotten = await (
+    await call("tools/call", {
+      name: "forget_fact",
+      arguments: { id: fact.id },
+    })
+  ).json();
+  expect(forgotten.result.structuredContent.forgotten).toBe(true);
 });

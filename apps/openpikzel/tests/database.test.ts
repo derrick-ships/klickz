@@ -284,3 +284,67 @@ describe('creative conversations and feedback ownership',()=>{
   await expect(db.exec("insert into studio_feedback(user_id,creation_id,body) values('"+bob+"','"+alice+"','Cross-owner image feedback')")).rejects.toThrow();
  });
 });
+
+describe("agent memory isolation", () => {
+  it("creates the memory table, enforces constraints, and caps rows per user", async () => {
+    await asUser(alice);
+    await db.exec(`delete from studio_agent_memory where user_id='${alice}'`);
+    const id = "aaaaaaa1-aaa1-4aa1-8aa1-aaaaaaaaaaa1";
+    await db.exec(
+      `insert into studio_agent_memory(id,user_id,agent,fact,tags,source) values('${id}','${alice}','default','The usual hook is a close-up face.',array['hook'],'companion')`,
+    );
+    const rows = await db.query<{ fact: string }>(
+      "select fact from studio_agent_memory where id='"+id+"'",
+    );
+    expect(rows.rows).toHaveLength(1);
+    expect(rows.rows[0].fact).toBe("The usual hook is a close-up face.");
+    await expect(
+      db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','${"x".repeat(1001)}')`,
+      ),
+    ).rejects.toThrow();
+    for (let i = 0; i < 499; i++)
+      await db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','Fact ${i}')`,
+      );
+    await expect(
+      db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','One past the cap')`,
+      ),
+    ).rejects.toThrow();
+  });
+  it("blocks another user from reading or deleting memory rows", async () => {
+    await asUser(alice);
+    await db.exec(`delete from studio_agent_memory where user_id='${alice}'`);
+    const id = "bbbbbbb1-bbb1-4bb1-8bb1-bbbbbbbbbbb1";
+    await db.exec(
+      `insert into studio_agent_memory(id,user_id,agent,fact) values('${id}','${alice}','default','A private packaging preference.')`,
+    );
+    await asUser(bob);
+    expect(
+      (await db.query("select * from studio_agent_memory")).rows,
+    ).toHaveLength(0);
+    await expect(
+      db.exec(`delete from studio_agent_memory where id='${id}'`),
+    ).resolves.toBeDefined();
+    await expect(
+      db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','Stolen fact')`,
+      ),
+    ).rejects.toThrow();
+    await asUser(alice);
+    expect(
+      (await db.query("select id from studio_agent_memory where id='"+id+"'")).rows,
+    ).toHaveLength(1);
+  });
+  it("denies unauthenticated access to agent memory", async () => {
+    await db.exec("reset role;set role anon;");
+    await expect(db.query("select * from studio_agent_memory")).rejects.toThrow();
+    await expect(
+      db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','Unauthenticated fact')`,
+      ),
+    ).rejects.toThrow();
+    await db.exec("reset role;");
+  });
+});
