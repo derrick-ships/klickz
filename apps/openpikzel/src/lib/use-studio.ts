@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {type Conversation} from "./workspaces";
-import { localAll, localPut, localDelete } from "./local-db";
+import { localAll, localPut, localDelete, localProfileTransaction, localCreateProfile, localRenameProfile } from "./local-db";
 import {
   defaultSettings,
   type Config,
@@ -93,18 +93,18 @@ export function useStudio() {
         );
       } else setImages({});
     } else {
-      const [c, p, s, a, chats, preferences] = await Promise.all([
+      const [c, a, chats, preferences] = await Promise.all([
         localAll<Creation>("creations"),
-        localAll<Persona>("personas"),
-        localAll<Style>("styles"),
         localAll<Asset>("assets"),
         localAll<Conversation>("conversations"),
         localAll<{id:string;skip_persona_tutorial?:boolean}>("preferences"),
       ]);
       if (current !== version.current || userRef.current!==user) return;
+      const [personasNext,stylesNext]=await Promise.all([localProfileTransaction<Persona>("persona",{repair:true}) as Promise<Persona[]>,localProfileTransaction<Style>("style",{repair:true}) as Promise<Style[]>]);
+      if (current !== version.current || userRef.current!==user) return;
       setCreations(c.sort((a, b) => b.created_at.localeCompare(a.created_at)));
-      setPersonas(p);
-      setStyles(s);
+      setPersonas(personasNext);
+      setStyles(stylesNext);
       setConversations(chats);setSkipPersonaTutorial(preferences.find(p=>p.id==="local")?.skip_persona_tutorial===true);
       urls.current.forEach(URL.revokeObjectURL);
       const entries = a.map((x) => {
@@ -564,10 +564,30 @@ export function useStudio() {
       for(const file of files){if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Start again in this workspace.");refs.push(await upload(file));}
       if(name.trim().length>80||notes.length>800)throw new Error("Use a name up to 80 characters and guidance up to 800 characters.");const input={kind,name:name.trim(),notes,refs,permission,source};let item:Persona;
       if(cloud){dispatched=true;item=(await api("/api/profiles",input)).profile;}
-      else{item={id:crypto.randomUUID(),name:input.name,notes:input.notes,refs,created_at:new Date().toISOString(),profile_status:"draft",...(source?{source}: {})};await put(kind==="persona"?"personas":"styles",item);}
+      else{item={id:crypto.randomUUID(),name:input.name,notes:input.notes,refs,created_at:new Date().toISOString(),profile_status:"draft",...(source?{source}: {})};await localCreateProfile(kind,item);}
       if(epoch!==ownerEpoch.current)throw new Error("Your account changed. The profile remains in its original account.");
       await load();return item;
     }catch(error){if(!dispatched){if(cloud&&refs.length)await db.current!.storage.from("studio-assets").remove(refs);else for(const id of refs)await localDelete("assets",id);}throw error;}
+  }
+  async function renameProfile(kind:"persona"|"style",id:string,name:string){
+    const epoch=ownerEpoch.current;
+    if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
+    if(name.trim().length>80)throw new Error("Use a name up to 80 characters.");
+    const trimmed=name.trim();
+    if(cloud){
+      const requestHeaders=await headers();
+      if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");
+      const res=await fetch("/api/profiles",{method:"PATCH",headers:requestHeaders,body:JSON.stringify({kind,id,name:trimmed})});
+      const result=await res.json();
+      if(epoch!==ownerEpoch.current)throw new Error("Your account changed. The profile remains in its original account.");
+      if(!res.ok)throw new Error(result.error||"This profile could not be renamed.");
+      await load();
+      return result.profile;
+    }
+    const next=await localRenameProfile<Persona>(kind,id,trimmed);
+    if(epoch!==ownerEpoch.current)throw new Error("Your account changed. The profile remains in its original account.");
+    await load();
+    return next;
   }
   async function importYouTube(videoId:string){const res=await fetch("/api/youtube/reference",{method:"POST",headers:await headers(),body:JSON.stringify({videoId})});if(!res.ok){const e=await res.json();throw new Error(e.error||"This thumbnail could not import.");}return new File([await res.blob()],videoId+".png",{type:"image/png"});}
   async function saveConversation(chat:Conversation,mode:"full"|"draft"|"title"|"selection"="full"){
@@ -734,6 +754,7 @@ export function useStudio() {
     analyze,
     oneClickFix,
     saveProfile,
+    renameProfile,
     prepare,
     resize,
     remove,
