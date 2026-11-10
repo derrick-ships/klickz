@@ -25,11 +25,11 @@ it("centralizes the five pillars and preserves user context as data",()=>{
 });
 const item={id:"fixture",image_path:"fixture.png"} as Creation;
 it("delivers the saved image before analysis and marks ready only after real completion",async()=>{
- const events:string[]=[],result={creations:[item],partial:false};await deliverImages({generate:async()=>result,review:async()=>{events.push("review");},current:()=>true,onImages:()=>{events.push("image");},onStage:s=>events.push(s)});expect(events).toEqual(["generating","image","analyzing","review","ready"]);
+ const events:string[]=[],result={creations:[item],partial:false};await deliverImages({generate:async()=>result,review:async()=>{events.push("review");},current:()=>true,onImages:()=>{events.push("image");},onStage:s=>events.push(s)});expect(events).toEqual(["generating","analyzing","review","image","ready"]);
 });
 it("keeps generated images on analysis failure and does not re-render or retry",async()=>{
  const generate=vi.fn().mockResolvedValue({creations:[item,item],partial:false}),review=vi.fn().mockRejectedValue(Error("quota")),stages:string[]=[];
- const r=await deliverImages({generate,review,current:()=>true,onImages:()=>{},onStage:s=>stages.push(s)});expect(r.creations).toHaveLength(2);expect(generate).toHaveBeenCalledTimes(1);expect(review).toHaveBeenCalledTimes(1);expect(stages.at(-1)).toBe("review-pending");
+ const r=await deliverImages({generate,review,current:()=>true,onImages:()=>{},onStage:s=>stages.push(s)});expect(r.creations).toHaveLength(2);expect(generate).toHaveBeenCalledTimes(1);expect(review).toHaveBeenCalledTimes(2);expect(stages.at(-1)).toBe("review-pending");
 });
 it("never analyzes when the account or project changed during image generation",async()=>{
  let current=true;const review=vi.fn();await expect(deliverImages({generate:async()=>{current=false;return{creations:[item],partial:false};},review,current:()=>current,onImages:()=>{},onStage:()=>{}})).rejects.toThrow("workspace changed");expect(review).not.toHaveBeenCalled();
