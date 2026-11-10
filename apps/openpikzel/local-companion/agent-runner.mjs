@@ -3,7 +3,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execute,providerName,taskPrompt} from './core.mjs';
 import {findPending} from './hitl.mjs';
-export async function runAgent({engine,bridge,plans,runner,provider,task,brief,model,effort,agent='default',origin,signal,scheduled=false,execute:runProcess=execute}){
+import {workspaceImages} from './vision-tools.mjs';
+export async function runAgent({engine,bridge,plans,runner,provider,task,brief,model,effort,agent='default',origin,signal,scheduled=false,execute:runProcess=execute,codexMcpImages}={}){
  providerName(provider);const gate=plans.gate(provider,model);if(!gate.allowed)return {paused:true,reason:'plan_limit',retryAt:gate.retryAt};
  const status=await runner.inspect(provider);if(!status.authenticated)throw new Error('Sign in using the official '+provider+' CLI first.');
  const state=await engine.read(agent);if(findPending(state.messages))return {paused:true,reason:'awaiting_user'};
@@ -15,6 +16,7 @@ export async function runAgent({engine,bridge,plans,runner,provider,task,brief,m
  const controller=new AbortController(),cancel=()=>controller.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)controller.abort();
  const cwd=await mkdtemp(join(tmpdir(),'openpikzels-agent-'));let pending=false;
  const session=await bridge.open(agent,provider,origin,()=>{pending=true;controller.abort();},controller.signal);
+ const standingWorkspace=engine.workspace(agent);
  engine.beginWorkspace(agent,cwd);
  try{
   const env={};let args;
@@ -28,7 +30,11 @@ export async function runAgent({engine,bridge,plans,runner,provider,task,brief,m
    env.OPENPIKZELS_BRIDGE_TOKEN=session.servers[0].capability;
    args=['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','read-only','--json','-c','features.shell_tool=false','-c','features.apps=false','-c','features.hooks=false','-c','features.multi_agent=false','-c','features.remote_plugin=false','-c',web?'web_search="cached"':'web_search="disabled"'];
    for(const s of session.servers)args.push('-c','mcp_servers.'+s.name+'.url='+JSON.stringify(s.url),'-c','mcp_servers.'+s.name+'.bearer_token_env_var="OPENPIKZELS_BRIDGE_TOKEN"');
-   if(model)args.push('--model',model);if(effort)args.push('-c','model_reasoning_effort='+JSON.stringify(effort));args.push('-');
+   if(model)args.push('--model',model);if(effort)args.push('-c','model_reasoning_effort='+JSON.stringify(effort));
+   if(state.capabilities?.vision!==false&&!await (codexMcpImages||(async()=>true))()){
+    for(const file of await workspaceImages(standingWorkspace,brief))args.push('-i',file);
+   }
+   args.push('-');
   }
   let result;
   try{result=await runProcess(provider,args,prompt,{signal:controller.signal,cwd,env});}catch(e){if(pending||findPending((await engine.read(agent)).messages))return {paused:true,reason:'awaiting_user',omittedSse:session.omittedSse};throw e;}

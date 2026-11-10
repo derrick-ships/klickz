@@ -55,7 +55,7 @@ export async function createCompanion({port=48763,runner=makeRunner(),login=laun
    if(req.url==='/api/telemetry')return send(200,await telemetry(providerName(input.provider)));
    if(req.url==='/api/agent')return send(200,await engine.snapshot(agent));
    if(req.url==='/api/approvals/revoke'){await engine.revokeApprovals(agent);return send(200,{revoked:true});}
-   if(req.url==='/api/agent/settings'){const allowed=['ask_user','request_approval','request_secret','suggest_service','request_mcp_sign_in','request_takeover','web'];if(!input.capabilities||Object.entries(input.capabilities).some(([k,v])=>!allowed.includes(k)||typeof v!=='boolean'))return send(400,{error:'Invalid capability settings.'});await engine.locked(agent,async()=>{const s=await engine.read(agent);s.capabilities={...s.capabilities,...input.capabilities};await engine.save(agent,s);});return send(200,{saved:true});}
+   if(req.url==='/api/agent/settings'){const allowed=['ask_user','request_approval','request_secret','suggest_service','request_mcp_sign_in','request_takeover','web','vision'];if(!input.capabilities||Object.entries(input.capabilities).some(([k,v])=>!allowed.includes(k)||typeof v!=='boolean'))return send(400,{error:'Invalid capability settings.'});await engine.locked(agent,async()=>{const s=await engine.read(agent);s.capabilities={...s.capabilities,...input.capabilities};await engine.save(agent,s);});return send(200,{saved:true});}
    if(req.url==='/api/answer')return send(200,await engine.answer(agent,input.id,input.value||{}));
    if(req.url==='/api/secrets/request')return send(200,await engine.secretCard(agent,input.secrets));
    if(req.url==='/api/secrets')return send(200,await engine.secrets(agent,input.id,input.values));
