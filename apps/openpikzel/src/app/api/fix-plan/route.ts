@@ -5,6 +5,7 @@ import { settingsSchema, AppError } from "@/lib/validation";
 import { compileFixPlan, digest } from "@/lib/diagnostics";
 import { verifyDiagnostic } from "@/lib/diagnostic-proof";
 import { seal } from "@/lib/crypto";
+import { FIX_PLAN_NOTICE } from "@/lib/fix-plan-notice";
 export async function POST(request: Request) {
   try {
     const { db, user, oauth } = await authenticated(request);
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
             token: seal(result.plan, "fix-plan"),
             providerCalls: 1,
             notice:
-              "One new image-provider request. No automatic re-analysis. Provider cost depends on your own account; no price estimate or guaranteed fidelity is claimed.",
+              FIX_PLAN_NOTICE,
           }
         : result,
       { headers: { "Cache-Control": "no-store" } },

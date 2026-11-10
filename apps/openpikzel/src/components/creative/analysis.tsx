@@ -4,7 +4,7 @@ import {Copy,WandSparkles,ChevronDown} from 'lucide-react';
 import {pillars,type Evaluation} from '@/lib/types';
 import {ScoreAnnouncer,ScoreNumber,useScoreReveal} from '@/components/creative/score-count';
 const names={virality:'Virality',clarity:'Clarity',idea:'Idea',curiosity:'Curiosity',emotion:'Emotion'};
-export function AnalysisPanel({score,busy,onFix,readOnly=false,resultKey=null,arrived=false}:{score:Evaluation;busy:boolean;onFix:()=>void;readOnly?:boolean;resultKey?:string|null;arrived?:boolean}){
+export function AnalysisPanel({score,busy,onFix,onAdjust,fixUnavailable=false,readOnly=false,resultKey=null,arrived=false}:{score:Evaluation;busy:boolean;onFix:()=>void;onAdjust?:()=>void;fixUnavailable?:boolean;readOnly?:boolean;resultKey?:string|null;arrived?:boolean}){
  // OP-11: a result that arrived this session counts up here first and is announced in this dialog's
  // own live region (the page behind a modal dialog is inert). Otherwise the number stays still.
  const reveal=useScoreReveal(resultKey,score.overall,{arrived});
@@ -17,6 +17,6 @@ export function AnalysisPanel({score,busy,onFix,readOnly=false,resultKey=null,ar
  {score.contributors?.length ? <ul className="analysis-contributors" aria-label="Analysis contributors">{score.contributors.map(c=><li key={c.role}>{c.provider} · {c.model} · {c.role==="scoring"?"Five-pillar scoring":"Image-specific guidance"}</li>)}</ul> : <p>Provider details were not recorded for this older assessment.</p>}
  {score.warnings?.length ? <ul className="analysis-evidence-notes">{score.warnings.map(w=><li key={w}>{w}</li>)}</ul> : null}
  <p className="score-disclaimer">{score.note} This is a creative assessment, not measured YouTube performance.</p>
- {!readOnly&&<div className="consent-actions"><button className="neutral-button" disabled={!fixes.length} onClick={async()=>{try{await navigator.clipboard.writeText(prompt);setCopied(true);}catch{setCopied(false);}}}><Copy size={15}/>{copied?'Prompt copied':'Copy improvement prompt'}</button><button className="primary-button" disabled={busy||score.fixBlocked} onClick={onFix}><WandSparkles size={15}/>One-click fix</button></div>}
+ {!readOnly&&<div className="consent-actions"><button className="neutral-button" disabled={!fixes.length} onClick={async()=>{try{await navigator.clipboard.writeText(prompt);setCopied(true);}catch{setCopied(false);}}}><Copy size={15}/>{copied?'Prompt copied':'Copy improvement prompt'}</button><button className="primary-button" disabled={busy||score.fixBlocked||fixUnavailable} onClick={onFix}><WandSparkles size={15}/>Fix what's holding it back</button>{onAdjust&&<a href="#adjust-fix" onClick={e=>{e.preventDefault();onAdjust();}}>Adjust fix first</a>}</div>}
  </section>;
 }

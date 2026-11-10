@@ -6,7 +6,8 @@ import {PromptEnhancer,CreativeConversation,type CreativeDraft} from "@/componen
 import {ProviderChoice} from "@/components/creative/provider-choice";
 import { generationReadiness } from "@/lib/generation-readiness";
 import { pickVisionProvider } from "@/lib/vision-provider";
-import { reviewerName, scorePlan, scoreStatusCopy, scoreStatusFromEvaluation } from "@/lib/score-on-generate";
+import { critiqueProviderFromScore, reviewerName, scorePlan, scoreStatusCopy, scoreStatusFromEvaluation } from "@/lib/score-on-generate";
+import { GEMINI_FIX_NOTICE } from "@/lib/fix-plan-notice";
 import { promptValidationError } from "@/lib/prompt-validation";
 import {useRequestActivity} from "@/lib/use-request-activity";
 import { jobGuidance } from "@/lib/job-state";
@@ -168,7 +169,7 @@ export default function Studio() {
     [password, setPassword] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [creativeDraft,setCreativeDraft]=useState<CreativeDraft>({}),[delivery,setDelivery]=useState<DeliveryState|null>(null),[reviewStatuses,setReviewStatuses]=useState<Record<string,ReviewStatus>>({});
-  const deliveryAttempt=useRef(0),selectedIdRef=useRef<string|null>(null),scoreIntent=useRef<Record<string,{title:string;includeVision:boolean;videoUrl:string;critiqueProvider:ReturnType<typeof scorePlan>["critiqueProvider"]}>>({});selectedIdRef.current=selection;
+  const deliveryAttempt=useRef(0),selectedIdRef=useRef<string|null>(null),scoreIntent=useRef<Record<string,{title:string;includeVision:boolean;videoUrl:string;critiqueProvider:ReturnType<typeof scorePlan>["critiqueProvider"]}>>({}),oneClickInFlight=useRef<Promise<unknown>|null>(null);selectedIdRef.current=selection;
   const [directionUndo,setDirectionUndo]=useState<{before:{prompt:string;title:string;tool:Tool};after:string}|null>(null);
   const [analysisScan, setAnalysisScan] = useState<{id:number;src:string;phase:ScanPhase;reviewer:string}|null>(null);
   const scanAttempt = useRef(0);
@@ -633,6 +634,44 @@ export default function Studio() {
     setForbiddenChanges("");
     setDialog("fixplan");
   }
+  async function runOneClickFix() {
+    if (!selected) return;
+    if (oneClickInFlight.current) return oneClickInFlight.current;
+    const source = selected;
+    const work = studio.run("Applying one-click fix", async () => {
+      const plan = scorePlan(studio.config);
+      const stored = scoreIntent.current[source.id];
+      const critiqueProvider = stored?.critiqueProvider || critiqueProviderFromScore(source.score) || plan.critiqueProvider;
+      const includeVision = stored ? stored.includeVision : !!critiqueProvider;
+      const intentTitle = stored?.title ?? source.title ?? title;
+      const intentVideo = stored?.videoUrl ?? videoUrl;
+      const result = await studio.oneClickFix(source, {
+        settings,
+        conversationId: activeChatId,
+        title: intentTitle,
+        includeVision,
+        videoUrl: intentVideo,
+        critiqueProvider: critiqueProvider || undefined,
+      }) as {kind?:string;reason?:string;creations?:Creation[]}|undefined;
+      if (result?.kind === "blocked" || result?.kind === "noop") {
+        setFixReview({kind: result.kind, reason: result.reason});
+        return;
+      }
+      const child = result?.creations?.[0];
+      if (child) {
+        scoreIntent.current[child.id] = {title:intentTitle,includeVision,videoUrl:intentVideo,critiqueProvider:critiqueProvider||null};
+        setSelection(child.id);
+        setDialog(null);
+        setComposerOpen(false);
+      }
+    });
+    oneClickInFlight.current = work;
+    try {
+      return await work;
+    } finally {
+      oneClickInFlight.current = null;
+    }
+  }
   async function prepareFix() {
     if (!selected) return;
     await studio.run("Preparing fix plan", async () => {
@@ -980,14 +1019,21 @@ export default function Studio() {
                           </h2>
                           <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p><button className="quiet-button" onClick={()=>setDialog("analysis")}>Open analysis details</button>
                         </div>
+                        <div>
                         <button
                           className="primary-button fix-button"
-                          disabled={busy || !!score.fixBlocked}
-                          onClick={fix}
+                          disabled={busy || !!score.fixBlocked || fixReview?.kind === "blocked" || fixReview?.kind === "noop"}
+                          onClick={() => void runOneClickFix()}
                         >
                           <WandSparkles size={16} />
-                          Review suggested fixes
+                          Fix what's holding it back
                         </button>
+                        <a href="#adjust-fix" onClick={e=>{e.preventDefault();void fix();}}>Adjust fix first</a>
+                        {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
+                        {(fixReview?.kind === "blocked" || fixReview?.kind === "noop") && fixReview.reason && (
+                          <p role="status">{fixReview.reason}</p>
+                        )}
+                        </div>
                       </div>
                       <div className="score-body">
                         <div className="pillar-list">
@@ -1875,7 +1921,7 @@ export default function Studio() {
           {(dialog==="personas"||dialog==="styles")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedId={dialog==="personas"?personaId:styleId} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis-history"&&selected&&<AnalysisHistory key={selected.id+studio.user} creationId={selected.id} read={studio.read}/>}
-          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={fix} resultKey={scoreKey} arrived={scoreArrived}/>}
+          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
           {dialog === "references" && (
@@ -2003,8 +2049,9 @@ export default function Studio() {
               <p className="dialog-description">
                 Preview the changes first, then choose whether to spend API
                 credits on one new image. Your original stays saved. The new
-                image will not be scored automatically.
+                image is scored after it is created.
               </p>
+              {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
               {[
                 ["Exact wording to preserve", exactText, setExactText],
                 ["Required objects", requiredObjects, setRequiredObjects],

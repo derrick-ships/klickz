@@ -75,8 +75,8 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     .click();
   await expect(page.locator(".score-header")).toContainText("Partial");
   await expect(page.getByText("Not assessed", { exact: true })).toHaveCount(2);
-  await expect(page.getByRole("button", { name: "Review suggested fixes", exact: true })).toBeDisabled();
-  await page.getByRole("button", { name: "Review suggested fixes", exact: true }).evaluate((button: HTMLButtonElement) => button.click());
+  await expect(page.getByRole("button", { name: "Fix what's holding it back", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Fix what's holding it back", exact: true }).evaluate((button: HTMLButtonElement) => button.click());
   expect(paid).toHaveLength(0);
   // Also retain server-side blocked-plan coverage with an otherwise reviewable UI fixture.
   await page.evaluate(async () => {
@@ -94,7 +94,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     }),
   );
   await page
-    .getByRole("button", { name: "Review suggested fixes", exact: true })
+    .getByRole("link", { name: "Adjust fix first", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Review one-click fix" }),
@@ -106,7 +106,7 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     .getByRole("button", { name: "Preview fixes · no API charge" })
     .click();
   await expect(
-    page.getByText("Add factual context and image-specific critique first."),
+    page.getByRole("dialog").getByText("Add factual context and image-specific critique first."),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Generate fix with API credits" }),

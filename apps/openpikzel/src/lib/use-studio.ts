@@ -39,6 +39,8 @@ export function useStudio() {
     userRef = useRef<string | null>(null),
     pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const pendingAnalysis = useRef(new Map<string, string>());
+  const pendingFix = useRef(new Map<string, Promise<unknown>>());
+  const fixGenerateIds = useRef(new Map<string, string>());
   const cloud = !!user && !!db.current,
     live = cloud && !!config?.ai && (!!config?.openai || !!config?.google);
   const load = useCallback(async () => {
@@ -130,7 +132,7 @@ export function useStudio() {
             if (next !== userRef.current) {
               userRef.current = next;
               setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:next?"loading":"ready"}:current);
-              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();
+              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();fixGenerateIds.current.clear();
               version.current++;
               setCreations([]);
               setPersonas([]);
@@ -443,6 +445,74 @@ export function useStudio() {
     forgetPendingRequest(pendingAnalysis.current, item.id, fingerprint);
     return result;
   }
+
+  async function oneClickFix(item: Creation, args: {
+    settings: Settings;
+    preserve?: { exactText?: string[]; requiredObjects?: string[]; forbiddenChanges?: string[] };
+    issueIds?: string[];
+    conversationId?: string | null;
+    title?: string;
+    includeVision?: boolean;
+    videoUrl?: string;
+    critiqueProvider?: VisionProvider;
+  }) {
+    const key = item.id;
+    const existing = pendingFix.current.get(key);
+    if (existing) return existing as ReturnType<typeof runFix>;
+    async function runFix() {
+      const plan = await api("/api/fix-plan", {
+        creationId: item.id,
+        settings: { ...args.settings, batch: 1 },
+        preserve: {
+          exactText: args.preserve?.exactText ?? [],
+          requiredObjects: args.preserve?.requiredObjects ?? [],
+          forbiddenChanges: args.preserve?.forbiddenChanges ?? [],
+        },
+        ...(args.issueIds ? { issueIds: args.issueIds } : {}),
+      }) as {
+        kind: string;
+        reason?: string;
+        plan?: { title: string; sourceId: string; settings: Settings };
+        token?: string;
+        notice?: string;
+      };
+      if (plan.kind === "blocked" || plan.kind === "noop") return plan;
+      let requestId = fixGenerateIds.current.get(key);
+      if (!requestId) {
+        requestId = crypto.randomUUID();
+        fixGenerateIds.current.set(key, requestId);
+      }
+      const result = await generate({
+        prompt: "Apply the reviewed packaging edits while preserving the original.",
+        title: plan.plan!.title,
+        conversationId: args.conversationId || undefined,
+        parentId: plan.plan!.sourceId,
+        mode: "fix",
+        settings: plan.plan!.settings,
+        fixPlanToken: plan.token,
+        requestId,
+      });
+      const child = result.creations?.[0];
+      if (child && !child.score) {
+        await analyze(
+          child,
+          args.title ?? plan.plan!.title,
+          "",
+          args.includeVision ?? false,
+          args.videoUrl ?? "",
+          args.critiqueProvider,
+        );
+      }
+      return { ...plan, ...result };
+    }
+    const work = runFix();
+    pendingFix.current.set(key, work);
+    try {
+      return await work;
+    } finally {
+      pendingFix.current.delete(key);
+    }
+  }
   async function saveProfile(kind:"persona"|"style",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]}){
     const epoch=ownerEpoch.current;
     if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
@@ -623,6 +693,7 @@ export function useStudio() {
     saveUploaded,
     generate,
     analyze,
+    oneClickFix,
     saveProfile,
     prepare,
     resize,
