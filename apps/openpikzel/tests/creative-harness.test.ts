@@ -29,7 +29,7 @@ it("delivers the saved image before analysis and marks ready only after real com
 });
 it("keeps generated images on analysis failure and does not re-render or retry",async()=>{
  const generate=vi.fn().mockResolvedValue({creations:[item,item],partial:false}),review=vi.fn().mockRejectedValue(Error("quota")),stages:string[]=[];
- const r=await deliverImages({generate,review,current:()=>true,onImages:()=>{},onStage:s=>stages.push(s)});expect(r.creations).toHaveLength(2);expect(generate).toHaveBeenCalledTimes(1);expect(review).toHaveBeenCalledTimes(1);expect(stages.at(-1)).toBe("review-pending");
+ const r=await deliverImages({generate,review,current:()=>true,onImages:()=>{},onStage:s=>stages.push(s)});expect(r.creations).toHaveLength(2);expect(generate).toHaveBeenCalledTimes(1);expect(review).toHaveBeenCalledTimes(2);expect(stages.at(-1)).toBe("review-pending");
 });
 it("never analyzes when the account or project changed during image generation",async()=>{
  let current=true;const review=vi.fn();await expect(deliverImages({generate:async()=>{current=false;return{creations:[item],partial:false};},review,current:()=>current,onImages:()=>{},onStage:()=>{}})).rejects.toThrow("workspace changed");expect(review).not.toHaveBeenCalled();
