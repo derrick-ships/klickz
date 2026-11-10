@@ -4,6 +4,7 @@ test("MCP Apps iframe bridge shows creations, scores and clears hidden selection
   page,
 }) => {
   await page.goto("/");
+  await expect(page.getByLabel("Describe your thumbnail", { exact: true })).toBeEnabled();
   await page.evaluate((html) => {
     const calls: string[] = [];
     (window as any).widgetCalls = calls;

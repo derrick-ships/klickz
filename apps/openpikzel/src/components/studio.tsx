@@ -443,7 +443,7 @@ export default function Studio() {
     if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); }
   }
   async function uploadFiles(files: FileList | null) {
-    if (!files?.length) return;
+    if (!workspaceReady || !files?.length) return;
     await studio.run("Uploading references", async () => {
       if (refs.length + files.length > 6)
         throw new Error("Use up to six image references.");
@@ -537,6 +537,7 @@ export default function Studio() {
   }
 
   async function submit() {
+    if (!workspaceReady) return;
     // Prompt-only validation is shown under the field (not the top banner) and focuses it.
     const invalid=promptValidationError({tool,titleAction,prompt,title});
     if(invalid){studio.setError("");setPromptError(invalid);requestAnimationFrame(()=>promptRef.current?.focus());return;}
@@ -808,7 +809,8 @@ export default function Studio() {
   const scoreView = score ? scoreStatusFromEvaluation(score) : !studio.config?.jev ? {kind:"no-jev" as const} : selected && reviewStatuses[selected.id]==="pending" ? {kind:"pending" as const} : selected && reviewStatuses[selected.id]==="failed" ? {kind:"failed" as const} : {kind:"idle" as const};
   const scoreCopy = scoreStatusCopy(scoreView);
   const showComposer = !hasReviewImage || composerOpen;
-  const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:studio.loading,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider});
+  const workspaceReady = !studio.loading && hydratedWorkspace === (studio.user || "local");
+  const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:!workspaceReady,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider});
   // The inline prompt message follows the current text and mode, and clears once the prompt is valid.
   useEffect(()=>{if(!promptError)return;const next=promptValidationError({tool,titleAction,prompt,title})||"";if(next!==promptError)setPromptError(next);},[promptError,tool,titleAction,prompt,title]);
   // OP-3: the action, its cost and the key note sit directly under the prompt.
@@ -1347,7 +1349,7 @@ export default function Studio() {
                 </div>
                 {hasReviewImage && <button className="quiet-button review-editor-toggle" aria-expanded={showComposer} aria-controls="review-creation-controls" onClick={() => setComposerOpen((open) => !open)}>{showComposer ? "Hide prompt and settings" : "Show prompt and settings"}<ChevronDown size={14} /></button>}
                 <div className="composer" id="review-creation-controls" hidden={!showComposer}>
-                  <fieldset className="composer-inner" disabled={navigating||studio.loading} aria-label="Thumbnail inputs">
+                  <fieldset className="composer-inner" disabled={navigating||!workspaceReady} aria-label="Thumbnail inputs">
                     {tool === "title" && (
                       <div className="output-choice">
                         <button
@@ -1760,6 +1762,7 @@ export default function Studio() {
                   className="sr-only"
                   tabIndex={-1}
                   aria-label="Upload thumbnail references"
+                  disabled={!workspaceReady}
                   multiple
                   accept="image/png,image/jpeg,image/webp"
                   onChange={(e) => {

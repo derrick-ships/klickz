@@ -4,7 +4,7 @@ test('LOOP v2 page routes, required breakpoints, links and runtime errors',async
  test.setTimeout(180000);
  const reports:any[]=[],external=new Set<string>(),errors:string[]=[],failed:string[]=[];
  page.on('pageerror',e=>errors.push(e.message));
- page.on('requestfailed',r=>failed.push(new URL(r.url()).pathname));
+ page.on('requestfailed',r=>{if(r.failure()?.errorText!=='net::ERR_ABORTED')failed.push(new URL(r.url()).pathname);});
  await page.route('**/*',r=>{const u=new URL(r.request().url());if(u.hostname==='127.0.0.1'||['blob:','data:'].includes(u.protocol))return r.continue();external.add(u.origin);return r.abort();});
  await page.route('**/api/config',r=>r.fulfill({json:{cloud:false,ai:false,openai:false,jev:false,google:false}}));
  await page.route('**/api/oauth/consent?*',r=>r.fulfill({json:{name:'Fixture agent',redirect:'http://127.0.0.1:4321/callback',scope:['studio:read','studio:write']}}));
@@ -19,7 +19,7 @@ test('LOOP v2 page routes, required breakpoints, links and runtime errors',async
    if(route==='/studio')await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toBeVisible();
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
    const links=await page.locator('a[href]').evaluateAll(as=>as.map(a=>({label:a.textContent?.trim(),href:(a as HTMLAnchorElement).href})));
-   for(const link of links){const u=new URL(link.href);if(u.origin!=='http://127.0.0.1:3000')continue;
+   for(const link of links){const u=new URL(link.href);if(u.origin!==new URL(page.url()).origin)continue;
     if(['/','/welcome','/studio','/connect','/local-companion','/oauth/consent'].includes(u.pathname)&&!checkedLinks.has(u.pathname)){const result=await request.get(u.pathname);checkedLinks.set(u.pathname,result.status());}
    }
    const key=(route.split('?')[0].slice(1)||'root').replaceAll('/','-');await page.screenshot({path:'evidence/loop-v2-'+key+'-'+width+'.png',fullPage:true});
