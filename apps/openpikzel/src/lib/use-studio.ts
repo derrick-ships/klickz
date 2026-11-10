@@ -40,7 +40,8 @@ export function useStudio() {
     pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const pendingAnalysis = useRef(new Map<string, string>());
   const pendingFix = useRef(new Map<string, Promise<unknown>>());
-  const fixGenerateIds = useRef(new Map<string, string>());
+  const pendingFixJobs = useRef(new Map<string, {requestId:string;fixPlanToken:string;plan:{title:string;sourceId:string;settings:Settings};notice?:string}>());
+  const unknownOutcomes = new WeakSet<object>();
   const cloud = !!user && !!db.current,
     live = cloud && !!config?.ai && (!!config?.openai || !!config?.google);
   const load = useCallback(async () => {
@@ -132,7 +133,7 @@ export function useStudio() {
             if (next !== userRef.current) {
               userRef.current = next;
               setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:next?"loading":"ready"}:current);
-              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();fixGenerateIds.current.clear();
+              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();pendingFixJobs.current.clear();
               version.current++;
               setCreations([]);
               setPersonas([]);
@@ -218,11 +219,18 @@ export function useStudio() {
     const epoch=ownerEpoch.current;ensureCurrentOwner();
     const requestHeaders=await headers();
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
-    const res = await fetch(path, {
-      method: "POST",
-      headers: requestHeaders,
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(path, {
+        method: "POST",
+        headers: requestHeaders,
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      const error = e instanceof Error ? e : new Error("The request did not finish. Check My creations before retrying.");
+      unknownOutcomes.add(error);
+      throw error;
+    }
     const result = await res.json();
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
     if (!res.ok) throw new Error(result.error || "The request did not finish. Check My creations before retrying.");
@@ -460,50 +468,65 @@ export function useStudio() {
     const existing = pendingFix.current.get(key);
     if (existing) return existing as ReturnType<typeof runFix>;
     async function runFix() {
-      const plan = await api("/api/fix-plan", {
-        creationId: item.id,
-        settings: { ...args.settings, batch: 1 },
-        preserve: {
-          exactText: args.preserve?.exactText ?? [],
-          requiredObjects: args.preserve?.requiredObjects ?? [],
-          forbiddenChanges: args.preserve?.forbiddenChanges ?? [],
-        },
-        ...(args.issueIds ? { issueIds: args.issueIds } : {}),
-      }) as {
+      type PlanResult = {
         kind: string;
         reason?: string;
         plan?: { title: string; sourceId: string; settings: Settings };
         token?: string;
         notice?: string;
       };
-      if (plan.kind === "blocked" || plan.kind === "noop") return plan;
-      let requestId = fixGenerateIds.current.get(key);
-      if (!requestId) {
+      const pending = pendingFixJobs.current.get(key);
+      let plan: PlanResult;
+      let requestId: string;
+      let token: string;
+      if (pending) {
+        plan = {kind:"ready",plan:pending.plan,token:pending.fixPlanToken,notice:pending.notice};
+        requestId = pending.requestId;
+        token = pending.fixPlanToken;
+      } else {
+        plan = await api("/api/fix-plan", {
+          creationId: item.id,
+          settings: { ...args.settings, batch: 1 },
+          preserve: {
+            exactText: args.preserve?.exactText ?? [],
+            requiredObjects: args.preserve?.requiredObjects ?? [],
+            forbiddenChanges: args.preserve?.forbiddenChanges ?? [],
+          },
+          ...(args.issueIds ? { issueIds: args.issueIds } : {}),
+        }) as PlanResult;
+        if (plan.kind === "blocked" || plan.kind === "noop") return plan;
         requestId = crypto.randomUUID();
-        fixGenerateIds.current.set(key, requestId);
+        token = plan.token!;
+        pendingFixJobs.current.set(key, {requestId,fixPlanToken:token,plan:plan.plan!,notice:plan.notice});
       }
-      const result = await generate({
-        prompt: "Apply the reviewed packaging edits while preserving the original.",
-        title: plan.plan!.title,
-        conversationId: args.conversationId || undefined,
-        parentId: plan.plan!.sourceId,
-        mode: "fix",
-        settings: plan.plan!.settings,
-        fixPlanToken: plan.token,
-        requestId,
-      });
-      const child = result.creations?.[0];
-      if (child && !child.score) {
-        await analyze(
-          child,
-          args.title ?? plan.plan!.title,
-          "",
-          args.includeVision ?? false,
-          args.videoUrl ?? "",
-          args.critiqueProvider,
-        );
+      try {
+        const result = await generate({
+          prompt: "Apply the reviewed packaging edits while preserving the original.",
+          title: plan.plan!.title,
+          conversationId: args.conversationId || undefined,
+          parentId: plan.plan!.sourceId,
+          mode: "fix",
+          settings: plan.plan!.settings,
+          fixPlanToken: token,
+          requestId,
+        });
+        pendingFixJobs.current.delete(key);
+        const child = result.creations?.[0];
+        if (child && !child.score) {
+          await analyze(
+            child,
+            args.title ?? plan.plan!.title,
+            "",
+            args.includeVision ?? false,
+            args.videoUrl ?? "",
+            args.critiqueProvider,
+          );
+        }
+        return { ...plan, ...result };
+      } catch (error) {
+        if (!(error && typeof error === "object" && unknownOutcomes.has(error))) pendingFixJobs.current.delete(key);
+        throw error;
       }
-      return { ...plan, ...result };
     }
     const work = runFix();
     pendingFix.current.set(key, work);

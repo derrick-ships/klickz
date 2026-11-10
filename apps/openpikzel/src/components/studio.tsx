@@ -176,13 +176,13 @@ export default function Studio() {
   const [textProvider,setTextProvider]=useState<"openai"|"google">("openai");
   const [videoBrief, setVideoBrief] = useState(""),
     [includeVision, setIncludeVision] = useState(false),
-    [fixReview, setFixReview] = useState<{
+    [fixReviews, setFixReviews] = useState<Record<string, {
       kind: string;
       plan?: FixPlan;
       token?: string;
       notice?: string;
       reason?: string;
-    } | null>(null),
+    }>>({}),
     [exactText, setExactText] = useState(""),
     [requiredObjects, setRequiredObjects] = useState(""),
     [forbiddenChanges, setForbiddenChanges] = useState(""),
@@ -206,8 +206,19 @@ export default function Studio() {
     draftFingerprintRef = useRef("");
   const draftFingerprint = JSON.stringify({ prompt, title, tool, personaId, styleId, preset, refs, settings, parentId });
   draftFingerprintRef.current = draftFingerprint;
-  const selected = studio.creations.find((c) => c.id === selection) || null,
-    editSource = selected?.image_path ? selected : studio.creations.find(c=>c.id===(selected?.parent_id || parentId) && !!c.image_path) || null,
+  const selected = studio.creations.find((c) => c.id === selection) || null;
+  const fixReview = (selection && fixReviews[selection]) || null;
+  function setFixReview(value: (typeof fixReviews)[string] | null, id = selection) {
+    if (!id) return;
+    setFixReviews((current) => {
+      if (!value) {
+        const { [id]: _, ...rest } = current;
+        return rest;
+      }
+      return { ...current, [id]: value };
+    });
+  }
+  const editSource = selected?.image_path ? selected : studio.creations.find(c=>c.id===(selected?.parent_id || parentId) && !!c.image_path) || null,
     persona = studio.personas.find((p) => p.id === personaId),
     styleProfile = studio.styles.find((s) => s.id === styleId),
     score =
@@ -334,7 +345,7 @@ export default function Studio() {
   }
   async function openChat(chat:Conversation){if(busy||chat.id===chatIdRef.current)return;await studio.run("Opening chat",async()=>{const owner=studio.user;await flushDraft();if(ownerUI.current===owner)activateChat(chat);});}
   async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();const chat=await studio.createConversation();activateChat(chat);startNew();});}
-  useEffect(()=>{workspaceEpoch.current++;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setReviewStatuses({});setIncludeVision(false);setTextProvider("openai");setDirectionUndo(null);setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReview(null);setDialog(null);setChatSaveState("");},[studio.user]);
+  useEffect(()=>{workspaceEpoch.current++;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setReviewStatuses({});setIncludeVision(false);setTextProvider("openai");setDirectionUndo(null);setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReviews({});setDialog(null);setChatSaveState("");},[studio.user]);
   useEffect(()=>{
     if(studio.loading)return;const key=studio.user||"local";if(hydratedOwner.current===key)return;hydratedOwner.current=key;
     const saved=localStorage.getItem("openpikzels.activeChat."+key),chat=studio.conversations.find(c=>c.id===saved),checkpoint=readDraftCheckpoint(localStorage,key);
@@ -654,7 +665,7 @@ export default function Studio() {
         critiqueProvider: critiqueProvider || undefined,
       }) as {kind?:string;reason?:string;creations?:Creation[]}|undefined;
       if (result?.kind === "blocked" || result?.kind === "noop") {
-        setFixReview({kind: result.kind, reason: result.reason});
+        setFixReview({kind: result.kind, reason: result.reason}, source.id);
         return;
       }
       const child = result?.creations?.[0];
