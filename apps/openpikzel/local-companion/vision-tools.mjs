@@ -21,38 +21,32 @@ export async function resolveWorkspaceFile(workspace,inputPath){
  return resolved;
 }
 
-const BRIEF_WORDS=new Set('please describe look see check open view attach use the this that these those my your its of in on at to for and or with from into over under file image files images path paths named called is are was here there now'.split(' '));
+const IMAGE_PATH=/^(?:[\w./-]+(?: +[\w./-]+)*)\.(?:png|jpe?g|webp)$/i;
+
+function trimPathPunctuation(value){
+ return String(value).replace(/^[({[<]+/,'').replace(/[.,;:!?)}\]>]+$/,'').trim();
+}
+
+function imagePathFrom(value){
+ const path=trimPathPunctuation(value);
+ return IMAGE_PATH.test(path)?path:'';
+}
 
 export function listedImagePaths(brief){
  const text=String(brief);
  const found=[];
  const seen=new Set();
  const add=value=>{
-  const path=value.trim();
+  const path=imagePathFrom(value);
   if(!path||seen.has(path))return;
   seen.add(path);
   found.push(path);
  };
- const quoted=/(["'`])([^"'`\n]*?\.(?:png|jpe?g|webp))\1(?![A-Za-z0-9._-])/gi;
- for(const match of text.matchAll(quoted))add(match[2]);
- const ext=/\.(?:png|jpe?g|webp)(?![A-Za-z0-9._-])/gi;
- for(const match of text.matchAll(ext)){
-  const end=match.index+match[0].length;
-  let i=match.index;
-  while(i>0&&/[\w./-]/.test(text[i-1]))i--;
-  while(i>0&&text[i-1]===' '){
-   let j=i-1;
-   while(j>0&&text[j-1]===' ')j--;
-   if(j===0||!/[\w./-]/.test(text[j-1]))break;
-   const tokenEnd=j;
-   while(j>0&&/[\w./-]/.test(text[j-1]))j--;
-   const token=text.slice(j,tokenEnd);
-   if(BRIEF_WORDS.has(token.toLowerCase()))break;
-   i=j;
-  }
-  if(i>0&&!/[\s"'`(\[{<,;:]/.test(text[i-1]))continue;
-  add(text.slice(i,end));
- }
+ const remainder=text.replace(/(["'`])([^"'`\n]*)\1/g,(_match,_quote,inner)=>{
+  add(inner);
+  return ' '.repeat(_match.length);
+ });
+ for(const token of remainder.split(/\s+/))add(token);
  return found;
 }
 

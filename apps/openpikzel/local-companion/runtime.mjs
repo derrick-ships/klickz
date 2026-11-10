@@ -31490,37 +31490,29 @@ async function resolveWorkspaceFile(workspace, inputPath) {
   if (resolved !== root && !resolved.startsWith(root + sep2)) throw new Error("Images must stay in the workspace folder.");
   return resolved;
 }
-var BRIEF_WORDS = new Set("please describe look see check open view attach use the this that these those my your its of in on at to for and or with from into over under file image files images path paths named called is are was here there now".split(" "));
+var IMAGE_PATH = /^(?:[\w./-]+(?: +[\w./-]+)*)\.(?:png|jpe?g|webp)$/i;
+function trimPathPunctuation(value) {
+  return String(value).replace(/^[({[<]+/, "").replace(/[.,;:!?)}\]>]+$/, "").trim();
+}
+function imagePathFrom(value) {
+  const path = trimPathPunctuation(value);
+  return IMAGE_PATH.test(path) ? path : "";
+}
 function listedImagePaths(brief) {
   const text2 = String(brief);
   const found = [];
   const seen = /* @__PURE__ */ new Set();
   const add = (value) => {
-    const path = value.trim();
+    const path = imagePathFrom(value);
     if (!path || seen.has(path)) return;
     seen.add(path);
     found.push(path);
   };
-  const quoted = /(["'`])([^"'`\n]*?\.(?:png|jpe?g|webp))\1(?![A-Za-z0-9._-])/gi;
-  for (const match of text2.matchAll(quoted)) add(match[2]);
-  const ext = /\.(?:png|jpe?g|webp)(?![A-Za-z0-9._-])/gi;
-  for (const match of text2.matchAll(ext)) {
-    const end = match.index + match[0].length;
-    let i2 = match.index;
-    while (i2 > 0 && /[\w./-]/.test(text2[i2 - 1])) i2--;
-    while (i2 > 0 && text2[i2 - 1] === " ") {
-      let j2 = i2 - 1;
-      while (j2 > 0 && text2[j2 - 1] === " ") j2--;
-      if (j2 === 0 || !/[\w./-]/.test(text2[j2 - 1])) break;
-      const tokenEnd = j2;
-      while (j2 > 0 && /[\w./-]/.test(text2[j2 - 1])) j2--;
-      const token = text2.slice(j2, tokenEnd);
-      if (BRIEF_WORDS.has(token.toLowerCase())) break;
-      i2 = j2;
-    }
-    if (i2 > 0 && !/[\s"'`(\[{<,;:]/.test(text2[i2 - 1])) continue;
-    add(text2.slice(i2, end));
-  }
+  const remainder = text2.replace(/(["'`])([^"'`\n]*)\1/g, (_match, _quote, inner) => {
+    add(inner);
+    return " ".repeat(_match.length);
+  });
+  for (const token of remainder.split(/\s+/)) add(token);
   return found;
 }
 async function resolveWorkspaceImage(workspace, inputPath) {
