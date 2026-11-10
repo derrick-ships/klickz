@@ -293,10 +293,7 @@ export async function evaluateThumbnail(
   const critiqueProvider = context.critiqueProvider || "openai";
   if(context.includeVision) providerKey(critiqueProvider);
   const withVision = context.includeVision;
-  const observations = observationSchema.parse(
-    withVision
-      ? await observePackaging(prepared, title, context.videoBrief, small, critiqueProvider)
-      : {
+  const withoutVision = {
           summary:
             "Jev scored the supplied image and title. These rubric-based prompts are suggestions; no separate vision critique was requested.",
           dimensions: Object.fromEntries(
@@ -319,8 +316,21 @@ export async function evaluateThumbnail(
               },
             ]),
           ),
-        },
-  );
+        };
+  let visionFinished = false;
+  let observations;
+  if (withVision) {
+    try {
+      observations = observationSchema.parse(
+        await observePackaging(prepared, title, context.videoBrief, small, critiqueProvider),
+      );
+      visionFinished = true;
+    } catch {
+      observations = observationSchema.parse(withoutVision);
+    }
+  } else {
+    observations = observationSchema.parse(withoutVision);
+  }
   const asset = crypto.randomUUID(),
     previewAsset = crypto.randomUUID();
   const previewCanvas = await sharp(small)
@@ -348,7 +358,7 @@ export async function evaluateThumbnail(
         title,
         videoBrief: context.videoBrief,
         actualPreview: previewAsset,
-        visualGuidance: withVision ? observations.dimensions : undefined,
+        visualGuidance: visionFinished ? observations.dimensions : undefined,
         previewContentWidth: smallMeta.width,
         context:
           scoringInstructions,
@@ -386,11 +396,14 @@ export async function evaluateThumbnail(
       height: smallMeta.height!,
       digest: digest(small),
     },
-    !!withVision,
+    visionFinished,
     observations.promiseConflict,
   );
   diagnostic.instructionVersion = instructionVersion;
-  diagnostic.contributors = [{provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(withVision ? [{provider:critiqueProvider === "anthropic" ? "Anthropic API" : critiqueProvider === "openai" ? "OpenAI API" : "Google API",model:critiqueProvider === "anthropic" ? anthropicVisionModel() : critiqueProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
+  if(withVision && !visionFinished){
+    diagnostic.warnings = [...(diagnostic.warnings||[]).filter(warning=>!warning.includes("Numeric Jev rubrics only")),"Image review did not finish"];
+  }
+  diagnostic.contributors = [{provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(visionFinished ? [{provider:critiqueProvider === "anthropic" ? "Anthropic API" : critiqueProvider === "openai" ? "OpenAI API" : "Google API",model:critiqueProvider === "anthropic" ? anthropicVisionModel() : critiqueProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
   return diagnostic;
 }
 // Legacy name is retained only for callers that explicitly supply a real image.

@@ -13,6 +13,8 @@ import {
   type Settings,
   type TextProvider,
 } from "./types";
+import type { VisionProvider } from "./vision-provider";
+import { missingVisionKeyMessage } from "./score-on-generate";
 type Asset = { id: string; blob: Blob };
 type Collection = "creations" | "personas" | "styles" | "conversations";
 export function useStudio() {
@@ -413,7 +415,7 @@ export function useStudio() {
     videoBrief = "",
     includeVision = false,
     videoUrl = "",
-    critiqueProvider: TextProvider = "openai",
+    critiqueProvider?: VisionProvider,
   ) {
     const epoch=ownerEpoch.current;
     if (!cloud)
@@ -425,7 +427,7 @@ export function useStudio() {
         "Scoring is not enabled in this workspace. Your saved images remain available to review and download.",
       );
     if (!config?.jev) throw new Error("Connect your Jev API key in Connections, then analyze this thumbnail again.");
-    if(includeVision&&!config?.[critiqueProvider])throw new Error("Connect your selected "+(critiqueProvider==="openai"?"OpenAI":"Google")+" API key for the extra image review.");
+    if(includeVision&&!(critiqueProvider&&config?.[critiqueProvider]))throw new Error(missingVisionKeyMessage(critiqueProvider));
     const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl, critiqueProvider };
     const fingerprint = JSON.stringify(intent);
     if (pendingRequest.current?.fingerprint !== fingerprint)

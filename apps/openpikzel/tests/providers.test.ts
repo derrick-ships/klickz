@@ -474,3 +474,51 @@ it("treats stop_reason max_tokens as a generic review failure and does not fall 
       ).toBe(true);
     },
   ));
+
+it("returns a Jev score with Image review did not finish when vision fails", async () =>
+  providerContext.run(
+    {
+      anthropic: fixtureAnthropicKey,
+      openai: "openai-should-not-be-used",
+      google: "google-should-not-be-used",
+      jev: "jev-fixture",
+    },
+    async () => {
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(new Response("upstream failure", { status: 500 }))
+        .mockResolvedValueOnce(
+          response({
+            answers: Object.fromEntries(
+              pillars.map((p) => [p, { score: 1.5, confidence: 0.6 }]),
+            ),
+          }),
+        );
+      vi.stubGlobal("fetch", fetcher);
+      const score = await evaluateThumbnail(
+        await sample(),
+        "A real video title",
+        "request-id",
+        {
+          videoBrief: "The video shows a real experiment",
+          audience: "",
+          includeVision: true,
+          critiqueProvider: "anthropic",
+        },
+      );
+      expect(score.overall).toBe(50);
+      expect(score.warnings).toContain("Image review did not finish");
+      expect(score.vision).toBe(false);
+      expect(score.contributors?.map((c) => c.role)).toEqual(["scoring"]);
+      expect(String(fetcher.mock.calls[0][0])).toBe("https://api.anthropic.com/v1/messages");
+      expect(String(fetcher.mock.calls[1][0])).toBe("https://api.typesafe.ai/v1/systemone");
+      expect(fetcher).toHaveBeenCalledTimes(2);
+      expect(
+        fetcher.mock.calls.every(
+          ([u]) =>
+            !String(u).includes("api.openai.com") &&
+            !String(u).includes("generativelanguage.googleapis.com"),
+        ),
+      ).toBe(true);
+    },
+  ));

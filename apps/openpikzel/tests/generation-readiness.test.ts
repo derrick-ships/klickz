@@ -15,18 +15,19 @@ it("requires raw input in title-image mode",()=>{expect(generationReadiness({...
 
 it("shows verified output-only estimates with input and analysis charges left explicit",()=>{for(const [quality,want] of [["low","$0.015"],["medium","$0.028"],["high","$0.032"],["xhigh","$0.058"],["max","$0.129"]] as const){const r=generationReadiness({...base,settings:{...defaultSettings,quality,batch:1}});expect(r.cost).toContain(want);expect(r.cost).toContain("image output");expect(r.cost).toContain("total remains unknown");}const four=generationReadiness({...base,settings:{...defaultSettings,quality:"medium",batch:4,format:"short"}});expect(four.cost).toContain("$0.111");const google=generationReadiness({...base,settings:{...defaultSettings,model:"gemini-flash",batch:1}});expect(google.cost).toContain("$0.067");});
 
-it("blocks image dispatch when an explicitly requested automatic review dependency is missing",()=>{expect(generationReadiness({...base,autoReview:true,config:{...config,jev:false}})).toMatchObject({action:"connect"});expect(generationReadiness({...base,autoReview:true,includeVision:true,textProvider:"google",config:{...config,google:false}}).readiness).toContain("Google API key for automatic review");});
+it("does not block image generate when Jev or a vision key is missing",()=>{expect(generationReadiness({...base,config:{...config,jev:false}})).toMatchObject({action:"run"});expect(generationReadiness({...base,includeVision:true,textProvider:"google",config:{...config,google:false}})).toMatchObject({action:"run"});});
 
 it("treats failed provider lookup as unknown instead of claiming a key is disconnected",()=>{const value=generationReadiness({...base,config:{...config,connectionStatus:"failed"}});expect(value).toMatchObject({action:"connect",connectionCheckFailed:true});expect(value.readiness).toContain("Connection status could not load");});
 
 it("gives the generate button a short image cost and a spoken description, only for image requests",()=>{
  const r=generationReadiness({...base,settings:{...defaultSettings,quality:"medium",batch:1}});
- expect(r.costShort).toBe("~$0.03");
- expect(r.costDescription).toBe("Estimated image output about $0.03 for 1 image. Inputs and any analysis are extra.");
+ expect(r.costShort).toBe("~$0.03 + score");
+ expect(r.costDescription).toBe("Estimated image output about $0.03 for 1 image, plus a score. Inputs and any analysis are extra.");
  const four=generationReadiness({...base,settings:{...defaultSettings,quality:"medium",batch:4,format:"short"}});
- expect(four.costShort).toBe("~$0.12");expect(four.costDescription).toContain("for 4 images");
- const reviewed=generationReadiness({...base,autoReview:true,settings:{...defaultSettings,quality:"medium",batch:1}});
- expect(reviewed.costShort).toBe("~$0.03 + score");expect(reviewed.costDescription).toContain("plus automatic review");
+ expect(four.costShort).toBe("~$0.12 + score");expect(four.costDescription).toContain("for 4 images");
+ expect(four.costDescription).toContain("plus a score");
+ const withoutJev=generationReadiness({...base,config:{...config,jev:false},settings:{...defaultSettings,quality:"medium",batch:1}});
+ expect(withoutJev.costShort).toBe("~$0.03 + score");
  expect(generationReadiness({...base,tool:"analyze",hasSource:true}).costShort).toBeUndefined();
  expect(generationReadiness({...base,tool:"title",titleIdeas:true}).costShort).toBeUndefined();
 });

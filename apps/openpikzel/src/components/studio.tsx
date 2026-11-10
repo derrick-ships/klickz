@@ -1,10 +1,12 @@
 "use client";
 import {NativeOutputNotice} from "@/components/creative/native-output";
 import {GenerationDelivery} from "@/components/creative/generation-delivery";
-import {deliverImages,type DeliveryState} from "@/lib/generation-delivery";
+import {deliverImages,type DeliveryState,type ReviewStatus} from "@/lib/generation-delivery";
 import {PromptEnhancer,CreativeConversation,type CreativeDraft} from "@/components/creative/creative-partner";
 import {ProviderChoice} from "@/components/creative/provider-choice";
 import { generationReadiness } from "@/lib/generation-readiness";
+import { pickVisionProvider } from "@/lib/vision-provider";
+import { reviewerName, scorePlan, scoreStatusCopy, scoreStatusFromEvaluation } from "@/lib/score-on-generate";
 import { promptValidationError } from "@/lib/prompt-validation";
 import {useRequestActivity} from "@/lib/use-request-activity";
 import { jobGuidance } from "@/lib/job-state";
@@ -163,8 +165,8 @@ export default function Studio() {
     [email, setEmail] = useState(""),
     [password, setPassword] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
-  const [autoReview,setAutoReview]=useState(false),[creativeDraft,setCreativeDraft]=useState<CreativeDraft>({}),[delivery,setDelivery]=useState<DeliveryState|null>(null);
-  const deliveryAttempt=useRef(0),selectedIdRef=useRef<string|null>(null);selectedIdRef.current=selection;
+  const [creativeDraft,setCreativeDraft]=useState<CreativeDraft>({}),[delivery,setDelivery]=useState<DeliveryState|null>(null),[reviewStatuses,setReviewStatuses]=useState<Record<string,ReviewStatus>>({});
+  const deliveryAttempt=useRef(0),selectedIdRef=useRef<string|null>(null),scoreIntent=useRef<Record<string,{title:string;includeVision:boolean;videoUrl:string;critiqueProvider:ReturnType<typeof scorePlan>["critiqueProvider"]}>>({});selectedIdRef.current=selection;
   const [directionUndo,setDirectionUndo]=useState<{before:{prompt:string;title:string;tool:Tool};after:string}|null>(null);
   const [analysisScan, setAnalysisScan] = useState<{id:number;src:string;phase:ScanPhase;reviewer:string}|null>(null);
   const scanAttempt = useRef(0);
@@ -276,7 +278,8 @@ export default function Studio() {
   }, [saveReceipt]);
   const busy = !!studio.busy;
   const analysisVision = includeVision;
-  const analysisReviewer = includeVision ? (textProvider==="openai"?"OpenAI API":"Google API") : null;
+  const selectedVision=pickVisionProvider(studio.config||{});
+  const analysisReviewer = includeVision && selectedVision ? reviewerName(selectedVision) : null;
   useEffect(() => { scanAttempt.current++; setAnalysisScan(null); }, [studio.user, selection]);
   const navigating=["Opening chat","Starting a new chat","Opening creation"].includes(studio.busy||"");
   const activeChat=studio.conversations.find(c=>c.id===activeChatId)||null;
@@ -284,7 +287,7 @@ export default function Studio() {
     workspaceEpoch.current++;
     const d=chat.draft;chatIdRef.current=chat.id;setActiveChatId(chat.id);localStorage.setItem("openpikzels.activeChat."+(studio.user||"local"),chat.id);
     setPrompt(d.prompt||"");setTitle(d.title||"");setTool(modes.some(m=>m.id===d.tool)?d.tool as Tool:"generate");
-    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setAutoReview(localStorage.getItem("openpikzels.autoReviewConsent."+(studio.user||"local"))==="v1"&&d.autoReview!==false);setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);setTextProvider(d.textProvider||"openai");
+    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);setTextProvider(d.textProvider||"openai");
     const latest=studio.creations.find(c=>c.conversation_id===chat.id&&c.id===d.selection)||studio.creations.find(c=>c.conversation_id===chat.id);
     setSelection(latest?.id||null);setParentId(latest?.image_path?latest.id:latest?.parent_id||d.parentId||null);setComposerOpen(!latest?.image_path);setTab("studio");setTitles([]);setChatSaveState("");
     if(compactNavigation){setSidebar(false);if(focus)requestAnimationFrame(()=>mainRef.current?.focus());}
@@ -318,20 +321,20 @@ export default function Studio() {
   }
   async function openChat(chat:Conversation){if(busy||chat.id===chatIdRef.current)return;await studio.run("Opening chat",async()=>{const owner=studio.user;await flushDraft();if(ownerUI.current===owner)activateChat(chat);});}
   async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();const chat=await studio.createConversation();activateChat(chat);startNew();});}
-  useEffect(()=>{workspaceEpoch.current++;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setAutoReview(false);setIncludeVision(false);setTextProvider("openai");setDirectionUndo(null);setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReview(null);setDialog(null);setChatSaveState("");},[studio.user]);
+  useEffect(()=>{workspaceEpoch.current++;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setReviewStatuses({});setIncludeVision(false);setTextProvider("openai");setDirectionUndo(null);setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReview(null);setDialog(null);setChatSaveState("");},[studio.user]);
   useEffect(()=>{
     if(studio.loading)return;const key=studio.user||"local";if(hydratedOwner.current===key)return;hydratedOwner.current=key;
     const saved=localStorage.getItem("openpikzels.activeChat."+key),chat=studio.conversations.find(c=>c.id===saved),checkpoint=readDraftCheckpoint(localStorage,key);
     if(chat)activateChat(checkpoint?.chatId===chat.id&&checkpoint.savedAt>=(chat.draft.draftSavedAt||0)?{...chat,draft:checkpoint.draft}:chat,false);
     else if(checkpoint&&!checkpoint.chatId){
       const d=checkpoint.draft;setPrompt(d.prompt||"");setTitle(d.title||"");setTool((d.tool||"generate") as Tool);setSettings({...defaultSettings,...d.settings});
-      setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setAutoReview(d.autoReview!==false);setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);setTextProvider(d.textProvider||"openai");
+      setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);setTextProvider(d.textProvider||"openai");
     }
     const requested=new URL(location.href).searchParams.get("mode");
     if(modes.some(m=>m.id===requested))setTool(requested as Tool);
     setHydratedWorkspace(key);
   },[studio.loading,studio.user,studio.conversations]);
-  const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,videoUrl,selection,parentId,titleAction,includeVision,textProvider,autoReview,creativeDraft};
+  const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,videoUrl,selection,parentId,titleAction,includeVision,textProvider,creativeDraft};
   const chatDraftRef=useRef(chatDraft);chatDraftRef.current=chatDraft;
   const chatDraftJSON=JSON.stringify(chatDraft);
   useEffect(()=>{
@@ -373,7 +376,7 @@ export default function Studio() {
       if((item.conversation_id||null)!==activeChatId){
        const chat=studio.conversations.find(c=>c.id===item.conversation_id);
        if(chat)activateChat(chat,false);
-       else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaId("");setStyleId("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setAutoReview(true);setDirectionUndo(null);setDelivery(null);setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
+       else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaId("");setStyleId("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setDirectionUndo(null);setDelivery(null);setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
       }
       setParentId(item.image_path?item.id:item.parent_id);
       setComposerOpen(false);setSaveReceipt(0);setSelection(item.id);
@@ -492,16 +495,22 @@ export default function Studio() {
     setDirectionUndo({before:{prompt,title,tool},after});setPrompt(after);setTitle(nextTitle);setTool(nextTool);setComposerOpen(true);
   }
   async function createReviewed(input:any,onImages:(result:{creations:Creation[];partial:boolean})=>void|Promise<void>){
-    if(autoReview&&!studio.config?.jev)throw new Error("Connect Jev for automatic review, or turn automatic review off before generating.");
-    if(autoReview&&analysisVision&&!studio.config?.[textProvider])throw new Error("Connect your selected image-review provider, or turn the extra image review off before generating.");
-    const owner=studio.user,epoch=workspaceEpoch.current,id=++deliveryAttempt.current,review=autoReview&&!!studio.config?.jev;
+    const plan=scorePlan(studio.config),owner=studio.user,epoch=workspaceEpoch.current,id=++deliveryAttempt.current;
+    setReviewStatuses({});
     return deliverImages({
       generate:()=>studio.generate(input),current:()=>ownerUI.current===owner&&workspaceEpoch.current===epoch,
       onImages,onStage:(stage,reviewed,total)=>setDelivery({id,stage,reviewed,total,message:""}),
-      ...(review?{review:(item:Creation)=>studio.analyze(item,input.title||"","",analysisVision,videoUrl,textProvider)}:{}),
+      ...(plan.review?{review:(item:Creation)=>{const intent={title:input.title||"",includeVision:plan.includeVision,videoUrl,critiqueProvider:plan.critiqueProvider};scoreIntent.current[item.id]=intent;return studio.analyze(item,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined);},onReview:(itemId,status)=>setReviewStatuses(current=>({...current,[itemId]:status})),holdMs:45_000}:{}),
     });
   }
-  const autoReviewNotice=autoReview&&studio.config?.jev ? "Automatic review adds one Jev request"+(analysisVision?" and one "+analysisReviewer+" image review":"")+" per image. These use your API balances. Exact cost cannot be estimated here." : "Automatic review requires your opt-in and a Jev connection. Generated images remain available without a score.";
+  async function retryScore(){
+    if(!selected)return;
+    const plan=scorePlan(studio.config);
+    const intent=scoreIntent.current[selected.id]||{title,includeVision:plan.includeVision,videoUrl,critiqueProvider:plan.critiqueProvider};
+    await studio.run("Retrying score",async()=>{
+      await studio.analyze(selected,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined);
+    });
+  }
 
   async function submit() {
     // Prompt-only validation is shown under the field (not the top banner) and focuses it.
@@ -524,7 +533,7 @@ export default function Studio() {
           const attempt=++scanAttempt.current;
           setAnalysisScan({id:attempt,src:studio.images[selected.image_path],phase:"running",reviewer:analysisReviewer ? "Requested: Jev scoring + "+analysisReviewer+" image review." : "Requested: Jev scoring. Separate image review is off."});
           try {
-            await studio.analyze(selected, title, "", analysisVision, videoUrl,textProvider);
+            await studio.analyze(selected, title, "", analysisVision, videoUrl, selectedVision||undefined);
             if (scanAttempt.current !== attempt) return;
             setAnalysisScan(current=>current?.id===attempt ? {...current,phase:"succeeded"} : current);
           } catch (error) {
@@ -733,8 +742,10 @@ export default function Studio() {
     });
   }
   const hasReviewImage = !!(selected?.image_path && studio.images[selected.image_path]);
+  const scoreView = score ? scoreStatusFromEvaluation(score) : !studio.config?.jev ? {kind:"no-jev" as const} : selected && reviewStatuses[selected.id]==="pending" ? {kind:"pending" as const} : selected && reviewStatuses[selected.id]==="failed" ? {kind:"failed" as const} : {kind:"idle" as const};
+  const scoreCopy = scoreStatusCopy(scoreView);
   const showComposer = !hasReviewImage || composerOpen;
-  const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:studio.loading,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider,autoReview});
+  const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:studio.loading,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider});
   // The inline prompt message follows the current text and mode, and clears once the prompt is valid.
   useEffect(()=>{if(!promptError)return;const next=promptValidationError({tool,titleAction,prompt,title})||"";if(next!==promptError)setPromptError(next);},[promptError,tool,titleAction,prompt,title]);
   // OP-3: the action, its cost and the key note sit directly under the prompt.
@@ -895,7 +906,7 @@ export default function Studio() {
                       <div className="image-secondary-actions"><button className="quiet-button" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="quiet-button" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="quiet-button" disabled={busy} onClick={()=>{setRefs([selected.image_path!]);setTool("recreate");setComposerOpen(true);}}>Recreate this thumbnail</button><button className="quiet-button" onClick={()=>setDialog("feedback")}>Leave feedback</button></div>
                       <details className="provenance-details"><summary>Prompt and generation details</summary><dl><dt>Exact request</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
                       <p className="resize-note">
-                        AI resize creates one newly arranged image using {imageModel(settings.model).name}. Provider usage charges apply; a reliable cost estimate is unavailable. The original stays saved. Choose the model and quality in Generation settings. {autoReviewNotice}
+                        AI resize creates one newly arranged image using {imageModel(settings.model).name}. Provider usage charges apply; a reliable cost estimate is unavailable. The original stays saved. Choose the model and quality in Generation settings.
                       </p>
                     </>
                   ) : (
@@ -955,7 +966,7 @@ export default function Studio() {
                             {score.overall ?? "Partial"}
                             {score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>Thumbnail + title, across five pillars.</p><button className="quiet-button" onClick={()=>setDialog("analysis")}>Open analysis details</button>
+                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p><button className="quiet-button" onClick={()=>setDialog("analysis")}>Open analysis details</button>
                         </div>
                         <button
                           className="primary-button fix-button"
@@ -1030,10 +1041,14 @@ export default function Studio() {
                     </aside>
                   ) : hasReviewImage ? (
                     <aside className="review-inspector review-inspector--empty" aria-label="Scoring inspector">
-                      <h2>Review thumbnail and title</h2>
-                      <p>Review the thumbnail and its video title across five criteria. No written summary is needed.</p>
-                      <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
-                      <button className="neutral-button" onClick={() => openReviewEditor("analyze")}>Set up analysis</button>
+                      <h2>{scoreCopy.title}</h2>
+                      {scoreView.kind==="idle"&&<>
+                        <p>Review the thumbnail and its video title across five criteria. No written summary is needed.</p>
+                        <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
+                        <button className="neutral-button" onClick={() => openReviewEditor("analyze")}>Set up analysis</button>
+                      </>}
+                      {scoreView.kind==="no-jev"&&<button type="button" className="neutral-button" onClick={()=>setDialog("connections")}>Connections</button>}
+                      {scoreView.kind==="failed"&&<button type="button" className="neutral-button" disabled={busy} onClick={()=>{void retryScore();}}>Retry score</button>}
                       <p className="score-disclaimer">Analysis uses your connected API credits. Scores are visual estimates, not measured CTR.</p>
                     </aside>
                   ) : null}
@@ -1380,7 +1395,7 @@ export default function Studio() {
                         <label htmlFor="analysis-video-url">YouTube video link (optional)</label>
                         <input id="analysis-video-url" type="url" maxLength={500} value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
                         <p>A connected YouTube API key can retrieve the public title and description. This does not watch the video or verify its contents.</p>
-                        <p className="analysis-provider-note">{analysisReviewer ? "Jev scoring + "+analysisReviewer+" image review. Uses two provider requests." : "Jev scoring. Connect an OpenAI or Google API key for image-specific guidance."}</p>
+                        <p className="analysis-provider-note">{analysisReviewer ? "Jev scoring + "+analysisReviewer+" image review. Uses two provider requests." : "Jev scoring. Connect a Claude, OpenAI, or Google API key for image-specific guidance."}</p>
                         <small>ChatGPT and Claude plan connections do not currently provide image analysis here.</small>
                         <p>All five pillars assess the visible thumbnail and its stated promise. Missing title or provider evidence is marked “Not assessed”; no scores are invented.</p>
                         {analysisScan && <AnalysisScanner key={analysisScan.id} src={analysisScan.src} phase={analysisScan.phase} reviewer={analysisScan.reviewer}/>}
@@ -1636,7 +1651,6 @@ export default function Studio() {
                     <p className="request-ready" role="status">{readiness.readiness}</p>
                     <p className="request-key"><strong>{studio.cloud?"Your connected provider creates the image.":"Free drafts. Your own AI connection for generation."}</strong> Generating images requires an OpenPikzels account and your own OpenAI or Google API key. Provider usage is billed to that account; ChatGPT and Claude subscriptions alone do not enable studio generation.{!studio.cloud&&<> <a href="/connect#api">Sign in, then connect your API key</a></>}</p>
                     <p className="request-cost">{readiness.cost} {readiness.pricingSource&&<a href={readiness.pricingSource} target="_blank" rel="noreferrer">Provider pricing</a>}</p>{readiness.apiModel&&<details><summary>Provider details</summary><p>API model: {readiness.apiModel}</p></details>}
-                    {tool!=="analyze"&&!(tool==="title"&&titleAction==="ideas")&&<div className="automatic-review"><label><input type="checkbox" checked={autoReview} disabled={busy} onChange={e=>{setAutoReview(e.target.checked);const key="openpikzels.autoReviewConsent."+(studio.user||"local");if(e.target.checked)localStorage.setItem(key,"v1");else localStorage.removeItem(key);}}/> Analyze new images automatically</label><p>{autoReviewNotice}</p></div>}
                   </div>
                   {tool==="analyze"&&generateAction}
                 </div>
@@ -2028,7 +2042,6 @@ export default function Studio() {
                     ))}
                   </ol>
                   <p>{fixReview.notice}</p>
-                  <p className="dialog-footnote">{autoReviewNotice}</p>
                   <button
                     className="primary-button full-width"
                     disabled={busy}

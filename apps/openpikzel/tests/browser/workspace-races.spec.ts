@@ -163,11 +163,11 @@ test('ready actions describe each task and generated labels never become video t
  await page.getByRole('tab',{name:'Edit',exact:true}).click();await expect(page.getByRole('button',{name:'Apply AI edit',exact:true})).toBeVisible();
  await page.getByRole('tab',{name:'Title',exact:true}).click();await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Title ideas',exact:true}).click();await expect(page.getByRole('button',{name:'Generate titles',exact:true})).toBeVisible();
- await page.getByRole('tab',{name:'Prompt',exact:true}).click();await page.getByLabel('Analyze new images automatically').uncheck();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
+ await page.route('**/api/analyze',r=>r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}}));
+ await page.getByRole('tab',{name:'Prompt',exact:true}).click();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Your thumbnail.',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Set up analysis',exact:true}).click();
- await expect(page.getByLabel('Video title',{exact:true})).toHaveValue('');expect(generated.title).toBe('');
- await expect(page.getByRole('button',{name:'Analyze thumbnail',exact:true})).toBeVisible();
+ expect(generated.title).toBe('');
+ await expect(page.getByRole('button',{name:'Retry score',exact:true})).toBeVisible();
 });
 
 test('blank title mode stops before dispatch and preserves entered title after recovery',async({page})=>{
@@ -286,7 +286,6 @@ test('generation reveals its saved image while automatic analysis is still pendi
  await page.route('**/api/generate',async r=>{imageCalls++;await imageHold;const input=r.request().postDataJSON(),item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999',prompt:input.prompt,title:input.title||'Fixture new image'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});
  await page.route('**/api/analyze',async r=>{scoreCalls++;await scoreHold;return r.fallback();});
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
- await expect(page.getByLabel('Analyze new images automatically')).not.toBeChecked();await page.getByLabel('Analyze new images automatically').check();
  await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
  const activity=page.getByRole('region',{name:'Thumbnail delivery'});await expect(activity).toHaveAttribute('data-stage','generating');
  for(const width of [1440,390,320]){await settleResponsiveNavigation(page,width,900);await activity.scrollIntoViewIfNeeded();await page.screenshot({path:'evidence/delivery-generating-'+width+'.png'});}
@@ -296,12 +295,15 @@ test('generation reveals its saved image while automatic analysis is still pendi
 });
 
 test('automatic review failure leaves the new image saved without regenerating',async({page})=>{
- const f=await setup(page);let images=0,scores=0;
+ const f=await setup(page);let images=0,scores=0;const ids:string[]=[];
  await page.route('**/api/generate',async r=>{images++;const item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});
- await page.route('**/api/analyze',r=>{scores++;return r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}});});
- await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByLabel('Analyze new images automatically').check();await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();
+ await page.route('**/api/analyze',r=>{scores++;ids.push(r.request().postDataJSON().requestId);return r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}});});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'AI resize to short-form',exact:true}).click();
  await expect(page.getByRole('region',{name:'Thumbnail delivery'})).toHaveAttribute('data-stage','review-pending');
  expect(f.creations).toHaveLength(2);expect(images).toBe(1);expect(scores).toBe(1);await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();
+ await expect(page.getByLabel('Scoring inspector')).toContainText('Score did not finish');
+ await page.getByRole('button',{name:'Retry score',exact:true}).click();
+ await expect.poll(()=>ids.length).toBe(2);expect(ids[0]).toBe(ids[1]);
 });
 
 test('prompt enhancement is reviewed, reversible, and never generates an image',async({page})=>{
@@ -360,7 +362,21 @@ for(const width of [320,390])test('mobile studio navigation leaves creative chat
  await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeVisible();expect(errors).toEqual([]);
 });
 
-test('automatic review waits for an explicit opt-in before adding a scoring call',async({page})=>{const f=await setup(page);let reviews=0;await page.route('**/api/analyze',r=>{reviews++;return r.fallback();});await page.route('**/api/generate',r=>{const item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999'};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByLabel('Analyze new images automatically')).not.toBeChecked();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();await expect(page.getByRole('region',{name:'Thumbnail delivery'})).toHaveAttribute('data-stage','image-ready');expect(reviews).toBe(0);});
+test('generate always requests a score when Jev is connected',async({page})=>{
+ const f=await setup(page);let reviews=0,generates=0,analyzeBody:any;
+ const score={source:'jev',version:3,title:'A factual title',overall:60,priority:'clarity',created_at:new Date().toISOString(),note:'Fixture',vision:true,fixBlocked:true,
+  contributors:[{provider:'Jev',model:'fixture',role:'scoring'},{provider:'OpenAI API',model:'fixture',role:'image-review'}],
+  dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:60,confidence:.7,observation:'Fixture',strength:'',weakness:'',fix:''}]))};
+ await page.route('**/api/analyze',r=>{reviews++;analyzeBody=r.request().postDataJSON();const item=f.creations.find(c=>c.id===analyzeBody.creationId);if(item)item.score=score;return r.fulfill({json:{score,creationId:analyzeBody.creationId}});});
+ await page.route('**/api/generate',r=>{generates++;const item={...f.creations[0],id:'99999999-9999-4999-8999-999999999999',score:null};f.creations.unshift(item);return r.fulfill({json:{creations:[item],partial:false}});});
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
+ await expect(page.getByLabel('Analyze new images automatically')).toHaveCount(0);
+ await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
+ await expect.poll(()=>reviews).toBe(1);expect(generates).toBe(1);
+ expect(analyzeBody.includeVision).toBe(true);expect(analyzeBody.critiqueProvider).toBe('openai');
+ await expect(page.getByRole('region',{name:'Thumbnail delivery'})).toHaveAttribute('data-stage','ready');
+ await expect(page.getByLabel('Scoring inspector')).toContainText('Reviewed by OpenAI');
+});
 
 test('text and image review providers require explicit selection and survive reload',async({page})=>{
  await setup(page);let calls=0;

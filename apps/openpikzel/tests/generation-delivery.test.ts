@@ -267,4 +267,41 @@ describe("deliverImages", () => {
     for (const creation of items) expect(events).toContain(`${creation.id}:scored`);
     expect(maxInFlight).toBe(2);
   });
+
+  it("lets in-flight reviews finish after onImages throws, but stops later onReview and onStage", async () => {
+    const hang = deferred();
+    let reviewFinished = false;
+    const events: string[] = [];
+    const finished = deliverImages({
+      generate: async () => ({ creations: [item("a"), item("b")], partial: false }),
+      review: async (creation) => {
+        if (creation.id === "a") return;
+        await hang.promise;
+        reviewFinished = true;
+      },
+      current: () => true,
+      onImages: () => {
+        events.push("images");
+        throw new Error("reveal failed");
+      },
+      onReview: (id, status) => {
+        events.push(`${id}:${status}`);
+      },
+      onStage: (stage) => {
+        events.push(stage);
+      },
+      holdMs: 10,
+    });
+    const rejected=expect(finished).rejects.toThrow("reveal failed");
+    await flush();
+    await vi.advanceTimersByTimeAsync(10);
+    await rejected;
+    const afterThrow = events.length;
+    expect(events).toContain("images");
+    hang.resolve();
+    await flush();
+    expect(reviewFinished).toBe(true);
+    expect(events.slice(afterThrow)).toEqual([]);
+    expect(events).not.toContain("b:scored");
+  });
 });
