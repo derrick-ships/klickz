@@ -3,9 +3,9 @@ import {test,expect,type Page,type Locator} from "@playwright/test";
 const user="11111111-1111-4111-8111-111111111111";
 const session={access_token:"header."+Buffer.from(JSON.stringify({sub:user,exp:4102444800})).toString("base64url")+".signature",refresh_token:"fixture-only-refresh",expires_at:4102444800,expires_in:3600,token_type:"bearer",user:{id:user,aud:"authenticated",role:"authenticated",email:"a@example.test",app_metadata:{provider:"email"},user_metadata:{},created_at:"2026-11-08T00:00:00Z"}};
 const base={cloud:true,ai:true,jev:false,google:false,ownerGate:false,supabaseUrl:"https://test.supabase.co",supabaseKey:"sb_publishable_test"};
-async function setup(page:Page,{signedIn,openai}:{signedIn:boolean;openai:boolean}){
+async function setup(page:Page,{signedIn,openai,google=false}:{signedIn:boolean;openai:boolean;google?:boolean}){
  let paid=0;const chats:any[]=[];
- await page.route("**/api/config",r=>r.fulfill({json:{...base,openai}}));
+ await page.route("**/api/config",r=>r.fulfill({json:{...base,openai,google}}));
  await page.route("**/api/generate",r=>{paid++;return r.abort();});
  await page.route("**/api/jobs",r=>r.fulfill({json:{jobs:[]}}));
  if(signedIn){
@@ -102,4 +102,29 @@ test("non-validation errors keep the top banner",async({page})=>{
  await page.getByRole("button",{name:"Create variation",exact:true}).click();
  await expect(page.locator(".error-banner")).toContainText("Add a thumbnail reference to recreate.");
  await expect(page.locator("#prompt-error")).toHaveCount(0);await expect(page.locator("#thumbnail-prompt")).not.toHaveAttribute("aria-invalid","true");
+});
+
+// Critiquito round 2: the key note reflects the real connection state and is not repeated by the provider helper.
+for(const size of allSizes){
+ test("key note at "+size.width+"x"+size.height+" says which key is in use once it is connected",async({page})=>{
+  await page.setViewportSize(size);await setup(page,{signedIn:true,openai:true});await page.goto("/studio?mode=generate");
+  await expect(page.getByRole("button",{name:"Create thumbnail",exact:true})).toBeEnabled();
+  const note=page.locator("#generate-key-note");await expect(note).toHaveText("Using your OpenAI key.");await expect(note.getByRole("button")).toHaveCount(0);
+  const helper=page.locator(".composer .provider-choice p");await expect(helper).not.toContainText("key connected");await expect(helper).toContainText("Model access and balance are checked when you run.");
+  await expect(page.getByText("OpenAI key connected",{exact:false})).toHaveCount(0);
+ });
+}
+test("no key and signed out keep the connect line with its link",async({page})=>{
+ await setup(page,{signedIn:true,openai:false});await page.goto("/studio?mode=generate");
+ await expect(page.getByRole("button",{name:"Connect OpenAI",exact:true})).toBeVisible();
+ await expect(page.locator("#generate-key-note")).toHaveText("Uses your own API key. Connect once in Connections.");
+ await expect(page.locator("#generate-key-note").getByRole("button",{name:"Connect once in Connections.",exact:true})).toBeVisible();
+ await expect(page.locator(".composer .provider-choice p")).toContainText("Connect your own OpenAI API key in Connections");
+});
+test("a different text provider keeps its own connected status, because it is a different fact",async({page})=>{
+ await setup(page,{signedIn:true,openai:true,google:true});await page.goto("/studio?mode=generate");
+ await expect(page.locator("#generate-key-note")).toHaveText("Using your OpenAI key.");
+ await page.getByRole("combobox",{name:"Text and review provider",exact:true}).selectOption("google");
+ await expect(page.locator(".composer .provider-choice p")).toContainText("Google key connected.");
+ await expect(page.locator("#generate-key-note")).toHaveText("Using your OpenAI key.");
 });

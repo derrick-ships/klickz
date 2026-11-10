@@ -30,3 +30,15 @@ it("gives the generate button a short image cost and a spoken description, only 
  expect(generationReadiness({...base,tool:"analyze",hasSource:true}).costShort).toBeUndefined();
  expect(generationReadiness({...base,tool:"title",titleIdeas:true}).costShort).toBeUndefined();
 });
+
+it("key note names the connected provider and only asks to connect when a key is missing",()=>{
+ const connect={text:"Uses your own API key.",link:"Connect once in Connections.",connected:false};
+ expect(generationReadiness({...base,cloud:false}).keyNote).toEqual(connect);
+ expect(generationReadiness({...base,loading:true}).keyNote).toEqual(connect);
+ expect(generationReadiness({...base,config:{...config,connectionStatus:"failed"}}).keyNote).toEqual(connect);
+ expect(generationReadiness({...base,config:{...config,openai:false}}).keyNote).toEqual(connect);
+ expect(generationReadiness({...base,config:{...config,openai:true}}).keyNote).toEqual({text:"Using your OpenAI key.",connected:true,provider:"OpenAI"});
+ expect(generationReadiness({...base,settings:{...defaultSettings,model:"gemini-pro"},config:{...config,google:true}}).keyNote).toEqual({text:"Using your Google key.",connected:true,provider:"Google"});
+ expect(generationReadiness({...base,settings:{...defaultSettings,model:"gemini-pro"},config:{...config,openai:true,google:false}}).keyNote).toEqual(connect);
+ expect(generationReadiness({...base,tool:"title",titleIdeas:true,textProvider:"google",config:{...config,google:true}}).keyNote.text).toBe("Using your Google key.");
+});

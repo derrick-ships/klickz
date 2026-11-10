@@ -789,10 +789,10 @@ export default function Studio() {
                         )}
                     </div>
                     {showCost&&<span id="generate-cost-description" className="sr-only">{readiness.costDescription}</span>}
-                    <p className="generate-key-note" id="generate-key-note">Uses your own API key. <button type="button" className="generate-key-link" onClick={()=>setDialog("connections")}>Connect once in Connections.</button></p>
+                    <p className="generate-key-note" id="generate-key-note">{readiness.keyNote.connected?readiness.keyNote.text:<>{readiness.keyNote.text} <button type="button" className="generate-key-link" onClick={()=>setDialog("connections")}>{readiness.keyNote.link}</button></>}</p>
                   </div>
   );
-  const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Add image-specific review to analysis (one extra provider request)</label></>;
+  const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy} connectedShownNearby={readiness.keyNote.connected&&readiness.keyNote.provider===(textProvider==="openai"?"OpenAI":"Google")}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Add image-specific review to analysis (one extra provider request)</label></>;
   const ResultHeading = hasReviewImage ? "h1" : "h2";
   const ComposerHeading = hasReviewImage ? "h2" : "h1";
   const resultPanel = selected ? (
