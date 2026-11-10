@@ -18,3 +18,15 @@ it("shows verified output-only estimates with input and analysis charges left ex
 it("blocks image dispatch when an explicitly requested automatic review dependency is missing",()=>{expect(generationReadiness({...base,autoReview:true,config:{...config,jev:false}})).toMatchObject({action:"connect"});expect(generationReadiness({...base,autoReview:true,includeVision:true,textProvider:"google",config:{...config,google:false}}).readiness).toContain("Google API key for automatic review");});
 
 it("treats failed provider lookup as unknown instead of claiming a key is disconnected",()=>{const value=generationReadiness({...base,config:{...config,connectionStatus:"failed"}});expect(value).toMatchObject({action:"connect",connectionCheckFailed:true});expect(value.readiness).toContain("Connection status could not load");});
+
+it("gives the generate button a short image cost and a spoken description, only for image requests",()=>{
+ const r=generationReadiness({...base,settings:{...defaultSettings,quality:"medium",batch:1}});
+ expect(r.costShort).toBe("~$0.03");
+ expect(r.costDescription).toBe("Estimated image output about $0.03 for 1 image. Inputs and any analysis are extra.");
+ const four=generationReadiness({...base,settings:{...defaultSettings,quality:"medium",batch:4,format:"short"}});
+ expect(four.costShort).toBe("~$0.12");expect(four.costDescription).toContain("for 4 images");
+ const reviewed=generationReadiness({...base,autoReview:true,settings:{...defaultSettings,quality:"medium",batch:1}});
+ expect(reviewed.costShort).toBe("~$0.03 + score");expect(reviewed.costDescription).toContain("plus automatic review");
+ expect(generationReadiness({...base,tool:"analyze",hasSource:true}).costShort).toBeUndefined();
+ expect(generationReadiness({...base,tool:"title",titleIdeas:true}).costShort).toBeUndefined();
+});

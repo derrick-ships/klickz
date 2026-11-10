@@ -12,3 +12,6 @@ export function imageOutputEstimate(settings:Settings){
  return{perImage,batch:perImage*settings.batch,source:imagePricingSources.openai};
 }
 export function imageCostCopy(settings:Settings){const price=imageOutputEstimate(settings);return "Estimated image output: $"+price.perImage.toFixed(3)+" per image · $"+price.batch.toFixed(3)+" for "+settings.batch+". Standard list prices checked "+pricingCheckedOn+". Inputs, text/thinking and any analysis are extra; the total remains unknown. Your provider bills your account.";}
+// Short form for the generate button: the whole request's image output, rounded up to the cent so it never understates.
+export function imageCostCents(settings:Settings){return Math.ceil(imageOutputEstimate(settings).batch*100-1e-9)/100;}
+export function imageCostShort(settings:Settings){return "~$"+imageCostCents(settings).toFixed(2);}

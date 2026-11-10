@@ -1,0 +1,62 @@
+import {test,expect,type Page,type Locator} from "@playwright/test";
+// OP-3: the prompt and the Generate action share the first viewport, with the cost on the button.
+const user="11111111-1111-4111-8111-111111111111";
+const session={access_token:"header."+Buffer.from(JSON.stringify({sub:user,exp:4102444800})).toString("base64url")+".signature",refresh_token:"fixture-only-refresh",expires_at:4102444800,expires_in:3600,token_type:"bearer",user:{id:user,aud:"authenticated",role:"authenticated",email:"a@example.test",app_metadata:{provider:"email"},user_metadata:{},created_at:"2026-11-08T00:00:00Z"}};
+const base={cloud:true,ai:true,jev:false,google:false,ownerGate:false,supabaseUrl:"https://test.supabase.co",supabaseKey:"sb_publishable_test"};
+async function setup(page:Page,{signedIn,openai}:{signedIn:boolean;openai:boolean}){
+ let paid=0;const chats:any[]=[];
+ await page.route("**/api/config",r=>r.fulfill({json:{...base,openai}}));
+ await page.route("**/api/generate",r=>{paid++;return r.abort();});
+ await page.route("**/api/jobs",r=>r.fulfill({json:{jobs:[]}}));
+ if(signedIn){
+  await page.addInitScript(s=>localStorage.setItem("sb-test-auth-token",JSON.stringify(s)),session);
+  await page.route("https://test.supabase.co/**",r=>{const req=r.request(),headers={"access-control-allow-origin":"*","access-control-allow-headers":"*","access-control-allow-methods":"GET,POST,PATCH,DELETE,OPTIONS"};if(req.method()==="OPTIONS")return r.fulfill({status:204,headers});if(new URL(req.url()).pathname.includes("/auth/"))return r.fulfill({json:session.user,headers});if(req.method()==="POST"){const row=req.postDataJSON();const list=Array.isArray(row)?row:[row];for(const item of list){const i=chats.findIndex(c=>c.id===item.id);if(i<0)chats.push(item);else chats[i]={...chats[i],...item};}return r.fulfill({status:201,body:"",headers});}
+   const url=new URL(req.url()),rows=url.pathname.endsWith("studio_conversations")?chats.filter(c=>!url.searchParams.has("id")||url.searchParams.get("id")==="eq."+c.id):[];
+   return r.fulfill({json:req.headers().accept?.includes("vnd.pgrst.object")?rows[0]||null:rows,headers});});
+ }else await page.route("https://test.supabase.co/**",r=>r.abort());
+ return {paid:()=>paid};
+}
+async function inView(locator:Locator,page:Page){const box=(await locator.boundingBox())!,view=page.viewportSize()!;expect(box.y).toBeGreaterThanOrEqual(0);expect(box.x).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(view.height);expect(box.x+box.width).toBeLessThanOrEqual(view.width);}
+const sizes=[{width:1440,height:900},{width:390,height:844}];
+for(const size of sizes){
+ test("signed out at "+size.width+"x"+size.height+": prompt, action, cost and key note fit without scrolling",async({page})=>{
+  await page.setViewportSize(size);await setup(page,{signedIn:false,openai:false});await page.goto("/studio?mode=generate");
+  const prompt=page.getByLabel("Describe your thumbnail",{exact:true}),action=page.getByRole("button",{name:"Sign in to generate",exact:true});
+  await expect(action).toBeEnabled();expect(await page.evaluate(()=>scrollY)).toBe(0);
+  await inView(prompt,page);await inView(action,page);
+  const cost=page.locator(".generate-cost");await expect(cost).toHaveText("~$0.03");await expect(cost).toHaveAttribute("aria-hidden","true");await inView(cost,page);
+  const note=page.locator("#generate-key-note");await expect(note).toHaveText("Uses your own API key. Connect once in Connections.");await inView(note,page);
+  await expect(page.getByRole("region",{name:"Before you start"})).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width);
+ });
+ test("signed in with a key at "+size.width+"x"+size.height+": the action keeps its exact name and announces the cost",async({page})=>{
+  await page.setViewportSize(size);const f=await setup(page,{signedIn:true,openai:true});await page.goto("/studio?mode=generate");
+  const action=page.getByRole("button",{name:"Create thumbnail",exact:true});await expect(action).toBeEnabled();
+  await inView(page.getByLabel("Describe your thumbnail",{exact:true}),page);await inView(action,page);
+  await expect(action).toHaveAccessibleDescription(/Estimated image output about \$0\.03 for 1 image\. Inputs and any analysis are extra\./);
+  await expect(action.locator(".generate-cost")).toHaveText("~$0.03");
+  // Validation error: no paid request, the message is announced and the action stays in reach.
+  await action.click();await expect(page.getByRole("alert").filter({hasText:"eight characters"})).toBeVisible();expect(f.paid()).toBe(0);
+  await page.evaluate(()=>scrollTo(0,0));await inView(action,page);
+  // Long text scrolls inside the field instead of pushing the action out of view.
+  const prompt=page.getByLabel("Describe your thumbnail",{exact:true});await prompt.fill("A tired developer at 3am, red error logs, a coffee tower, the words \"IT WORKED?!\" ".repeat(28));
+  await page.evaluate(()=>scrollTo(0,0));await inView(action,page);
+ });
+}
+test("no key: the one-line note opens Connections and full readiness details stay available",async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await setup(page,{signedIn:true,openai:false});await page.goto("/studio?mode=generate");
+ const action=page.getByRole("button",{name:"Connect OpenAI",exact:true});await expect(action).toBeVisible();await inView(action,page);
+ const note=page.locator("#generate-key-note");const box=(await note.boundingBox())!;expect(box.height).toBeLessThan(30);
+ await note.getByRole("button",{name:"Connect once in Connections.",exact:true}).click();await expect(page.getByRole("dialog")).toContainText("Manage connections");await page.keyboard.press("Escape");
+ const info=page.locator("#request-readiness");await expect(info).toContainText("OpenAI · Flare 2.6");await expect(info).toContainText("1 image · 16:9");await expect(info).toContainText("Estimated image output");await expect(info).toContainText("ChatGPT and Claude subscriptions alone do not enable studio generation");
+});
+test("loading keeps a neutral disabled action with no cost claim",async({page})=>{
+ let release!:()=>void;const hold=new Promise<void>(r=>release=r);await page.route("**/api/config",async r=>{await hold;await r.fulfill({json:{...base,openai:false}});});await page.route("https://test.supabase.co/**",r=>r.abort());
+ await page.setViewportSize({width:390,height:844});await page.goto("/studio?mode=generate");
+ const action=page.getByRole("button",{name:"Checking your workspace…",exact:true});await expect(action).toBeDisabled();await inView(action,page);await expect(action.locator(".generate-cost")).toHaveCount(0);
+ release();await expect(page.getByRole("button",{name:"Sign in to generate",exact:true})).toBeEnabled();
+});
+test("reduced motion and mode switches keep the action beside the prompt",async({page})=>{
+ await page.emulateMedia({reducedMotion:"reduce"});await page.setViewportSize({width:390,height:844});await setup(page,{signedIn:false,openai:false});await page.goto("/studio?mode=generate");
+ for(const mode of ["Recreate","Edit","Title","Prompt"]){await page.getByRole("tab",{name:mode,exact:true}).click();const prompt=page.locator("#thumbnail-prompt"),action=page.locator(".generate-split > .primary-button");const p=(await prompt.boundingBox())!,a=(await action.boundingBox())!;expect(a.y).toBeGreaterThan(p.y+p.height-1);expect(a.y-(p.y+p.height)).toBeLessThan(80);}
+});

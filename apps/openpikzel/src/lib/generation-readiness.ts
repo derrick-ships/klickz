@@ -1,4 +1,4 @@
-import {imageCostCopy,imageOutputEstimate} from "./provider-cost";
+import {imageCostCents,imageCostCopy,imageCostShort,imageOutputEstimate} from "./provider-cost";
 import type {Config,Settings,TextProvider} from "./types";
 import {imageModel} from "./image-models";
 export function generationReadiness(input:{config:Config|null;cloud:boolean;loading:boolean;tool:string;titleIdeas:boolean;settings:Settings;prompt:string;title:string;hasSource:boolean;hasReferences:boolean;includeVision:boolean;textProvider?:TextProvider;autoReview?:boolean}){
@@ -13,5 +13,7 @@ export function generationReadiness(input:{config:Config|null;cloud:boolean;load
  const identity=operation==="image"?provider+" · "+model.name:operation==="titles"?provider+" · "+((textProvider==="Google"?config?.textModels?.google:config?.textModels?.openai)||"configured text model"): "Jev · "+(config?.scoreModel||"configured scoring model")+(input.includeVision?" + "+(textProvider||"OpenAI or Google")+" image review":"");
  const quantity=operation==="image"?settings.batch+" image"+(settings.batch===1?"":"s")+" · "+(settings.format==="short"?"9:16":"16:9"):operation==="titles"?"Five title ideas":"One thumbnail analysis"+(input.includeVision?" + one image review":"");
  const action=loading?"loading":connectionCheckFailed?"connect":cloud&&!config?.ai?"unavailable":!cloud?"signin":!connected||!!reviewDependency||operation==="analysis"&&input.includeVision&&!textConnected?"connect":"run";
- return {action,provider,connectionCheckFailed,apiModel:operation==="image"?model.apiModel:operation==="analysis"?config?.scoreModel:provider==="Google"?config?.textModels?.google:config?.textModels?.openai,identity:identity.replace(/ · $/,""),readiness,quantity,pricingSource:operation==="image"?imageOutputEstimate(settings).source:undefined,cost:operation==="image"?imageCostCopy(settings):"Your provider bills this request. A reliable estimate is not available for these text or analysis calls; total cost remains unknown."};
+ const costShort=operation==="image"?imageCostShort(settings)+(input.autoReview?" + score":""):undefined;
+ const costDescription=operation==="image"?"Estimated image output about $"+imageCostCents(settings).toFixed(2)+" for "+settings.batch+" image"+(settings.batch===1?"":"s")+(input.autoReview?", plus automatic review":"")+". Inputs and any analysis are extra.":undefined;
+ return {action,provider,costShort,costDescription,connectionCheckFailed,apiModel:operation==="image"?model.apiModel:operation==="analysis"?config?.scoreModel:provider==="Google"?config?.textModels?.google:config?.textModels?.openai,identity:identity.replace(/ · $/,""),readiness,quantity,pricingSource:operation==="image"?imageOutputEstimate(settings).source:undefined,cost:operation==="image"?imageCostCopy(settings):"Your provider bills this request. A reliable estimate is not available for these text or analysis calls; total cost remains unknown."};
 }

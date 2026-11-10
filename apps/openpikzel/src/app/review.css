@@ -207,3 +207,23 @@
 .provider-choice select,.composer .advanced-controls select{appearance:none;min-height:48px;height:48px;box-sizing:border-box;width:100%;font-size:16px;line-height:1.4;padding:10px 34px 10px 12px;background-color:#202020;color:#fff;border:1px solid #686868;border-radius:8px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23ddd' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}.native-output-note{font-size:14px;line-height:1.6;color:#c6c6c6;max-width:54ch}
 
 .creative-conversation label.permission-field{display:flex;flex-direction:row;align-items:center;gap:10px;min-height:44px;margin:12px 0}.creative-conversation .permission-field input{width:18px;height:18px;min-height:18px;flex-shrink:0;margin:0}.creative-conversation .permission-field span{font-size:14px;line-height:1.6}
+
+/* OP-3: the action sits directly under the prompt, with its cost on the button and one key note beside it. */
+.composer .generate-dock{position:relative;bottom:auto;left:auto;right:auto;max-width:none;margin:12px 0 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px 16px;pointer-events:auto;z-index:auto}
+.composer .generate-dock[data-placement="after-settings"]{margin:0 20px 18px}
+.generate-split > .primary-button > span{white-space:nowrap}
+.generate-key-link{white-space:nowrap}
+.generate-cost{font-size:.875em;font-weight:500;font-variant-numeric:tabular-nums;opacity:.9;white-space:nowrap}
+.generate-cost::before{content:"·";margin-right:.4em;opacity:.7}
+.generate-key-note{margin:0;flex:1 1 220px;min-width:0;font-size:13px;line-height:1.5;color:var(--color-muted)}
+.generate-key-note .generate-key-link{display:inline;min-height:0;padding:0;border:0;background:none;color:var(--color-ink);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.generate-key-note .generate-key-link:hover:not(:disabled){background:none;text-decoration-thickness:2px}
+.generate-key-link:focus-visible{outline:2px solid var(--color-accent-edge);outline-offset:3px;border-radius:2px}
+.request-readiness .request-key{margin:0 0 8px;max-width:76ch}
+.request-readiness .request-key strong{color:var(--color-ink);font-weight:500}
+.request-readiness .request-key a{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:760px){
+ .generate-key-note{flex-basis:100%;font-size:12px}
+ .generate-split > .primary-button{min-width:0;padding-inline:16px}
+}
+@media(max-width:380px){.generate-cost{font-size:.8em}}
