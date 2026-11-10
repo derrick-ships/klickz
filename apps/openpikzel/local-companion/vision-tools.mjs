@@ -24,12 +24,24 @@ export async function resolveWorkspaceFile(workspace,inputPath){
 const IMAGE_PATH=/^(?:[\w./-]+(?: +[\w./-]+)*)\.(?:png|jpe?g|webp)$/i;
 
 function trimPathPunctuation(value){
- return String(value).replace(/^[({[<]+/,'').replace(/[.,;:!?)}\]>]+$/,'').trim();
+ return String(value).replace(/^['({[<]+/,'').replace(/['.,;:!?)}\]>]+$/,'').trim();
 }
 
 function imagePathFrom(value){
  const path=trimPathPunctuation(value);
  return IMAGE_PATH.test(path)?path:'';
+}
+
+function quotedImagePath(value){
+ const path=imagePathFrom(value);
+ if(!path)return '';
+ const parts=path.split(/\s+/);
+ if(parts.length<2)return path;
+ const lead=parts.slice(0,-1);
+ const last=parts[parts.length-1];
+ if(!imagePathFrom(last))return path;
+ if(lead.every(part=>part.length<=3||/[./_0-9-]/.test(part)))return path;
+ return '';
 }
 
 export function listedImagePaths(brief){
@@ -42,11 +54,15 @@ export function listedImagePaths(brief){
   seen.add(path);
   found.push(path);
  };
- const remainder=text.replace(/(["'`])([^"'`\n]*)\1/g,(_match,_quote,inner)=>{
-  add(inner);
-  return ' '.repeat(_match.length);
+ const remainder=text.replace(/(["`])([^"`\n]*)\1/g,(_match,_quote,inner)=>{
+  const path=quotedImagePath(inner);
+  if(path){
+   add(path);
+   return ' '.repeat(_match.length);
+  }
+  return ' '+inner+' ';
  });
- for(const token of remainder.split(/\s+/))add(token);
+ for(const token of remainder.split(/[\s;]+/))add(token);
  return found;
 }
 

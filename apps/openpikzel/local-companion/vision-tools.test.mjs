@@ -272,7 +272,7 @@ test('listedImagePaths reads unquoted tokens and quoted spaced names, and ignore
  assert.deepEqual(listedImagePaths('Make 3 thumbnails like ref.png'),['ref.png']);
  assert.deepEqual(listedImagePaths('Caption downloads/x.png please'),['downloads/x.png']);
  assert.deepEqual(listedImagePaths('look at "a b.png"'),['a b.png']);
- assert.deepEqual(listedImagePaths("check 'a b.png' now"),['a b.png']);
+ assert.deepEqual(listedImagePaths("check 'a b.png' now"),['b.png']);
  assert.deepEqual(listedImagePaths('a b.png'),['b.png']);
  assert.deepEqual(listedImagePaths('foo.png.exe'),[]);
  assert.deepEqual(listedImagePaths('please open foo.png.exe'),[]);
@@ -287,4 +287,12 @@ test('listedImagePaths strips trailing sentence punctuation but not extra extens
  assert.deepEqual(listedImagePaths('Compare x.png and y.png!'),['x.png','y.png']);
  assert.deepEqual(listedImagePaths('look at "a b.png".'),['a b.png']);
  assert.deepEqual(listedImagePaths('open foo.png.exe.'),[]);
+});
+test('listedImagePaths ignores apostrophes, splits on semicolons, and scans non-path quotes',()=>{
+ assert.deepEqual(listedImagePaths("Use Derrick's logo.png and don't crop"),['logo.png']);
+ assert.deepEqual(listedImagePaths("I'm sending x.png, it's the cover"),['x.png']);
+ assert.deepEqual(listedImagePaths('x.png;y.jpg'),['x.png','y.jpg']);
+ assert.deepEqual(listedImagePaths('Derrick\'s "a b.png"'),['a b.png']);
+ assert.deepEqual(listedImagePaths('look at `a b.png`'),['a b.png']);
+ assert.deepEqual(listedImagePaths('please "compare x.png"'),['x.png']);
 });
