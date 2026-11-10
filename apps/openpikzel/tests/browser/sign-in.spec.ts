@@ -31,7 +31,7 @@ test("email-first flow snapshots recipient, prevents repeats and supports changi
   await page.getByLabel("Email",{exact:true}).fill("second@example.com");
   await page.clock.fastForward(61_000);
   await page.getByRole("button",{name:"Email me a sign-in link",exact:true}).click();
-  expect(sent).toHaveLength(2);
+  await expect.poll(() => sent.length).toBe(2);
   await expect(page.getByLabel("Email sign-in code",{exact:true})).toHaveValue("");
   expect(sent[1]).toMatchObject({email:"second@example.com"});
 });
