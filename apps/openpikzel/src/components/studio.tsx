@@ -5,6 +5,7 @@ import {deliverImages,type DeliveryState} from "@/lib/generation-delivery";
 import {PromptEnhancer,CreativeConversation,type CreativeDraft} from "@/components/creative/creative-partner";
 import {ProviderChoice} from "@/components/creative/provider-choice";
 import { generationReadiness } from "@/lib/generation-readiness";
+import { promptValidationError } from "@/lib/prompt-validation";
 import {useRequestActivity} from "@/lib/use-request-activity";
 import { jobGuidance } from "@/lib/job-state";
 import { useEffect, useRef, useState } from "react";
@@ -147,6 +148,7 @@ export default function Studio() {
     [url, setUrl] = useState(""),
     [advanced, setAdvanced] = useState(false),
     [titleAction, setTitleAction] = useState<"image" | "ideas">("image"),
+    [promptError, setPromptError] = useState(""),
     [titles, setTitles] = useState<string[]>([]),
     [search, setSearch] = useState(""),
     [onlyFavorites, setOnlyFavorites] = useState(false),
@@ -190,6 +192,7 @@ export default function Studio() {
   const dialogRef = useRef<HTMLDialogElement>(null),
     uploadRef = useRef<HTMLInputElement>(null),
     mainRef = useRef<HTMLElement>(null),
+    promptRef = useRef<HTMLTextAreaElement>(null),
     navigationRef = useRef<HTMLElement>(null),
     navigationOpenRef = useRef<HTMLButtonElement>(null),
     navigationCloseRef = useRef<HTMLButtonElement>(null),
@@ -408,6 +411,7 @@ export default function Studio() {
     setRefs([]);
     setTitles([]);
     setTab("studio");
+    setPromptError("");
     studio.setError("");
     if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); }
   }
@@ -500,6 +504,10 @@ export default function Studio() {
   const autoReviewNotice=autoReview&&studio.config?.jev ? "Automatic review adds one Jev request"+(analysisVision?" and one "+analysisReviewer+" image review":"")+" per image. These use your API balances. Exact cost cannot be estimated here." : "Automatic review requires your opt-in and a Jev connection. Generated images remain available without a score.";
 
   async function submit() {
+    // Prompt-only validation is shown under the field (not the top banner) and focuses it.
+    const invalid=promptValidationError({tool,titleAction,prompt,title});
+    if(invalid){studio.setError("");setPromptError(invalid);requestAnimationFrame(()=>promptRef.current?.focus());return;}
+    setPromptError("");
     const submittedFingerprint=draftFingerprint;
     await studio.run(
       tool === "analyze"
@@ -727,6 +735,8 @@ export default function Studio() {
   const hasReviewImage = !!(selected?.image_path && studio.images[selected.image_path]);
   const showComposer = !hasReviewImage || composerOpen;
   const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:studio.loading,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider,autoReview});
+  // The inline prompt message follows the current text and mode, and clears once the prompt is valid.
+  useEffect(()=>{if(!promptError)return;const next=promptValidationError({tool,titleAction,prompt,title})||"";if(next!==promptError)setPromptError(next);},[promptError,tool,titleAction,prompt,title]);
   // OP-3: the action, its cost and the key note sit directly under the prompt.
   const showCost=!busy&&!!readiness.costShort&&(readiness.action==="run"||readiness.action==="signin");
   const generateAction = (
@@ -1395,6 +1405,9 @@ export default function Studio() {
                         </div>
                         <textarea
                           id="thumbnail-prompt"
+                          ref={promptRef}
+                          aria-invalid={promptError?true:undefined}
+                          aria-describedby={promptError?"prompt-error":undefined}
                           maxLength={2400}
                           value={prompt}
                           onChange={(e) => setPrompt(e.target.value)}
@@ -1408,6 +1421,7 @@ export default function Studio() {
                                   : "Who or what is the focus? Describe the scene, mood and any words to show. Put exact wording in quotation marks."
                           }
                         />
+                        {promptError&&<p className="field-error" id="prompt-error" role="alert"><AlertCircle size={15} aria-hidden="true"/><span>{promptError}</span></p>}
                         {generateAction}
                           </div>
                         </div>
