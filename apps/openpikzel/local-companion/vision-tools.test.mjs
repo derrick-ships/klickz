@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import sharp from 'sharp';
 import {Engine} from './engine.mjs';
 import {runAgent} from './agent-runner.mjs';
+import {listedImagePaths,viewImage} from './vision-tools.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url));
 const IMAGE_LIMIT=5*1024*1024;
@@ -30,6 +31,29 @@ async function fixture(workspace,name,{width=32,height=32,format='png'}={}){
  await mkdir(dirname(path),{recursive:true,mode:0o700});
  await writeFile(path,buffer,{mode:0o600});
  return path;
+}
+
+
+function seededPrng(seed){
+ let s=seed>>>0;
+ return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s;};
+}
+
+async function fourColorNoisePng({width=4200,height=4200,seed=20261110}={}){
+ const colors=[[255,0,0],[0,255,0],[0,0,255],[255,255,0]];
+ const rand=seededPrng(seed);
+ const raw=Buffer.alloc(width*height*3);
+ for(let i=0;i<width*height;i++){
+  const c=colors[rand()>>>30];
+  const o=i*3;raw[o]=c[0];raw[o+1]=c[1];raw[o+2]=c[2];
+ }
+ return sharp(raw,{raw:{width,height,channels:3}}).png({compressionLevel:1,palette:true,colours:4,dither:0}).toBuffer();
+}
+
+function attachedPaths(args){
+ const attached=[];
+ for(let i=0;i<args.length;i++)if(args[i]==='-i')attached.push(args[i+1]);
+ return attached;
 }
 
 function imagePart(result){
@@ -189,4 +213,64 @@ test('Codex -i skips out-of-workspace paths, traversal, symlinks, oversized file
  const attached=[];
  for(let i=0;i<args.length;i++)if(args[i]==='-i')attached.push(args[i+1]);
  assert.deepEqual(attached,[join(workspace,'downloads/ok.png')]);
+});
+
+test('a 4200 px four-colour PNG under 5 MB is returned as a JPEG of at most 5 MB after resize',async t=>{
+ const {engine,workspace}=await tempEngine(t);
+ const input=await fourColorNoisePng();
+ assert.ok(input.length<=IMAGE_LIMIT,`fixture input ${input.length} must be 5 MB or smaller`);
+ assert.ok(input.length>4*1024*1024,`fixture input ${input.length} should be a hard-to-compress PNG`);
+ await writeFile(join(workspace,'noisy.png'),input,{mode:0o600});
+ const result=await engine.hostCall('default','view_image',{path:'noisy.png'});
+ const part=imagePart(result);
+ const output=Buffer.from(part.data,'base64');
+ console.log('REPRO_OUTPUT',JSON.stringify({inputBytes:input.length,outputBytes:output.length,mimeType:part.mimeType}));
+ assert.ok(output.length<=IMAGE_LIMIT,`output ${output.length} must be 5 MB or smaller`);
+ assert.equal(part.mimeType,'image/jpeg');
+ const meta=await sharp(output).metadata();
+ assert.equal(meta.format,'jpeg');
+ assert.equal(meta.width,1568);
+ assert.equal(meta.height,1568);
+});
+
+test('if the JPEG fallback is still over 5 MB, view_image returns the 5 MB error',async t=>{
+ const {workspace}=await tempEngine(t);
+ const input=await fourColorNoisePng();
+ await writeFile(join(workspace,'noisy.png'),input,{mode:0o600});
+ await assert.rejects(viewImage('noisy.png',{workspace,outputLimit:1024*1024}),/5 MB|smaller/i);
+});
+
+test('Codex -i attaches the original workspace file and still rejects files over 5 MB',async t=>{
+ const {engine,workspace}=await tempEngine(t);
+ const input=await fourColorNoisePng();
+ assert.ok(input.length<=IMAGE_LIMIT);
+ await mkdir(join(workspace,'downloads'),{recursive:true,mode:0o700});
+ await writeFile(join(workspace,'downloads/noisy.png'),input,{mode:0o600});
+ await writeFile(join(workspace,'huge.png'),Buffer.concat([
+  await sharp({create:{width:8,height:8,channels:3,background:'red'}}).png().toBuffer(),
+  Buffer.alloc(IMAGE_LIMIT,1),
+ ]),{mode:0o600});
+ const calls=[];
+ const execute=async(provider,args)=>{calls.push({provider,args});return {code:0,stdout:JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'ok'}})+'\n'};};
+ const stub={inspect:async()=>({authenticated:true,installed:true})};
+ const plans={gate:()=>({allowed:true}),view:()=>({models:[],stale:false})};
+ const bridge={open:async()=>({servers:[{name:'openpikzels',url:'http://127.0.0.1/bridge',capability:'c'}],close(){},omittedSse:[]})};
+ await runAgent({engine,bridge,plans,runner:stub,provider:'codex',task:'titles',brief:'describe downloads/noisy.png huge.png',origin:'http://127.0.0.1',execute});
+ const attached=attachedPaths(calls.at(-1).args);
+ assert.deepEqual(attached,[join(workspace,'downloads/noisy.png')]);
+ const {stat}=await import('node:fs/promises');
+ const info=await stat(attached[0]);
+ assert.equal(info.size,input.length);
+ assert.ok(info.size<=IMAGE_LIMIT);
+});
+
+test('listedImagePaths keeps spaced names together and ignores decoy extensions',()=>{
+ assert.deepEqual(listedImagePaths('a b.png'),['a b.png']);
+ assert.deepEqual(listedImagePaths('see a b.png'),['a b.png']);
+ assert.deepEqual(listedImagePaths('look at "a b.png"'),['a b.png']);
+ assert.deepEqual(listedImagePaths("check 'a b.png' now"),['a b.png']);
+ assert.deepEqual(listedImagePaths('foo.png.exe'),[]);
+ assert.deepEqual(listedImagePaths('please open foo.png.exe'),[]);
+ assert.deepEqual(listedImagePaths('Please describe downloads/x.png'),['downloads/x.png']);
+ assert.deepEqual(listedImagePaths('describe downloads/x.png'),['downloads/x.png']);
 });

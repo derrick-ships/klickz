@@ -31490,9 +31490,38 @@ async function resolveWorkspaceFile(workspace, inputPath) {
   if (resolved !== root && !resolved.startsWith(root + sep2)) throw new Error("Images must stay in the workspace folder.");
   return resolved;
 }
+var BRIEF_WORDS = new Set("please describe look see check open view attach use the this that these those my your its of in on at to for and or with from into over under file image files images path paths named called is are was here there now".split(" "));
 function listedImagePaths(brief) {
-  const found = String(brief).match(/(?:^|[\s"'`])((?:[\w./-])+?\.(?:png|jpe?g|webp))\b/gi) || [];
-  return [...new Set(found.map((value) => value.replace(/^[ \t"'`]+/, "")))];
+  const text2 = String(brief);
+  const found = [];
+  const seen = /* @__PURE__ */ new Set();
+  const add = (value) => {
+    const path = value.trim();
+    if (!path || seen.has(path)) return;
+    seen.add(path);
+    found.push(path);
+  };
+  const quoted = /(["'`])([^"'`\n]*?\.(?:png|jpe?g|webp))\1(?![A-Za-z0-9._-])/gi;
+  for (const match of text2.matchAll(quoted)) add(match[2]);
+  const ext = /\.(?:png|jpe?g|webp)(?![A-Za-z0-9._-])/gi;
+  for (const match of text2.matchAll(ext)) {
+    const end = match.index + match[0].length;
+    let i2 = match.index;
+    while (i2 > 0 && /[\w./-]/.test(text2[i2 - 1])) i2--;
+    while (i2 > 0 && text2[i2 - 1] === " ") {
+      let j2 = i2 - 1;
+      while (j2 > 0 && text2[j2 - 1] === " ") j2--;
+      if (j2 === 0 || !/[\w./-]/.test(text2[j2 - 1])) break;
+      const tokenEnd = j2;
+      while (j2 > 0 && /[\w./-]/.test(text2[j2 - 1])) j2--;
+      const token = text2.slice(j2, tokenEnd);
+      if (BRIEF_WORDS.has(token.toLowerCase())) break;
+      i2 = j2;
+    }
+    if (i2 > 0 && !/[\s"'`(\[{<,;:]/.test(text2[i2 - 1])) continue;
+    add(text2.slice(i2, end));
+  }
+  return found;
 }
 async function resolveWorkspaceImage(workspace, inputPath) {
   const resolved = await resolveWorkspaceFile(workspace, inputPath);
@@ -31515,7 +31544,7 @@ async function workspaceImages(workspace, brief) {
 async function defaultLoadSharp() {
   return import("sharp");
 }
-async function readWorkspaceImage(path, { workspace, loadSharp = defaultLoadSharp } = {}) {
+async function readWorkspaceImage(path, { workspace, loadSharp = defaultLoadSharp, outputLimit = IMAGE_LIMIT } = {}) {
   const resolved = await resolveWorkspaceImage(workspace, path);
   const bytes = await readFile2(resolved);
   if (bytes.length > IMAGE_LIMIT) throw new Error("Images must be 5 MB or smaller.");
@@ -31531,20 +31560,26 @@ async function readWorkspaceImage(path, { workspace, loadSharp = defaultLoadShar
     const image = sharp(bytes, { limitInputPixels: 4e7 }).rotate().resize(1568, 1568, { fit: "inside", withoutEnlargement: true });
     const meta2 = await image.metadata();
     if (!FORMATS.has(meta2.format)) throw new Error("Use a PNG, JPEG or WebP image.");
-    const data = await image.toBuffer();
-    return { content: [{ type: "image", data: data.toString("base64"), mimeType: meta2.format === "jpeg" ? "image/jpeg" : meta2.format === "webp" ? "image/webp" : "image/png" }] };
+    let data = await image.toBuffer();
+    let mimeType = meta2.format === "jpeg" ? "image/jpeg" : meta2.format === "webp" ? "image/webp" : "image/png";
+    if (data.length > outputLimit) {
+      data = await sharp(data).flatten({ background: "#ffffff" }).jpeg({ quality: 85 }).toBuffer();
+      mimeType = "image/jpeg";
+      if (data.length > outputLimit) throw new Error("Images must be 5 MB or smaller.");
+    }
+    return { content: [{ type: "image", data: data.toString("base64"), mimeType }] };
   } catch (error2) {
-    if (error2 instanceof Error && /PNG, JPEG or WebP|unavailable/i.test(error2.message)) throw error2;
+    if (error2 instanceof Error && /PNG, JPEG or WebP|unavailable|5 MB|smaller/i.test(error2.message)) throw error2;
     throw new Error("The image could not be read.");
   }
 }
-async function viewImage(path, { workspace, workspaces, loadSharp = defaultLoadSharp } = {}) {
+async function viewImage(path, { workspace, workspaces, loadSharp = defaultLoadSharp, outputLimit } = {}) {
   const roots = [...new Set((workspaces && workspaces.length ? workspaces : [workspace]).filter(Boolean))];
   if (!roots.length) throw new Error("Choose an image inside the agent workspace.");
   let last;
   for (const root of roots) {
     try {
-      return await readWorkspaceImage(path, { workspace: root, loadSharp });
+      return await readWorkspaceImage(path, { workspace: root, loadSharp, outputLimit });
     } catch (error2) {
       last = error2;
       if (!/could not be read/i.test(error2.message)) throw error2;

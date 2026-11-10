@@ -21,9 +21,39 @@ export async function resolveWorkspaceFile(workspace,inputPath){
  return resolved;
 }
 
+const BRIEF_WORDS=new Set('please describe look see check open view attach use the this that these those my your its of in on at to for and or with from into over under file image files images path paths named called is are was here there now'.split(' '));
+
 export function listedImagePaths(brief){
- const found=String(brief).match(/(?:^|[\s"'`])((?:[\w./-])+?\.(?:png|jpe?g|webp))\b/gi)||[];
- return [...new Set(found.map(value=>value.replace(/^[ \t"'`]+/,'')))];
+ const text=String(brief);
+ const found=[];
+ const seen=new Set();
+ const add=value=>{
+  const path=value.trim();
+  if(!path||seen.has(path))return;
+  seen.add(path);
+  found.push(path);
+ };
+ const quoted=/(["'`])([^"'`\n]*?\.(?:png|jpe?g|webp))\1(?![A-Za-z0-9._-])/gi;
+ for(const match of text.matchAll(quoted))add(match[2]);
+ const ext=/\.(?:png|jpe?g|webp)(?![A-Za-z0-9._-])/gi;
+ for(const match of text.matchAll(ext)){
+  const end=match.index+match[0].length;
+  let i=match.index;
+  while(i>0&&/[\w./-]/.test(text[i-1]))i--;
+  while(i>0&&text[i-1]===' '){
+   let j=i-1;
+   while(j>0&&text[j-1]===' ')j--;
+   if(j===0||!/[\w./-]/.test(text[j-1]))break;
+   const tokenEnd=j;
+   while(j>0&&/[\w./-]/.test(text[j-1]))j--;
+   const token=text.slice(j,tokenEnd);
+   if(BRIEF_WORDS.has(token.toLowerCase()))break;
+   i=j;
+  }
+  if(i>0&&!/[\s"'`(\[{<,;:]/.test(text[i-1]))continue;
+  add(text.slice(i,end));
+ }
+ return found;
 }
 
 export async function resolveWorkspaceImage(workspace,inputPath){
@@ -47,7 +77,7 @@ async function defaultLoadSharp(){
  return import('sharp');
 }
 
-async function readWorkspaceImage(path,{workspace,loadSharp=defaultLoadSharp}={}){
+async function readWorkspaceImage(path,{workspace,loadSharp=defaultLoadSharp,outputLimit=IMAGE_LIMIT}={}){
  const resolved=await resolveWorkspaceImage(workspace,path);
  const bytes=await readFile(resolved);
  if(bytes.length>IMAGE_LIMIT)throw new Error('Images must be 5 MB or smaller.');
@@ -63,20 +93,26 @@ async function readWorkspaceImage(path,{workspace,loadSharp=defaultLoadSharp}={}
   const image=sharp(bytes,{limitInputPixels:40000000}).rotate().resize(1568,1568,{fit:'inside',withoutEnlargement:true});
   const meta=await image.metadata();
   if(!FORMATS.has(meta.format))throw new Error('Use a PNG, JPEG or WebP image.');
-  const data=await image.toBuffer();
-  return {content:[{type:'image',data:data.toString('base64'),mimeType:meta.format==='jpeg'?'image/jpeg':meta.format==='webp'?'image/webp':'image/png'}]};
+  let data=await image.toBuffer();
+  let mimeType=meta.format==='jpeg'?'image/jpeg':meta.format==='webp'?'image/webp':'image/png';
+  if(data.length>outputLimit){
+   data=await sharp(data).flatten({background:'#ffffff'}).jpeg({quality:85}).toBuffer();
+   mimeType='image/jpeg';
+   if(data.length>outputLimit)throw new Error('Images must be 5 MB or smaller.');
+  }
+  return {content:[{type:'image',data:data.toString('base64'),mimeType}]};
  }catch(error){
-  if(error instanceof Error&&/PNG, JPEG or WebP|unavailable/i.test(error.message))throw error;
+  if(error instanceof Error&&/PNG, JPEG or WebP|unavailable|5 MB|smaller/i.test(error.message))throw error;
   throw new Error('The image could not be read.');
  }
 }
 
-export async function viewImage(path,{workspace,workspaces,loadSharp=defaultLoadSharp}={}){
+export async function viewImage(path,{workspace,workspaces,loadSharp=defaultLoadSharp,outputLimit}={}){
  const roots=[...new Set((workspaces&&workspaces.length?workspaces:[workspace]).filter(Boolean))];
  if(!roots.length)throw new Error('Choose an image inside the agent workspace.');
  let last;
  for(const root of roots){
-  try{return await readWorkspaceImage(path,{workspace:root,loadSharp});}
+  try{return await readWorkspaceImage(path,{workspace:root,loadSharp,outputLimit});}
   catch(error){
    last=error;
    if(!/could not be read/i.test(error.message))throw error;
