@@ -23,6 +23,7 @@ Range: 1ee2a853e3b13dd2ac70c0a8d67be263f2590d71..1eb78cab72a8886ac62a743a5a7e7ec
 | panel-improvements: setup | Replaces visible email input check with dialog, unavailable-sign-in message and /connect#api link checks. Tests unavailable configuration rather than email-input availability. | None. |
 | review-studio: unscored preview | Replaces review heading with connect-Jev heading; replaces set-up-analysis/focused-title assertions with Connections/dialog and Escape. Former setup/focus path is instead exercised by copy-guidance with Jev enabled, but exact equivalence is not established. | None. |
 | sign-in: email-first flow | Direct length==2 becomes polling sent.length==2; checks async completion before remaining assertions. | None. |
+| diagnostics: partial diagnostic fixture | Waits for the upload input to be enabled before selecting a file; visibility of the title alone does not establish hydration readiness. No sleep or timeout change. | Hydration readiness gate disables upload until current owner ready. |
 | studio: AI resize | Adds upload enabled readiness assertion before selecting file. | Hydration readiness gate disables upload until current owner ready. |
 | widget: iframe bridge | Adds prompt enabled readiness assertion before iframe setup. | Hydration readiness gate disables composer until current owner ready. |
 | polish: mode tabs | Adds loading completion, selected and enabled assertions before keyboard checks. | userPickedTool preserves explicitly selected mode during hydration. |
@@ -31,7 +32,25 @@ Range: 1ee2a853e3b13dd2ac70c0a8d67be263f2590d71..1eb78cab72a8886ac62a743a5a7e7ec
 | hydration-safety: config failure | New test checks error/local draft message and enabled prompt/upload after 503. | use-studio failure releases loading only for active current owner. |
 | review-fixture | Optional Jev config route added, existing boolean interface preserved; helper has no changed assertions. | None. |
 
-No skipped tests or sleeps were introduced in the inspected net test diff; existing waits/screenshots elsewhere were not evaluated by this statement. Removed visual checks are genuine coverage losses, not shown redundant by CSS visibility, count, or moving to another scene. The appropriate replacement/restoration needs an owner decision about intended studio artwork and visual contract; no speculative product fix or equivalent-coverage claim. Exact historical failure causes and acceptance of changed copy not established by this static diff. This table is shared handoff evidence, not in the commit range: the checker's finding that no table exists in the net diff remains unresolved if AC4 requires it there. Browser red-before and two production passes remain checker-owned and unverified in this audit.
+No skipped tests or sleeps were introduced in the inspected net test diff; existing waits/screenshots elsewhere were not evaluated by this statement. Removed visual checks are genuine coverage losses, not shown redundant by CSS visibility, count, or moving to another scene. The appropriate replacement/restoration needs an owner decision about intended studio artwork and visual contract; no speculative product fix or equivalent-coverage claim. Exact historical failure causes and acceptance of changed copy not established by this static diff. This table is committed in the ticket range. The subsequent lead-approved visual decision is recorded below; the replacement checks and verification are recorded below.
 
 ## FIX round 1 reproduction
 The original mobile-art margins were restored experimentally against the current welcome aperture at 320px. Both tests failed: bottom red-pixel margin was 0, not >=12px. Welcome's existing artwork is masked and uses `object-fit: cover`; it is not the former studio signal. The experimental assertions were not retained because they would impose the old artwork's geometry on a different composition. The studio has no brand scene, so its former focus and behind-sidebar pixel checks cannot be restored as-is without changing the product. A product owner must decide whether to restore studio signal artwork and its original crop/focus/blur contract, or approve a specific replacement visual contract for the current welcome composition. CSS visibility alone does not establish equivalent coverage.
+
+## Lead-approved visual coverage decision
+
+The owner approved `shared/design/reviews/op28-welcome-contract/CONTRACT.md` sections 5–6: preserve the current welcome UI and implement W1–W8 and K1–K6. The earlier `count > 200` element-screenshot check is vacuous: overlapping copy supplies the red pixels even when the image is hidden. It is not retained coverage.
+
+| Guarantee | Decision | Reason / replacement |
+|---|---|---|
+| R1 studio compact-frame crop margins | Retired | The studio signal scene was retired; W1–W5 check the current welcome composition instead, not the old margins. |
+| R2 full mobile red tile, front face and shadow | Retired | The current mobile art is atmospheric; its red subject is intentionally not required (W8). The DESIGN.md wording is stale and its edit is outside this ticket. |
+| R3 studio playing-to-focus-to-still and paused video | Retired | Welcome has no prompt to focus; no equivalent focus surface exists. |
+| R4 red signal before and during sidebar blur | Retired | There is no studio art behind the sidebar. Blur, inertness and prompt preservation remain tested, not art visibility. |
+| R5 studio backdrop image decode readiness | Retired | The studio image no longer exists. |
+| K1–K6 | Retained | Welcome finite playback; reduced motion/data-saving poster and no video requests; mobile still/no source/no video requests and stable box; no horizontal scroll; decorative semantics; desktop screenshots. |
+| W1–W8 | Replacement checks | Isolated art presence, copy clearance, fade, intended bleed, desktop frame, contrast, single dark surface and no mobile red requirement. These do not claim equivalence to the retired studio guarantees. |
+
+W8: Mobile welcome art is atmospheric; a red subject is not required. This is a documented design decision, not a red-pixel assertion.
+
+W6 enumerates hero text-node line rectangles at all seven widths, using each text node’s computed color and the CTA button background for its label. W9a and W9c check the approved mobile upper-region p95 and desktop fade-region art-pixel ceilings; W9-control checks the same regions with the image hidden. Optional W9b and W9d are not required. On the fresh production build, the isolated welcome test passed across all seven widths. Deliberately hiding the image failed W1, removing the mask failed W3, changing the art inset failed W2, and making the overlay transparent failed W9a, W9c, and W6 at 430px in separate runs. Image-hidden controls under the transparent overlay found zero art and red pixels at all seven widths. The unmutated test also checks its image-hidden controls at every width.

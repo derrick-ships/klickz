@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-test('mobile navigation keeps the artwork visible through blur and preserves the prompt',async({page})=>{
+test('mobile navigation applies blur and preserves the prompt',async({page})=>{
  await page.setViewportSize({width:390,height:844});await page.goto('/studio');const prompt=page.getByLabel('Describe your thumbnail',{exact:true});await prompt.fill('Keep this direction visible beneath navigation');await prompt.blur();await page.evaluate(()=>window.scrollTo(0,0));
  await expect(page.locator('.workspace-main')).toHaveCSS('visibility','visible');
  await page.getByRole('button',{name:'Open sidebar',exact:true}).click();await expect(page.locator('.workspace-main')).toHaveAttribute('inert','');

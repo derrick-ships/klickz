@@ -8,7 +8,9 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
   });
   await page.goto("/?mode=analyze");
   await page.getByLabel("Video title", {exact:true}).waitFor();
-  await page.getByLabel("Upload thumbnail references").setInputFiles("public/brand/signal.webp");
+  const upload = page.getByLabel("Upload thumbnail references");
+  await expect(upload).toBeEnabled();
+  await upload.setInputFiles("public/brand/signal.webp");
   await expect(page.getByRole("region", {name:"Thumbnail review studio"})).toBeVisible();
   await page.evaluate(async () => {
     const req = indexedDB.open("derrick-thumbnail-studio");
