@@ -20,17 +20,16 @@ do $$ begin if exists(select 1 from pg_policies where policyname='studio_creatio
 end if;end $$;
 
 create function public.studio_claim_upload_url(upload_id uuid, request_id uuid)
-returns public.studio_upload_urls
+returns setof public.studio_upload_urls
 language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  claimed public.studio_upload_urls;
 begin
   if auth.uid() is null then
     raise exception 'Not authenticated.';
   end if;
+  return query
   update public.studio_upload_urls
     set used_at = pg_catalog.now(),
         used_request_id = request_id
@@ -38,8 +37,7 @@ begin
       and user_id = auth.uid()
       and (used_at is null or used_request_id = request_id)
       and pg_catalog.now() <= expires_at
-    returning * into claimed;
-  return claimed;
+    returning *;
 end;
 $$;
 revoke all on function public.studio_claim_upload_url(uuid, uuid) from public, anon;

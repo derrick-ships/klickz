@@ -531,12 +531,31 @@ describe("signed upload claim and grants", () => {
         `select * from studio_claim_upload_url('${uploadId}'::uuid,'${requestB}'::uuid)`,
       ),
     ]);
-    const winners = [...first.rows, ...second.rows].filter((row) => row.used_request_id);
-    expect(winners).toHaveLength(1);
+    expect([first.rows.length, second.rows.length].sort()).toEqual([0, 1]);
+    const winner = first.rows[0] || second.rows[0];
+    expect(winner.used_request_id).toBeTruthy();
     const stored = await db.query<{ used_request_id: string }>(
       `select used_request_id from studio_upload_urls where id='${uploadId}'`,
     );
-    expect(stored.rows[0].used_request_id).toBe(winners[0].used_request_id);
+    expect(stored.rows[0].used_request_id).toBe(winner.used_request_id);
     expect([requestA, requestB]).toContain(stored.rows[0].used_request_id);
+  });
+
+  it("a losing claim returns no row, not a row of nulls", async () => {
+    await db.exec("reset role;");
+    await db.exec(`delete from studio_upload_urls where user_id='${alice}'`);
+    await asUser(alice);
+    await insertOpenUpload();
+    await db.query(
+      `select * from studio_claim_upload_url('${uploadId}'::uuid,'${requestA}'::uuid)`,
+    );
+    const loser = await db.query(
+      `select * from studio_claim_upload_url('${uploadId}'::uuid,'${requestB}'::uuid)`,
+    );
+    expect(loser.rows).toHaveLength(0);
+    const pgrst = await db.query<{ body: string }>(
+      `select coalesce(json_agg(_postgrest_t),'[]')::text as body from studio_claim_upload_url('${uploadId}'::uuid,'${requestB}'::uuid) _postgrest_t`,
+    );
+    expect(JSON.parse(pgrst.rows[0].body)).toEqual([]);
   });
 });

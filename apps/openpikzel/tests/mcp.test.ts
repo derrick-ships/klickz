@@ -6,11 +6,12 @@ const state = vi.hoisted(() => ({
   memory: [] as any[],
   keys: { jev: "sk-jev-test-0000FAKE", anthropic: "sk-ant-test-0000FAKE" } as Record<string, string>,
   uploads: [] as any[],
-  objects: {} as Record<string, { created_at: string; size: number; mimetype?: string }>,
+  objects: {} as Record<string, { created_at: string; size: number; mimetype?: string; bytes?: Buffer }>,
   now: () => new Date("2026-11-10T00:00:00.000Z"),
   analyzeCalls: [] as any[],
   analyzeCharges: 0,
   analyzeByRequestId: {} as Record<string, any>,
+  analyzeFailure: false as boolean,
   planCalls: [] as any[],
 }));
 vi.mock("../src/lib/oauth/core", async () => {
@@ -182,16 +183,17 @@ vi.mock("../src/lib/oauth/core", async () => {
             if (name !== "studio_claim_upload_url")
               return { data: null, error: { message: "unknown rpc" } };
             const row = state.uploads.find((u) => u.id === args.upload_id);
-            if (!row) return { data: null, error: null };
+            // PostgREST SETOF: a miss is [], a hit is [row].
+            if (!row) return { data: [], error: null };
             const now = Date.now();
-            if (Date.parse(row.expires_at) < now) return { data: null, error: null };
+            if (Date.parse(row.expires_at) < now) return { data: [], error: null };
             if (row.used_at && row.used_request_id !== args.request_id)
-              return { data: null, error: null };
+              return { data: [], error: null };
             Object.assign(row, {
               used_at: new Date(now).toISOString(),
               used_request_id: args.request_id,
             });
-            return { data: row, error: null };
+            return { data: [row], error: null };
           },
           storage: {
             from: () => ({
@@ -216,8 +218,14 @@ vi.mock("../src/lib/oauth/core", async () => {
                   created_at: state.now().toISOString(),
                   size: bytes.length,
                   mimetype: opts?.contentType || "image/png",
+                  bytes,
                 };
                 return { data: { path }, error: null };
+              },
+              download: async (path: string) => {
+                const obj = state.objects[path];
+                if (!obj?.bytes) return { data: null, error: { message: "not found" } };
+                return { data: new Blob([new Uint8Array(obj.bytes)]), error: null };
               },
               list: async (folder: string, opts?: { search?: string }) => {
                 const prefix = folder.endsWith("/") ? folder : folder + "/";
@@ -245,14 +253,30 @@ vi.mock("../src/lib/provider-context", async () => {
 });
 vi.mock("@/app/api/analyze/route", () => ({
   POST: async (request: Request) => {
+    const { createHash } = await import("node:crypto");
     const body = await request.json();
     state.analyzeCalls.push(body);
+    if (state.analyzeFailure) {
+      state.analyzeCharges += 1;
+      return Response.json(
+        { error: "The operation could not finish. Your saved work is safe. Check provider setup or try again." },
+        { status: 502 },
+      );
+    }
+    const bytes = body.imagePath ? state.objects[body.imagePath]?.bytes : undefined;
+    const sourceDigest = bytes
+      ? createHash("sha256").update(bytes).digest("hex")
+      : undefined;
     const prior = state.analyzeByRequestId[body.requestId];
-    if (prior) return Response.json(prior);
+    if (prior) {
+      if (prior.sourceDigest && sourceDigest && prior.sourceDigest !== sourceDigest)
+        return Response.json({ error: "This request already used a different image." }, { status: 409 });
+      return Response.json(prior.result);
+    }
     state.analyzeCharges += 1;
     const creationId = body.creationId || "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
     const result = { score: state.score, creationId, jobId: body.requestId };
-    state.analyzeByRequestId[body.requestId] = result;
+    state.analyzeByRequestId[body.requestId] = { result, sourceDigest };
     return Response.json(result);
   },
 }));
@@ -293,6 +317,7 @@ beforeEach(() => {
   state.analyzeCalls = [];
   state.analyzeCharges = 0;
   state.analyzeByRequestId = {};
+  state.analyzeFailure = false;
   state.planCalls = [];
   state.score = {
     source: "jev",
@@ -466,8 +491,14 @@ function errorText(result: any) {
   return String(result?.content?.[0]?.text || "");
 }
 
-function plantUpload(path: string, created_at: string, size = 128, mimetype = "image/png") {
-  state.objects[path] = { created_at, size, mimetype };
+function plantUpload(
+  path: string,
+  created_at: string,
+  size = 128,
+  mimetype = "image/png",
+  bytes: Buffer = Buffer.from(PNG_1X1, "base64"),
+) {
+  state.objects[path] = { created_at, size, mimetype, bytes };
 }
 
 describe("OP-17 analyze_thumbnail and create_upload_url", () => {
@@ -716,4 +747,85 @@ describe("OP-17 analyze_thumbnail and create_upload_url", () => {
   expect(errorText(replay)).toBe("upload link expired, request a new one");
   expect(state.analyzeCharges).toBe(1);
 });
+
+  it("replays a base64 retry with the same requestId on a deterministic path", async () => {
+    const first = await invoke("analyze_thumbnail", {
+      base64: PNG_1X1,
+      title: "The actual video title",
+      requestId: requestA,
+    });
+    expect(first.isError).not.toBe(true);
+    const second = await invoke("analyze_thumbnail", {
+      base64: PNG_1X1,
+      title: "The actual video title",
+      requestId: requestA,
+    });
+    expect(second.isError).not.toBe(true);
+    expect(state.analyzeCalls[0].imagePath).toBe(state.analyzeCalls[1].imagePath);
+    expect(state.analyzeCalls[0].imagePath).toMatch(
+      new RegExp("^" + uid + "/references/[0-9a-f]{64}\\.png$"),
+    );
+    expect(state.analyzeCharges).toBe(1);
+    expect(Object.keys(state.objects)).toHaveLength(1);
+    expect(second.structuredContent.creationId).toBe(first.structuredContent.creationId);
+  });
+
+  it("rejects a same-requestId base64 retry when the image digest differs", async () => {
+    const other = (await (await import("sharp")).default({
+      create: { width: 1, height: 1, channels: 3, background: "red" },
+    }).png().toBuffer()).toString("base64");
+    const first = await invoke("analyze_thumbnail", {
+      base64: PNG_1X1,
+      title: "The actual video title",
+      requestId: requestA,
+    });
+    expect(first.isError).not.toBe(true);
+    const second = await invoke("analyze_thumbnail", {
+      base64: other,
+      title: "The actual video title",
+      requestId: requestA,
+    });
+    expect(second.isError).toBe(true);
+    expect(errorText(second)).toMatch(/409|different image/i);
+    expect(state.analyzeCharges).toBe(1);
+  });
+
+  it("rejects a non-image signed upload without using the link", async () => {
+    const created = await invoke("create_upload_url", {});
+    const imagePath = created.structuredContent.imagePath;
+    const junk = Buffer.from("<html>not an image</html>");
+    plantUpload(imagePath, "2026-11-10T00:01:00.000Z", junk.length, "image/png", junk);
+    const result = await invoke("analyze_thumbnail", {
+      imagePath,
+      title: "The actual video title",
+      requestId: requestA,
+    });
+    expect(result.isError).toBe(true);
+    expect(errorText(result)).toMatch(/not an image/i);
+    expect(state.uploads[0].used_at).toBeNull();
+    expect(state.analyzeCharges).toBe(0);
+  });
+
+  it("does not call a burned link already analyzed after a failed analyze", async () => {
+    const created = await invoke("create_upload_url", {});
+    const imagePath = created.structuredContent.imagePath;
+    plantUpload(imagePath, "2026-11-10T00:01:00.000Z");
+    state.analyzeFailure = true;
+    const first = await invoke("analyze_thumbnail", {
+      imagePath,
+      title: "The actual video title",
+      requestId: requestA,
+    });
+    expect(first.isError).toBe(true);
+    state.analyzeFailure = false;
+    const second = await invoke("analyze_thumbnail", {
+      imagePath,
+      title: "The actual video title",
+      requestId: requestB,
+    });
+    expect(second.isError).toBe(true);
+    expect(errorText(second)).toMatch(/already used/i);
+    expect(errorText(second)).not.toMatch(/already analyzed/i);
+  });
+
 });

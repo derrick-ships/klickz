@@ -13,11 +13,16 @@ export async function ownedAsset(
     throw new AppError(404, "Reference image not found. Upload it again.");
   if (data.size > 5 * 1024 * 1024)
     throw new AppError(413, "Use an image smaller than 5 MB.");
-  return sharp(Buffer.from(await data.arrayBuffer()), {
-    limitInputPixels: 40000000,
-  })
-    .rotate()
-    .resize(1568, 1568, { fit: "inside", withoutEnlargement: true })
-    .png()
-    .toBuffer();
+  try {
+    return await sharp(Buffer.from(await data.arrayBuffer()), {
+      limitInputPixels: 40000000,
+    })
+      .rotate()
+      .resize(1568, 1568, { fit: "inside", withoutEnlargement: true })
+      .png()
+      .toBuffer();
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError(400, "not an image");
+  }
 }

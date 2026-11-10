@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError, ownedPath } from "./validation";
+import { digest } from "./diagnostics";
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const MAX_USE_BYTES = 5 * 1024 * 1024;
@@ -38,10 +39,10 @@ export async function saveOwnedReference(
   userId: string,
   image: Buffer,
 ) {
-  const path = `${userId}/references/${crypto.randomUUID()}.png`;
+  const path = `${userId}/references/${digest(image)}.png`;
   const result = await db.storage
     .from("studio-assets")
-    .upload(path, image, { contentType: "image/png" });
+    .upload(path, image, { contentType: "image/png", upsert: true });
   if (result.error) throw result.error;
   return path;
 }
@@ -112,12 +113,14 @@ export async function claimSignedUpload(
   const mime = metadata.mimetype;
   if (mime && !["image/png", "image/jpeg", "image/webp"].includes(String(mime)))
     throw new AppError(400, "Use PNG, JPEG or WebP.");
+  await assertUploadedImage(db, path);
   const claimed = await db.rpc("studio_claim_upload_url", {
     upload_id: row.id,
     request_id: requestId,
   });
   if (claimed.error) throw new AppError(503, "The upload could not be claimed.");
-  if (claimed.data) return { tracked: true as const };
+  const claimedRow = Array.isArray(claimed.data) ? claimed.data[0] : claimed.data;
+  if (claimedRow?.id) return { tracked: true as const };
   const again = await db
     .from("studio_upload_urls")
     .select("*")
@@ -130,6 +133,24 @@ export async function claimSignedUpload(
     throw new AppError(400, "upload link expired, request a new one");
   throw new AppError(
     409,
-    "This upload was already analyzed. Request a new upload link.",
+    "This upload link was already used; request a new one.",
   );
+}
+
+async function assertUploadedImage(db: SupabaseClient, path: string) {
+  const downloaded = await db.storage.from("studio-assets").download(path);
+  if (downloaded.error || !downloaded.data)
+    throw new AppError(404, "No file was uploaded for this link.");
+  if (downloaded.data.size > MAX_USE_BYTES)
+    throw new AppError(413, "Use an image smaller than 5 MB.");
+  const bytes = Buffer.from(await downloaded.data.arrayBuffer());
+  try {
+    const format = (await sharp(bytes, { limitInputPixels: 40000000 }).metadata())
+      .format;
+    if (!["png", "jpeg", "webp"].includes(format || ""))
+      throw new AppError(400, "not an image");
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError(400, "not an image");
+  }
 }
