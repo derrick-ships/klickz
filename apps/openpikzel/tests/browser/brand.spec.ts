@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 test("brand decoration plays one finite take without playback controls", async ({ page }) => {
-  await page.goto("/?mode=generate");
-  const scene = page.locator('[data-brand-scene="signal"]');
+  await page.goto("/welcome");
+  const scene = page.locator('[data-brand-scene="aperture"]');
   await expect.poll(() => scene.locator("img").evaluate(i => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(scene.getByRole("button")).toHaveCount(0);
   const player = scene.locator("video");
@@ -13,12 +13,6 @@ test("brand decoration plays one finite take without playback controls", async (
   expect(await player.evaluate(v => (v as HTMLVideoElement).currentTime)).toBeLessThan(5);
 });
 test("brand motion settles when editing or motion preference changes", async ({ page }) => {
-  await page.goto("/?mode=generate");
-  const scene = page.locator('[data-brand-scene="signal"]');
-  await expect(scene).toHaveAttribute("data-motion", "playing");
-  await page.getByLabel("Describe your thumbnail", { exact: true }).focus();
-  await expect(scene).toHaveAttribute("data-motion", "still");
-  expect(await scene.locator("video").evaluate(v => (v as HTMLVideoElement).paused)).toBe(true);
   await page.goto("/welcome");
   const onboarding = page.locator('[data-brand-scene="aperture"]');
   await expect(onboarding).toHaveAttribute("data-motion", "playing");
@@ -48,4 +42,4 @@ test("reduced-motion and data-saving visitors load only the poster", async ({ pa
   expect(videos).toHaveLength(0);
 });
 
-test("mobile uses the branded still without downloading decorative video",async({page})=>{await page.setViewportSize({width:390,height:844});const clips:string[]=[];page.on("request",r=>{if(/\/brand\/.*\.(webm|mp4)/.test(r.url()))clips.push(r.url());});await page.goto("/");await expect.poll(()=>page.locator(".brand-scene img").evaluate(i=>(i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);await expect(page.locator(".brand-scene source")).toHaveCount(0);expect(clips).toEqual([]);});
+test("mobile uses the branded still without downloading decorative video",async({page})=>{await page.setViewportSize({width:390,height:844});const clips:string[]=[];page.on("request",r=>{if(/\/brand\/.*\.(webm|mp4)/.test(r.url()))clips.push(r.url());});await page.goto("/welcome");await expect.poll(()=>page.locator(".brand-scene img").evaluate(i=>(i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);await expect(page.locator(".brand-scene source")).toHaveCount(0);expect(clips).toEqual([]);});

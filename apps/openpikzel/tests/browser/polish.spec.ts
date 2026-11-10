@@ -2,6 +2,10 @@ import { test, expect } from "@playwright/test";
 test("mode tabs support roving keyboard navigation and visible focus", async ({ page }) => {
   await page.goto("/?mode=generate");
   const prompt = page.getByRole("tab", { name: "Prompt", exact: true });
+  // Wait for generate-mode selection to settle; arrowing before that can move
+  // focus without setTool sticking through the later studio hydrate.
+  await expect(prompt).toHaveAttribute("aria-selected", "true");
+  await expect(prompt).toBeEnabled();
   await prompt.focus();
   await page.keyboard.press("ArrowRight");
   const analyze = page.getByRole("tab", { name: "Analyze", exact: true });

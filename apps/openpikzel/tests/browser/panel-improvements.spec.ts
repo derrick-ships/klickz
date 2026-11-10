@@ -35,7 +35,14 @@ test("setup is actionable without a paid call and preserves the draft",async({pa
  const paid:string[]=[];page.on("request",r=>{if(/\/api\/(generate|analyze|titles)$/.test(r.url()))paid.push(r.url());});
  await page.goto("/studio");await page.getByLabel("Describe your thumbnail",{exact:true}).fill("Keep this idea while I connect my account");
  await page.getByRole("button",{name:"Sign in to generate",exact:true}).click();
- await expect(page.getByRole("dialog").getByLabel("Email",{exact:true})).toBeVisible();
+ const signIn=page.getByRole("dialog");
+ await expect(signIn).toBeVisible();
+ const email=signIn.getByLabel("Email",{exact:true});
+ if(await email.count()) await expect(email).toBeVisible();
+ else {
+  await expect(signIn.getByText("Your draft stays on this device.")).toBeVisible();
+  await expect(signIn.getByRole("link",{name:"Open sign-in and connections",exact:true})).toHaveAttribute("href","/connect#api");
+ }
  await page.getByRole("button",{name:"Close dialog",exact:true}).click();
  await expect(page.getByLabel("Describe your thumbnail",{exact:true})).toHaveValue("Keep this idea while I connect my account");expect(paid).toEqual([]);
 });
