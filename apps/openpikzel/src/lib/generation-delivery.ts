@@ -34,7 +34,6 @@ export async function deliverImages<T extends {creations:Creation[];partial:bool
     const index=cursor++;
     if(index>=total)return;
     const creation=items[index];
-    report(creation.id,"pending");
     stage("analyzing",reviewed,total);
     try{
      await review(creation);
@@ -50,12 +49,14 @@ export async function deliverImages<T extends {creations:Creation[];partial:bool
   }));
  };
  if(options.onReview){
+  for(const creation of items)report(creation.id,"pending");
   const work=startReviews();
   let holdTimer:ReturnType<typeof setTimeout>|undefined;
   const hold=new Promise<void>((resolve)=>{holdTimer=setTimeout(resolve,options.holdMs??45_000);});
   await Promise.race([work,hold]);
   if(holdTimer)clearTimeout(holdTimer);
   if(!live())throw new Error(workspaceChanged);
+  // If onImages throws here, background reviews keep calling review() and onReview; OP-7 must handle that.
   await options.onImages(result);
   if(!live())throw new Error(workspaceChanged);
   if(reviewed<total)stage("review-pending",reviewed,total);

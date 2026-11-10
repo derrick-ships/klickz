@@ -227,4 +227,44 @@ describe("deliverImages", () => {
     expect(settled).toBe(true);
     expect(events.at(-1)).toBe("ready");
   });
+
+  it("marks every creation pending before the hold reveal, then scores them two at a time", async () => {
+    const items = [item("a"), item("b"), item("c"), item("d")];
+    const events: string[] = [];
+    let inFlight = 0,
+      maxInFlight = 0;
+    const finished = deliverImages({
+      generate: async () => ({ creations: items, partial: false }),
+      review: async () => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 60_000));
+        } finally {
+          inFlight--;
+        }
+      },
+      current: () => true,
+      onImages: () => {
+        events.push("images");
+      },
+      onReview: (id, status) => {
+        events.push(`${id}:${status}`);
+      },
+      onStage: () => {},
+      holdMs: 1_000,
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(events).toContain("images");
+    for (const creation of items) {
+      expect(events).toContain(`${creation.id}:pending`);
+      expect(events.indexOf(`${creation.id}:pending`)).toBeLessThan(events.indexOf("images"));
+      expect(events).not.toContain(`${creation.id}:scored`);
+    }
+    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await finished;
+    for (const creation of items) expect(events).toContain(`${creation.id}:scored`);
+    expect(maxInFlight).toBe(2);
+  });
 });
