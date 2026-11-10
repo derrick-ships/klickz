@@ -13,6 +13,9 @@ import {
   type Settings,
   type TextProvider,
 } from "./types";
+import type { VisionProvider } from "./vision-provider";
+import { missingVisionKeyMessage } from "./score-on-generate";
+import { forgetPendingRequest, rememberPendingRequest } from "./pending-requests";
 type Asset = { id: string; blob: Blob };
 type Collection = "creations" | "personas" | "styles" | "conversations";
 export function useStudio() {
@@ -35,6 +38,7 @@ export function useStudio() {
     version = useRef(0),
     userRef = useRef<string | null>(null),
     pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
+  const pendingAnalysis = useRef(new Map<string, string>());
   const cloud = !!user && !!db.current,
     live = cloud && !!config?.ai && (!!config?.openai || !!config?.google);
   const load = useCallback(async () => {
@@ -126,7 +130,7 @@ export function useStudio() {
             if (next !== userRef.current) {
               userRef.current = next;
               setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:next?"loading":"ready"}:current);
-              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;
+              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();
               version.current++;
               setCreations([]);
               setPersonas([]);
@@ -413,7 +417,7 @@ export function useStudio() {
     videoBrief = "",
     includeVision = false,
     videoUrl = "",
-    critiqueProvider: TextProvider = "openai",
+    critiqueProvider?: VisionProvider,
   ) {
     const epoch=ownerEpoch.current;
     if (!cloud)
@@ -425,19 +429,18 @@ export function useStudio() {
         "Scoring is not enabled in this workspace. Your saved images remain available to review and download.",
       );
     if (!config?.jev) throw new Error("Connect your Jev API key in Connections, then analyze this thumbnail again.");
-    if(includeVision&&!config?.[critiqueProvider])throw new Error("Connect your selected "+(critiqueProvider==="openai"?"OpenAI":"Google")+" API key for the extra image review.");
+    if(includeVision&&!(critiqueProvider&&config?.[critiqueProvider]))throw new Error(missingVisionKeyMessage(critiqueProvider));
     const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl, critiqueProvider };
     const fingerprint = JSON.stringify(intent);
-    if (pendingRequest.current?.fingerprint !== fingerprint)
-      pendingRequest.current = { fingerprint, id: crypto.randomUUID() };
+    const requestId = rememberPendingRequest(pendingAnalysis.current, item.id, fingerprint);
     const result = await api("/api/analyze", {
       ...intent,
-      requestId: pendingRequest.current.id,
+      requestId,
     });
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Check the original account for the result.");
     await load();
     ensureCurrentOwner();
-    pendingRequest.current = null;
+    forgetPendingRequest(pendingAnalysis.current, item.id, fingerprint);
     return result;
   }
   async function saveProfile(kind:"persona"|"style",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]}){

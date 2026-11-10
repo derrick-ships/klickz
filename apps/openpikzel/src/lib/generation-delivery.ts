@@ -10,8 +10,10 @@ export async function deliverImages<T extends {creations:Creation[];partial:bool
  onReview?:(id:string,status:ReviewStatus)=>void;holdMs?:number;
 }){
  const live=()=>options.current();
- const stage=(value:DeliveryStage,reviewed:number,total:number)=>{if(live())options.onStage(value,reviewed,total);};
- const report=(id:string,status:ReviewStatus)=>{if(live())options.onReview?.(id,status);};
+ let closed=false;
+ const stage=(value:DeliveryStage,reviewed:number,total:number)=>{if(live()&&!closed)options.onStage(value,reviewed,total);};
+ const report=(id:string,status:ReviewStatus)=>{if(live()&&!closed)options.onReview?.(id,status);};
+ const reveal=async(result:T)=>{try{await options.onImages(result);}catch(error){closed=true;throw error;}};
  stage("generating",0,0);
  let result:T;
  try{result=await options.generate();}catch(error){stage("failed",0,0);throw error;}
@@ -19,7 +21,7 @@ export async function deliverImages<T extends {creations:Creation[];partial:bool
  const items=result.creations,total=items.length;
  if(!options.review){
   for(const creation of items)report(creation.id,"skipped");
-  await options.onImages(result);
+  await reveal(result);
   if(!live())throw new Error(workspaceChanged);
   stage("image-ready",0,total);
   return result;
@@ -56,8 +58,7 @@ export async function deliverImages<T extends {creations:Creation[];partial:bool
   await Promise.race([work,hold]);
   if(holdTimer)clearTimeout(holdTimer);
   if(!live())throw new Error(workspaceChanged);
-  // If onImages throws here, background reviews keep calling review() and onReview; OP-7 must handle that.
-  await options.onImages(result);
+  await reveal(result);
   if(!live())throw new Error(workspaceChanged);
   if(reviewed<total)stage("review-pending",reviewed,total);
   await work;
@@ -65,7 +66,7 @@ export async function deliverImages<T extends {creations:Creation[];partial:bool
   stage(failed?"review-pending":"ready",reviewed,total);
   return result;
  }
- await options.onImages(result);
+ await reveal(result);
  if(!live())throw new Error(workspaceChanged);
  await startReviews();
  if(!live())throw new Error(workspaceChanged);
