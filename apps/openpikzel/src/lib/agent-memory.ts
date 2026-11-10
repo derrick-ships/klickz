@@ -8,7 +8,7 @@ type MemoryAuth = {
 };
 
 const secretPattern =
-  /sk-|sb_secret_|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|[0-9a-fA-F]{32,}|\b[A-Z][A-Z0-9_]*=\S+/;
+  /\bsk-[A-Za-z0-9_-]{16,}|\bsb_secret_[A-Za-z0-9_-]{8,}|\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|\b[0-9a-fA-F]{32,}\b|\b[A-Z][A-Z0-9_]{2,}=\S+/;
 
 export function looksLikeSecret(value: string) {
   return secretPattern.test(value);
@@ -41,7 +41,11 @@ export async function rememberFact(
     })
     .select("id,fact,tags,created_at")
     .single();
-  if (result.error) throw new AppError(503, "The fact could not be saved.");
+  if (result.error) {
+    if (/Memory limit reached/i.test(String(result.error.message || result.error)))
+      throw new AppError(400, "memory is full, forget something first");
+    throw new AppError(503, "The fact could not be saved.");
+  }
   return result.data;
 }
 
@@ -71,7 +75,8 @@ export async function forgetFact(context: MemoryAuth, input: { id: string }) {
     .from("studio_agent_memory")
     .delete()
     .eq("id", input.id)
-    .eq("user_id", context.user.id);
+    .eq("user_id", context.user.id)
+    .select("id");
   if (result.error) throw new AppError(503, "The fact could not be removed.");
-  return { forgotten: result.count !== 0 };
+  return { forgotten: (result.data || []).length > 0 };
 }

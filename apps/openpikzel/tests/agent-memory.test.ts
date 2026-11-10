@@ -14,8 +14,12 @@ const fixtureHex = "0123456789abcdef0123456789abcdef";
 const fixtureAssign = "API_KEY=fixture-0000FAKE";
 const user = { id: "11111111-1111-4111-8111-111111111111" };
 
-function memoryContext(scope = ["studio:agent"]) {
-  const rows: any[] = [];
+function memoryContext(
+  scope = ["studio:agent"],
+  extras: { rows?: any[]; userId?: string; insertError?: { message: string } } = {},
+) {
+  const rows: any[] = extras.rows || [];
+  const owner = extras.userId || user.id;
   const db = {
     from() {
       let action = "select",
@@ -41,7 +45,10 @@ function memoryContext(scope = ["studio:agent"]) {
           action = "delete";
           return chain;
         },
-        select: () => chain,
+        select: () => {
+          if (action === "delete") action = "delete-select";
+          return chain;
+        },
         eq: (k: string, v: string) => {
           filters[k] = v;
           return chain;
@@ -57,6 +64,7 @@ function memoryContext(scope = ["studio:agent"]) {
         },
         single: async () => {
           if (action === "insert") {
+            if (extras.insertError) return { data: null, error: extras.insertError };
             const row = {
               id: "ccccccc1-ccc1-4cc1-8cc1-ccccccccccc1",
               created_at: "2026-11-10T11:50:00.000Z",
@@ -70,6 +78,8 @@ function memoryContext(scope = ["studio:agent"]) {
         },
         then: (resolve: any) => {
           if (action === "insert") {
+            if (extras.insertError)
+              return Promise.resolve({ data: null, error: extras.insertError }).then(resolve);
             const row = {
               id: "ccccccc1-ccc1-4cc1-8cc1-ccccccccccc1",
               created_at: "2026-11-10T11:50:00.000Z",
@@ -79,15 +89,16 @@ function memoryContext(scope = ["studio:agent"]) {
             rows.push(row);
             return Promise.resolve({ data: [row], error: null }).then(resolve);
           }
-          if (action === "delete") {
-            const kept = rows.filter((row) => {
-              if (filters.id && row.id === filters.id && filters.user_id === row.user_id)
-                return false;
-              return true;
-            });
-            const count = rows.length - kept.length;
+          if (action === "delete" || action === "delete-select") {
+            const removed = rows.filter(
+              (row) => filters.id === row.id && filters.user_id === row.user_id,
+            );
+            const kept = rows.filter((row) => !removed.includes(row));
             rows.splice(0, rows.length, ...kept);
-            return Promise.resolve({ data: null, error: null, count }).then(resolve);
+            return Promise.resolve({
+              data: action === "delete-select" ? removed.map((row) => ({ id: row.id })) : null,
+              error: null,
+            }).then(resolve);
           }
           const data = matched()
             .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
@@ -99,7 +110,7 @@ function memoryContext(scope = ["studio:agent"]) {
       return chain;
     },
   };
-  return { db, user, oauth: { scope }, rows };
+  return { db, user: { id: owner }, oauth: { scope }, rows };
 }
 
 async function captureLogs<T>(fn: () => Promise<T>) {
@@ -212,5 +223,51 @@ describe("agent memory tools", () => {
     )).toBe(true);
     expect(recalled.facts[0].fact).toBe("Packaging note 20");
     expect(recalled.facts[19].fact).toBe("Packaging note 1");
+  });
+
+  it("accepts ordinary hyphenated phrases that are not keys", async () => {
+    const ctx = memoryContext();
+    for (const fact of ["risk-free", "task-list", "Ask-me-anything", "desk-mounted"]) {
+      const saved = await rememberFact(ctx, { fact, agent: "default" });
+      expect(saved.fact).toBe(fact);
+    }
+    expect(ctx.rows).toHaveLength(4);
+  });
+
+  it("returns forgotten false for an unknown or another user's id", async () => {
+    const aliceCtx = memoryContext();
+    const saved = await rememberFact(aliceCtx, {
+      fact: "The usual hook is a close-up face.",
+      agent: "default",
+    });
+    expect(
+      (await forgetFact(aliceCtx, { id: "99999999-9999-4999-8999-999999999999" }))
+        .forgotten,
+    ).toBe(false);
+    const bobCtx = memoryContext(["studio:agent"], {
+      rows: aliceCtx.rows,
+      userId: "22222222-2222-4222-8222-222222222222",
+    });
+    expect((await forgetFact(bobCtx, { id: saved.id })).forgotten).toBe(false);
+    expect(aliceCtx.rows).toHaveLength(1);
+  });
+
+  it("returns 4xx with a full-memory message when the row cap is hit", async () => {
+    const ctx = memoryContext(["studio:agent"], {
+      insertError: { message: "Memory limit reached." },
+    });
+    try {
+      await rememberFact(ctx, {
+        fact: "The usual hook is a close-up face.",
+        agent: "default",
+      });
+      throw new Error("should have failed");
+    } catch (error) {
+      expectRejected(error, 400);
+      expect((error as AppError).message).toBe(
+        "memory is full, forget something first",
+      );
+    }
+    expect(ctx.rows).toHaveLength(0);
   });
 });

@@ -31,7 +31,10 @@ vi.mock("../src/lib/oauth/core", async () => {
                 action = "delete";
                 return chain;
               },
-              select: () => chain,
+              select: () => {
+                if (action === "delete") action = "delete-select";
+                return chain;
+              },
               eq: (k: string, v: string) => {
                 filters[k] = v;
                 return chain;
@@ -76,19 +79,20 @@ vi.mock("../src/lib/oauth/core", async () => {
               },
               then: (resolve: any) => {
                 if (table === "studio_agent_memory") {
-                  if (action === "delete") {
-                    const before = state.memory.length;
-                    state.memory = state.memory.filter(
+                  if (action === "delete" || action === "delete-select") {
+                    const removed = state.memory.filter(
                       (row) =>
-                        !(
-                          filters.id === row.id &&
-                          filters.user_id === row.user_id
-                        ),
+                        filters.id === row.id && filters.user_id === row.user_id,
+                    );
+                    state.memory = state.memory.filter(
+                      (row) => !removed.includes(row),
                     );
                     return Promise.resolve({
-                      data: null,
+                      data:
+                        action === "delete-select"
+                          ? removed.map((row) => ({ id: row.id }))
+                          : null,
                       error: null,
-                      count: before - state.memory.length,
                     }).then(resolve);
                   }
                   const data = state.memory
@@ -290,4 +294,11 @@ it("remembers, recalls and forgets a fact when studio:agent is granted", async (
     })
   ).json();
   expect(forgotten.result.structuredContent.forgotten).toBe(true);
+});
+
+it("marks forget_fact as a destructive tool", async () => {
+  state.scope = ["studio:read", "studio:write", "studio:ai", "studio:agent"];
+  const tools = await (await call("tools/list", {})).json();
+  const forget = tools.result.tools.find((t: any) => t.name === "forget_fact");
+  expect(forget.annotations.destructiveHint).toBe(true);
 });

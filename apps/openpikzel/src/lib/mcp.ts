@@ -100,6 +100,7 @@ export async function createMcpServer(token: string) {
     scope: Scope,
     work: (args: Record<string, any>) => Promise<Record<string, unknown>>,
     readOnly = false,
+    destructive = false,
   ) =>
     registerAppTool(
       server,
@@ -109,7 +110,7 @@ export async function createMcpServer(token: string) {
         inputSchema,
         annotations: {
           readOnlyHint: readOnly,
-          destructiveHint: false,
+          destructiveHint: destructive,
           idempotentHint: readOnly,
           openWorldHint: !readOnly,
         },
@@ -526,7 +527,7 @@ export async function createMcpServer(token: string) {
   tool("browse_style_channel","Browse public YouTube channel thumbnails with your own connected YouTube Data API key.",{channel:z.string().max(300),order:z.enum(["recent","popular"]).default("recent"),pageToken:z.string().max(300).default("")},"studio:read",args=>backend(browseChannel,args),true);
   tool("remember_fact","Remember a short fact for this user. Values that look like secrets are rejected and never stored.",{fact:z.string().min(1).max(1000),tags:z.array(z.string().max(40)).max(12).optional(),agent:z.string().min(1).max(60).optional(),source:z.string().max(200).optional()},"studio:agent",args=>rememberFact(context,{fact:args.fact,tags:args.tags,agent:args.agent,source:args.source}));
   tool("recall_facts","Recall this user's newest matching remembered facts, at most 20.",{query:z.string().max(200).optional()},"studio:agent",args=>recallFacts(context,args),true);
-  tool("forget_fact","Forget one of this user's remembered facts by id.",{id:z.string().uuid()},"studio:agent",args=>forgetFact(context,{id:args.id}));
+  tool("forget_fact","Forget one of this user's remembered facts by id.",{id:z.string().uuid()},"studio:agent",args=>forgetFact(context,{id:args.id}),false,true);
   server.registerResource(
     "agent-guide",
     "openpikzels://agent-guide",
