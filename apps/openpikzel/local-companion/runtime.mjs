@@ -31633,6 +31633,24 @@ async function callVisionTool(name, args, { workspace, workspaces, loadSharp } =
   throw new Error("Unsupported host tool.");
 }
 
+// local-companion/memory-tools.mjs
+var textResult2 = (v2) => ({ content: [{ type: "text", text: JSON.stringify(v2) }] });
+var memoryToolDefinitions = [
+  { name: "memory_write", description: "Remember a short fact for this user in their private OpenPikzels memory.", inputSchema: { type: "object", properties: { fact: { type: "string" }, tags: { type: "array", items: { type: "string" } }, agent: { type: "string" }, source: { type: "string" } }, required: ["fact"] } },
+  { name: "memory_recall", description: "Recall this user's newest matching remembered facts, at most 20.", inputSchema: { type: "object", properties: { query: { type: "string" } } } }
+];
+function argsOf(args, keys) {
+  const out = {};
+  for (const key2 of keys) if (args?.[key2] !== void 0) out[key2] = args[key2];
+  return out;
+}
+async function callMemoryTool(name, args, { client, linked } = {}) {
+  if (!linked) return textResult2({ status: "not_linked", instruction: "The OpenPikzels account is not linked. Call suggest_service so the user can connect it." });
+  if (name === "memory_write") return client.callTool({ name: "remember_fact", arguments: argsOf(args, ["fact", "tags", "agent", "source"]) });
+  if (name === "memory_recall") return client.callTool({ name: "recall_facts", arguments: argsOf(args, ["query"]) });
+  throw new Error("Unsupported host tool.");
+}
+
 // local-companion/mcp-oauth.mjs
 import { randomBytes as randomBytes2, createCipheriv as createCipheriv2, createDecipheriv as createDecipheriv2 } from "node:crypto";
 var McpOAuth = class {
@@ -31938,7 +31956,7 @@ function accountResource() {
   return process.env.OPENPIKZELS_MCP_URL || "https://openpikzels.com/mcp";
 }
 var digest = (v2) => createHash2("sha256").update(JSON.stringify(v2)).digest("hex");
-var textResult2 = (v2) => ({ content: [{ type: "text", text: JSON.stringify(v2) }] });
+var textResult3 = (v2) => ({ content: [{ type: "text", text: JSON.stringify(v2) }] });
 var Engine = class {
   constructor(directory, { pool, vault, oauth } = {}) {
     this.directory = directory;
@@ -32066,6 +32084,8 @@ var Engine = class {
       const b2 = await this.vault.get(this.oauth.id(agent, c2.name));
       for (const v2 of [b2?.tokens?.access_token, b2?.tokens?.refresh_token, b2?.client?.client_secret]) if (v2) secrets.push(v2);
     }
+    const account = await this.vault.get(this.oauth.id(agent, accountServerName));
+    for (const v2 of [account?.tokens?.access_token, account?.tokens?.refresh_token, account?.client?.client_secret]) if (v2) secrets.push(v2);
     const variants = secrets.filter((v2) => typeof v2 === "string" && v2.length).flatMap((v2) => [v2, JSON.stringify(v2).slice(1, -1)]).sort((a2, b2) => b2.length - a2.length);
     const redactString = (value2) => {
       for (const secret of variants) value2 = value2.split(secret).join("[private credential]");
@@ -32086,13 +32106,13 @@ var Engine = class {
     const valid = validateCall(name, input);
     return this.locked(agent, async () => {
       const s2 = await this.read(agent);
-      if (findPending(s2.messages)) return textResult2({ status: "awaiting_user", instruction: "Stop. The current card needs an answer." });
+      if (findPending(s2.messages)) return textResult3({ status: "awaiting_user", instruction: "Stop. The current card needs an answer." });
       const id2 = randomUUID2();
       s2.messages.push({ role: "assistant", call: { id: id2, name, input: valid }, ...extra, at: Date.now() });
       const ack = { status: "delivered", instruction: "This turn is over. Wait for the user to answer this card." };
       s2.messages.push({ role: "tool", callId: id2, content: ack });
       await this.save(agent, s2);
-      return textResult2(ack);
+      return textResult3(ack);
     });
   }
   async hostTools(agent = "default") {
@@ -32100,6 +32120,7 @@ var Engine = class {
     const tools = [...toolDefinitions.filter((t2) => capabilities[t2.name] !== false), { name: "mcp_register", description: "Probe a remote MCP server before saving. Use placeholders for credentials.", inputSchema: { type: "object", properties: { config: { type: "object" } }, required: ["config"] } }, { name: "mcp_login", description: "Ask the user to connect an MCP server. Device codes never enter this chat.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } }, { name: "mcp_login_complete", description: "Check whether the user finished MCP sign-in.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } }];
     if (capabilities.web !== false) tools.push(...webToolDefinitions);
     if (capabilities.vision !== false) tools.push(...visionToolDefinitions);
+    if ((await this.accountStatus(agent)).linked && capabilities.memory !== false) tools.push(...memoryToolDefinitions);
     return tools;
   }
   async hostCall(agent, name, args) {
@@ -32108,14 +32129,14 @@ var Engine = class {
       if (name === "notify") {
         const v2 = validateCall(name, args);
         await this.append(agent, { role: "assistant", notification: v2, at: Date.now() });
-        return textResult2({ status: "delivered" });
+        return textResult3({ status: "delivered" });
       }
       return this.card(agent, name, args);
     }
-    if (findPending((await this.read(agent)).messages)) return textResult2({ status: "awaiting_user" });
+    if (findPending((await this.read(agent)).messages)) return textResult3({ status: "awaiting_user" });
     if (name === "mcp_register") {
       const config2 = args.config, requiresConsent = !!config2?.command || /\$\{[A-Z][A-Z0-9_]*\}/.test(JSON.stringify(config2));
-      if (!requiresConsent) return textResult2(await this.register(agent, config2));
+      if (!requiresConsent) return textResult3(await this.register(agent, config2));
       const hash = digest({ register: config2 });
       const decision = await this.locked(agent, async () => {
         const state = await this.read(agent), request = state.messages.findLast((m2) => m2.operationHash === hash && m2.call);
@@ -32130,13 +32151,13 @@ var Engine = class {
         return "allow";
       });
       if (decision === "ask") return this.card(agent, "request_approval", { approvals: [{ action: "Connect " + config2.name, detail: "Testing this server may run its local command or send the named private credentials to " + (config2.url || config2.command) + "." }] }, { operation: { register: config2 }, operationHash: hash });
-      if (decision !== "allow") return textResult2({ status: decision, instruction: "Stop. Honor the current approval decision; do not re-ask after denial." });
-      return textResult2(await this.register(agent, config2, { allowCommand: true, allowSecrets: true }));
+      if (decision !== "allow") return textResult3({ status: decision, instruction: "Stop. Honor the current approval decision; do not re-ask after denial." });
+      return textResult3(await this.register(agent, config2, { allowCommand: true, allowSecrets: true }));
     }
     if (name === "mcp_login") return this.card(agent, "request_mcp_sign_in", { name: args.name });
     if (name === "mcp_login_complete") {
       const c2 = await this.config(agent, args.name);
-      return textResult2({ connected: !!await this.oauth.token(agent, c2) });
+      return textResult3({ connected: !!await this.oauth.token(agent, c2) });
     }
     if (name === "fetch_url" || name === "download_file") {
       if ((await this.read(agent)).capabilities?.web === false) throw new Error("This web capability is disabled.");
@@ -32147,6 +32168,12 @@ var Engine = class {
       const agentName = this.agent(agent);
       return callVisionTool(name, args, { workspace: this.workspace(agentName), workspaces: [this.workspace(agentName), join5(this.directory, agentName, "workspace")] });
     }
+    if (name === "memory_write" || name === "memory_recall") {
+      if ((await this.read(agent)).capabilities?.memory === false) throw new Error("This memory capability is disabled.");
+      const linked = (await this.accountStatus(agent)).linked;
+      const client = linked ? await this.accountClient(agent) : null;
+      return this.redact(agent, await callMemoryTool(name, args, { client, linked }));
+    }
     throw new Error("Unsupported host tool.");
   }
   async upstreamTools(agent, config2) {
@@ -32156,7 +32183,7 @@ var Engine = class {
   async upstreamCall(agent, config2, name, args, signal) {
     if (signal?.aborted) throw new Error("Cancelled before dispatch.");
     const s2 = await this.read(agent);
-    if (findPending(s2.messages)) return textResult2({ status: "awaiting_user" });
+    if (findPending(s2.messages)) return textResult3({ status: "awaiting_user" });
     const operation = { server: config2.name, tool: name, args }, hash = digest(operation);
     const authorization = await this.locked(agent, async () => {
       const state = await this.read(agent);
@@ -32173,9 +32200,9 @@ var Engine = class {
       await this.save(agent, state);
       return { approved: true };
     });
-    if (authorization.pending) return textResult2({ status: "awaiting_user" });
-    if (authorization.denied) return textResult2({ status: "denied", instruction: "The user declined this action. Do not retry it, re-ask, or find a workaround." });
-    if (authorization.consumed) return textResult2({ status: "already_attempted", instruction: "This approval was already used. Check the service before any new action." });
+    if (authorization.pending) return textResult3({ status: "awaiting_user" });
+    if (authorization.denied) return textResult3({ status: "denied", instruction: "The user declined this action. Do not retry it, re-ask, or find a workaround." });
+    if (authorization.consumed) return textResult3({ status: "already_attempted", instruction: "This approval was already used. Check the service before any new action." });
     if (!authorization.approved) return this.card(agent, "request_approval", { approvals: [{ action: "Run " + config2.name + " / " + name, detail: "This calls the connected service and may use its credits. Review the arguments before allowing it." }] }, { operation: await this.redact(agent, operation), operationHash: hash });
     const client = await this.client(agent, config2);
     const tool = (await client.listTools()).tools.find((t2) => t2.name === name);
@@ -32214,6 +32241,12 @@ var Engine = class {
   }
   accountConfig() {
     return { name: accountServerName, url: accountResource(), transport: "http" };
+  }
+  async accountClient(agent) {
+    const config2 = this.accountConfig();
+    const token = await this.oauth.token(agent, config2);
+    if (!token?.access_token) throw new Error("The OpenPikzels account is not linked.");
+    return this.pool.acquire(agent, { ...config2, headers: { Authorization: "Bearer " + token.access_token, "X-OpenPikzels-Agent": agent } });
   }
   async linkAccount(agent, origin) {
     this.agent(agent);
