@@ -101,11 +101,6 @@ export async function claimSignedUpload(
     .maybeSingle();
   const row = found.data;
   if (!row) return { tracked: false as const };
-  if (row.used_at && row.used_request_id !== requestId)
-    throw new AppError(
-      409,
-      "This upload was already analyzed. Request a new upload link.",
-    );
   const object = await storageObject(db, path);
   if (!object?.created_at) throw new AppError(404, "No file was uploaded for this link.");
   if (new Date(object.created_at).getTime() > new Date(row.expires_at).getTime())
@@ -117,28 +112,24 @@ export async function claimSignedUpload(
   const mime = metadata.mimetype;
   if (mime && !["image/png", "image/jpeg", "image/webp"].includes(String(mime)))
     throw new AppError(400, "Use PNG, JPEG or WebP.");
-  if (!row.used_at) {
-    const claimed = await db
-      .from("studio_upload_urls")
-      .update({
-        used_at: uploadTime.now().toISOString(),
-        used_request_id: requestId,
-      })
-      .eq("id", row.id)
-      .eq("user_id", userId)
-      .is("used_at", null)
-      .select("id");
-    if (claimed.error) throw new AppError(503, "The upload could not be claimed.");
-    const updated = Array.isArray(claimed.data)
-      ? claimed.data
-      : claimed.data
-        ? [claimed.data]
-        : [];
-    if (!updated.length)
-      throw new AppError(
-        409,
-        "This upload was already analyzed. Request a new upload link.",
-      );
-  }
-  return { tracked: true as const };
+  const claimed = await db.rpc("studio_claim_upload_url", {
+    upload_id: row.id,
+    request_id: requestId,
+  });
+  if (claimed.error) throw new AppError(503, "The upload could not be claimed.");
+  if (claimed.data) return { tracked: true as const };
+  const again = await db
+    .from("studio_upload_urls")
+    .select("*")
+    .eq("id", row.id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const current = again.data;
+  if (!current) throw new AppError(404, "No file was uploaded for this link.");
+  if (uploadTime.now().getTime() > new Date(current.expires_at).getTime())
+    throw new AppError(400, "upload link expired, request a new one");
+  throw new AppError(
+    409,
+    "This upload was already analyzed. Request a new upload link.",
+  );
 }

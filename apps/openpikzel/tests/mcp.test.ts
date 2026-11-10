@@ -178,6 +178,21 @@ vi.mock("../src/lib/oauth/core", async () => {
             };
             return chain;
           },
+          rpc: async (name: string, args: any) => {
+            if (name !== "studio_claim_upload_url")
+              return { data: null, error: { message: "unknown rpc" } };
+            const row = state.uploads.find((u) => u.id === args.upload_id);
+            if (!row) return { data: null, error: null };
+            const now = Date.now();
+            if (Date.parse(row.expires_at) < now) return { data: null, error: null };
+            if (row.used_at && row.used_request_id !== args.request_id)
+              return { data: null, error: null };
+            Object.assign(row, {
+              used_at: new Date(now).toISOString(),
+              used_request_id: args.request_id,
+            });
+            return { data: row, error: null };
+          },
           storage: {
             from: () => ({
               createSignedUrl: async (path: string) => ({
@@ -661,4 +676,44 @@ describe("OP-17 analyze_thumbnail and create_upload_url", () => {
     expect(second.structuredContent.creationId).toBe(first.structuredContent.creationId);
     expect(second.structuredContent.score.overall).toBe(60);
   });
+
+  it("two concurrent analyze calls on the same upload id have one winner and one billed analyze", async () => {
+  const created = await invoke("create_upload_url", {});
+  const imagePath = created.structuredContent.imagePath;
+  plantUpload(imagePath, "2026-11-10T00:01:00.000Z");
+  const [first, second] = await Promise.all([
+    invoke("analyze_thumbnail", { imagePath, title: "The actual video title", requestId: requestA }),
+    invoke("analyze_thumbnail", { imagePath, title: "The actual video title", requestId: requestB }),
+  ]);
+  const results = [first, second];
+  const won = results.filter((r) => r.isError !== true);
+  const lost = results.filter((r) => r.isError === true);
+  expect(won).toHaveLength(1);
+  expect(lost).toHaveLength(1);
+  expect(errorText(lost[0])).toMatch(/already/i);
+  expect(state.analyzeCharges).toBe(1);
+});
+
+  it("a same-requestId replay after expires_at is rejected", async () => {
+  const created = await invoke("create_upload_url", {});
+  const imagePath = created.structuredContent.imagePath;
+  plantUpload(imagePath, "2026-11-10T00:01:00.000Z");
+  const first = await invoke("analyze_thumbnail", {
+    imagePath,
+    title: "The actual video title",
+    requestId: requestA,
+  });
+  expect(first.isError).not.toBe(true);
+  // Object was uploaded inside the original window (00:01 < original expires_at).
+  // expires_at is then moved earlier than now but still after created_at, so only the claim's now() <= expires_at should reject a replay.
+  state.uploads[0].expires_at = "2026-11-10T00:04:00.000Z";
+  const replay = await invoke("analyze_thumbnail", {
+    imagePath,
+    title: "The actual video title",
+    requestId: requestA,
+  });
+  expect(replay.isError).toBe(true);
+  expect(errorText(replay)).toBe("upload link expired, request a new one");
+  expect(state.analyzeCharges).toBe(1);
+});
 });

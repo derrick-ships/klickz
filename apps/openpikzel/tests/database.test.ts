@@ -485,3 +485,58 @@ describe("agent memory isolation", () => {
     }
   });
 });
+
+describe("signed upload claim and grants", () => {
+  const uploadId = "dddddddd-ddd1-4dd1-8dd1-ddddddddddd1",
+    requestA = "dddddddd-ddd1-4dd1-8dd1-ddddddddddd2",
+    requestB = "dddddddd-ddd1-4dd1-8dd1-ddddddddddd3",
+    uploadPath = `${alice}/references/${uploadId}.png`;
+  async function insertOpenUpload() {
+    await db.exec(
+      `insert into studio_upload_urls(id,user_id,path,issued_at,expires_at) values('${uploadId}','${alice}','${uploadPath}',now(),now()+interval '5 minutes')`,
+    );
+  }
+  it("does not let an authenticated user update or reset used_at", async () => {
+    await db.exec("reset role;");
+    await db.exec(`delete from studio_upload_urls where user_id='${alice}'`);
+    await asUser(alice);
+    await insertOpenUpload();
+    const claimed = await db.query<{ used_request_id: string }>(
+      `select * from studio_claim_upload_url('${uploadId}'::uuid,'${requestA}'::uuid)`,
+    );
+    expect(claimed.rows).toHaveLength(1);
+    expect(claimed.rows[0].used_request_id).toBe(requestA);
+    await expect(
+      db.exec(`update studio_upload_urls set used_at=null where id='${uploadId}'`),
+    ).rejects.toThrow();
+    await expect(
+      db.exec(`update studio_upload_urls set used_at=now() where id='${uploadId}'`),
+    ).rejects.toThrow();
+    const row = await db.query<{ used_at: string | null; used_request_id: string }>(
+      `select used_at,used_request_id from studio_upload_urls where id='${uploadId}'`,
+    );
+    expect(row.rows[0].used_at).not.toBeNull();
+    expect(row.rows[0].used_request_id).toBe(requestA);
+  });
+  it("lets only one of two concurrent claims with different request ids win", async () => {
+    await db.exec("reset role;");
+    await db.exec(`delete from studio_upload_urls where user_id='${alice}'`);
+    await asUser(alice);
+    await insertOpenUpload();
+    const [first, second] = await Promise.all([
+      db.query<{ used_request_id: string }>(
+        `select * from studio_claim_upload_url('${uploadId}'::uuid,'${requestA}'::uuid)`,
+      ),
+      db.query<{ used_request_id: string }>(
+        `select * from studio_claim_upload_url('${uploadId}'::uuid,'${requestB}'::uuid)`,
+      ),
+    ]);
+    const winners = [...first.rows, ...second.rows].filter((row) => row.used_request_id);
+    expect(winners).toHaveLength(1);
+    const stored = await db.query<{ used_request_id: string }>(
+      `select used_request_id from studio_upload_urls where id='${uploadId}'`,
+    );
+    expect(stored.rows[0].used_request_id).toBe(winners[0].used_request_id);
+    expect([requestA, requestB]).toContain(stored.rows[0].used_request_id);
+  });
+});
