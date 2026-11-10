@@ -12,16 +12,29 @@ Saving should feel like the last pixel clicking into place. The Operate surface 
 | Compact navigation | Spatial continuity; pointer/touch only | Transform220ms arrival,160ms exit, same cubic easing. Existing inert/focus behavior takes effect immediately. CSS transitions retarget without a queue. Desktop layout remains immediate. |
 | Advanced controls | State indication; pointer/touch only | Opacity.6→1 and translateY(-3px)→0 over160ms with shared easing. Keyboard activation has no entrance animation. |
 
-Reduced motion removes spatial movement. The save mark and pointer controls retain only a100ms opacity confirmation; the drawer is immediate. The accessible button name includes the visible Draft saved label and the next action, Save draft again; a polite status announces success. The icon is decorative. No sound, confetti, new media, runtime library or looping effect is added.
+Reduced motion removes spatial movement. The save mark and pointer controls retain only a100ms opacity confirmation; the drawer is immediate. The accessible button name includes the visible Draft saved label and the next action, Save draft again; a polite status announces success. The icon is decorative. No sound, confetti, new media, runtime library or looping effect is added, except the finite empty-state typing (max 3 cycles) approved below.
 
 The acknowledgment runs only after the real save and library reload succeed. Failure never triggers it. Its fingerprint binds it to the saved inputs, so later edits clear it and changes during an in-flight save cannot acknowledge a different draft. Navigating history, reloading or choosing New creation does not replay it. A new real save may acknowledge again, with only one receipt and one cleanup timer.
+
+## Approved exceptions (2026-11-10, Derrick)
+
+Spec decision F approves exactly these three exceptions. Nothing else in this list is approved. CSS only; no new runtime library. All three respect `prefers-reduced-motion`.
+
+1. **Reveal.** When the real image loads, it goes from blur 12px / scale 1.02 / opacity 0 to sharp in about 450 ms. Batch cards stagger 70 ms apart. Reduced motion: a 120 ms opacity fade only.
+2. **Score count-up.** The overall number counts 0 → N in about 700 ms, and pillar bars fill with a 50 ms stagger. It plays once per creation id, never on revisits. "Partial" and "Not assessed" do not animate. Reduced motion: the final numbers appear at once. Screen readers get the final value only (`aria-live` receives the end number, not the ticks).
+3. **Living empty state.** While the prompt is empty and unfocused, the placeholder types 3-4 example prompts (about 35 ms per character, 2.5 s hold) over a fanned stack of 3 brand thumbnails. It stops after 3 cycles, on focus, on typing, when the tab is hidden, and once the user has creations. Reduced motion: one static example and a static stack.
+
+**Not approved:** hover glow, card lift and the spinning busy border. Do not add them.
+
+This section records the decision only; none of the three is implemented yet.
 
 ## Deliberate exclusions
 
 - Mode switching, keyboard navigation and focus jumps remain immediate: frequent actions should not accrue animation latency.
-- Score numerals, pillar evidence, comparison candidates and thumbnail content stay still: they are material for reading and judging.
+- Score numerals, pillar evidence, comparison candidates and thumbnail content stay still except the one-time count-up on first score: they are material for reading and judging.
 - The dotted background remains static. Existing brand takes remain finite, with no Play/Pause controls and no video for reduced-motion/data-saving visitors.
-- No paid-generation celebration is added: actual provider completion has not yet been verified live, and saving a local concept must never imply an image was rendered.
+- No paid-generation celebration is added: actual provider completion has not yet been verified live, and saving a local concept must never imply an image was rendered. The approved blur-to-sharp reveal is not a celebration: it is tied to the real image load and never plays for a saved concept or a failed request.
+- No looping effect, except the finite empty-state typing, max 3 cycles.
 
 ## Verification
 
