@@ -11,6 +11,7 @@ Saving should feel like the last pixel clicking into place. The Operate surface 
 | Successful draft save | Feedback; occasional completion | Four6px red pixels travel2px into a finished tile, opacity.35→1,200ms cubic-bezier(.23,1,.32,1),20ms stagger,260ms total. Label changes immediately to Draft saved; acknowledgment resets after2800ms. No delay before writing, showing results or accepting another action. |
 | Compact navigation | Spatial continuity; pointer/touch only | Transform220ms arrival,160ms exit, same cubic easing. Existing inert/focus behavior takes effect immediately. CSS transitions retarget without a queue. Desktop layout remains immediate. |
 | Advanced controls | State indication; pointer/touch only | Opacity.6→1 and translateY(-3px)→0 over160ms with shared easing. Keyboard activation has no entrance animation. |
+| New score (OP-11, exception 2) | Feedback; once per creation + score | Overall number counts 0→N over 700ms, shared ease-out `cubic-bezier(.23,1,.32,1)`, tabular numerals padded to the final digit count so "/100" never moves. Pillar bars fill with `transform: scaleX(0→1)` over 450ms, 50ms stagger by pillar position; the last bar lands at 650ms. Plays once per result (creation id + score timestamp, remembered on this device), never on revisit, reload or re-render; an explicit analysis plays it in the analysis dialog and the panel then stays still. "Partial", "Not assessed" and reduced motion show final values at once. Ticks are `aria-hidden`; the accessible text holds only the final value. |
 
 Reduced motion removes spatial movement. The save mark and pointer controls retain only a100ms opacity confirmation; the drawer is immediate. The accessible button name includes the visible Draft saved label and the next action, Save draft again; a polite status announces success. The icon is decorative. No sound, confetti, new media, runtime library or looping effect is added, except the finite empty-state typing (max 3 cycles) approved below.
 
@@ -26,7 +27,7 @@ Spec decision F approves exactly these three exceptions. Nothing else in this li
 
 **Not approved:** hover glow, card lift and the spinning busy border. Do not add them.
 
-This section records the decision only; none of the three is implemented yet.
+Exception 2 (score count-up) is implemented (OP-11, see the motion system table). Exceptions 1 and 3 are not implemented yet.
 
 ## Deliberate exclusions
 
@@ -38,6 +39,6 @@ This section records the decision only; none of the three is implemented yet.
 
 ## Verification
 
-`tests/browser/delight.spec.ts` exercises failed/successful saves, repeated saves, clearing on edits, no receipt replay after reload, real260ms pixel keyframes, drawer pointer/keyboard timing, controls interruption,320px reduced-motion behavior and absence of video sources. Real local IndexedDB saves and explicit error recovery are used; no provider request is made.
+`tests/browser/delight.spec.ts` exercises failed/successful saves, repeated saves, clearing on edits, no receipt replay after reload, real260ms pixel keyframes, drawer pointer/keyboard timing, controls interruption,320px reduced-motion behavior and absence of video sources. For the score count-up it checks the tick sequence, staggered fill timing, final-only accessible text, no replay after reload or revisit, a result arriving mid-count, reduced motion, 0/100/partial scores and long labels; `workspace-races.spec.ts` covers the analysis dialog hand-off, and `tests/score-count.test.ts` the timing, dropped frames and run-once guard. Real local IndexedDB saves and explicit error recovery are used; no provider request is made.
 
 Actual390/1440 captures at a frozen100ms point and settled state,320px reduced-motion capture and the mobile drawer were opened for visual review. The feedback stays in the existing footer; the rest of the layout stays steady. The final full suite and performance results are recorded in VALIDATION.md/PERFORMANCE.md and JSON reports. Native Safari/iPhone, real assistive technology and hosted AI/OAuth Allow remain unverified. This is a targeted motion refinement, ready for a final Polish pass.
