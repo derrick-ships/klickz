@@ -326,6 +326,7 @@ it("sends a Claude Messages request from the user key, with an image block and n
         expect(request.headers["anthropic-version"]).toBeDefined();
         const body = JSON.parse(request.body);
         expect(body.model).toBe(ANTHROPIC_VISION_MODEL);
+        expect(body.max_tokens).toBe(16000);
         expect(
           body.messages[0].content.some(
             (block: { type: string; source?: { type: string; data?: string } }) =>
@@ -394,5 +395,82 @@ it("returns a generic AppError when Claude fails and does not call another visio
       } finally {
         restore();
       }
+    },
+  ));
+
+it("parses a fenced JSON Claude reply", async () =>
+  providerContext.run({ anthropic: fixtureAnthropicKey }, async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      response({
+        stop_reason: "end_turn",
+        content: [
+          {
+            type: "text",
+            text: "```json\n" + JSON.stringify(visionObservations) + "\n```",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    await expect(
+      observePackaging(await sample(), "A real video title", "", undefined, "anthropic"),
+    ).resolves.toMatchObject({ summary: "Red focal scene" });
+  }));
+
+it("skips thinking blocks and reads the first text block", async () =>
+  providerContext.run({ anthropic: fixtureAnthropicKey }, async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      response({
+        stop_reason: "end_turn",
+        content: [
+          { type: "thinking", thinking: "internal notes, not JSON" },
+          { type: "text", text: JSON.stringify(visionObservations) },
+          { type: "text", text: "```this later block must be ignored```" },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    await expect(
+      observePackaging(await sample(), "A real video title", "", undefined, "anthropic"),
+    ).resolves.toMatchObject({ summary: "Red focal scene" });
+  }));
+
+it("treats stop_reason max_tokens as a generic review failure and does not fall back", async () =>
+  providerContext.run(
+    {
+      anthropic: fixtureAnthropicKey,
+      openai: "openai-should-not-be-used",
+      google: "google-should-not-be-used",
+    },
+    async () => {
+      const fetcher = vi.fn().mockResolvedValue(
+        response({
+          stop_reason: "max_tokens",
+          content: [{ type: "text", text: JSON.stringify(visionObservations) }],
+        }),
+      );
+      vi.stubGlobal("fetch", fetcher);
+      const error = await observePackaging(
+        await sample(),
+        "A real video title",
+        "",
+        undefined,
+        "anthropic",
+      ).then(
+        () => undefined,
+        (e) => e,
+      );
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.status).toBe(502);
+      expect(error.message).toBe("Image review did not finish");
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(String(fetcher.mock.calls[0][0])).toBe("https://api.anthropic.com/v1/messages");
+      expect(
+        fetcher.mock.calls.every(
+          ([u]) =>
+            !String(u).includes("api.openai.com") &&
+            !String(u).includes("generativelanguage.googleapis.com"),
+        ),
+      ).toBe(true);
     },
   ));

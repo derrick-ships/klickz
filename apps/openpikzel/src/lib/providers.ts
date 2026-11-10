@@ -172,7 +172,7 @@ export async function observePackaging(
         },
         body: JSON.stringify({
           model: anthropicVisionModel(),
-          max_tokens: 2200,
+          max_tokens: 16000,
           system: visionInstructions,
           messages: [
             {
@@ -207,13 +207,17 @@ export async function observePackaging(
       });
       if (!response.ok) throw new Error("Claude request failed");
       const payload = await response.json();
+      if (payload?.stop_reason === "max_tokens")
+        throw new Error("Claude response was truncated");
       const text = Array.isArray(payload?.content)
-        ? payload.content
-            .filter((block: { type?: string }) => block.type === "text")
-            .map((block: { text?: string }) => block.text || "")
-            .join("")
+        ? payload.content.find((block: { type?: string }) => block.type === "text")
+            ?.text || ""
         : "";
-      return observationSchema.parse(JSON.parse(text));
+      const json = String(text)
+        .trim()
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/, "");
+      return observationSchema.parse(JSON.parse(json));
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError(502, "Image review did not finish");
