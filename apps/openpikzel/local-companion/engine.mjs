@@ -114,11 +114,14 @@ export class Engine{
  async unlinkAccount(agent){
   this.agent(agent);
   const id=this.oauth.id(agent,accountServerName),stored=await this.vault.get(id);
-  if(stored?.tokens){
-   const endpoint=stored.discovery?.authorizationServerMetadata?.revocation_endpoint,token=stored.tokens.refresh_token||stored.tokens.access_token,clientId=stored.client?.client_id;
-   if(endpoint&&token&&clientId)await this.oauth.fetch(endpoint,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:clientId,token,token_type_hint:stored.tokens.refresh_token?'refresh_token':'access_token'})}).catch(()=>{});
-  }
-  await this.vault.set(id,null);return {linked:false};
+  if(!stored?.tokens)return {linked:false,revoked:false};
+  const endpoint=stored.discovery?.authorizationServerMetadata?.revocation_endpoint,token=stored.tokens.refresh_token||stored.tokens.access_token,clientId=stored.client?.client_id;
+  if(!endpoint||!token||!clientId)return {linked:true,revoked:false,error:'The account could not be unlinked. Try again.'};
+  try{
+   const response=await this.oauth.fetch(endpoint,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:clientId,token,token_type_hint:stored.tokens.refresh_token?'refresh_token':'access_token'})});
+   if(!response.ok)return {linked:true,revoked:false,error:'The account could not be unlinked. Try again.'};
+  }catch{return {linked:true,revoked:false,error:'The account could not be unlinked. Try again.'};}
+  await this.vault.set(id,null);return {linked:false,revoked:true};
  }
  async close(){await this.pool.close();}
 }

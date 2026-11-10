@@ -129,14 +129,14 @@ import {Vault} from './vault.mjs';
 const fixtureAccess='opz-test-access-0000FAKE';
 const fixtureRefresh='opz-test-refresh-0000FAKE';
 const fixtureMcp='https://1.1.1.1/mcp';
-function oauthFixture(revokes=[]){
+function oauthFixture(revokes=[],{revokeStatus=200,revokeThrow=false,revocationEndpoint=true}={}){
   return async(input,init={})=>{
     const url=String(input);
     if(url.includes('oauth-protected-resource'))return Response.json({resource:fixtureMcp,authorization_servers:['https://1.1.1.1'],scopes_supported:['studio:read','studio:agent']});
-    if(url.includes('openid-configuration')||url.includes('oauth-authorization-server'))return Response.json({issuer:'https://1.1.1.1',authorization_endpoint:'https://1.1.1.1/authorize',token_endpoint:'https://1.1.1.1/token',registration_endpoint:'https://1.1.1.1/register',revocation_endpoint:'https://1.1.1.1/oauth/revoke',response_types_supported:['code'],grant_types_supported:['authorization_code','refresh_token'],code_challenge_methods_supported:['S256'],token_endpoint_auth_methods_supported:['none']});
+    if(url.includes('openid-configuration')||url.includes('oauth-authorization-server'))return Response.json({issuer:'https://1.1.1.1',authorization_endpoint:'https://1.1.1.1/authorize',token_endpoint:'https://1.1.1.1/token',registration_endpoint:'https://1.1.1.1/register',...(revocationEndpoint?{revocation_endpoint:'https://1.1.1.1/oauth/revoke'}:{}),response_types_supported:['code'],grant_types_supported:['authorization_code','refresh_token'],code_challenge_methods_supported:['S256'],token_endpoint_auth_methods_supported:['none']});
     if(url.endsWith('/register'))return Response.json({client_id:'fixture-client',...JSON.parse(init.body)},{status:201});
     if(url.endsWith('/token')){const body=new URLSearchParams(init.body);assert.equal(body.get('grant_type'),'authorization_code');assert.ok(body.get('code_verifier'));return Response.json({access_token:fixtureAccess,refresh_token:fixtureRefresh,token_type:'Bearer',expires_in:3600,scope:'studio:read studio:agent'});}
-    if(url.endsWith('/oauth/revoke')){revokes.push(String(init.body||''));return new Response(null,{status:200});}
+    if(url.endsWith('/oauth/revoke')){if(revokeThrow)throw new Error('revoke fixture failed');revokes.push(String(init.body||''));return new Response(null,{status:revokeStatus});}
     throw new Error('Unexpected OAuth fixture endpoint.');
   };
 }
@@ -214,4 +214,51 @@ test('account unlink revokes the grant and deletes vault tokens',async t=>{
   assert.ok(revoked.get('token')===fixtureRefresh||revoked.get('token')===fixtureAccess);
   assert.equal(await vault.get(oauth.id('default','openpikzels')),null);
   assert.equal((await(await fetch(origin+'/api/account/status',{method:'POST',headers,body:'{}'})).json()).linked,false);
+});
+
+async function accountRecord(endpoint=true){
+  return {resourceUrl:fixtureMcp,tokens:{access_token:fixtureAccess,refresh_token:fixtureRefresh,expires_at:Date.now()+3600000},client:{client_id:'fixture-client'},discovery:{authorizationServerMetadata:endpoint?{revocation_endpoint:'https://1.1.1.1/oauth/revoke'}:{}}};
+}
+async function seededEngine(t,fetchFn,endpoint=true){
+  const directory=mkdtempSync(join(tmpdir(),'openpikzels-unlink-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  const vault=new Vault(join(directory,'credentials')),oauth=new McpOAuth(vault,{fetchFn}),engine=new Engine(directory,{vault,oauth});
+  await vault.set(oauth.id('default','openpikzels'),await accountRecord(endpoint));
+  return {vault,oauth,engine};
+}
+function assertUnlinkFailed(result,stored){
+  assert.notEqual(result.revoked,true);
+  assert.equal(result.linked,true);
+  assert.ok(result.error);
+  assert.equal(String(result.error).includes(fixtureAccess),false);
+  assert.equal(String(result.error).includes(fixtureRefresh),false);
+  assert.equal(stored?.tokens?.access_token,fixtureAccess);
+  assert.equal(stored?.tokens?.refresh_token,fixtureRefresh);
+}
+
+test('unlink keeps vault tokens when the revoke request throws',async t=>{
+  const {vault,oauth,engine}=await seededEngine(t,oauthFixture([],{revokeThrow:true}));
+  const result=await engine.unlinkAccount('default');
+  assertUnlinkFailed(result,await vault.get(oauth.id('default','openpikzels')));
+});
+
+test('unlink keeps vault tokens when revoke returns 500',async t=>{
+  const {vault,oauth,engine}=await seededEngine(t,oauthFixture([],{revokeStatus:500}));
+  const result=await engine.unlinkAccount('default');
+  assertUnlinkFailed(result,await vault.get(oauth.id('default','openpikzels')));
+});
+
+test('unlink keeps vault tokens when metadata has no revocation_endpoint',async t=>{
+  const {vault,oauth,engine}=await seededEngine(t,oauthFixture(),false);
+  const result=await engine.unlinkAccount('default');
+  assertUnlinkFailed(result,await vault.get(oauth.id('default','openpikzels')));
+});
+
+test('unlink clears vault tokens after a successful revoke',async t=>{
+  const revokes=[],{vault,oauth,engine}=await seededEngine(t,oauthFixture(revokes));
+  const result=await engine.unlinkAccount('default');
+  assert.equal(result.revoked,true);
+  assert.equal(result.linked,false);
+  assert.equal(await vault.get(oauth.id('default','openpikzels')),null);
+  assert.equal(revokes.length,1);
 });
