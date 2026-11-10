@@ -189,10 +189,14 @@ test('connection lookup distinguishes loading and failure from disconnected and 
  await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);let reads=0,writes=0;
  await page.route('**/api/providers',async r=>{if(r.request().method()!=='GET')writes++;reads++;if(reads===1){await hold;return r.fulfill({status:503,json:{error:'Fixture lookup unavailable'}});}return r.fulfill({json:{connections:[]}});});
  await page.route('**/api/oauth/grants',r=>r.fulfill({json:{grants:[]}}));
- await page.goto('/connect');await expect(page.getByText('Checking connections…',{exact:true})).toHaveCount(4);await expect(page.getByText('Loading connected agents…',{exact:true})).toBeVisible();
+ await page.goto('/connect');
+ const cards=page.locator('.provider-grid article');
+ await expect(cards).toHaveCount(5);
+ const providerCount=await cards.count();
+ await expect(page.getByText('Checking connections…',{exact:true})).toHaveCount(providerCount);await expect(page.getByText('Loading connected agents…',{exact:true})).toBeVisible();
  await expect(page.getByText('Not connected',{exact:true})).toHaveCount(0);release();
  await expect(page.getByText('Connection status unavailable. Refresh to check.',{exact:true})).toBeVisible();await expect(page.getByText('No agents connected yet.',{exact:true})).toHaveCount(0);
- await page.getByRole('button',{name:'Refresh connections',exact:true}).click();await expect(page.getByText('Not connected',{exact:true})).toHaveCount(4);await expect(page.getByText('No agents connected yet.',{exact:true})).toBeVisible();expect(writes).toBe(0);
+ await page.getByRole('button',{name:'Refresh connections',exact:true}).click();await expect(page.getByText('Not connected',{exact:true})).toHaveCount(providerCount);await expect(page.getByText('No agents connected yet.',{exact:true})).toBeVisible();expect(writes).toBe(0);
 });
 
 test('analysis scanner waits for a saved result and includes explicitly requested visual guidance',async({page})=>{
