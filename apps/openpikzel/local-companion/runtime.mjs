@@ -31494,11 +31494,19 @@ function listedImagePaths(brief) {
   const found = String(brief).match(/(?:^|[\s"'`])((?:[\w./-])+?\.(?:png|jpe?g|webp))\b/gi) || [];
   return [...new Set(found.map((value) => value.replace(/^[ \t"'`]+/, "")))];
 }
+async function resolveWorkspaceImage(workspace, inputPath) {
+  const resolved = await resolveWorkspaceFile(workspace, inputPath);
+  const ext = extname(resolved).toLowerCase();
+  if (!MIME[ext]) throw new Error("Use a PNG, JPEG or WebP image.");
+  const info = await stat(resolved);
+  if (info.size > IMAGE_LIMIT) throw new Error("Images must be 5 MB or smaller.");
+  return resolved;
+}
 async function workspaceImages(workspace, brief) {
   const files = [];
   for (const path of listedImagePaths(brief)) {
     try {
-      files.push(await resolveWorkspaceFile(workspace, path));
+      files.push(await resolveWorkspaceImage(workspace, path));
     } catch {
     }
   }
@@ -31508,11 +31516,7 @@ async function defaultLoadSharp() {
   return import("sharp");
 }
 async function readWorkspaceImage(path, { workspace, loadSharp = defaultLoadSharp } = {}) {
-  const resolved = await resolveWorkspaceFile(workspace, path);
-  const ext = extname(resolved).toLowerCase();
-  if (!MIME[ext]) throw new Error("Use a PNG, JPEG or WebP image.");
-  const info = await stat(resolved);
-  if (info.size > IMAGE_LIMIT) throw new Error("Images must be 5 MB or smaller.");
+  const resolved = await resolveWorkspaceImage(workspace, path);
   const bytes = await readFile2(resolved);
   if (bytes.length > IMAGE_LIMIT) throw new Error("Images must be 5 MB or smaller.");
   let sharp;
@@ -35133,7 +35137,7 @@ async function runAgent({ engine, bridge, plans, runner, provider, task, brief, 
       for (const s2 of session.servers) args.push("-c", "mcp_servers." + s2.name + ".url=" + JSON.stringify(s2.url), "-c", "mcp_servers." + s2.name + '.bearer_token_env_var="OPENPIKZELS_BRIDGE_TOKEN"');
       if (model) args.push("--model", model);
       if (effort) args.push("-c", "model_reasoning_effort=" + JSON.stringify(effort));
-      if (state.capabilities?.vision !== false && !await (codexMcpImages || (async () => true))()) {
+      if (state.capabilities?.vision !== false && !await (codexMcpImages || (async () => false))()) {
         for (const file of await workspaceImages(standingWorkspace, brief)) args.push("-i", file);
       }
       args.push("-");

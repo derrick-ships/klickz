@@ -31,7 +31,7 @@ export async function runAgent({engine,bridge,plans,runner,provider,task,brief,m
    args=['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','read-only','--json','-c','features.shell_tool=false','-c','features.apps=false','-c','features.hooks=false','-c','features.multi_agent=false','-c','features.remote_plugin=false','-c',web?'web_search="cached"':'web_search="disabled"'];
    for(const s of session.servers)args.push('-c','mcp_servers.'+s.name+'.url='+JSON.stringify(s.url),'-c','mcp_servers.'+s.name+'.bearer_token_env_var="OPENPIKZELS_BRIDGE_TOKEN"');
    if(model)args.push('--model',model);if(effort)args.push('-c','model_reasoning_effort='+JSON.stringify(effort));
-   if(state.capabilities?.vision!==false&&!await (codexMcpImages||(async()=>true))()){
+   if(state.capabilities?.vision!==false&&!await (codexMcpImages||(async()=>false))()){
     for(const file of await workspaceImages(standingWorkspace,brief))args.push('-i',file);
    }
    args.push('-');

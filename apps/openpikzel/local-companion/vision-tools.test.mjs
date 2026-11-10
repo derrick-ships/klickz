@@ -149,3 +149,44 @@ test('view_image still finds a file in the standing workspace after a run direct
  const part=imagePart(await engine.hostCall('default','view_image',{path:'downloads/x.png'}));
  assert.equal(part.mimeType,'image/png');
 });
+
+test('the default Codex run attaches a brief image with -i',async t=>{
+ const {engine,workspace}=await tempEngine(t);
+ await fixture(workspace,'downloads/x.png');
+ const calls=[];
+ const execute=async(provider,args)=>{calls.push({provider,args});return {code:0,stdout:JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'ok'}})+'\n'};};
+ const stub={inspect:async()=>({authenticated:true,installed:true})};
+ const plans={gate:()=>({allowed:true}),view:()=>({models:[],stale:false})};
+ const bridge={open:async()=>({servers:[{name:'openpikzels',url:'http://127.0.0.1/bridge',capability:'c'}],close(){},omittedSse:[]})};
+ await runAgent({engine,bridge,plans,runner:stub,provider:'codex',task:'titles',brief:'describe downloads/x.png',origin:'http://127.0.0.1',execute});
+ const args=calls.at(-1).args;
+ const flag=args.indexOf('-i');
+ assert.ok(flag>=0);
+ assert.equal(args[flag+1],join(workspace,'downloads/x.png'));
+});
+
+test('Codex -i skips out-of-workspace paths, traversal, symlinks, oversized files and disallowed types',async t=>{
+ const {engine,workspace,directory}=await tempEngine(t);
+ await fixture(workspace,'downloads/ok.png');
+ const outsideDir=await mkdtemp(join(tmpdir(),'openpikzels-vision-out-'));
+ t.after(()=>rm(outsideDir,{recursive:true,force:true}));
+ await fixture(outsideDir,'secret.png');
+ await fixture(directory,'escaped.png');
+ await symlink(join(outsideDir,'secret.png'),join(workspace,'link.png'));
+ await writeFile(join(workspace,'huge.png'),Buffer.concat([
+  await sharp({create:{width:8,height:8,channels:3,background:'red'}}).png().toBuffer(),
+  Buffer.alloc(IMAGE_LIMIT,1),
+ ]));
+ await sharp({create:{width:16,height:16,channels:3,background:'red'}}).gif().toFile(join(workspace,'anim.gif'));
+ const calls=[];
+ const execute=async(provider,args)=>{calls.push({provider,args});return {code:0,stdout:JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'ok'}})+'\n'};};
+ const stub={inspect:async()=>({authenticated:true,installed:true})};
+ const plans={gate:()=>({allowed:true}),view:()=>({models:[],stale:false})};
+ const bridge={open:async()=>({servers:[{name:'openpikzels',url:'http://127.0.0.1/bridge',capability:'c'}],close(){},omittedSse:[]})};
+ const brief='describe downloads/ok.png ../escaped.png link.png huge.png anim.gif '+join(outsideDir,'secret.png');
+ await runAgent({engine,bridge,plans,runner:stub,provider:'codex',task:'titles',brief,origin:'http://127.0.0.1',execute});
+ const args=calls.at(-1).args;
+ const attached=[];
+ for(let i=0;i<args.length;i++)if(args[i]==='-i')attached.push(args[i+1]);
+ assert.deepEqual(attached,[join(workspace,'downloads/ok.png')]);
+});

@@ -26,10 +26,19 @@ export function listedImagePaths(brief){
  return [...new Set(found.map(value=>value.replace(/^[ \t"'`]+/,'')))];
 }
 
+export async function resolveWorkspaceImage(workspace,inputPath){
+ const resolved=await resolveWorkspaceFile(workspace,inputPath);
+ const ext=extname(resolved).toLowerCase();
+ if(!MIME[ext])throw new Error('Use a PNG, JPEG or WebP image.');
+ const info=await stat(resolved);
+ if(info.size>IMAGE_LIMIT)throw new Error('Images must be 5 MB or smaller.');
+ return resolved;
+}
+
 export async function workspaceImages(workspace,brief){
  const files=[];
  for(const path of listedImagePaths(brief)){
-  try{files.push(await resolveWorkspaceFile(workspace,path));}catch{}
+  try{files.push(await resolveWorkspaceImage(workspace,path));}catch{}
  }
  return files;
 }
@@ -39,11 +48,7 @@ async function defaultLoadSharp(){
 }
 
 async function readWorkspaceImage(path,{workspace,loadSharp=defaultLoadSharp}={}){
- const resolved=await resolveWorkspaceFile(workspace,path);
- const ext=extname(resolved).toLowerCase();
- if(!MIME[ext])throw new Error('Use a PNG, JPEG or WebP image.');
- const info=await stat(resolved);
- if(info.size>IMAGE_LIMIT)throw new Error('Images must be 5 MB or smaller.');
+ const resolved=await resolveWorkspaceImage(workspace,path);
  const bytes=await readFile(resolved);
  if(bytes.length>IMAGE_LIMIT)throw new Error('Images must be 5 MB or smaller.');
  let sharp;

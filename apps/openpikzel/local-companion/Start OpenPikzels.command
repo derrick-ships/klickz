@@ -5,4 +5,5 @@ if ! command -v node >/dev/null 2>&1; then
  printf 'Install Node.js 22 or newer, then open this launcher again.\n'
  exit 1
 fi
+. "./install-image-support.sh"
 exec node server.mjs
