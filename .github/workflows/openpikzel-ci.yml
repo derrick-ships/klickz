@@ -1,0 +1,46 @@
+name: OpenPikzel CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/openpikzel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/openpikzel/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  companion:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/openpikzel/local-companion/package-lock.json
+      - run: npm ci
+        working-directory: apps/openpikzel/local-companion
+      - run: npm run companion:test
+        working-directory: apps/openpikzel
