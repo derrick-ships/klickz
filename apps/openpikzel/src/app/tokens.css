@@ -88,6 +88,8 @@
     "Segoe UI", sans-serif;
   --duration: 140ms;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* Score count-up and pillar fills (OP-11); src/lib/score-count.ts uses the same curve. */
+  --ease-out-count: cubic-bezier(0.33, 1, 0.68, 1);
   --sidebar-width: 252px;
   --content-width: 860px;
   --radius: 18px;

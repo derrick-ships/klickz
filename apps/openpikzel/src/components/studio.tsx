@@ -10,7 +10,7 @@ import { reviewerName, scorePlan, scoreStatusCopy, scoreStatusFromEvaluation } f
 import { promptValidationError } from "@/lib/prompt-validation";
 import {useRequestActivity} from "@/lib/use-request-activity";
 import { jobGuidance } from "@/lib/job-state";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import {
   PanelLeft,
@@ -57,6 +57,8 @@ import {publicStyles} from "@/lib/workspaces";
 import { PixelConfirmation } from "@/components/pixel-confirmation";
 import { imageModel } from "@/lib/image-models";
 import { AnalysisScanner } from "@/components/creative/analysis-scanner";
+import { ScoreAnnouncer, ScoreNumber, useScoreArrival, useScoreReveal } from "@/components/creative/score-count";
+import { revealKey } from "@/lib/score-count";
 import { recomposePrompt, type ScanPhase } from "@/lib/analysis-display";
 import { ReviewCanvas } from "@/components/review-canvas";
 import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
@@ -211,6 +213,16 @@ export default function Studio() {
       selected?.score && [2, 3].includes(selected.score.version)
         ? selected.score
         : null;
+  // OP-11: a score counts up once, and only when it arrives this session: while its creation is
+  // selected, or with a creation that appeared after the library loaded (a new generation). A score
+  // already there at load or selection is static. An explicit analysis reveals in its dialog first,
+  // so the panel waits while that analysis is finishing and while the dialog covers it.
+  const scoreKey = revealKey(selected?.id, score),
+    scoreArrived = useScoreArrival(studio.user, studio.loading, studio.creations.map((c) => c.id), selected?.id ?? null, scoreKey);
+  const scoreReveal = useScoreReveal(scoreKey, score?.overall ?? null, {
+    paused: dialog === "analysis" || analysisScan?.phase === "running",
+    arrived: scoreArrived,
+  });
   useEffect(() => {
     const initial = new URL(location.href).searchParams.get("mode");
     if (modes.some((m) => m.id === initial)) setTool(initial as Tool);
@@ -958,12 +970,12 @@ export default function Studio() {
                   )}
                   </div>
                   {score ? (
-                    <aside className="score-panel review-inspector" aria-label="Scoring inspector">
+                    <aside className="score-panel review-inspector" aria-label="Scoring inspector" data-reveal={scoreReveal.running ? "running" : "settled"}>
                       <div className="score-header">
                         <div>
                           <span>OpenPikzels Score</span>
                           <h2>
-                            {score.overall ?? "Partial"}
+                            {score.overall === null ? "Partial" : <ScoreNumber reveal={scoreReveal} final={score.overall} />}
                             {score.overall !== null && <small>/100</small>}
                           </h2>
                           <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p><button className="quiet-button" onClick={()=>setDialog("analysis")}>Open analysis details</button>
@@ -979,7 +991,7 @@ export default function Studio() {
                       </div>
                       <div className="score-body">
                         <div className="pillar-list">
-                          {pillars.map((p) => (
+                          {pillars.map((p, i) => (
                             <button
                               key={p}
                               className={
@@ -996,11 +1008,13 @@ export default function Studio() {
                                 )}
                               </strong>
                               {score.dimensions[p].score !== null && (
-                                <progress
-                                  aria-label={`${names[p]} score`}
-                                  max={100}
-                                  value={score.dimensions[p].score!}
-                                />
+                                <span className="pillar-meter" key={scoreReveal.run} style={{ "--i": i } as CSSProperties}>
+                                  <progress
+                                    aria-label={`${names[p]} score`}
+                                    max={100}
+                                    value={score.dimensions[p].score!}
+                                  />
+                                </span>
                               )}
                             </button>
                           ))}
@@ -1145,6 +1159,8 @@ export default function Studio() {
         </div>
       </aside>
       <div className="workspace-main" inert={compactNavigation && sidebar}>
+        {/* OP-11: announces a newly revealed panel score once (the analysis dialog has its own region). */}
+        <ScoreAnnouncer text={scoreReveal.announce} />
         <header className="topbar">
           <div className="topbar-left">
             {!sidebar && (
@@ -1859,7 +1875,7 @@ export default function Studio() {
           {(dialog==="personas"||dialog==="styles")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedId={dialog==="personas"?personaId:styleId} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis-history"&&selected&&<AnalysisHistory key={selected.id+studio.user} creationId={selected.id} read={studio.read}/>}
-          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={fix}/>}
+          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={fix} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
           {dialog === "references" && (

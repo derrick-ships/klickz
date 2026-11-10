@@ -36,7 +36,7 @@
 .review-stage .pillar-list { display: flex; flex-direction: column; gap: 0; }
 .review-stage .pillar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; padding: var(--space-3) var(--space-2); background: transparent; min-height: 44px; }
 .review-stage .pillar.active { background: var(--color-accent-soft); color: var(--color-ink); }
-.review-stage .pillar progress { grid-column: 1 / -1; margin: 0; height: 3px; }
+.review-stage .pillar-meter { grid-column: 1 / -1; margin: 0; height: 3px; }
 .review-stage .pillar-detail { margin-top: var(--space-6); }
 .review-stage .pillar-detail h3 { margin-bottom: var(--space-3); }
 .creation-workbench--review { max-width: var(--content-width); margin: var(--space-12) auto 0; border-top: 1px solid var(--color-line); padding-top: var(--space-6); }

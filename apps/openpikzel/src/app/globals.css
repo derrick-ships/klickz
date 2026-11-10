@@ -985,24 +985,52 @@ input {
   font-size: 12px;
   margin-left: 2px;
 }
-.pillar progress {
-  width: 100%;
+/* The track lives on .pillar-meter so the value bar can fill with transform only (OP-11). */
+.pillar-meter {
+  display: block;
   height: 3px;
   grid-column: 1/-1;
-  appearance: none;
-  border: 0;
   border-radius: 3px;
   overflow: hidden;
   background: var(--color-line);
 }
+.pillar progress {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  transform-origin: left center;
+}
 .pillar progress::-webkit-progress-bar {
-  background: var(--color-line);
+  background: transparent;
 }
 .pillar progress::-webkit-progress-value {
   background: var(--color-accent);
 }
 .pillar progress::-moz-progress-bar {
   background: var(--color-accent);
+}
+/* OP-11: one-time reveal of a new score. 400ms fill, 50ms stagger, --ease-out-count; the 5th bar lands with the number at 600ms. Never loops. */
+.score-count {
+  font-variant-numeric: tabular-nums;
+}
+.score-count-pad {
+  visibility: hidden;
+}
+.score-panel[data-reveal="running"] .pillar-meter progress {
+  animation: pillar-fill 400ms var(--ease-out-count) calc(var(--i, 0) * 50ms) backwards;
+}
+@keyframes pillar-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .score-panel[data-reveal] .pillar-meter progress {
+    animation: none;
+  }
 }
 .pillar-detail h3 {
   font-size: 16px;
