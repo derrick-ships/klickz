@@ -31515,26 +31515,27 @@ async function listedImagePaths(brief, { workspace, resolveImage = resolveWorksp
   };
   async function longestQuotedPath(inner) {
     const trimmed = trimPathPunctuation(inner);
-    if (!trimmed || !workspace) return "";
+    if (!trimmed) return { path: "", leading: inner };
+    if (!workspace) return { path: "", leading: trimmed };
     const words = trimmed.split(/\s+/).filter(Boolean);
     for (let i2 = 0; i2 < words.length; i2++) {
       const candidate = words.slice(i2).join(" ");
       try {
         await resolveImage(workspace, candidate);
-        return candidate;
+        return { path: candidate, leading: words.slice(0, i2).join(" ") };
       } catch {
       }
     }
-    return "";
+    return { path: "", leading: trimmed };
   }
   let remainder = "";
   let last = 0;
   const quoted = /(["`])([^"`\n]*)\1/g;
   for (const match of text2.matchAll(quoted)) {
     remainder += text2.slice(last, match.index);
-    const path = await longestQuotedPath(match[2]);
+    const { path, leading } = await longestQuotedPath(match[2]);
     if (path) addResolved(path);
-    remainder += " ".repeat(match[0].length);
+    if (leading) remainder += " " + leading + " ";
     last = match.index + match[0].length;
   }
   remainder += text2.slice(last);

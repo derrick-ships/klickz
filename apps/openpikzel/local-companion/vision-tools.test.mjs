@@ -313,3 +313,12 @@ test('listedImagePaths resolves quoted spans to the longest existing workspace p
  assert.deepEqual(await listedFrom(t,'"foto portada.png"',['foto portada.png']),['foto portada.png']);
  assert.deepEqual(await listedFrom(t,'"describe x.png"',['x.png']),['x.png']);
 });
+test('listedImagePaths scans leftover words inside quoted spans',async t=>{
+ const useA=await listedFrom(t,'"use a.png for the cover"',['a.png','b.png']);
+ const both=await listedFrom(t,'"a.png and b.png"',['a.png','b.png']);
+ const longest=await listedFrom(t,'use "my cover photo.png"',['my cover photo.png','photo.png']);
+ console.log('V8_REPRO',JSON.stringify({useA,both,longest}));
+ assert.deepEqual(useA,['a.png']);
+ assert.deepEqual(both,['b.png','a.png']);
+ assert.deepEqual(longest,['my cover photo.png']);
+});
