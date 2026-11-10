@@ -1,0 +1,37 @@
+# OP-28 AC4 static assertion audit
+Range: 1ee2a853e3b13dd2ac70c0a8d67be263f2590d71..1eb78cab72a8886ac62a743a5a7e7ece7436449e. Compared the complete net browser-test diff; this is static analysis, not runtime proof. “Reason” describes what a change does or appears intended to do, not a validated historical cause.
+
+| Test / change | Test assertion or setup change; reason and coverage consequence | Product change in range |
+|---|---|---|
+| accounts: OAuth registration | Resource URL now derives from baseURL, supporting the isolated port; other assertions unchanged. | None for this test. |
+| audit-ux: composer settings | Checks provider/name and API model separately in details; updates unknown-cost wording. Checks still cover model identity, but text structure and exact copy differ. | None in this range. |
+| backdrop-hover: mobile backdrop | Removes image decode setup; no assertion removed. Image readiness no longer established by this test. | None. |
+| brand: finite take | Changes generate signal scene to welcome aperture; finite playback and image checks retained, but studio scene no longer covered. | None. |
+| brand: motion settles | Deletes studio signal playing → focus prompt → still and video paused checks; retains welcome motion checks. Studio focus behavior lost, not equivalent to welcome checks. | None. |
+| brand: mobile still | Moves root to welcome; still and no video requests checked for welcome, not root/studio. | None. |
+| copy-guidance: analysis setup | Enables Jev in fixture and adds review heading visibility; makes setup path explicit. | None. |
+| delight: successful draft | Replaces old eight-character error expectation with current empty-draft message visibility. Old error text no longer checked here. | None. |
+| first-viewport: unsigned and signed generate | Changes visible cost from ~$0.03 to ~$0.03 + score and accessible description to include score. | CSS breakpoint change below; no cost-copy change in range. |
+| first-viewport: button geometry | Changes label/cost right boundary from button right minus 8px to button right: containment remains but 8px minimum inset is removed. This is weaker visual coverage, not proven harmless. | review.css shifts narrow wrap breakpoint 360→400px. |
+| layout: composer groups | Equal top edges replaced with midpoint spread <2px. Tests vertical centre alignment with tolerance, not exact equal top; could allow different top edges. | None. |
+| loop-protocol | Ignore all net::ERR_ABORTED request failures; avoids treating aborts as errors but may also hide relevant aborts. Same-origin link check now derives actual page origin rather than port 3000. | None; Playwright server configured for PORT and non-development isolation. |
+| mobile-art: reduced-motion | Moves generate signal scene to welcome aperture; removes top/bottom >=12px and right >=5px red-pixel crop margins. Red pixel count >200 remains, but does not establish uncropped subject or margins. | None. |
+| mobile-art: default still | Moves signal to welcome aperture; removes top/bottom >=12px margin checks and replaces with red pixel count >200. Motion/no-source and bounding-box checks remain; crop correctness no longer asserted. | None. |
+| mobile-art: desktop screenshots | Moves generate to welcome; no assertions changed; screenshot subject differs. | None. |
+| navigation-blur: mobile nav | Removes sharp red-signal measurement before (>500) and during blur (>55% of before). Replaces with CSS visibility and opacity checks and prompt value while open. Those do not prove artwork/pixels remain visible; root/studio artwork coverage lost. Blur, inert, restored prompt and focus remain. | None. |
+| navigation-blur: backdrop hover | Removes image decode setup only; scrim assertions retained, image readiness not established. | None. |
+| panel-improvements: setup | Replaces visible email input check with dialog, unavailable-sign-in message and /connect#api link checks. Tests unavailable configuration rather than email-input availability. | None. |
+| review-studio: unscored preview | Replaces review heading with connect-Jev heading; replaces set-up-analysis/focused-title assertions with Connections/dialog and Escape. Former setup/focus path is instead exercised by copy-guidance with Jev enabled, but exact equivalence is not established. | None. |
+| sign-in: email-first flow | Direct length==2 becomes polling sent.length==2; checks async completion before remaining assertions. | None. |
+| studio: AI resize | Adds upload enabled readiness assertion before selecting file. | Hydration readiness gate disables upload until current owner ready. |
+| widget: iframe bridge | Adds prompt enabled readiness assertion before iframe setup. | Hydration readiness gate disables composer until current owner ready. |
+| polish: mode tabs | Adds loading completion, selected and enabled assertions before keyboard checks. | userPickedTool preserves explicitly selected mode during hydration. |
+| polish: mode selected during load | New test holds config, checks Analyze visible/enabled/selected before release and still selected after hydration. | userPickedTool guards restoration; no runtime proof here. |
+| hydration-safety: held config | New test checks prompt, upload and generation disabled while held; chosen Edit tab preserved; prompt/upload enabled after load; prompt retained after reload. It does not itself perform upload or submit while blocked. | Current-owner readiness gates composer, upload and submit, and readiness reports loading. |
+| hydration-safety: config failure | New test checks error/local draft message and enabled prompt/upload after 503. | use-studio failure releases loading only for active current owner. |
+| review-fixture | Optional Jev config route added, existing boolean interface preserved; helper has no changed assertions. | None. |
+
+No skipped tests or sleeps were introduced in the inspected net test diff; existing waits/screenshots elsewhere were not evaluated by this statement. Removed visual checks are genuine coverage losses, not shown redundant by CSS visibility, count, or moving to another scene. The appropriate replacement/restoration needs an owner decision about intended studio artwork and visual contract; no speculative product fix or equivalent-coverage claim. Exact historical failure causes and acceptance of changed copy not established by this static diff. This table is shared handoff evidence, not in the commit range: the checker's finding that no table exists in the net diff remains unresolved if AC4 requires it there. Browser red-before and two production passes remain checker-owned and unverified in this audit.
+
+## FIX round 1 reproduction
+The original mobile-art margins were restored experimentally against the current welcome aperture at 320px. Both tests failed: bottom red-pixel margin was 0, not >=12px. Welcome's existing artwork is masked and uses `object-fit: cover`; it is not the former studio signal. The experimental assertions were not retained because they would impose the old artwork's geometry on a different composition. The studio has no brand scene, so its former focus and behind-sidebar pixel checks cannot be restored as-is without changing the product. A product owner must decide whether to restore studio signal artwork and its original crop/focus/blur contract, or approve a specific replacement visual contract for the current welcome composition. CSS visibility alone does not establish equivalent coverage.
