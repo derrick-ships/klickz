@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
-  COUNT_UP_MS, PILLAR_FILL_MS, PILLAR_STAGGER_MS,
+  COUNT_UP_MS, PILLAR_FILL_MS, PILLAR_STAGGER_MS, EASE_OUT_COUNT,
   easeOut, countUpValue, createSeenRegistry, planReveal, runCountUp, revealKey,
 } from "../src/lib/score-count";
 
@@ -27,13 +28,42 @@ function manualFrames() {
 }
 
 describe("score count-up timing", () => {
-  it("stays short, calm and inside the approved budget", () => {
-    expect(COUNT_UP_MS).toBe(700);
+  it("stays short and lands the number and the last bar together", () => {
+    expect(COUNT_UP_MS).toBe(600);
+    expect(PILLAR_FILL_MS).toBe(400);
     expect(PILLAR_STAGGER_MS).toBe(50);
-    // Five pillars: the last bar finishes no later than the number.
-    expect(4 * PILLAR_STAGGER_MS + PILLAR_FILL_MS).toBeLessThanOrEqual(COUNT_UP_MS);
-    expect(COUNT_UP_MS).toBeGreaterThanOrEqual(600);
-    expect(COUNT_UP_MS).toBeLessThanOrEqual(900);
+    // Five pillars: the 5th bar starts at 4 x 50ms and ends exactly when the number does.
+    expect(4 * PILLAR_STAGGER_MS + PILLAR_FILL_MS).toBe(COUNT_UP_MS);
+  });
+
+  it("uses the same curve as the CSS --ease-out-count token, not the global --ease-out", () => {
+    expect(EASE_OUT_COUNT).toEqual([0.33, 1, 0.68, 1]);
+    const tokens = readFileSync(new URL("../src/app/tokens.css", import.meta.url), "utf8");
+    expect(tokens).toMatch(/--ease-out-count:\s*cubic-bezier\(0\.33,\s*1,\s*0\.68,\s*1\)/);
+    expect(tokens).toMatch(/--ease-out:\s*cubic-bezier\(0\.23,\s*1,\s*0\.32,\s*1\)/);
+    const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
+    expect(css).toMatch(/pillar-fill 400ms var\(--ease-out-count\) calc\(var\(--i, 0\) \* 50ms\)/);
+  });
+
+  it("matches cubic-bezier(.33,1,.68,1) exactly, so the count never disagrees with the bars", () => {
+    // Independent reference: sample the Bezier parametrically and interpolate x -> y.
+    const [x1, y1, x2, y2] = [0.33, 1, 0.68, 1], N = 200000, xs: number[] = [], ys: number[] = [];
+    for (let i = 0; i <= N; i++) {
+      const u = i / N, a = 3 * (1 - u) * (1 - u) * u, b = 3 * (1 - u) * u * u, c = u * u * u;
+      xs.push(a * x1 + b * x2 + c); ys.push(a * y1 + b * y2 + c);
+    }
+    const reference = (x: number) => {
+      let lo = 0, hi = N;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (xs[mid] < x) lo = mid; else hi = mid; }
+      const f = (x - xs[lo]) / (xs[hi] - xs[lo] || 1);
+      return ys[lo] + f * (ys[hi] - ys[lo]);
+    };
+    for (let i = 0; i <= 1000; i++) expect(Math.abs(easeOut(i / 1000) - reference(i / 1000))).toBeLessThan(1e-4);
+    // At every frame (60 and 120 Hz) the shown integer is the curve rounded (within 0.5, so within 1 unit).
+    for (const target of [1, 7, 50, 72, 78, 99, 100])
+      for (const step of [1000 / 60, 1000 / 120])
+        for (let t = 0; t < COUNT_UP_MS; t += step)
+          expect(Math.abs(countUpValue(t, target) - target * reference(t / COUNT_UP_MS))).toBeLessThanOrEqual(0.5 + 1e-3);
   });
 
   it("eases out: starts fast, lands softly, and hits both ends exactly", () => {
@@ -67,7 +97,8 @@ describe("countUpValue", () => {
   it("handles the edges: 0, 100, out-of-range targets and bad clocks", () => {
     for (const t of [0, 100, 350, 700]) expect(countUpValue(t, 0)).toBe(0);
     expect(countUpValue(COUNT_UP_MS, 100)).toBe(100);
-    expect(countUpValue(COUNT_UP_MS - 1, 100)).toBeLessThan(100);
+    expect(countUpValue(COUNT_UP_MS - 1, 100)).toBeLessThanOrEqual(100);
+    expect(countUpValue(1, 100)).toBeLessThan(100);
     expect(countUpValue(COUNT_UP_MS, 140)).toBe(100);
     expect(countUpValue(COUNT_UP_MS, -5)).toBe(0);
     expect(countUpValue(COUNT_UP_MS, 71.6)).toBe(72);
@@ -173,6 +204,12 @@ describe("runCountUp", () => {
     expect(values).toHaveLength(1);
     expect(done).toBe(0);
     expect(f.pending()).toBe(0);
+  });
+
+  it("shows the true score before the last frame instead of idling one below it", () => {
+    // 78 at 550ms is 77.97 on the curve: the number already reads 78 while the 5th bar finishes.
+    expect(countUpValue(550, 78)).toBe(78);
+    expect(countUpValue(300, 78)).toBeLessThan(78);
   });
 
   it("finishes a zero score on the first frame", () => {

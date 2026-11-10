@@ -1013,7 +1013,7 @@ input {
 .pillar progress::-moz-progress-bar {
   background: var(--color-accent);
 }
-/* OP-11: one-time reveal of a new score. 450ms fill, 50ms stagger, shared ease-out; never loops. */
+/* OP-11: one-time reveal of a new score. 400ms fill, 50ms stagger, --ease-out-count; the 5th bar lands with the number at 600ms. Never loops. */
 .score-count {
   font-variant-numeric: tabular-nums;
 }
@@ -1021,7 +1021,7 @@ input {
   visibility: hidden;
 }
 .score-panel[data-reveal="running"] .pillar-meter progress {
-  animation: pillar-fill 450ms var(--ease-out) calc(var(--i, 0) * 50ms) backwards;
+  animation: pillar-fill 400ms var(--ease-out-count) calc(var(--i, 0) * 50ms) backwards;
 }
 @keyframes pillar-fill {
   from { transform: scaleX(0); }

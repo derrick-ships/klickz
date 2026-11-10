@@ -2,13 +2,16 @@
 // Pure timing and run-once rules; the React hook lives in components/creative/score-count.tsx.
 
 /** Overall number: 0 → N. */
-export const COUNT_UP_MS = 700;
+export const COUNT_UP_MS = 600;
 /** Each pillar bar fill. */
-export const PILLAR_FILL_MS = 450;
-/** Delay between pillar bars; five bars end at 4 × 50 + 450 = 650 ms, before the number lands. */
+export const PILLAR_FILL_MS = 400;
+/** Delay between pillar bars; the 5th bar ends at 4 × 50 + 400 = 600 ms, with the number. */
 export const PILLAR_STAGGER_MS = 50;
-/** Same curve as the `--ease-out` token in tokens.css. */
-export const EASE_OUT: readonly [number, number, number, number] = [0.23, 1, 0.32, 1];
+/**
+ * Same curve as the `--ease-out-count` token in tokens.css (used by the pillar fills).
+ * Gentler than the global `--ease-out`, so the number does not sit just short of the score.
+ */
+export const EASE_OUT_COUNT: readonly [number, number, number, number] = [0.33, 1, 0.68, 1];
 
 function bezier(x1: number, y1: number, x2: number, y2: number) {
   const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
@@ -35,7 +38,7 @@ function bezier(x1: number, y1: number, x2: number, y2: number) {
     return y(t);
   };
 }
-const curve = bezier(...EASE_OUT);
+const curve = bezier(...EASE_OUT_COUNT);
 
 export function easeOut(progress: number): number {
   if (!(progress > 0)) return 0;
@@ -47,12 +50,14 @@ function clampScore(target: number) {
   return Math.min(100, Math.max(0, Math.round(target)));
 }
 
-/** The integer to show `elapsedMs` into the count. A broken clock shows the final value. */
+/** The integer to show `elapsedMs` into the count (nearest to the curve). A broken clock shows the final value. */
 export function countUpValue(elapsedMs: number, target: number, durationMs = COUNT_UP_MS): number {
   const end = clampScore(target);
   if (!Number.isFinite(elapsedMs) || elapsedMs >= durationMs) return end;
   if (elapsedMs <= 0) return 0;
-  return Math.min(end, Math.floor(end * easeOut(elapsedMs / durationMs)));
+  // Nearest integer to the curve: never above the score, and the true score shows as soon as the
+  // curve is within half a point of it, rather than idling one below it until the last frame.
+  return Math.min(end, Math.round(end * easeOut(elapsedMs / durationMs)));
 }
 
 type KeyStorage = Pick<Storage, "getItem" | "setItem">;

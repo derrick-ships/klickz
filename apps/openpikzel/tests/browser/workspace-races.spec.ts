@@ -258,7 +258,7 @@ test('a fresh analysis counts up once in its dialog, then the score panel shows 
  await expect(ring.locator('strong')).toHaveText('67/100');await expect(ring).toHaveAttribute('aria-label','67 out of100');
  await expect(ring.locator('.score-count')).not.toHaveAttribute('aria-hidden',/.*/);
  const dialogTicks=(await page.evaluate(()=>(window as any).__counts as string[])).filter(r=>r.startsWith('dialog|true|')).map(r=>Number(r.split('|')[2]));
- expect(dialogTicks.length).toBeGreaterThan(2);expect(dialogTicks[0]).toBeLessThan(20);expect(Math.max(...dialogTicks)).toBeLessThan(67);
+ expect(dialogTicks.length).toBeGreaterThan(2);expect(dialogTicks[0]).toBeLessThan(20);expect(Math.max(...dialogTicks)).toBeLessThanOrEqual(67);expect(dialogTicks.filter(v=>v<67).length).toBeGreaterThan(1);
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeHidden();
  const panel=page.getByRole('complementary',{name:'Scoring inspector'});
  await expect(panel.locator('.score-header h2')).toHaveText('67/100');await expect(panel).toHaveAttribute('data-reveal','settled');

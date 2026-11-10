@@ -115,14 +115,14 @@ test("a new score counts up once with staggered pillar fills, and never replays"
   // The "/100" beside the number never moves while the digits change.
   const slash = running.map(r => r.slash!); expect(Math.max(...slash) - Math.min(...slash)).toBeLessThanOrEqual(1);
   const span = log.find(r => r.reveal === "settled")!.t - running[0].t;
-  expect(span).toBeGreaterThan(550); expect(span).toBeLessThan(1500);
+  expect(span).toBeGreaterThan(450); expect(span).toBeLessThan(1400);
 
-  // Pillar bars: transform-only fill, 450ms ease-out, 50ms stagger by position, once. "Not assessed" has no bar.
+  // Pillar bars: transform-only fill, 400ms --ease-out-count, 50ms stagger by position, once. "Not assessed" has no bar.
   expect(await fills(page)).toEqual([
-    { label: "Virality score", name: "pillar-fill", delay: "0s", duration: "0.45s", easing: "cubic-bezier(0.23, 1, 0.32, 1)", iterations: "1" },
-    { label: "Clarity score", name: "pillar-fill", delay: "0.05s", duration: "0.45s", easing: "cubic-bezier(0.23, 1, 0.32, 1)", iterations: "1" },
-    { label: "Curiosity score", name: "pillar-fill", delay: "0.15s", duration: "0.45s", easing: "cubic-bezier(0.23, 1, 0.32, 1)", iterations: "1" },
-    { label: "Emotion score", name: "pillar-fill", delay: "0.2s", duration: "0.45s", easing: "cubic-bezier(0.23, 1, 0.32, 1)", iterations: "1" },
+    { label: "Virality score", name: "pillar-fill", delay: "0s", duration: "0.4s", easing: "cubic-bezier(0.33, 1, 0.68, 1)", iterations: "1" },
+    { label: "Clarity score", name: "pillar-fill", delay: "0.05s", duration: "0.4s", easing: "cubic-bezier(0.33, 1, 0.68, 1)", iterations: "1" },
+    { label: "Curiosity score", name: "pillar-fill", delay: "0.15s", duration: "0.4s", easing: "cubic-bezier(0.33, 1, 0.68, 1)", iterations: "1" },
+    { label: "Emotion score", name: "pillar-fill", delay: "0.2s", duration: "0.4s", easing: "cubic-bezier(0.33, 1, 0.68, 1)", iterations: "1" },
   ]);
   expect(await panel.locator(".pillar-meter progress").first().evaluate(el => getComputedStyle(el).animationName)).toBe("none");
   await expect(panel.getByText("Not assessed", { exact: true })).toHaveCount(1);
