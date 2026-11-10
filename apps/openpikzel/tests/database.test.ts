@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { AppError } from "../src/lib/validation";
+import { forgetFact, rememberFact } from "../src/lib/agent-memory";
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 const db = new PGlite();
@@ -283,4 +285,203 @@ describe('creative conversations and feedback ownership',()=>{
   await asUser(bob);
   await expect(db.exec("insert into studio_feedback(user_id,creation_id,body) values('"+bob+"','"+alice+"','Cross-owner image feedback')")).rejects.toThrow();
  });
+});
+
+describe("agent memory isolation", () => {
+  it("creates the memory table, enforces constraints, and caps rows per user", async () => {
+    await asUser(alice);
+    await db.exec(`delete from studio_agent_memory where user_id='${alice}'`);
+    const id = "aaaaaaa1-aaa1-4aa1-8aa1-aaaaaaaaaaa1";
+    await db.exec(
+      `insert into studio_agent_memory(id,user_id,agent,fact,tags,source) values('${id}','${alice}','default','The usual hook is a close-up face.',array['hook'],'companion')`,
+    );
+    const rows = await db.query<{ fact: string }>(
+      "select fact from studio_agent_memory where id='"+id+"'",
+    );
+    expect(rows.rows).toHaveLength(1);
+    expect(rows.rows[0].fact).toBe("The usual hook is a close-up face.");
+    await expect(
+      db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','${"x".repeat(1001)}')`,
+      ),
+    ).rejects.toThrow();
+    for (let i = 0; i < 499; i++)
+      await db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','Fact ${i}')`,
+      );
+    await expect(
+      db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','One past the cap')`,
+      ),
+    ).rejects.toThrow();
+  });
+  it("blocks another user from reading or deleting memory rows", async () => {
+    await asUser(alice);
+    await db.exec(`delete from studio_agent_memory where user_id='${alice}'`);
+    const id = "bbbbbbb1-bbb1-4bb1-8bb1-bbbbbbbbbbb1";
+    await db.exec(
+      `insert into studio_agent_memory(id,user_id,agent,fact) values('${id}','${alice}','default','A private packaging preference.')`,
+    );
+    await asUser(bob);
+    expect(
+      (await db.query("select * from studio_agent_memory")).rows,
+    ).toHaveLength(0);
+    await expect(
+      db.exec(`delete from studio_agent_memory where id='${id}'`),
+    ).resolves.toBeDefined();
+    await expect(
+      db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','Stolen fact')`,
+      ),
+    ).rejects.toThrow();
+    await asUser(alice);
+    expect(
+      (await db.query("select id from studio_agent_memory where id='"+id+"'")).rows,
+    ).toHaveLength(1);
+  });
+  it("denies unauthenticated access to agent memory", async () => {
+    await db.exec("reset role;set role anon;");
+    await expect(db.query("select * from studio_agent_memory")).rejects.toThrow();
+    await expect(
+      db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','Unauthenticated fact')`,
+      ),
+    ).rejects.toThrow();
+    await db.exec("reset role;");
+  });
+  function memoryClient() {
+    return {
+      from(table: string) {
+        let action = "select",
+          value: any,
+          filters: Record<string, string> = {},
+          returning = "";
+        const quote = (v: string) => "'" + String(v).replaceAll("'", "''") + "'";
+        const where = () =>
+          Object.entries(filters)
+            .map(([k, v]) => k + "=" + quote(v))
+            .join(" and ");
+        const exec = async () => {
+          try {
+            if (action === "insert") {
+              const tags = Array.isArray(value.tags)
+                ? "array[" +
+                  value.tags.map((t: string) => quote(t)).join(",") +
+                  "]::text[]"
+                : "'{}'";
+              const source = value.source == null ? "null" : quote(value.source);
+              const rows = await db.query(
+                "insert into " +
+                  table +
+                  "(user_id,agent,fact,tags,source) values(" +
+                  quote(value.user_id) +
+                  "," +
+                  quote(value.agent) +
+                  "," +
+                  quote(value.fact) +
+                  "," +
+                  tags +
+                  "," +
+                  source +
+                  ") returning " +
+                  (returning || "id,fact,tags,created_at"),
+              );
+              return { data: rows.rows, error: null };
+            }
+            if (action === "delete") {
+              const rows = await db.query(
+                "delete from " +
+                  table +
+                  " where " +
+                  where() +
+                  " returning " +
+                  (returning || "id"),
+              );
+              return { data: rows.rows, error: null };
+            }
+            return { data: [], error: null };
+          } catch (error) {
+            return { data: null, error };
+          }
+        };
+        const chain: any = {
+          insert: (v: any) => {
+            action = "insert";
+            value = v;
+            return chain;
+          },
+          delete: () => {
+            action = "delete";
+            return chain;
+          },
+          select: (cols?: string) => {
+            returning = cols || "id";
+            return chain;
+          },
+          eq: (k: string, v: string) => {
+            filters[k] = v;
+            return chain;
+          },
+          single: async () => {
+            const result = await exec();
+            return {
+              data: Array.isArray(result.data) ? result.data[0] || null : result.data,
+              error: result.error,
+            };
+          },
+          then: (resolve: any) => exec().then(resolve),
+        };
+        return chain;
+      },
+    };
+  }
+  function memoryAuth(userId: string) {
+    return {
+      db: memoryClient(),
+      user: { id: userId },
+      oauth: { scope: ["studio:agent"] as const },
+    };
+  }
+  it("returns forgotten false for an unknown or other user's fact under RLS, and true for your own", async () => {
+    await asUser(alice);
+    await db.exec(`delete from studio_agent_memory where user_id='${alice}'`);
+    const saved = await rememberFact(memoryAuth(alice), {
+      fact: "A private packaging preference.",
+      agent: "default",
+    });
+    expect(
+      (await forgetFact(memoryAuth(alice), { id: "99999999-9999-4999-8999-999999999999" }))
+        .forgotten,
+    ).toBe(false);
+    await asUser(bob);
+    expect((await forgetFact(memoryAuth(bob), { id: saved.id })).forgotten).toBe(false);
+    await asUser(alice);
+    expect(
+      (await db.query("select id from studio_agent_memory where id='"+saved.id+"'")).rows,
+    ).toHaveLength(1);
+    expect((await forgetFact(memoryAuth(alice), { id: saved.id })).forgotten).toBe(true);
+    expect(
+      (await db.query("select id from studio_agent_memory where id='"+saved.id+"'")).rows,
+    ).toHaveLength(0);
+  });
+  it("returns 4xx 'memory is full, forget something first' when the cap is hit", async () => {
+    await asUser(alice);
+    await db.exec(`delete from studio_agent_memory where user_id='${alice}'`);
+    for (let i = 0; i < 500; i++)
+      await db.exec(
+        `insert into studio_agent_memory(user_id,agent,fact) values('${alice}','default','Fact ${i}')`,
+      );
+    try {
+      await rememberFact(memoryAuth(alice), {
+        fact: "One past the cap",
+        agent: "default",
+      });
+      throw new Error("should have failed");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).status).toBeGreaterThanOrEqual(400);
+      expect((error as AppError).status).toBeLessThan(500);
+      expect((error as AppError).message).toBe("memory is full, forget something first");
+    }
+  });
 });
