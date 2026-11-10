@@ -75,7 +75,8 @@ const providerGuides: Record<string, {name:string; purpose:string; url:string; s
   openai: {name:"OpenAI",purpose:"Create images and title ideas.",url:"https://developers.openai.com/api/docs/quickstart",steps:["Open OpenAI’s official setup guide and sign in to your own API account.","Create an API key in the provider dashboard and review the account’s usage and billing settings.","Copy the key into the private field below, then connect it."]},
   google: {name:"Google",purpose:"Create images and title ideas with Gemini.",url:"https://ai.google.dev/gemini-api/docs/api-key",steps:["Open Google’s official API-key guide and sign in to Google AI Studio.","Choose your own project, create a Gemini API key and check its quota and billing settings.","Copy the key into the private field below, then connect it."]},
   jev: {name:"Jev AI",purpose:"Assess a thumbnail and its title across five creative pillars.",url:"https://docs.typesafe.ai/introduction/quickstart",steps:["Open the official TypeSafe guide for Jev and sign in to its console.","Create an API key in your own account and review its available usage.","Copy the key into the private field below, then connect it."]},
-  youtube: {name:"YouTube",purpose:"Find channel details and thumbnail references. This does not generate images.",url:"https://developers.google.com/youtube/data/getting-started",steps:["Open the official YouTube Data API guide and choose your own Google Cloud project.","Enable YouTube Data API v3, create an API key and review its restrictions and quota.","Copy the key into the private field below, then connect it."]}
+  youtube: {name:"YouTube",purpose:"Find channel details and thumbnail references. This does not generate images.",url:"https://developers.google.com/youtube/data/getting-started",steps:["Open the official YouTube Data API guide and choose your own Google Cloud project.","Enable YouTube Data API v3, create an API key and review its restrictions and quota.","Copy the key into the private field below, then connect it."]},
+  anthropic: {name:"Claude",purpose:"Review images. Preferred when connected.",url:"https://docs.anthropic.com/en/api/getting-started",steps:["Open Anthropic’s official API guide and sign in to your own Claude API account.","Create an API key in the provider console and review the account’s usage and billing settings.","Copy the key into the private field below, then connect it."]}
 };
 
 export function ConnectionsPage() {
@@ -226,6 +227,7 @@ export function ConnectionsPage() {
                   onChange={(e) => { setProvider(e.target.value); setKey(""); setNotice(""); }}
                 >
                   <option value="openai">OpenAI</option>
+                  <option value="anthropic">Claude</option>
                   <option value="google">Google</option><option value="youtube">YouTube Data API</option>
                   <option value="jev">Jev AI</option>
                 </select>
@@ -265,6 +267,7 @@ export function ConnectionsPage() {
             <div className="provider-grid">
               {[
                 ["openai", "OpenAI", "Sunburst / Flare, titles and vision"],
+                ["anthropic", "Claude", "image review (preferred when connected)"],
                 ["google", "Google", "Gemini image models, titles and vision"],
                 ["jev", "Jev AI", "Image + title scores across five pillars"],
                 ["youtube", "YouTube", "Channel metadata and thumbnail references · your own Data API key"],

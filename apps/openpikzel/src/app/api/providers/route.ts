@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     if (oauth) throw new AppError(403, "Manage connections in the app.");
     const input = z
       .object({
-        provider: z.enum(["openai", "jev", "google", "youtube"]),
+        provider: z.enum(["openai", "jev", "google", "youtube", "anthropic"]),
         key: z.string().trim().max(12000).default(""),
       })
       .parse(await limitedJson(request, 16000));
@@ -61,7 +61,7 @@ export async function DELETE(request: Request) {
     const { db, user, oauth } = await authenticated(request);
     if (oauth) throw new AppError(403, "Manage connections in the app.");
     const { provider } = z
-      .object({ provider: z.enum(["openai", "jev", "google", "youtube"]) })
+      .object({ provider: z.enum(["openai", "jev", "google", "youtube", "anthropic"]) })
       .parse(await request.json());
     const result = await db
       .from("studio_provider_keys")

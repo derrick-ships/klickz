@@ -6,7 +6,8 @@ export async function GET(request: Request) {
   const db = publicSupabaseConfig();
   let openai = false,
     jev = false,
-    google = false;
+    google = false,
+    anthropic = false;
   if (request.headers.get("authorization")) {
     try {
       const context = await authenticated(request);
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
         if (row.provider === "openai") openai = true;
         if (row.provider === "jev") jev = true;
         if (row.provider === "google") google = true;
+        if (row.provider === "anthropic") anthropic = true;
       }
       if (process.env.OWNER_PROVIDER_KEYS === "true") {
         const owner = await context.db.rpc("app_web_access");
@@ -42,6 +44,7 @@ export async function GET(request: Request) {
       openai,
       jev,
       google,
+      anthropic,
       secureConnections: /^[a-f0-9]{64}$/i.test(
         process.env.STUDIO_ENCRYPTION_KEY || "",
       ),

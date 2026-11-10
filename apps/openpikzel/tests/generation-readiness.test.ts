@@ -2,7 +2,7 @@ import {describe,it,expect} from "vitest";
 import {generationReadiness} from "../src/lib/generation-readiness";
 import {defaultSettings,type Config} from "../src/lib/types";
 import {imageModel} from "../src/lib/image-models";
-const config:Config={cloud:true,ai:true,openai:true,jev:true,google:false,supabaseUrl:"",supabaseKey:"",ownerGate:false,textModels:{openai:"configured-openai-text",google:"configured-google-text"},scoreModel:"configured-jev"};
+const config:Config={cloud:true,ai:true,openai:true,jev:true,anthropic:false,google:false,supabaseUrl:"",supabaseKey:"",ownerGate:false,textModels:{openai:"configured-openai-text",google:"configured-google-text"},scoreModel:"configured-jev"};
 const base={config,cloud:true,loading:false,tool:"generate",titleIdeas:false,settings:defaultSettings,prompt:"A clear visual idea",title:"",hasSource:false,hasReferences:false,includeVision:false};
 describe("request readiness",()=>{
  it("does not treat any connected image provider as the selected provider",()=>{expect(generationReadiness({...base,settings:{...defaultSettings,model:"gemini-pro"}}).readiness).toContain("Connect your Google");expect(generationReadiness({...base,config:{...config,openai:false,google:true}}).readiness).toContain("Connect your OpenAI");});

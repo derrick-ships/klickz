@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { unseal } from "./crypto";
 import { AppError } from "./validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
-export type Provider = "openai" | "jev" | "google" | "youtube";
+export type Provider = "openai" | "jev" | "google" | "youtube" | "anthropic";
 export type ProviderKeys = Partial<Record<Provider, string>>;
 export const providerContext = new AsyncLocalStorage<ProviderKeys>();
 export function providerKey(provider: Provider) {
@@ -10,7 +10,7 @@ export function providerKey(provider: Provider) {
   if (!key)
     throw new AppError(
       403,
-      `Connect your own ${provider === "google" ? "Google" : provider === "jev" ? "Jev" : "OpenAI"} API key in Connections.`,
+      `Connect your own ${provider === "google" ? "Google" : provider === "jev" ? "Jev" : provider === "anthropic" ? "Claude" : "OpenAI"} API key in Connections.`,
     );
   return key;
 }

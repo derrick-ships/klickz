@@ -231,6 +231,21 @@ describe("PostgreSQL migration and row isolation", () => {
     await expect(db.query("select * from studio_creations")).rejects.toThrow();
     await db.exec("reset role;");
   });
+
+  it("accepts anthropic provider keys and still rejects an unknown provider", async () => {
+    await asUser(alice);
+    await db.exec(
+      `insert into studio_provider_keys(user_id,provider,ciphertext,suffix) values('${alice}','anthropic','encrypted-placeholder','FAKE')`,
+    );
+    expect(
+      (await db.query("select provider from studio_provider_keys where provider='anthropic'")).rows,
+    ).toHaveLength(1);
+    await expect(
+      db.exec(
+        `insert into studio_provider_keys(user_id,provider,ciphertext,suffix) values('${alice}','unknown','encrypted-placeholder','test')`,
+      ),
+    ).rejects.toThrow();
+  });
 });
 
 describe('creative conversations and feedback ownership',()=>{

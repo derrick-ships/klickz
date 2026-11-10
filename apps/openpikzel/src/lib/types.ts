@@ -127,6 +127,7 @@ export type Config = {
   ai: boolean;
   openai: boolean;
   jev: boolean;
+  anthropic: boolean;
   google?: boolean;
   youtube?: boolean;
   secureConnections?: boolean;
