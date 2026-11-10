@@ -199,4 +199,32 @@ describe("deliverImages", () => {
     expect(result.creations).toHaveLength(2);
     expect(events).toEqual(["generating", "a:skipped", "b:skipped", "images", "image-ready"]);
   });
+
+  it("reveals images immediately when onReview is omitted, before any review settles", async () => {
+    const hang = deferred();
+    let settled = false;
+    const events: string[] = [];
+    const finished = deliverImages({
+      generate: async () => ({ creations: [item("a"), item("b")], partial: false }),
+      review: async () => {
+        await hang.promise;
+        settled = true;
+      },
+      current: () => true,
+      onImages: () => {
+        events.push("images");
+      },
+      onStage: (stage) => {
+        events.push(stage);
+      },
+      holdMs: 45_000,
+    });
+    await flush();
+    expect(events).toContain("images");
+    expect(settled).toBe(false);
+    hang.resolve();
+    await finished;
+    expect(settled).toBe(true);
+    expect(events.at(-1)).toBe("ready");
+  });
 });

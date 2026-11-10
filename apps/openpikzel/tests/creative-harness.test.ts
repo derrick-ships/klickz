@@ -25,7 +25,7 @@ it("centralizes the five pillars and preserves user context as data",()=>{
 });
 const item={id:"fixture",image_path:"fixture.png"} as Creation;
 it("delivers the saved image before analysis and marks ready only after real completion",async()=>{
- const events:string[]=[],result={creations:[item],partial:false};await deliverImages({generate:async()=>result,review:async()=>{events.push("review");},current:()=>true,onImages:()=>{events.push("image");},onStage:s=>events.push(s)});expect(events).toEqual(["generating","analyzing","review","image","ready"]);
+ const events:string[]=[],result={creations:[item],partial:false};await deliverImages({generate:async()=>result,review:async()=>{events.push("review");},current:()=>true,onImages:()=>{events.push("image");},onStage:s=>events.push(s)});expect(events).toEqual(["generating","image","analyzing","review","ready"]);
 });
 it("keeps generated images on analysis failure and does not re-render or retry",async()=>{
  const generate=vi.fn().mockResolvedValue({creations:[item,item],partial:false}),review=vi.fn().mockRejectedValue(Error("quota")),stages:string[]=[];

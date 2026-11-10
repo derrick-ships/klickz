@@ -24,38 +24,49 @@ export async function deliverImages<T extends {creations:Creation[];partial:bool
   stage("image-ready",0,total);
   return result;
  }
- const holdMs=options.holdMs??45_000;
- let reviewed=0,failed=0,cursor=0;
  const review=options.review;
- const work=Promise.all(Array.from({length:Math.min(reviewConcurrency,total)},async()=>{
-  for(;;){
-   if(!live())return;
-   const index=cursor++;
-   if(index>=total)return;
-   const creation=items[index];
-   report(creation.id,"pending");
-   stage("analyzing",reviewed,total);
-   try{
-    await review(creation);
+ let reviewed=0,failed=0;
+ const startReviews=()=>{
+  let cursor=0;
+  return Promise.all(Array.from({length:Math.min(reviewConcurrency,total)},async()=>{
+   for(;;){
     if(!live())return;
-    report(creation.id,"scored");
-   }catch{
-    if(!live())return;
-    failed++;
-    report(creation.id,"failed");
+    const index=cursor++;
+    if(index>=total)return;
+    const creation=items[index];
+    report(creation.id,"pending");
+    stage("analyzing",reviewed,total);
+    try{
+     await review(creation);
+     if(!live())return;
+     report(creation.id,"scored");
+    }catch{
+     if(!live())return;
+     failed++;
+     report(creation.id,"failed");
+    }
+    reviewed++;
    }
-   reviewed++;
-  }
- }));
- let holdTimer:ReturnType<typeof setTimeout>|undefined;
- const hold=new Promise<void>((resolve)=>{holdTimer=setTimeout(resolve,holdMs);});
- await Promise.race([work,hold]);
- if(holdTimer)clearTimeout(holdTimer);
- if(!live())throw new Error(workspaceChanged);
+  }));
+ };
+ if(options.onReview){
+  const work=startReviews();
+  let holdTimer:ReturnType<typeof setTimeout>|undefined;
+  const hold=new Promise<void>((resolve)=>{holdTimer=setTimeout(resolve,options.holdMs??45_000);});
+  await Promise.race([work,hold]);
+  if(holdTimer)clearTimeout(holdTimer);
+  if(!live())throw new Error(workspaceChanged);
+  await options.onImages(result);
+  if(!live())throw new Error(workspaceChanged);
+  if(reviewed<total)stage("review-pending",reviewed,total);
+  await work;
+  if(!live())throw new Error(workspaceChanged);
+  stage(failed?"review-pending":"ready",reviewed,total);
+  return result;
+ }
  await options.onImages(result);
  if(!live())throw new Error(workspaceChanged);
- if(reviewed<total)stage("review-pending",reviewed,total);
- await work;
+ await startReviews();
  if(!live())throw new Error(workspaceChanged);
  stage(failed?"review-pending":"ready",reviewed,total);
  return result;
