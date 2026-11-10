@@ -431,3 +431,34 @@ test('authenticated provider checks stay neutral until the current account looku
  try{await expect(page.getByRole('button',{name:'Checking your workspace…',exact:true})).toBeDisabled();}finally{release();}
  await expect(page.locator('.chat-title')).toContainText('Account A chat');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeEnabled();
 });
+
+test('Retry score reuses the first image requestId in a batch of 2',async({page})=>{
+ const f=await setup(page);
+ const failedId='99999999-9999-4999-8999-999999999991',okId='99999999-9999-4999-8999-999999999992';
+ const ids=new Map<string,string[]>();
+ const score={source:'jev',version:3,title:'A factual title',overall:60,priority:'clarity',created_at:new Date().toISOString(),note:'Fixture',vision:true,fixBlocked:true,
+  contributors:[{provider:'Jev',model:'fixture',role:'scoring'},{provider:'OpenAI API',model:'fixture',role:'image-review'}],
+  dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:60,confidence:.7,observation:'Fixture',strength:'',weakness:'',fix:''}]))};
+ await page.route('**/api/generate',r=>{
+  const items=[{...f.creations[0],id:failedId,score:null},{...f.creations[0],id:okId,score:null}];
+  for(const item of items)f.creations.unshift(item);
+  return r.fulfill({json:{creations:items,partial:false}});
+ });
+ await page.route('**/api/analyze',r=>{
+  const input=r.request().postDataJSON();
+  const list=ids.get(input.creationId)||[];list.push(input.requestId);ids.set(input.creationId,list);
+  if(input.creationId===failedId)return r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}});
+  const item=f.creations.find(c=>c.id===input.creationId);if(item)item.score=score;
+  return r.fulfill({json:{score,creationId:input.creationId}});
+ });
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
+ await page.getByLabel('Images per request',{exact:true}).selectOption('2');
+ await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
+ await expect.poll(()=>[...(ids.values())].reduce((n,list)=>n+list.length,0)).toBe(2);
+ await expect(page.getByRole('region',{name:'Thumbnail delivery'})).toHaveAttribute('data-stage','review-pending');
+ await expect(page.getByLabel('Scoring inspector')).toContainText('Score did not finish');
+ await page.getByRole('button',{name:'Retry score',exact:true}).click();
+ await expect.poll(()=>(ids.get(failedId)||[]).length).toBe(2);
+ expect(ids.get(failedId)![0]).toBe(ids.get(failedId)![1]);
+ expect((ids.get(okId)||[]).length).toBe(1);
+});
