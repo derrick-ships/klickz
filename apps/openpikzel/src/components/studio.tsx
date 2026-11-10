@@ -663,7 +663,7 @@ export default function Studio() {
         includeVision,
         videoUrl: intentVideo,
         critiqueProvider: critiqueProvider || undefined,
-      }) as {kind?:string;reason?:string;creations?:Creation[]}|undefined;
+      }) as {kind?:string;reason?:string;creations?:Creation[];scoreFailed?:boolean}|undefined;
       if (result?.kind === "blocked" || result?.kind === "noop") {
         setFixReview({kind: result.kind, reason: result.reason}, source.id);
         return;
@@ -674,6 +674,7 @@ export default function Studio() {
         setSelection(child.id);
         setDialog(null);
         setComposerOpen(false);
+        if (result.scoreFailed) setReviewStatuses((current)=>({...current,[child.id]:"failed"}));
       }
     });
     oneClickInFlight.current = work;

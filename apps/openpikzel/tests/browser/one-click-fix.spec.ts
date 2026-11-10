@@ -57,7 +57,7 @@ async function setup(page:Page,opts:{model?:'flare'|'gemini-flash'}={}){
  return {settings,chats,creations};
 }
 
-function recordCalls(page:Page,creations:any[],opts:{holdFixPlan?:Promise<void>;generateOnce?:'network'|'server'}={}){
+function recordCalls(page:Page,creations:any[],opts:{holdFixPlan?:Promise<void>;generateOnce?:'network'|'server'|'text504';analyzeOnce?:boolean}={}){
  const calls:string[]=[],generateBodies:any[]=[],analyzeBodies:any[]=[],fixPlanBodies:any[]=[],tokens:string[]=[];
  const originalScore=structuredClone(creations.find((c:any)=>c.id===originalId).score);
  const jobs=new Map<string,{digest:string;result:any}>();
@@ -83,6 +83,7 @@ function recordCalls(page:Page,creations:any[],opts:{holdFixPlan?:Promise<void>;
   calls.push('generate');
   generateAttempts++;
   if(opts.generateOnce==='network'&&generateAttempts===1)return r.abort('connectionreset');
+  if(opts.generateOnce==='text504'&&generateAttempts===1)return r.fulfill({status:504,contentType:'text/plain',body:'An error occurred with your deployment'});
   if(opts.generateOnce==='server'&&generateAttempts===1)return r.fulfill({status:500,json:{error:'Fixture generate failed'}});
   const payload_digest=semanticDigest(input);
   const previous=jobs.get(input.requestId);
@@ -101,6 +102,7 @@ function recordCalls(page:Page,creations:any[],opts:{holdFixPlan?:Promise<void>;
  page.route('**/api/analyze',async r=>{
   const input=r.request().postDataJSON();
   analyzeBodies.push(input);
+  if(opts.analyzeOnce&&analyzeBodies.length===1)return r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}});
   calls.push('analyze');
   const score=fixtureChildScore(input.title);
   const item=creations.find((c:any)=>c.id===input.creationId);
@@ -268,4 +270,41 @@ test('a blocked result on one image does not disable Fix on another',async({page
  await expect(page.locator('.review-summary')).toContainText('Account A second image');
  await expect(page.getByRole('status').filter({hasText:'Add factual context and image-specific critique first.'})).toHaveCount(0);
  await expect(fix).toBeEnabled();
+});
+
+test('after scoring fails the child stays selected and Retry score reuses the analyze request id',async({page})=>{
+ const f=await setup(page);
+ const rec=recordCalls(page,f.creations,{analyzeOnce:true});
+ const fix=page.getByRole('button',{name:"Fix what's holding it back",exact:true});
+ await page.goto('/');
+ await fix.click();
+ await expect.poll(()=>rec.generateBodies.length).toBe(1);
+ await expect.poll(()=>rec.analyzeBodies.length).toBe(1);
+ await expect(page.getByLabel('Scoring inspector')).toContainText('Score did not finish');
+ await expect(page.getByRole('button',{name:'Retry score',exact:true})).toBeVisible();
+ expect(f.creations.filter((c:any)=>c.parent_id===originalId)).toHaveLength(1);
+ await page.getByRole('button',{name:'Retry score',exact:true}).click();
+ await expect.poll(()=>rec.analyzeBodies.length).toBe(2);
+ expect(rec.analyzeBodies[0].requestId).toBe(rec.analyzeBodies[1].requestId);
+ expect(rec.analyzeBodies[0].creationId).toBe(childId);
+ expect(rec.generateBodies).toHaveLength(1);
+ expect(f.creations.filter((c:any)=>c.parent_id===originalId)).toHaveLength(1);
+ await expect(page.locator('.score-header')).toContainText('78');
+});
+
+test('after a 504 text response the retry reuses the same request id and token',async({page})=>{
+ const f=await setup(page);
+ const rec=recordCalls(page,f.creations,{generateOnce:'text504'});
+ const fix=page.getByRole('button',{name:"Fix what's holding it back",exact:true});
+ await page.goto('/');
+ await fix.click();
+ await expect.poll(()=>rec.generateBodies.length).toBe(1);
+ await expect(fix).toBeEnabled();
+ await fix.click();
+ await expect.poll(()=>rec.generateBodies.length).toBe(2);
+ expect(rec.fixPlanBodies).toHaveLength(1);
+ expect(rec.generateBodies[0].requestId).toBe(rec.generateBodies[1].requestId);
+ expect(rec.generateBodies[0].fixPlanToken).toBe(rec.generateBodies[1].fixPlanToken);
+ expect(rec.generateBodies[0].fixPlanToken).toBe(rec.tokens[0]);
+ await expect(page.locator('.score-header')).toContainText('78');
 });

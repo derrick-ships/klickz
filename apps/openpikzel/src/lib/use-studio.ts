@@ -231,9 +231,20 @@ export function useStudio() {
       unknownOutcomes.add(error);
       throw error;
     }
-    const result = await res.json();
+    let result: any;
+    try {
+      result = await res.json();
+    } catch (e) {
+      const error = e instanceof Error ? e : new Error("The request did not finish. Check My creations before retrying.");
+      unknownOutcomes.add(error);
+      throw error;
+    }
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
-    if (!res.ok) throw new Error(result.error || "The request did not finish. Check My creations before retrying.");
+    if (!res.ok) {
+      const error = new Error(result.error || "The request did not finish. Check My creations before retrying.");
+      if (res.status === 502 || res.status === 503 || res.status === 504) unknownOutcomes.add(error);
+      throw error;
+    }
     return result;
   }
   async function read(path: string, signal?: AbortSignal) {
@@ -512,17 +523,22 @@ export function useStudio() {
         });
         pendingFixJobs.current.delete(key);
         const child = result.creations?.[0];
+        let scoreFailed = false;
         if (child && !child.score) {
-          await analyze(
-            child,
-            args.title ?? plan.plan!.title,
-            "",
-            args.includeVision ?? false,
-            args.videoUrl ?? "",
-            args.critiqueProvider,
-          );
+          try {
+            await analyze(
+              child,
+              args.title ?? plan.plan!.title,
+              "",
+              args.includeVision ?? false,
+              args.videoUrl ?? "",
+              args.critiqueProvider,
+            );
+          } catch {
+            scoreFailed = true;
+          }
         }
-        return { ...plan, ...result };
+        return { ...plan, ...result, scoreFailed };
       } catch (error) {
         if (!(error && typeof error === "object" && unknownOutcomes.has(error))) pendingFixJobs.current.delete(key);
         throw error;
