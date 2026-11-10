@@ -26,6 +26,12 @@ export type ScoreView=
  | {kind:"idle"}
  | {kind:"scored";reviewer:"Claude"|"OpenAI"|"Google"|null;visionFailed?:boolean};
 
+
+export function critiqueProviderFromScore(score?:Pick<Evaluation,"contributors">|null):VisionProvider|undefined{
+ const provider=score?.contributors?.find(item=>item.role==="image-review")?.provider;
+ return provider==="Anthropic API"?"anthropic":provider==="OpenAI API"?"openai":provider==="Google API"?"google":undefined;
+}
+
 export function scoreStatusFromEvaluation(score:Pick<Evaluation,"vision"|"warnings"|"contributors">):ScoreView{
  if(score.warnings?.includes("Image review did not finish"))return {kind:"scored",reviewer:null,visionFailed:true};
  if(!score.vision)return {kind:"scored",reviewer:null};

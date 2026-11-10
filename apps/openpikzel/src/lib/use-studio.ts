@@ -39,6 +39,9 @@ export function useStudio() {
     userRef = useRef<string | null>(null),
     pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const pendingAnalysis = useRef(new Map<string, string>());
+  const pendingFix = useRef(new Map<string, Promise<unknown>>());
+  const pendingFixJobs = useRef(new Map<string, {requestId:string;fixPlanToken:string;plan:{title:string;sourceId:string;settings:Settings};notice?:string}>());
+  const unknownOutcomes = new WeakSet<object>();
   const cloud = !!user && !!db.current,
     live = cloud && !!config?.ai && (!!config?.openai || !!config?.google);
   const load = useCallback(async () => {
@@ -130,7 +133,7 @@ export function useStudio() {
             if (next !== userRef.current) {
               userRef.current = next;
               setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:next?"loading":"ready"}:current);
-              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();
+              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();pendingFixJobs.current.clear();
               version.current++;
               setCreations([]);
               setPersonas([]);
@@ -216,14 +219,32 @@ export function useStudio() {
     const epoch=ownerEpoch.current;ensureCurrentOwner();
     const requestHeaders=await headers();
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
-    const res = await fetch(path, {
-      method: "POST",
-      headers: requestHeaders,
-      body: JSON.stringify(body),
-    });
-    const result = await res.json();
+    let res: Response;
+    try {
+      res = await fetch(path, {
+        method: "POST",
+        headers: requestHeaders,
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      const error = e instanceof Error ? e : new Error("The request did not finish. Check My creations before retrying.");
+      unknownOutcomes.add(error);
+      throw error;
+    }
+    let result: any;
+    try {
+      result = await res.json();
+    } catch (e) {
+      const error = e instanceof Error ? e : new Error("The request did not finish. Check My creations before retrying.");
+      unknownOutcomes.add(error);
+      throw error;
+    }
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");ensureCurrentOwner();
-    if (!res.ok) throw new Error(result.error || "The request did not finish. Check My creations before retrying.");
+    if (!res.ok) {
+      const error = new Error(result.error || "The request did not finish. Check My creations before retrying.");
+      if (res.status === 502 || res.status === 503 || res.status === 504) unknownOutcomes.add(error);
+      throw error;
+    }
     return result;
   }
   async function read(path: string, signal?: AbortSignal) {
@@ -443,6 +464,94 @@ export function useStudio() {
     forgetPendingRequest(pendingAnalysis.current, item.id, fingerprint);
     return result;
   }
+
+  async function oneClickFix(item: Creation, args: {
+    settings: Settings;
+    preserve?: { exactText?: string[]; requiredObjects?: string[]; forbiddenChanges?: string[] };
+    issueIds?: string[];
+    conversationId?: string | null;
+    title?: string;
+    includeVision?: boolean;
+    videoUrl?: string;
+    critiqueProvider?: VisionProvider;
+  }) {
+    const key = item.id;
+    const existing = pendingFix.current.get(key);
+    if (existing) return existing as ReturnType<typeof runFix>;
+    async function runFix() {
+      type PlanResult = {
+        kind: string;
+        reason?: string;
+        plan?: { title: string; sourceId: string; settings: Settings };
+        token?: string;
+        notice?: string;
+      };
+      const pending = pendingFixJobs.current.get(key);
+      let plan: PlanResult;
+      let requestId: string;
+      let token: string;
+      if (pending) {
+        plan = {kind:"ready",plan:pending.plan,token:pending.fixPlanToken,notice:pending.notice};
+        requestId = pending.requestId;
+        token = pending.fixPlanToken;
+      } else {
+        plan = await api("/api/fix-plan", {
+          creationId: item.id,
+          settings: { ...args.settings, batch: 1 },
+          preserve: {
+            exactText: args.preserve?.exactText ?? [],
+            requiredObjects: args.preserve?.requiredObjects ?? [],
+            forbiddenChanges: args.preserve?.forbiddenChanges ?? [],
+          },
+          ...(args.issueIds ? { issueIds: args.issueIds } : {}),
+        }) as PlanResult;
+        if (plan.kind === "blocked" || plan.kind === "noop") return plan;
+        requestId = crypto.randomUUID();
+        token = plan.token!;
+        pendingFixJobs.current.set(key, {requestId,fixPlanToken:token,plan:plan.plan!,notice:plan.notice});
+      }
+      try {
+        const result = await generate({
+          prompt: "Apply the reviewed packaging edits while preserving the original.",
+          title: plan.plan!.title,
+          conversationId: args.conversationId || undefined,
+          parentId: plan.plan!.sourceId,
+          mode: "fix",
+          settings: plan.plan!.settings,
+          fixPlanToken: token,
+          requestId,
+        });
+        pendingFixJobs.current.delete(key);
+        const child = result.creations?.[0];
+        let scoreFailed = false;
+        if (child && !child.score) {
+          try {
+            await analyze(
+              child,
+              args.title ?? plan.plan!.title,
+              "",
+              args.includeVision ?? false,
+              args.videoUrl ?? "",
+              args.critiqueProvider,
+            );
+          } catch {
+            scoreFailed = true;
+          }
+        }
+        return { ...plan, ...result, scoreFailed };
+      } catch (error) {
+        if (!(error && typeof error === "object" && unknownOutcomes.has(error))) pendingFixJobs.current.delete(key);
+        throw error;
+      }
+    }
+    const work = runFix();
+    pendingFix.current.set(key, work);
+    try {
+      return await work;
+    } finally {
+      pendingFix.current.delete(key);
+    }
+  }
   async function saveProfile(kind:"persona"|"style",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]}){
     const epoch=ownerEpoch.current;
     if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
@@ -623,6 +732,7 @@ export function useStudio() {
     saveUploaded,
     generate,
     analyze,
+    oneClickFix,
     saveProfile,
     prepare,
     resize,
