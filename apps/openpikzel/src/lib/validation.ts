@@ -42,6 +42,7 @@ export const generationSchema = z
       });
   });
 export const textProviderSchema = z.enum(["openai", "google"]).default("openai");
+export const visionProviderSchema = z.enum(["anthropic", "openai", "google"]).default("openai");
 export const ideaSchema = z.object({
   provider: textProviderSchema,
   prompt: z.string().trim().min(8).max(2400),
@@ -56,7 +57,7 @@ export const reviewSchema = z
     videoUrl: z.string().trim().max(500).default(""),
     audience: z.string().trim().max(200).default(""),
     includeVision: z.boolean().default(false),
-    critiqueProvider: textProviderSchema,
+    critiqueProvider: visionProviderSchema,
     requestId: z
       .string()
       .uuid()

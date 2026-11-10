@@ -41,7 +41,7 @@ export async function authenticated(request: Request) {
   }
   return { db, user: data.user, oauth: undefined };
 }
-export function requireAI(provider: "openai" | "jev" | "google") {
+export function requireAI(provider: "openai" | "jev" | "google" | "anthropic") {
   if (process.env.AI_ENABLED !== "true")
     throw new AppError(
       403,
