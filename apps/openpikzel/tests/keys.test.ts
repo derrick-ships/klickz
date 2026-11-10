@@ -53,4 +53,35 @@ describe("BYOK tenant isolation", () => {
     expect(seen).toEqual(["alice-key", "bob-key"]);
     expect(providerContext.getStore()).toBeUndefined();
   });
+
+  it("decrypts an anthropic key only when bound to provider:<userId>:anthropic", async () => {
+    vi.stubEnv("STUDIO_ENCRYPTION_KEY", "b".repeat(64));
+    vi.stubEnv("OWNER_PROVIDER_KEYS", "false");
+    const key = "sk-ant-test-0000FAKE";
+    const ciphertext = seal({ key }, "provider:alice:anthropic");
+    const db: any = {
+      from: () => ({
+        select: () => ({
+          eq: async () => ({
+            data: [{ provider: "anthropic", ciphertext }],
+            error: null,
+          }),
+        }),
+      }),
+    };
+    expect(await userKeys(db, "alice")).toEqual({ anthropic: key });
+    await expect(userKeys(db, "bob")).rejects.toThrow();
+  });
+  it("asks for a Claude key without naming OpenAI or leaking a key value", () => {
+    const key = "sk-ant-test-0000FAKE";
+    expect(() => providerKey("anthropic")).toThrow(/Claude/);
+    expect(() => providerKey("anthropic")).toThrow("Connections");
+    try {
+      providerKey("anthropic");
+    } catch (error) {
+      const text = String(error);
+      expect(text).not.toContain(key);
+      expect(text).not.toMatch(/OpenAI/);
+    }
+  });
 });

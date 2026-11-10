@@ -35,7 +35,7 @@ it("validates provider choice and defaults older requests to OpenAI without fall
  expect(()=>ideaSchema.parse({prompt:"An actual video idea",provider:"subscription"})).toThrow();
 });
 it("blocks an unavailable selected text role and offers Google only after an explicit choice",()=>{
- const config={cloud:true,ai:true,openai:false,google:true,jev:true,supabaseUrl:"",supabaseKey:"",ownerGate:false,textModels:{openai:"OpenAI model",google:"Google model"}};
+ const config={cloud:true,ai:true,openai:false,google:true,jev:true,anthropic:false,supabaseUrl:"",supabaseKey:"",ownerGate:false,textModels:{openai:"OpenAI model",google:"Google model"}};
  const input={config,cloud:true,loading:false,tool:"title",titleIdeas:true,settings:defaultSettings,prompt:"An actual video idea",title:"",hasSource:false,hasReferences:false,includeVision:false};
  expect(generationReadiness(input).action).toBe("connect");
  expect(generationReadiness({...input,textProvider:"google"}).identity).toBe("Google · Google model");
