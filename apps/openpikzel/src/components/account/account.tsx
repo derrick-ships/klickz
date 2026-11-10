@@ -12,6 +12,7 @@ export { AccountSignIn } from "./sign-in";
 import { takeSignInLinkError } from "@/lib/sign-in-link";
 
 import type { Config } from "@/lib/types";
+import { localAgentLinked } from "../../lib/oauth/scopes";
 export function useAccount(isolated = false) {
   const [db, setDb] = useState<SupabaseClient | null>(null),
     [session, setSession] = useState<Session | null>(null),
@@ -405,7 +406,7 @@ export function ConnectionsPage() {
                 <div className="grant-row" key={g.id}>
                   <div>
                     <strong>{g.client_name}</strong>
-                    <p>{g.scope.join(" · ")}</p>
+                    <p>{!g.revoked_at && localAgentLinked([g]) ? "Local agent linked" : g.scope.join(" · ")}</p>
                   </div>
                   <button
                     className="neutral-button"

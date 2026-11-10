@@ -80,6 +80,8 @@ import {
   issueCode,
   exchange,
   resolveAccess,
+  localAgentLinked,
+  scopeCopy,
 } from "../src/lib/oauth/core";
 import { seal, unseal, mcpResource } from "../src/lib/crypto";
 import { GET as resourceMetadata } from "../src/app/.well-known/oauth-protected-resource/route";
@@ -288,5 +290,28 @@ describe("resource-bound MCP OAuth", () => {
     expect(unseal(token, "provider:a:openai")).toEqual({
       key: "private-placeholder",
     });
+  });
+});
+
+describe("studio:agent grants", () => {
+  it("accepts studio:agent and uses the exact consent copy", () => {
+    const { url } = setup();
+    url.searchParams.set("scope", "studio:read studio:agent");
+    expect(parseAuthorization(url).scope).toEqual(["studio:read", "studio:agent"]);
+    expect(scopeCopy["studio:agent"].heading).toBe(
+      "Let your local agent keep memory and send you cards",
+    );
+  });
+
+  it("treats an active studio:agent grant as a linked local agent", () => {
+    expect(
+      localAgentLinked([
+        { scope: ["studio:read", "studio:agent"], revoked_at: null },
+      ]),
+    ).toBe(true);
+    expect(
+      localAgentLinked([{ scope: ["studio:read", "studio:agent"], revoked_at: "2026-11-10" }]),
+    ).toBe(false);
+    expect(localAgentLinked([{ scope: ["studio:read"], revoked_at: null }])).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { AccountSignIn, useAccount } from "./account";
+import { scopeCopy, type Scope } from "../../lib/oauth/scopes";
 export function Consent() {
   const { db, session, error, setError, ready } = useAccount(true);
   const [request, setRequest] = useState(""),
@@ -68,20 +69,8 @@ export function Consent() {
             <ul className="consent-permissions">
               {details.scope.map((scope) => (
                 <li key={scope}>
-                  <strong>
-                    {scope === "studio:read"
-                      ? "Read your workspace"
-                      : scope === "studio:write"
-                        ? "Save and edit your work"
-                        : "Use your connected AI providers"}
-                  </strong>
-                  <p>
-                    {scope === "studio:read"
-                      ? "Access your thumbnails, scores, persona pictures and style references."
-                      : scope === "studio:write"
-                        ? "Upload references, create profiles, save scores and resize thumbnails. Originals are preserved."
-                        : "Generate images, suggest titles, score and fix thumbnails using credits on your own API accounts."}
-                  </p>
+                  <strong>{(scopeCopy[scope as Scope] || scopeCopy["studio:ai"]).heading}</strong>
+                  <p>{(scopeCopy[scope as Scope] || scopeCopy["studio:ai"]).detail}</p>
                 </li>
               ))}
             </ul>

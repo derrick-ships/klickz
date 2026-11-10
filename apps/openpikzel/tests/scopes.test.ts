@@ -12,6 +12,8 @@ import { POST as analyze } from "../src/app/api/analyze/route";
 import { POST as prepare } from "../src/app/api/persona/prepare/route";
 import { POST as creative } from "../src/app/api/creative/route";
 import { POST as resize } from "../src/app/api/resize/route";
+import { AppError } from "../src/lib/validation";
+import { requireScope, scopeCopy, scopes } from "../src/lib/oauth/core";
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
@@ -40,3 +42,21 @@ it.each([
     expect((await r.json()).error).toMatch(/permission/);
   },
 );
+
+it("includes studio:agent and the exact local-agent consent copy", () => {
+  expect(scopes).toContain("studio:agent");
+  expect(scopeCopy["studio:agent"].heading).toBe(
+    "Let your local agent keep memory and send you cards",
+  );
+});
+
+it("rejects a token without studio:agent with 403 from the scope guard", () => {
+  try {
+    requireScope({ scope: ["studio:read", "studio:ai"] }, "studio:agent");
+    throw new Error("expected requireScope to throw");
+  } catch (error) {
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).status).toBe(403);
+    expect((error as AppError).message).toMatch(/permission/);
+  }
+});

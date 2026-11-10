@@ -122,3 +122,96 @@ test('standard user CLI installs work even when the launcher PATH omits them',as
  assert.equal(result.status,0);assert.equal(result.stdout,'fixture-cli');
  }finally{rmSync(directory,{recursive:true,force:true});}
 });
+
+import {Engine} from './engine.mjs';
+import {McpOAuth} from './mcp-oauth.mjs';
+import {Vault} from './vault.mjs';
+const fixtureAccess='opz-test-access-0000FAKE';
+const fixtureRefresh='opz-test-refresh-0000FAKE';
+const fixtureMcp='https://1.1.1.1/mcp';
+function oauthFixture(revokes=[]){
+  return async(input,init={})=>{
+    const url=String(input);
+    if(url.includes('oauth-protected-resource'))return Response.json({resource:fixtureMcp,authorization_servers:['https://1.1.1.1'],scopes_supported:['studio:read','studio:agent']});
+    if(url.includes('openid-configuration')||url.includes('oauth-authorization-server'))return Response.json({issuer:'https://1.1.1.1',authorization_endpoint:'https://1.1.1.1/authorize',token_endpoint:'https://1.1.1.1/token',registration_endpoint:'https://1.1.1.1/register',revocation_endpoint:'https://1.1.1.1/oauth/revoke',response_types_supported:['code'],grant_types_supported:['authorization_code','refresh_token'],code_challenge_methods_supported:['S256'],token_endpoint_auth_methods_supported:['none']});
+    if(url.endsWith('/register'))return Response.json({client_id:'fixture-client',...JSON.parse(init.body)},{status:201});
+    if(url.endsWith('/token')){const body=new URLSearchParams(init.body);assert.equal(body.get('grant_type'),'authorization_code');assert.ok(body.get('code_verifier'));return Response.json({access_token:fixtureAccess,refresh_token:fixtureRefresh,token_type:'Bearer',expires_in:3600,scope:'studio:read studio:agent'});}
+    if(url.endsWith('/oauth/revoke')){revokes.push(String(init.body||''));return new Response(null,{status:200});}
+    throw new Error('Unexpected OAuth fixture endpoint.');
+  };
+}
+async function captureLogs(fn){
+  const lines=[];
+  const orig={log:console.log,info:console.info,warn:console.warn,error:console.error};
+  for(const name of Object.keys(orig))console[name]=(...args)=>lines.push(args.map(String).join(' '));
+  try{return {result:await fn(),lines};}finally{Object.assign(console,orig);}
+}
+
+test('account link completes PKCE to /mcp, stores tokens only in the vault, and survives a restart',async t=>{
+  const previous=process.env.OPENPIKZELS_MCP_URL;
+  process.env.OPENPIKZELS_MCP_URL=fixtureMcp;
+  t.after(()=>{if(previous===undefined)delete process.env.OPENPIKZELS_MCP_URL;else process.env.OPENPIKZELS_MCP_URL=previous;});
+  const directory=mkdtempSync(join(tmpdir(),'openpikzels-account-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  const vault=new Vault(join(directory,'credentials')),oauth=new McpOAuth(vault,{fetchFn:oauthFixture()}),engine=new Engine(directory,{vault,oauth});
+  const {result,lines}=await captureLogs(async()=>{
+    const server=await createCompanion({port:0,engine});
+    t.after(()=>new Promise(resolve=>server.close(resolve)));
+    const origin='http://127.0.0.1:'+server.address().port,token=new URL(server.launchUrl()).hash.slice(1);
+    const headers={origin,'content-type':'application/json','x-openpikzels-client':token};
+    const html=await(await fetch(origin)).text();
+    assert.match(html,/Link my OpenPikzels account/);
+    const started=await fetch(origin+'/api/account/link',{method:'POST',headers,body:'{}'});
+    assert.equal(started.status,200);
+    const body=await started.json();
+    assert.equal(JSON.stringify(body).includes(fixtureAccess),false);
+    const authorize=new URL(body.url);
+    assert.equal(authorize.searchParams.get('code_challenge_method'),'S256');
+    assert.match(authorize.searchParams.get('scope')||'',/studio:agent/);
+    assert.equal(authorize.searchParams.get('resource')||fixtureMcp,fixtureMcp);
+    const cookie=(started.headers.get('set-cookie')||'').split(';')[0];
+    const callback=await fetch(origin+'/api/mcp/oauth/callback?'+new URLSearchParams({state:body.state,code:'fixture-code'}),{headers:{cookie}});
+    assert.equal(callback.status,200);
+    const status=await(await fetch(origin+'/api/account/status',{method:'POST',headers,body:'{}'})).json();
+    assert.equal(status.linked,true);
+    assert.equal(JSON.stringify(status).includes(fixtureAccess),false);
+    assert.equal(JSON.stringify(status).includes(fixtureRefresh),false);
+    const stored=await vault.get(oauth.id('default','openpikzels'));
+    assert.equal(stored.tokens.access_token,fixtureAccess);
+    const state=JSON.stringify(await engine.read('default'));
+    assert.equal(state.includes(fixtureAccess),false);
+    assert.equal(state.includes(fixtureRefresh),false);
+    const restarted=new Engine(directory);
+    assert.equal((await restarted.accountStatus('default')).linked,true);
+    return status;
+  });
+  assert.equal(lines.join('\n').includes(fixtureAccess),false);
+  assert.equal(lines.join('\n').includes(fixtureRefresh),false);
+  assert.equal(result.linked,true);
+});
+
+test('account unlink revokes the grant and deletes vault tokens',async t=>{
+  const previous=process.env.OPENPIKZELS_MCP_URL;
+  process.env.OPENPIKZELS_MCP_URL=fixtureMcp;
+  t.after(()=>{if(previous===undefined)delete process.env.OPENPIKZELS_MCP_URL;else process.env.OPENPIKZELS_MCP_URL=previous;});
+  const directory=mkdtempSync(join(tmpdir(),'openpikzels-unlink-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  const revokes=[],vault=new Vault(join(directory,'credentials')),oauth=new McpOAuth(vault,{fetchFn:oauthFixture(revokes)}),engine=new Engine(directory,{vault,oauth});
+  const server=await createCompanion({port:0,engine});
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const origin='http://127.0.0.1:'+server.address().port,token=new URL(server.launchUrl()).hash.slice(1);
+  const headers={origin,'content-type':'application/json','x-openpikzels-client':token};
+  const started=await fetch(origin+'/api/account/link',{method:'POST',headers,body:'{}'});
+  const body=await started.json();
+  const cookie=(started.headers.get('set-cookie')||'').split(';')[0];
+  assert.equal((await fetch(origin+'/api/mcp/oauth/callback?'+new URLSearchParams({state:body.state,code:'fixture-code'}),{headers:{cookie}})).status,200);
+  const unlinked=await fetch(origin+'/api/account/unlink',{method:'POST',headers,body:'{}'});
+  assert.equal(unlinked.status,200);
+  assert.equal((await unlinked.json()).linked,false);
+  assert.equal(revokes.length,1);
+  const revoked=new URLSearchParams(revokes[0]);
+  assert.equal(revoked.get('client_id'),'fixture-client');
+  assert.ok(revoked.get('token')===fixtureRefresh||revoked.get('token')===fixtureAccess);
+  assert.equal(await vault.get(oauth.id('default','openpikzels')),null);
+  assert.equal((await(await fetch(origin+'/api/account/status',{method:'POST',headers,body:'{}'})).json()).linked,false);
+});
