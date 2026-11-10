@@ -226,9 +226,13 @@ export default function Studio() {
       selected?.score && [2, 3].includes(selected.score.version)
         ? selected.score
         : null;
-  const previousScore =
+  const previousScoreRaw =
     selected?.mode === "fix" && selected.parent_id
       ? studio.creations.find((c) => c.id === selected.parent_id)?.score ?? null
+      : null;
+  const previousScore =
+    previousScoreRaw && [2, 3].includes(previousScoreRaw.version)
+      ? previousScoreRaw
       : null;
   const overallCompare = previousScore
     ? compareScore(previousScore.overall, score?.overall ?? null, { name: "Score", empty: "Partial" })
@@ -1034,8 +1038,15 @@ export default function Studio() {
                         <div>
                           <span>OpenPikzels Score</span>
                           <h2 aria-label={overallCompare?.spoken}>
-                            {overallCompare ? (
+                            {overallCompare && score.overall === null ? (
                               overallCompare.visible
+                            ) : overallCompare && score.overall !== null ? (
+                              <>
+                                {previousScore?.overall ?? "Partial"} → <ScoreNumber reveal={scoreReveal} final={score.overall} />
+                                {previousScore?.overall != null &&
+                                  previousScore.overall !== score.overall &&
+                                  ` (${score.overall > previousScore.overall ? "+" : ""}${score.overall - previousScore.overall})`}
+                              </>
                             ) : score.overall === null ? (
                               "Partial"
                             ) : (
