@@ -3,6 +3,7 @@ import {join} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
 import {Vault} from './vault.mjs';
 import {McpPool,prepareServer,registerServer,normalizeSchema} from './mcp-runtime.mjs';
+import {webToolDefinitions,callWebTool} from './web-tools.mjs';
 import {McpOAuth} from './mcp-oauth.mjs';
 import {schemas,toolDefinitions,validateCall,findPending,answerMessage,submitSecrets,askingNote,parseReply,serializeAnswers} from './hitl.mjs';
 export const accountServerName='openpikzels';
@@ -11,7 +12,8 @@ export function accountResource(){return process.env.OPENPIKZELS_MCP_URL||'https
 const digest=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const textResult=v=>({content:[{type:'text',text:JSON.stringify(v)}]});
 export class Engine{
- constructor(directory,{pool,vault,oauth}={}){this.directory=directory;this.vault=vault||new Vault(join(directory,'credentials'));this.pool=pool||new McpPool();this.oauth=oauth||new McpOAuth(this.vault);this.chains=new Map();}
+ constructor(directory,{pool,vault,oauth}={}){this.directory=directory;this.vault=vault||new Vault(join(directory,'credentials'));this.pool=pool||new McpPool();this.oauth=oauth||new McpOAuth(this.vault);this.chains=new Map();this.workspaces=new Map();}
+ beginWorkspace(agent,path){this.workspaces.set(this.agent(agent),path);} endWorkspace(agent){this.workspaces.delete(agent);} workspace(agent){return this.workspaces.get(this.agent(agent))||join(this.directory,this.agent(agent),'workspace');}
  agent(name='default'){if(!/^[a-zA-Z0-9_-]{1,60}$/.test(name))throw new Error('Invalid agent.');return name;}
  async read(agent){this.agent(agent);try{return JSON.parse(await readFile(join(this.directory,agent+'.json'),'utf8'));}catch(e){if(e.code==='ENOENT')return {messages:[],servers:[]};throw new Error('The local agent state could not be read.');}}
  async save(agent,state){await mkdir(this.directory,{recursive:true,mode:0o700});const p=join(this.directory,this.agent(agent)+'.json'),t=p+'.'+randomUUID();await writeFile(t,JSON.stringify(state),{mode:0o600,flag:'wx'});await rename(t,p);}
@@ -53,7 +55,7 @@ export class Engine{
    const id=randomUUID();s.messages.push({role:'assistant',call:{id,name,input:valid},...extra,at:Date.now()});const ack={status:'delivered',instruction:'This turn is over. Wait for the user to answer this card.'};s.messages.push({role:'tool',callId:id,content:ack});await this.save(agent,s);return textResult(ack);
   });
  }
- async hostTools(agent='default'){const capabilities=(await this.read(agent)).capabilities||{};return [...toolDefinitions.filter(t=>capabilities[t.name]!==false),{name:'mcp_register',description:'Probe a remote MCP server before saving. Use placeholders for credentials.',inputSchema:{type:'object',properties:{config:{type:'object'}},required:['config']}},{name:'mcp_login',description:'Ask the user to connect an MCP server. Device codes never enter this chat.',inputSchema:{type:'object',properties:{name:{type:'string'}},required:['name']}},{name:'mcp_login_complete',description:'Check whether the user finished MCP sign-in.',inputSchema:{type:'object',properties:{name:{type:'string'}},required:['name']}}];}
+ async hostTools(agent='default'){const capabilities=(await this.read(agent)).capabilities||{};const tools=[...toolDefinitions.filter(t=>capabilities[t.name]!==false),{name:'mcp_register',description:'Probe a remote MCP server before saving. Use placeholders for credentials.',inputSchema:{type:'object',properties:{config:{type:'object'}},required:['config']}},{name:'mcp_login',description:'Ask the user to connect an MCP server. Device codes never enter this chat.',inputSchema:{type:'object',properties:{name:{type:'string'}},required:['name']}},{name:'mcp_login_complete',description:'Check whether the user finished MCP sign-in.',inputSchema:{type:'object',properties:{name:{type:'string'}},required:['name']}}];if(capabilities.web!==false)tools.push(...webToolDefinitions);return tools;}
  async hostCall(agent,name,args){
   if(Object.hasOwn(schemas,name)){
    if((await this.read(agent)).capabilities?.[name]===false)throw new Error('This interaction capability is disabled.');
@@ -76,6 +78,7 @@ export class Engine{
   }
   if(name==='mcp_login')return this.card(agent,'request_mcp_sign_in',{name:args.name});
   if(name==='mcp_login_complete'){const c=await this.config(agent,args.name);return textResult({connected:!!(await this.oauth.token(agent,c))});}
+  if(name==='fetch_url'||name==='download_file'){if((await this.read(agent)).capabilities?.web===false)throw new Error('This web capability is disabled.');return callWebTool(name,args,{workspace:this.workspace(agent)});}
   throw new Error('Unsupported host tool.');
  }
  async upstreamTools(agent,config){const result=await(await this.client(agent,config)).listTools();return result.tools.map(t=>({...t,inputSchema:normalizeSchema(t.inputSchema)}));}
