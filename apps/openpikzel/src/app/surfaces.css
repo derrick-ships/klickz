@@ -201,7 +201,7 @@ button:focus-visible, .mode-tabs button:focus-visible::before { transition: none
   .mode-tabs svg { width: 15px; height: 15px; }
   .composer { border-radius: 22px; }
   .composer-inner { padding: 20px 17px 39px; }
-  #thumbnail-prompt { min-height: 150px; }
+  #thumbnail-prompt { min-height: 112px; /* OP-3: leaves room for the action and its cost above the fold. */ }
   .tool-chip { min-height: 44px; padding: var(--space-2) 10px; }
   .prompt-tools .icon-button { width: 44px; height: 44px; }
   .settings-row { gap: var(--space-2); }

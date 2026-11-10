@@ -5,6 +5,7 @@ import {deliverImages,type DeliveryState} from "@/lib/generation-delivery";
 import {PromptEnhancer,CreativeConversation,type CreativeDraft} from "@/components/creative/creative-partner";
 import {ProviderChoice} from "@/components/creative/provider-choice";
 import { generationReadiness } from "@/lib/generation-readiness";
+import { promptValidationError } from "@/lib/prompt-validation";
 import {useRequestActivity} from "@/lib/use-request-activity";
 import { jobGuidance } from "@/lib/job-state";
 import { useEffect, useRef, useState } from "react";
@@ -147,6 +148,7 @@ export default function Studio() {
     [url, setUrl] = useState(""),
     [advanced, setAdvanced] = useState(false),
     [titleAction, setTitleAction] = useState<"image" | "ideas">("image"),
+    [promptError, setPromptError] = useState(""),
     [titles, setTitles] = useState<string[]>([]),
     [search, setSearch] = useState(""),
     [onlyFavorites, setOnlyFavorites] = useState(false),
@@ -190,6 +192,7 @@ export default function Studio() {
   const dialogRef = useRef<HTMLDialogElement>(null),
     uploadRef = useRef<HTMLInputElement>(null),
     mainRef = useRef<HTMLElement>(null),
+    promptRef = useRef<HTMLTextAreaElement>(null),
     navigationRef = useRef<HTMLElement>(null),
     navigationOpenRef = useRef<HTMLButtonElement>(null),
     navigationCloseRef = useRef<HTMLButtonElement>(null),
@@ -408,6 +411,7 @@ export default function Studio() {
     setRefs([]);
     setTitles([]);
     setTab("studio");
+    setPromptError("");
     studio.setError("");
     if (compactNavigation) { setSidebar(false); requestAnimationFrame(() => mainRef.current?.focus()); }
   }
@@ -500,6 +504,10 @@ export default function Studio() {
   const autoReviewNotice=autoReview&&studio.config?.jev ? "Automatic review adds one Jev request"+(analysisVision?" and one "+analysisReviewer+" image review":"")+" per image. These use your API balances. Exact cost cannot be estimated here." : "Automatic review requires your opt-in and a Jev connection. Generated images remain available without a score.";
 
   async function submit() {
+    // Prompt-only validation is shown under the field (not the top banner) and focuses it.
+    const invalid=promptValidationError({tool,titleAction,prompt,title});
+    if(invalid){studio.setError("");setPromptError(invalid);requestAnimationFrame(()=>promptRef.current?.focus());return;}
+    setPromptError("");
     const submittedFingerprint=draftFingerprint;
     await studio.run(
       tool === "analyze"
@@ -727,7 +735,64 @@ export default function Studio() {
   const hasReviewImage = !!(selected?.image_path && studio.images[selected.image_path]);
   const showComposer = !hasReviewImage || composerOpen;
   const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:studio.loading,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider,autoReview});
-  const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Add image-specific review to analysis (one extra provider request)</label></>;
+  // The inline prompt message follows the current text and mode, and clears once the prompt is valid.
+  useEffect(()=>{if(!promptError)return;const next=promptValidationError({tool,titleAction,prompt,title})||"";if(next!==promptError)setPromptError(next);},[promptError,tool,titleAction,prompt,title]);
+  // OP-3: the action, its cost and the key note sit directly under the prompt.
+  const showCost=!busy&&!!readiness.costShort&&(readiness.action==="run"||readiness.action==="signin");
+  const generateAction = (
+                  <div className="generate-dock" data-placement={tool==="analyze"?"after-settings":"under-prompt"}>
+                    <div className="generate-split">
+                      <button
+                        className="primary-button"
+                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"}
+                        aria-describedby={(showCost?"generate-cost-description ":"")+"request-readiness"}
+                        onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):submit()}
+                      >
+                        {busy ? (
+                          <LoaderCircle className="spin" size={17} />
+                        ) : tool === "analyze" ? (
+                          <ScanLine size={17} />
+                        ) : (
+                          <Sparkles size={17} />
+                        )}
+                        <span>
+                          {busy
+                            ? studio.busy
+                            : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
+                              ? "Analyze thumbnail"
+                              : tool === "title" && titleAction === "ideas"
+                                ? "Generate titles"
+                                : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create thumbnail"}
+                        </span>
+                        {showCost&&<span className="generate-cost" aria-hidden="true">{readiness.costShort}</span>}
+                      </button>
+                      {tool !== "analyze" &&
+                        !(tool === "title" && titleAction === "ideas") && (
+                          <label className="batch-select">
+                            <span className="sr-only">Images per request</span>
+                            <select
+                              aria-label="Images per request"
+                              value={settings.batch}
+                              disabled={busy}
+                              onChange={(e) =>
+                                changeSettings(
+                                  "batch",
+                                  Number(e.target.value) as Settings["batch"],
+                                )
+                              }
+                            >
+                              <option value={1}>1×</option>
+                              <option value={2}>2×</option>
+                              <option value={4}>4×</option>
+                            </select>
+                          </label>
+                        )}
+                    </div>
+                    {showCost&&<span id="generate-cost-description" className="sr-only">{readiness.costDescription}</span>}
+                    <p className="generate-key-note" id="generate-key-note">{readiness.keyNote.connected?readiness.keyNote.text:<>{readiness.keyNote.text} <button type="button" className="generate-key-link" onClick={()=>setDialog("connections")}>{readiness.keyNote.link}</button></>}</p>
+                  </div>
+  );
+  const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy} connectedShownNearby={readiness.keyNote.connected&&readiness.keyNote.provider===(textProvider==="openai"?"OpenAI":"Google")}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Add image-specific review to analysis (one extra provider request)</label></>;
   const ResultHeading = hasReviewImage ? "h1" : "h2";
   const ComposerHeading = hasReviewImage ? "h2" : "h1";
   const resultPanel = selected ? (
@@ -1189,7 +1254,6 @@ export default function Studio() {
                     ))}
                   </div>
                 </div>
-                <section className="setup-before-start" aria-label="Before you start"><strong>{studio.cloud?"Your connected provider creates the image":"Free drafts. Your own AI connection for generation."}</strong><p>Generating images requires an OpenPikzels account and your own OpenAI or Google API key. Provider usage is billed to that account; ChatGPT and Claude subscriptions alone do not enable studio generation.</p>{!studio.cloud&&<a href="/connect#api">Sign in, then connect your API key</a>}</section>
                 {hasReviewImage && <button className="quiet-button review-editor-toggle" aria-expanded={showComposer} aria-controls="review-creation-controls" onClick={() => setComposerOpen((open) => !open)}>{showComposer ? "Hide prompt and settings" : "Show prompt and settings"}<ChevronDown size={14} /></button>}
                 <div className="composer" id="review-creation-controls" hidden={!showComposer}>
                   <fieldset className="composer-inner" disabled={navigating||studio.loading} aria-label="Thumbnail inputs">
@@ -1341,6 +1405,9 @@ export default function Studio() {
                         </div>
                         <textarea
                           id="thumbnail-prompt"
+                          ref={promptRef}
+                          aria-invalid={promptError?true:undefined}
+                          aria-describedby={promptError?"prompt-error":undefined}
                           maxLength={2400}
                           value={prompt}
                           onChange={(e) => setPrompt(e.target.value)}
@@ -1354,6 +1421,8 @@ export default function Studio() {
                                   : "Who or what is the focus? Describe the scene, mood and any words to show. Put exact wording in quotation marks."
                           }
                         />
+                        {promptError&&<p className="field-error" id="prompt-error" role="alert"><AlertCircle size={15} aria-hidden="true"/><span>{promptError}</span></p>}
+                        {generateAction}
                           </div>
                         </div>
                         {providerControls}
@@ -1565,57 +1634,11 @@ export default function Studio() {
                   <div className="request-readiness" id="request-readiness" role="group" aria-label="Before you run">
                     <p className="request-identity">{readiness.identity}</p><p>{readiness.quantity}</p>
                     <p className="request-ready" role="status">{readiness.readiness}</p>
+                    <p className="request-key"><strong>{studio.cloud?"Your connected provider creates the image.":"Free drafts. Your own AI connection for generation."}</strong> Generating images requires an OpenPikzels account and your own OpenAI or Google API key. Provider usage is billed to that account; ChatGPT and Claude subscriptions alone do not enable studio generation.{!studio.cloud&&<> <a href="/connect#api">Sign in, then connect your API key</a></>}</p>
                     <p className="request-cost">{readiness.cost} {readiness.pricingSource&&<a href={readiness.pricingSource} target="_blank" rel="noreferrer">Provider pricing</a>}</p>{readiness.apiModel&&<details><summary>Provider details</summary><p>API model: {readiness.apiModel}</p></details>}
                     {tool!=="analyze"&&!(tool==="title"&&titleAction==="ideas")&&<div className="automatic-review"><label><input type="checkbox" checked={autoReview} disabled={busy} onChange={e=>{setAutoReview(e.target.checked);const key="openpikzels.autoReviewConsent."+(studio.user||"local");if(e.target.checked)localStorage.setItem(key,"v1");else localStorage.removeItem(key);}}/> Analyze new images automatically</label><p>{autoReviewNotice}</p></div>}
                   </div>
-                  <div className="generate-dock">
-                    <div className="generate-split">
-                      <button
-                        className="primary-button"
-                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"}
-                        aria-describedby="request-readiness"
-                        onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):submit()}
-                      >
-                        {busy ? (
-                          <LoaderCircle className="spin" size={17} />
-                        ) : tool === "analyze" ? (
-                          <ScanLine size={17} />
-                        ) : (
-                          <Sparkles size={17} />
-                        )}
-                        <span>
-                          {busy
-                            ? studio.busy
-                            : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
-                              ? "Analyze thumbnail"
-                              : tool === "title" && titleAction === "ideas"
-                                ? "Generate titles"
-                                : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create thumbnail"}
-                        </span>
-                      </button>
-                      {tool !== "analyze" &&
-                        !(tool === "title" && titleAction === "ideas") && (
-                          <label className="batch-select">
-                            <span className="sr-only">Images per request</span>
-                            <select
-                              aria-label="Images per request"
-                              value={settings.batch}
-                              disabled={busy}
-                              onChange={(e) =>
-                                changeSettings(
-                                  "batch",
-                                  Number(e.target.value) as Settings["batch"],
-                                )
-                              }
-                            >
-                              <option value={1}>1×</option>
-                              <option value={2}>2×</option>
-                              <option value={4}>4×</option>
-                            </select>
-                          </label>
-                        )}
-                    </div>
-                  </div>
+                  {tool==="analyze"&&generateAction}
                 </div>
                 <div className="composer-footer" hidden={!showComposer}>
                   <span>
