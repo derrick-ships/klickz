@@ -319,6 +319,13 @@ test('listedImagePaths scans leftover words inside quoted spans',async t=>{
  const longest=await listedFrom(t,'use "my cover photo.png"',['my cover photo.png','photo.png']);
  console.log('V8_REPRO',JSON.stringify({useA,both,longest}));
  assert.deepEqual(useA,['a.png']);
- assert.deepEqual(both,['b.png','a.png']);
+ assert.deepEqual(both,['a.png','b.png']);
  assert.deepEqual(longest,['my cover photo.png']);
+});
+test('listedImagePaths returns paths in order of appearance',async t=>{
+ const both=await listedFrom(t,'"a.png and b.png"',['a.png','b.png']);
+ const mixed=await listedFrom(t,'cover c.png then "my cover photo.png" and a.png',['c.png','my cover photo.png','a.png']);
+ console.log('V9_REPRO',JSON.stringify({both,mixed}));
+ assert.deepEqual(both,['a.png','b.png']);
+ assert.deepEqual(mixed,['c.png','my cover photo.png','a.png']);
 });

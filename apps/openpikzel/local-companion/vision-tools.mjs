@@ -32,47 +32,71 @@ function imagePathFrom(value){
  return IMAGE_PATH.test(path)?path:'';
 }
 
+function tokensAt(text,base=0){
+ const found=[];
+ for(const match of text.matchAll(/[^\s;]+/g))found.push({value:match[0],index:base+match.index});
+ return found;
+}
+
+function wordSpans(inner){
+ const trimmed=trimPathPunctuation(inner);
+ const trimAt=trimmed?inner.indexOf(trimmed):0;
+ const spans=[];
+ if(!trimmed)return {trimmed,spans};
+ let cursor=0;
+ for(const word of trimmed.split(/\s+/).filter(Boolean)){
+  const at=trimmed.indexOf(word,cursor);
+  spans.push({word,start:trimAt+at});
+  cursor=at+word.length;
+ }
+ return {trimmed,spans};
+}
+
 export async function listedImagePaths(brief,{workspace,resolveImage=resolveWorkspaceImage}={}){
  const text=String(brief);
- const found=[];
- const seen=new Set();
- const add=value=>{
+ const hits=[];
+ const add=(value,index)=>{
   const path=imagePathFrom(value);
-  if(!path||seen.has(path))return;
-  seen.add(path);
-  found.push(path);
+  if(!path)return;
+  hits.push({path,index});
  };
- const addResolved=path=>{
-  if(!path||seen.has(path))return;
-  seen.add(path);
-  found.push(path);
+ const addResolved=(path,index)=>{
+  if(!path)return;
+  hits.push({path,index});
  };
  async function longestQuotedPath(inner){
-  const trimmed=trimPathPunctuation(inner);
-  if(!trimmed)return {path:'',leading:inner};
-  if(!workspace)return {path:'',leading:trimmed};
-  const words=trimmed.split(/\s+/).filter(Boolean);
-  for(let i=0;i<words.length;i++){
-   const candidate=words.slice(i).join(' ');
+  const {trimmed,spans}=wordSpans(inner);
+  if(!trimmed||!spans.length)return {path:'',spans,from:-1};
+  if(!workspace)return {path:'',spans,from:-1};
+  for(let i=0;i<spans.length;i++){
+   const candidate=spans.slice(i).map(span=>span.word).join(' ');
    try{
     await resolveImage(workspace,candidate);
-    return {path:candidate,leading:words.slice(0,i).join(' ')};
+    return {path:candidate,spans,from:i};
    }catch{}
   }
-  return {path:'',leading:trimmed};
+  return {path:'',spans,from:-1};
  }
- let remainder='';
  let last=0;
  const quoted=/(["`])([^"`\n]*)\1/g;
  for(const match of text.matchAll(quoted)){
-  remainder+=text.slice(last,match.index);
-  const {path,leading}=await longestQuotedPath(match[2]);
-  if(path)addResolved(path);
-  if(leading)remainder+=' '+leading+' ';
+  const base=match.index+match[1].length;
+  for(const token of tokensAt(text.slice(last,match.index),last))add(token.value,token.index);
+  const {path,spans,from}=await longestQuotedPath(match[2]);
+  if(path)addResolved(path,base+spans[from].start);
+  const leftover=from>=0?spans.slice(0,from):spans;
+  for(const span of leftover)add(span.word,base+span.start);
   last=match.index+match[0].length;
  }
- remainder+=text.slice(last);
- for(const token of remainder.split(/[\s;]+/))add(token);
+ for(const token of tokensAt(text.slice(last),last))add(token.value,token.index);
+ hits.sort((a,b)=>a.index-b.index);
+ const found=[];
+ const seen=new Set();
+ for(const hit of hits){
+  if(seen.has(hit.path))continue;
+  seen.add(hit.path);
+  found.push(hit.path);
+ }
  return found;
 }
 
