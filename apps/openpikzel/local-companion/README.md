@@ -1,5 +1,6 @@
 # OpenPikzels local companion
 Start OpenPikzels.command on macOS or start-linux.sh on Linux. Requires Node22+ and your unmodified official Codex or Claude Code executable. No background service is installed. Keep the launched browser tab private.
+First launch needs internet once to install image support.
 
 1. Official sign-in buttons launch the provider's own flow. OpenPikzels never opens vendor credential files or proxies subscription tokens.
 2. Refresh reads Codex app-server account/rateLimits/read and model/list. Claude uses the official Agent SDK with your installed executable, supportedModels and experimental structured /usage. Missing/older fields show unavailable; no dashboard scraping and no model call just to read usage.

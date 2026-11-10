@@ -4,6 +4,7 @@ import {randomUUID,createHash} from 'node:crypto';
 import {Vault} from './vault.mjs';
 import {McpPool,prepareServer,registerServer,normalizeSchema} from './mcp-runtime.mjs';
 import {webToolDefinitions,callWebTool} from './web-tools.mjs';
+import {visionToolDefinitions,callVisionTool} from './vision-tools.mjs';
 import {McpOAuth} from './mcp-oauth.mjs';
 import {schemas,toolDefinitions,validateCall,findPending,answerMessage,submitSecrets,askingNote,parseReply,serializeAnswers} from './hitl.mjs';
 export const accountServerName='openpikzels';
@@ -55,7 +56,7 @@ export class Engine{
    const id=randomUUID();s.messages.push({role:'assistant',call:{id,name,input:valid},...extra,at:Date.now()});const ack={status:'delivered',instruction:'This turn is over. Wait for the user to answer this card.'};s.messages.push({role:'tool',callId:id,content:ack});await this.save(agent,s);return textResult(ack);
   });
  }
- async hostTools(agent='default'){const capabilities=(await this.read(agent)).capabilities||{};const tools=[...toolDefinitions.filter(t=>capabilities[t.name]!==false),{name:'mcp_register',description:'Probe a remote MCP server before saving. Use placeholders for credentials.',inputSchema:{type:'object',properties:{config:{type:'object'}},required:['config']}},{name:'mcp_login',description:'Ask the user to connect an MCP server. Device codes never enter this chat.',inputSchema:{type:'object',properties:{name:{type:'string'}},required:['name']}},{name:'mcp_login_complete',description:'Check whether the user finished MCP sign-in.',inputSchema:{type:'object',properties:{name:{type:'string'}},required:['name']}}];if(capabilities.web!==false)tools.push(...webToolDefinitions);return tools;}
+ async hostTools(agent='default'){const capabilities=(await this.read(agent)).capabilities||{};const tools=[...toolDefinitions.filter(t=>capabilities[t.name]!==false),{name:'mcp_register',description:'Probe a remote MCP server before saving. Use placeholders for credentials.',inputSchema:{type:'object',properties:{config:{type:'object'}},required:['config']}},{name:'mcp_login',description:'Ask the user to connect an MCP server. Device codes never enter this chat.',inputSchema:{type:'object',properties:{name:{type:'string'}},required:['name']}},{name:'mcp_login_complete',description:'Check whether the user finished MCP sign-in.',inputSchema:{type:'object',properties:{name:{type:'string'}},required:['name']}}];if(capabilities.web!==false)tools.push(...webToolDefinitions);if(capabilities.vision!==false)tools.push(...visionToolDefinitions);return tools;}
  async hostCall(agent,name,args){
   if(Object.hasOwn(schemas,name)){
    if((await this.read(agent)).capabilities?.[name]===false)throw new Error('This interaction capability is disabled.');
@@ -79,6 +80,7 @@ export class Engine{
   if(name==='mcp_login')return this.card(agent,'request_mcp_sign_in',{name:args.name});
   if(name==='mcp_login_complete'){const c=await this.config(agent,args.name);return textResult({connected:!!(await this.oauth.token(agent,c))});}
   if(name==='fetch_url'||name==='download_file'){if((await this.read(agent)).capabilities?.web===false)throw new Error('This web capability is disabled.');return callWebTool(name,args,{workspace:this.workspace(agent)});}
+  if(name==='view_image'){if((await this.read(agent)).capabilities?.vision===false)throw new Error('This vision capability is disabled.');const agentName=this.agent(agent);return callVisionTool(name,args,{workspace:this.workspace(agentName),workspaces:[this.workspace(agentName),join(this.directory,agentName,'workspace')]});}
   throw new Error('Unsupported host tool.');
  }
  async upstreamTools(agent,config){const result=await(await this.client(agent,config)).listTools();return result.tools.map(t=>({...t,inputSchema:normalizeSchema(t.inputSchema)}));}
