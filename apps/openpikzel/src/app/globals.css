@@ -1482,6 +1482,7 @@ dialog::backdrop {
   line-height: 1.5;
   color: var(--color-danger);
   overflow-wrap: anywhere;
+  scroll-margin-block-end: var(--space-4);
 }
 .dialog-shell form > label {
   display: block;

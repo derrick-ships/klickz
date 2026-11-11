@@ -61,6 +61,24 @@ test('renaming a local persona keeps unique names and shows a clear clash error'
  expect((await readLocal(page,'personas')).map(p=>p.name)).toEqual(['Alicia','Beatrice']);
 });
 
+test('on mobile the rename error scrolls fully into view under the last persona',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await seedLocal(page,[local('p-alice','Alice','ready'),local('p-bea','Beatrice'),local('p-max','Maximiliana Concepción de los Ángeles Rivera-Ortega')]);
+ await page.goto('/');
+ await page.getByRole('button',{name:'Persona',exact:true}).click();
+ const last=row(page,'Maximiliana Concepción de los Ángeles Rivera-Ortega');
+ await last.getByRole('button',{name:/^Rename Maximiliana/}).click();
+ // The person scrolled just far enough to see the form's buttons at the bottom edge.
+ await page.getByRole('button',{name:'Save name',exact:true}).evaluate(e=>e.scrollIntoView({block:'end'}));
+ await page.getByLabel('Persona name',{exact:true}).fill('alice');
+ await page.keyboard.press('Enter');
+ const alert=page.getByRole('alert').filter({hasText:'A persona named alice already exists.'});
+ await expect(alert).toBeVisible();
+ await expect(alert).toBeInViewport({ratio:1});
+ await expect(page.getByLabel('Persona name',{exact:true})).toBeFocused();
+ await noOverflow(page);
+});
+
 test('private style rename rejects short names, cancel writes nothing, public presets stay unrenamable',async({page})=>{
  await page.setViewportSize({width:390,height:844});
  await seedLocal(page,[],[local('s-neon','Neon Diner'),local('s-moss','Moss Grid')]);

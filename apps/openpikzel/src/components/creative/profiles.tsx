@@ -24,8 +24,10 @@ function PersonaGuidelines({onDone}:{onDone:(skip:boolean)=>Promise<void>}){
  </section>;
 }
 function RenameForm({kind,item,studio,onDone}:{kind:'persona'|'style';item:Persona|Style;studio:Studio;onDone:(saved:string|null)=>void}){
- const [value,setValue]=useState(item.name),[error,setError]=useState(''),[pending,setPending]=useState(false),input=useRef<HTMLInputElement>(null),errorId='rename-error-'+item.id,inputId='rename-'+item.id;
+ const [value,setValue]=useState(item.name),[error,setError]=useState(''),[pending,setPending]=useState(false),input=useRef<HTMLInputElement>(null),errorEl=useRef<HTMLParagraphElement>(null),errorId='rename-error-'+item.id,inputId='rename-'+item.id;
  useEffect(()=>{input.current?.focus();input.current?.select();},[]);
+ // Keep the whole message on screen when the form sits at the bottom edge of the dialog.
+ useEffect(()=>{if(error)errorEl.current?.scrollIntoView({block:'nearest'});},[error]);
  async function submit(){
   if(pending)return;
   setError('');setPending(true);
@@ -38,7 +40,7 @@ function RenameForm({kind,item,studio,onDone}:{kind:'persona'|'style';item:Perso
    <input id={inputId} ref={input} value={value} onChange={e=>{setValue(e.target.value);if(error)setError('');}} readOnly={pending} autoComplete="off" spellCheck={false} aria-invalid={error?true:undefined} aria-describedby={error?errorId:undefined}/>
    <div className="profile-rename-actions"><button className="primary-button" type="submit" disabled={pending}>{pending?'Saving…':'Save name'}</button><button className="quiet-button" type="button" disabled={pending} onClick={()=>onDone(null)}>Cancel</button></div>
   </div>
-  {error&&<p id={errorId} className="profile-rename-error" role="alert">{error}</p>}
+  {error&&<p ref={errorEl} id={errorId} className="profile-rename-error" role="alert">{error}</p>}
  </form>;
 }
 export function ProfileManager({kind,studio,selectedId,onChoose,onPreset,onClose,onTitle}:{kind:'persona'|'style';studio:Studio;selectedId:string;onChoose:(id:string)=>void;onPreset:(name:string)=>void;onClose:()=>void;onTitle?:(title:string)=>void}){
