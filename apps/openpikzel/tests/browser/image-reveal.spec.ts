@@ -221,7 +221,7 @@ test("turning reduced motion on mid-exit still removes the generating placeholde
       window.stage=(stage)=>flushSync(()=>root.render(<GenerationDelivery state={{id:"probe",stage}} portrait={false}/>));`, resolveDir: app, loader: "tsx" },
     bundle: true, write: false, jsx: "automatic", alias: { "@": path.join(app, "src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
   });
-  const css = ["globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
+  const css = ["tokens.css", "globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
   const stage = (s: string) => page.evaluate(s => (window as unknown as { stage: (s: string) => void }).stage(s), s);
   for (const paused of [true, false]) {
     await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -238,6 +238,38 @@ test("turning reduced motion on mid-exit still removes the generating placeholde
     await expect(placeholder).toHaveCount(0, { timeout: 1000 });
     await expect(page.getByRole("status")).toBeVisible();
   }
+});
+
+// Deterministic component check: the exit gives the placeholder's space back while it fades, so the image and
+// status below rise with it instead of jumping up when it is removed (Critiquito #27 fix2 round 2).
+test("the placeholder's space collapses during its fade, with no jump when it is removed", async ({ page }) => {
+  const app = path.join(test.info().project.testDir, "..", "..");
+  const bundle = await build({
+    stdin: { contents: `import {createRoot} from "react-dom/client"; import {flushSync} from "react-dom";
+      import {GenerationDelivery} from "@/components/creative/generation-delivery";
+      const root=createRoot(document.getElementById("root"));
+      window.stage=(stage)=>flushSync(()=>root.render(<GenerationDelivery state={{id:"probe",stage}} portrait={false}/>));`, resolveDir: app, loader: "tsx" },
+    bundle: true, write: false, jsx: "automatic", alias: { "@": path.join(app, "src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
+  });
+  const css = ["tokens.css", "globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setContent("<style>" + css + "</style><div id=root></div>");
+  await page.addScriptTag({ content: bundle.outputFiles[0].text });
+  const stage = (s: string) => page.evaluate(s => (window as unknown as { stage: (s: string) => void }).stage(s), s);
+  // Distance from the top of the delivery card to its caption: the space the placeholder still takes.
+  const offset = () => page.evaluate(() => document.querySelector(".delivery-caption")!.getBoundingClientRect().top - document.querySelector(".generation-delivery")!.getBoundingClientRect().top - 1);
+  await stage("generating");
+  const full = await offset();
+  expect(full).toBeGreaterThan(200);
+  await stage("ready");
+  const at = (ms: number) => page.evaluate(ms => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = ms; } }, ms).then(offset);
+  expect(await at(0)).toBeGreaterThan(full - 2);
+  expect(await at(100)).toBeLessThan(full * 0.6);
+  expect(await at(199)).toBeLessThan(8);
+  await page.evaluate(() => { for (const a of document.getAnimations()) a.play(); });
+  await expect(page.locator(".delivery-placeholder")).toHaveCount(0);
+  expect(await offset()).toBeLessThan(1);
 });
 
 // Deterministic component check: the real RevealImage and the real app CSS, with a controlled clock for the
