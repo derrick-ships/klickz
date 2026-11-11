@@ -1431,6 +1431,58 @@ dialog::backdrop {
   border-radius: 4px;
   padding: 3px;
 }
+.profile-item-actions .icon-button {
+  margin-left: auto;
+}
+.profile-rename {
+  padding: var(--space-2) 7px 0 111px;
+}
+.dialog-shell .profile-rename > label {
+  display: block;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.profile-rename-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 6px;
+}
+.dialog-shell .profile-rename input {
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
+  min-height: 40px;
+  padding: 7px 12px;
+}
+.profile-rename input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+.profile-rename input:read-only {
+  color: var(--color-muted);
+}
+.profile-rename-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.profile-rename-actions .primary-button {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+.profile-rename-actions .quiet-button {
+  min-height: 40px;
+  padding: 8px 12px;
+}
+.profile-rename-error {
+  margin: var(--space-2) 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-danger);
+  overflow-wrap: anywhere;
+}
 .dialog-shell form > label {
   display: block;
   margin-top: 17px;
@@ -2063,6 +2115,18 @@ select {
     top: -8px;
   }
   .profile-item-actions button {
+    min-height: 44px;
+  }
+  .profile-rename {
+    padding-left: 7px;
+  }
+  .dialog-shell .profile-rename input {
+    flex-basis: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .profile-rename-actions .primary-button,
+  .profile-rename-actions .quiet-button {
     min-height: 44px;
   }
 }
