@@ -21,6 +21,8 @@ export function RevealImage({ surface, creationId, arrival, uploaded = false, in
   ImgHTMLAttributes<HTMLImageElement> & { surface: RevealSurface; creationId: string; arrival: Arrival | null; uploaded?: boolean; index?: number }) {
   // `index`: this image's place in its batch as the view renders it (see staggerPositions); 0 on the canvas.
   const ref = useRef<HTMLImageElement>(null);
+  // A failed load is marked for the slot to explain itself (review.css); a later successful load clears it.
+  const [failedLoad, setFailedLoad] = useState(false);
   const [phase, setPhase] = useState<Phase>(() => {
     if (typeof window === "undefined") return { kind: "static" };
     const startedAt = registry.startedAt(surface, creationId);
@@ -44,12 +46,14 @@ export function RevealImage({ surface, creationId, arrival, uploaded = false, in
   }, []);
   const loaded = (event: SyntheticEvent<HTMLImageElement>) => {
     onLoad?.(event);
+    setFailedLoad(false);
     if (phase.kind === "pending") start(event.currentTarget);
   };
   const cls = phase.kind === "pending" ? "image-reveal-pending" : phase.kind === "running" ? "image-reveal" : "";
   const revealStyle = phase.kind === "running" ? ({ "--i": index, "--reveal-delay": phase.delay + "ms", animationDelay: phase.delay + "ms" } as CSSProperties) : undefined;
   return <img {...img} ref={ref} className={[className, cls].filter(Boolean).join(" ") || undefined} style={revealStyle ? { ...style, ...revealStyle } : style}
+    data-load={failedLoad ? "failed" : undefined}
     onLoad={loaded}
-    onError={event => { onError?.(event); setPhase({ kind: "static" }); }}
+    onError={event => { onError?.(event); setFailedLoad(true); setPhase({ kind: "static" }); }}
     onAnimationEnd={event => { if (event.animationName.startsWith("image-reveal")) setPhase({ kind: "static" }); }} />;
 }

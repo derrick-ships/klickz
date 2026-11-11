@@ -79,6 +79,13 @@ test("a partial batch reveals only what arrived; a failed image never animates",
   await expect(failed).not.toHaveClass(/image-reveal/);
   await expect(failed).toHaveCSS("animation-name", "none");
   await expect(failed).toHaveCSS("opacity", "1");
+  // A failed thumbnail says so in its own slot and points to the canvas, which offers Refresh preview, instead of a bare broken-image icon.
+  await expect(failed).toHaveAttribute("data-load", "failed");
+  const note = await failed.evaluate(el => { const s = getComputedStyle(el.parentElement!, "::after"); return { content: s.content, bg: s.backgroundColor }; });
+  expect(note.content).toContain("Image didn’t load");
+  expect(note.content).toContain("Open it to refresh");
+  expect(note.bg).toBe("rgb(24, 24, 24)");
+  await expect(page.locator(".chat-timeline img[data-load='failed']")).toHaveCount(1);
   // Three arrived (results 3, 2, 1 left to right); the failed middle one keeps its slot, the others reveal at 0 and 140 ms.
   expect((await starts(page)).filter(e => e.surface === "strip").map(e => [e.src?.match(/image-\d/)![0], e.delay])).toEqual([["image-2", "0s"], ["image-0", "0.14s"]]);
   // The failed image on the canvas shows the existing error, also without any reveal.

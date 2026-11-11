@@ -54,6 +54,10 @@
    Hidden from assistive tech: the image alt and the delivery status already speak. */
 .chat-timeline article button:has(> img.image-reveal-pending), .creation-card-image:has(> img.image-reveal-pending) { position: relative; box-shadow: inset 0 0 0 1px var(--color-line); }
 .chat-timeline article button:has(> img.image-reveal-pending)::after, .creation-card-image:has(> img.image-reveal-pending)::after { content: "Loading image…"; content: "Loading image…" / ""; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); color: var(--color-muted); font-size: 12px; line-height: 1.4; text-align: center; pointer-events: none; }
+/* A thumbnail that failed to load says so on the card surface instead of a bare broken-image icon, and points to the canvas,
+   whose error offers Refresh preview. The image stays in place (alt keeps naming the button); the note only covers it. */
+.chat-timeline article button:has(> img[data-load="failed"]), .creation-card-image:has(> img[data-load="failed"]) { position: relative; }
+.chat-timeline article button:has(> img[data-load="failed"])::after, .creation-card-image:has(> img[data-load="failed"])::after { content: "Image didn’t load\A Open it to refresh"; content: "Image didn’t load\A Open it to refresh" / ""; white-space: pre-line; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); background: var(--color-panel); box-shadow: inset 0 0 0 1px var(--color-line); color: var(--color-muted); font-size: 12px; line-height: 1.4; text-align: center; pointer-events: none; }
 .image-reveal { animation: image-reveal 450ms var(--ease-out) calc(var(--i, 0) * 70ms) both; will-change: filter, transform, opacity; }
 @keyframes image-reveal { from { filter: blur(12px); transform: scale(1.02); opacity: 0; } to { filter: blur(0); transform: scale(1); opacity: 1; } }
 @keyframes image-reveal-fade { from { opacity: 0; } to { opacity: 1; } }
