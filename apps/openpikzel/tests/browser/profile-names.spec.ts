@@ -142,9 +142,10 @@ test('renaming the selected persona keeps the selection, references and preparat
 });
 
 function session(id:string){return {access_token:'header.'+Buffer.from(JSON.stringify({sub:id,exp:4102444800})).toString('base64url')+'.signature',refresh_token:'fixture-only-refresh',expires_at:4102444800,expires_in:3600,token_type:'bearer',user:{id,aud:'authenticated',role:'authenticated',email:id===A?'a@example.test':'b@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:'2026-11-08T00:00:00Z'}};}
-async function cloud(page:Page){
+const cloudRow=(id:string,user_id:string,name:string,profile_status='draft'):Row=>({id,user_id,name,notes:'',refs:[user_id+'/r0.png',user_id+'/r1.png',user_id+'/r2.png'],created_at:'2026-11-10T00:00:00.000Z',profile_status});
+async function cloud(page:Page,{styles=[],chats=false}:{styles?:Row[];chats?:boolean}={}){
+ const conversations=new Map<string,any>();
  await page.route('**/*',r=>(new URL(r.request().url()).hostname==='127.0.0.1'||/^(blob|data):/.test(r.request().url()))?r.continue():r.abort());
- const now='2026-11-10T00:00:00.000Z',cloudRow=(id:string,user_id:string,name:string):Row=>({id,user_id,name,notes:'',refs:[user_id+'/r0.png',user_id+'/r1.png',user_id+'/r2.png'],created_at:now,profile_status:'draft'});
  const personas:Row[]=[cloudRow('aaaaaaaa-0000-4000-8000-000000000001',A,'Alice'),cloudRow('aaaaaaaa-0000-4000-8000-000000000002',A,'Beatrice'),cloudRow('bbbbbbbb-0000-4000-8000-000000000001',B,'Bruno')],patches:any[]=[];
  const png=await sharp({create:{width:20,height:20,channels:3,background:'#2d599a'}}).png().toBuffer();
  await page.route('**/api/jobs',r=>r.fulfill({json:{jobs:[]}}));
@@ -158,17 +159,24 @@ async function cloud(page:Page){
   if(url.pathname.includes('/storage/')&&req.method()==='POST'){const paths=req.postDataJSON().paths||[];return route.fulfill({json:paths.map((p:string)=>({path:p,signedURL:'/object/sign/studio-assets/'+p+'?token=fixture'})),headers});}
   if(url.pathname.includes('/storage/'))return route.fulfill({body:png,contentType:'image/png',headers});
   const table=url.pathname.split('/').pop();
+  // Opt-in chat store so a cloud selection can persist its draft like the real library does.
+  if(chats&&table==='studio_conversations'){
+   if(req.method()!=='GET'){const saved=[req.postDataJSON()].flat().map((c:any)=>{const next={...conversations.get(c.id),...c,user_id:owner};conversations.set(c.id,next);return next;});return route.fulfill({status:201,json:req.headers().accept?.includes('vnd.pgrst.object')?saved[0]:saved,headers});}
+   const id=url.searchParams.get('id')?.replace(/^eq\./,'');const found=[...conversations.values()].filter(c=>c.user_id===owner&&(!id||c.id===id));
+   return route.fulfill({json:req.headers().accept?.includes('vnd.pgrst.object')?found[0]||null:found,headers});
+  }
   if(req.method()!=='GET')return route.fulfill({status:201,body:'',headers});
-  const rows=table==='studio_personas'?personas.filter(p=>p.user_id===owner):[];
+  const rows=table==='studio_personas'?personas.filter(p=>p.user_id===owner):table==='studio_styles'?styles.filter(s=>s.user_id===owner):[];
   return route.fulfill({json:req.headers().accept?.includes('vnd.pgrst.object')?rows[0]||null:rows,headers});
  });
- return {personas,patches};
+ return {personas,styles,patches};
 }
-function answerPatch(f:{personas:Row[];patches:any[]},body:any){
+function answerPatch(f:{personas:Row[];styles:Row[];patches:any[]},body:any){
  f.patches.push(body);
- const taken=f.personas.some(p=>p.user_id===A&&p.id!==body.id&&p.name.toLowerCase()===String(body.name).trim().toLowerCase());
- if(taken)return {status:409,json:{error:'A persona named '+String(body.name).trim()+' already exists.'}};
- const target=f.personas.find(p=>p.id===body.id)!;target.name=body.name;return {status:200,json:{profile:target}};
+ const list=body.kind==='style'?f.styles:f.personas;
+ const taken=list.some(p=>p.user_id===A&&p.id!==body.id&&p.name.toLowerCase()===String(body.name).trim().toLowerCase());
+ if(taken)return {status:409,json:{error:'A '+body.kind+' named '+String(body.name).trim()+' already exists.'}};
+ const target=list.find(p=>p.id===body.id)!;target.name=body.name;return {status:200,json:{profile:target}};
 }
 
 test('cloud rename sends the trimmed name and shows server duplicate errors without success',async({page})=>{
@@ -188,6 +196,38 @@ test('cloud rename sends the trimmed name and shows server duplicate errors with
  await expect(page.getByLabel('Persona name',{exact:true})).toHaveValue('alicia cloud');
  await expect(page.getByRole('status').filter({hasText:'Renamed to alicia'})).toHaveCount(0);
  await expect(row(page,'Beatrice')).toHaveCount(1);
+});
+
+test('cloud private style rename sends the style request and keeps the selection, references and preparation',async({page})=>{
+ const neonId='cccccccc-0000-4000-8000-000000000001';
+ const f=await cloud(page,{chats:true,styles:[cloudRow(neonId,A,'Neon Diner','ready'),cloudRow('cccccccc-0000-4000-8000-000000000002',A,'Moss Grid'),cloudRow('dddddddd-0000-4000-8000-000000000001',B,'Bruno Style')]});
+ const before=structuredClone(f.styles.find(s=>s.id===neonId)!);
+ await page.route('**/api/profiles',async r=>{if(r.request().method()!=='PATCH')return r.fallback();await r.fulfill(answerPatch(f,r.request().postDataJSON()));});
+ await page.goto('/');
+ await page.getByRole('button',{name:'Style',exact:true}).click();
+ await expect(row(page,'Bruno Style')).toHaveCount(0);
+ await row(page,'Neon Diner').locator('.profile-choose').click();
+ await page.getByRole('button',{name:'Change style: Neon Diner',exact:true}).click();
+ const neon=row(page,'Neon Diner');
+ await expect(neon.locator('svg.lucide-check')).toHaveCount(1);
+ await expect(neon.getByText('Profile prepared',{exact:true})).toBeVisible();
+ await expect(neon.locator('.profile-cover img')).toHaveCount(3);
+ await neon.getByRole('button',{name:'Rename Neon Diner',exact:true}).click();
+ await page.getByLabel('Style name',{exact:true}).fill('  Neon Diner Night ');
+ await page.getByRole('button',{name:'Save name',exact:true}).click();
+ const renamed=row(page,'Neon Diner Night');
+ await expect(renamed.locator('strong')).toHaveText('Neon Diner Night');
+ expect(f.patches).toEqual([{kind:'style',id:neonId,name:'Neon Diner Night'}]);
+ await expect(page.getByRole('status').filter({hasText:'Renamed to Neon Diner Night.'})).toHaveCount(1);
+ await expect(page.getByRole('dialog').getByRole('alert')).toHaveCount(0);
+ await expect(renamed.getByRole('button',{name:'Rename Neon Diner Night',exact:true})).toBeFocused();
+ await expect(renamed.locator('svg.lucide-check')).toHaveCount(1);
+ await expect(renamed.getByText('Profile prepared',{exact:true})).toBeVisible();
+ await expect(renamed.locator('.profile-cover img')).toHaveCount(3);
+ await expect(row(page,'Moss Grid').locator('svg.lucide-check')).toHaveCount(0);
+ expect(f.styles.find(s=>s.id===neonId)).toEqual({...before,name:'Neon Diner Night'});
+ await page.getByRole('button',{name:'Close dialog',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Change style: Neon Diner Night',exact:true})).toBeVisible();
 });
 
 test('an owner switch during a cloud rename never shows the previous owner result',async({page})=>{
