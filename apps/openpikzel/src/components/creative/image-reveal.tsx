@@ -47,7 +47,7 @@ export function RevealImage({ surface, creationId, arrival, uploaded = false, in
     if (phase.kind === "pending") start(event.currentTarget);
   };
   const cls = phase.kind === "pending" ? "image-reveal-pending" : phase.kind === "running" ? "image-reveal" : "";
-  const revealStyle = phase.kind === "running" ? ({ "--i": index, animationDelay: phase.delay + "ms" } as CSSProperties) : undefined;
+  const revealStyle = phase.kind === "running" ? ({ "--i": index, "--reveal-delay": phase.delay + "ms", animationDelay: phase.delay + "ms" } as CSSProperties) : undefined;
   return <img {...img} ref={ref} className={[className, cls].filter(Boolean).join(" ") || undefined} style={revealStyle ? { ...style, ...revealStyle } : style}
     onLoad={loaded}
     onError={event => { onError?.(event); setPhase({ kind: "static" }); }}

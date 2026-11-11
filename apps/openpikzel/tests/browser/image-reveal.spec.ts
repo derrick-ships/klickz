@@ -1,5 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import { revealStudio, recordReveals, reveals, clearReveals, starts } from "./helpers/image-reveal";
+import { build } from "esbuild";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 // OP-10: blur-to-sharp reveal with staggered batches. Every request is a local fixture; no provider is called.
 
 const canvasImg = (page: Page) => page.locator(".review-canvas .result-image img");
@@ -197,4 +200,40 @@ test("the generating placeholder fades out instead of popping, and goes at once 
     expect(removed[0].includes("leaving")).toBe(!reduced);
     await page.unrouteAll({ behavior: "ignoreErrors" });
   }
+});
+
+// Deterministic component check: the real RevealImage and the real app CSS, with a controlled clock for the
+// reveal registry, so the remount always lands inside the 120 ms reduced-motion window.
+test("reduced motion: a remount mid-fade continues the fade instead of starting over, with no stagger", async ({ page }) => {
+  const app = path.join(test.info().project.testDir, "..", "..");
+  const bundle = await build({
+    stdin: { contents: `import {createRoot} from "react-dom/client"; import {flushSync} from "react-dom";
+      import {RevealImage,setRevealOwner} from "@/components/creative/image-reveal";
+      const src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='20' height='20' fill='red'/%3E%3C/svg%3E";
+      setRevealOwner("probe"); const root=createRoot(document.getElementById("root")); let n=0;
+      const render=(id,index)=>flushSync(()=>root.render(<RevealImage key={n++} surface="canvas" creationId={id} index={index} arrival={{batch:1,index}} src={src}/>));
+      window.mount=render;`, resolveDir: app, loader: "tsx" },
+    bundle: true, write: false, jsx: "automatic", alias: { "@": path.join(app, "src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
+  });
+  const css = ["globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setContent("<style>" + css + "</style><div id=root></div>");
+  await page.evaluate(() => { const w = window as unknown as { clock: number }; w.clock = 1000; performance.now = () => w.clock; });
+  await page.addScriptTag({ content: bundle.outputFiles[0].text });
+  const reveal = (id: string, index: number) => page.evaluate(async ({ id, index }) => {
+    (window as unknown as { mount: (id: string, index: number) => void }).mount(id, index);
+    const img = () => document.querySelector("img")!;
+    for (let i = 0; i < 120 && img().className.includes("pending"); i++) await new Promise(r => requestAnimationFrame(r));
+    const a = img().getAnimations()[0] as CSSAnimation | undefined;
+    return { cls: img().className, name: a?.animationName ?? "", delay: getComputedStyle(img()).animationDelay, progress: Number(a?.effect?.getComputedTiming().progress ?? -1) };
+  }, { id, index });
+  // A fresh reveal at batch position 1 fades at once: no stagger with reduced motion.
+  const fresh = await reveal("second", 1);
+  expect(fresh).toMatchObject({ cls: "image-reveal", name: "image-reveal-fade", delay: "0s" });
+  // 60 ms into a 120 ms fade, the image remounts (preview toggle, URL refresh): it must continue from 60 ms.
+  await reveal("first", 0);
+  await page.evaluate(() => { (window as unknown as { clock: number }).clock += 60; });
+  const resumed = await reveal("first", 0);
+  expect(resumed).toMatchObject({ cls: "image-reveal", name: "image-reveal-fade", delay: "-0.06s" });
+  expect(resumed.progress).toBeGreaterThanOrEqual(0.5);
 });

@@ -74,8 +74,9 @@
   .review-stage .result-actions button { justify-content: center; }
   .review-stage .original-link { flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 }
-/* Reduced motion: a 120ms opacity fade only, no blur, scale or stagger (overrides the global reduced-motion reset on purpose). */
-@media (prefers-reduced-motion: reduce) { .image-reveal { animation: image-reveal-fade 120ms linear both !important; will-change: opacity; } }
+/* Reduced motion: a 120ms opacity fade only, no blur, scale or stagger (overrides the global reduced-motion reset on purpose).
+   The delay keeps a negative resume offset from RevealImage (--reveal-delay), so a remount mid-fade continues, and drops any positive stagger. */
+@media (prefers-reduced-motion: reduce) { .image-reveal { animation: image-reveal-fade 120ms linear both !important; animation-delay: min(var(--reveal-delay, 0ms), 0ms) !important; will-change: opacity; } }
 .review-summary .result-utilities button:first-child { width: auto; min-width: 122px; gap: var(--space-2); border: 1px solid var(--color-select-edge); border-radius: 999px; padding-inline: var(--space-3); white-space: nowrap; }
 .review-stage .result-actions button { white-space: nowrap; }
 @media (max-width: 360px) { .review-stage .result-actions { grid-template-columns: minmax(0, 1fr); } }

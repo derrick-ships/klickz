@@ -15,6 +15,8 @@ describe("image reveal CSS", () => {
   it("reduced motion is a 120 ms opacity fade only", () => {
     const reduced = review.match(/@media \(prefers-reduced-motion: reduce\) \{[^@]*\.image-reveal[^}]*\}/)![0];
     expect(reduced).toContain(`animation: image-reveal-fade ${REVEAL_REDUCED_MS}ms linear both !important`);
+    // A remount resumes from RevealImage's negative delay; a positive stagger is dropped (OP-10b FIX r1).
+    expect(reduced).toContain("animation-delay: min(var(--reveal-delay, 0ms), 0ms) !important");
     expect(review).toMatch(/@keyframes image-reveal-fade \{\s*from \{ opacity: 0; \}\s*to \{ opacity: 1; \}\s*\}/);
   });
 });
