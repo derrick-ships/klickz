@@ -102,10 +102,15 @@ test("slow images hold their space, show loading, and reveal only when the bytes
     const layout = () => img.evaluate((el: HTMLElement) => { let y = 0; for (let n: HTMLElement | null = el; n; n = n.offsetParent as HTMLElement | null) y += n.offsetTop; return { y, height: el.offsetHeight, width: el.offsetWidth }; });
     const before = await layout();
     expect(await starts(page)).toEqual([]);
+    // The waiting thumbnail slot is labelled, never an empty box; the label goes once the reveal starts.
+    const slot = page.locator(".chat-timeline article button:has(> img.image-reveal-pending)");
+    await expect(slot).toHaveCount(1);
+    expect(await slot.evaluate(el => getComputedStyle(el, "::after").content)).toContain("Loading image");
     release();
     await expect(img).toHaveClass(/(^| )image-reveal( |$)/);
     const during = await layout();
     await settle(page);
+    await expect(slot).toHaveCount(0);
     const after = await layout();
     // Reserved by the intrinsic width/height: no layout shift when the image arrives or settles (transform is visual only).
     for (const box of [during, after]) expect(box).toEqual(before);

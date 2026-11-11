@@ -50,6 +50,10 @@
 .image-reveal-pending { opacity: 0; }
 /* While the canvas image is hidden or revealing, its slot shows the card surface with an inset hairline (box-shadow, so no layout shift) instead of bare black. */
 .review-canvas .result-image:has(> img.image-reveal-pending, > img.image-reveal) { background: var(--color-panel); box-shadow: inset 0 0 0 1px var(--color-line); }
+/* A thumbnail still waiting for its bytes says so in its own slot (the canvas's words, on the card surface) instead of reading as an empty box.
+   Hidden from assistive tech: the image alt and the delivery status already speak. */
+.chat-timeline article button:has(> img.image-reveal-pending), .creation-card-image:has(> img.image-reveal-pending) { position: relative; box-shadow: inset 0 0 0 1px var(--color-line); }
+.chat-timeline article button:has(> img.image-reveal-pending)::after, .creation-card-image:has(> img.image-reveal-pending)::after { content: "Loading image…"; content: "Loading image…" / ""; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); color: var(--color-muted); font-size: 12px; line-height: 1.4; text-align: center; pointer-events: none; }
 .image-reveal { animation: image-reveal 450ms var(--ease-out) calc(var(--i, 0) * 70ms) both; will-change: filter, transform, opacity; }
 @keyframes image-reveal { from { filter: blur(12px); transform: scale(1.02); opacity: 0; } to { filter: blur(0); transform: scale(1); opacity: 1; } }
 @keyframes image-reveal-fade { from { opacity: 0; } to { opacity: 1; } }
