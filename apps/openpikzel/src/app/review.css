@@ -45,8 +45,14 @@
 .review-editor-toggle { margin: 0 0 var(--space-6); min-height: 44px; }
 .review-editor-toggle[aria-expanded="true"] > svg { rotate: 180deg; }
 .creation-workbench [hidden] { display: none !important; }
-.review-image-arrive { animation: review-image-arrive 180ms var(--ease-out); }
-@keyframes review-image-arrive { from { opacity: .8; } to { opacity: 1; } }
+/* OP-10: blur-to-sharp reveal (DELIGHT.md approved exception 1). Only images that arrive this session,
+   starting on their real load event; --i staggers a batch 70ms apart. Compositor-only properties. */
+.image-reveal-pending { opacity: 0; }
+/* While the canvas image is hidden or revealing, its slot shows the card surface with an inset hairline (box-shadow, so no layout shift) instead of bare black. */
+.review-canvas .result-image:has(> img.image-reveal-pending, > img.image-reveal) { background: var(--color-panel); box-shadow: inset 0 0 0 1px var(--color-line); }
+.image-reveal { animation: image-reveal 450ms var(--ease-out) calc(var(--i, 0) * 70ms) both; will-change: filter, transform, opacity; }
+@keyframes image-reveal { from { filter: blur(12px); transform: scale(1.02); opacity: 0; } to { filter: blur(0); transform: scale(1); opacity: 1; } }
+@keyframes image-reveal-fade { from { opacity: 0; } to { opacity: 1; } }
 .review-stage { container-type: inline-size; }
 @container (min-width: 960px) {
   .review-stage .review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-8); align-items: start; }
@@ -64,7 +70,8 @@
   .review-stage .result-actions button { justify-content: center; }
   .review-stage .original-link { flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 }
-@media (prefers-reduced-motion: reduce) { .review-image-arrive { animation: none; } }
+/* Reduced motion: a 120ms opacity fade only, no blur, scale or stagger (overrides the global reduced-motion reset on purpose). */
+@media (prefers-reduced-motion: reduce) { .image-reveal { animation: image-reveal-fade 120ms linear both !important; will-change: opacity; } }
 .review-summary .result-utilities button:first-child { width: auto; min-width: 122px; gap: var(--space-2); border: 1px solid var(--color-select-edge); border-radius: 999px; padding-inline: var(--space-3); white-space: nowrap; }
 .review-stage .result-actions button { white-space: nowrap; }
 @media (max-width: 360px) { .review-stage .result-actions { grid-template-columns: minmax(0, 1fr); } }
@@ -80,7 +87,7 @@
 /* Loading remains explicit while intrinsic dimensions reserve the image space. */
 .review-canvas .result-image { position: relative; }
 .review-canvas .result-image > img { height: auto; }
-.review-preview-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--color-muted); background: var(--color-sidebar); font-size: 13px; pointer-events: none; }
+.review-preview-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--color-muted); background: var(--color-panel); box-shadow: inset 0 0 0 1px var(--color-line); font-size: 13px; pointer-events: none; }
 .review-stage .pillar strong, .review-stage .score-header h2 { font-variant-numeric: tabular-nums; }
 
 /* Analysis activity is an explicitly labeled animation, not provider telemetry. */
@@ -159,6 +166,9 @@
 .delivery-caption p { font-size: 14px; }
 .delivery-caption small { font-size: 12px; }
 .delivery-compact { border-left: 3px solid #ff3046; }
+/* OP-10: the generating placeholder fades out when the image lands instead of popping (skipped with reduced motion). */
+.delivery-placeholder.leaving { animation: delivery-exit 200ms var(--ease-out) both; pointer-events: none; }
+@keyframes delivery-exit { to { opacity: 0; } }
 @keyframes delivery-sweep { 0% { transform: translateX(-100%); opacity:.4; } 70% { transform: translateX(-5%); opacity:1; } 100% { transform: translateX(20%); opacity:0; } }
 .prompt-enhancer { margin: 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .prompt-enhancer > small { flex: 1 1 180px; color: var(--color-muted); line-height: 1.5; font-size: 12px; }

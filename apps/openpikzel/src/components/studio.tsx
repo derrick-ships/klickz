@@ -62,6 +62,8 @@ import { ScoreAnnouncer, ScoreNumber, useScoreArrival, useScoreReveal } from "@/
 import { revealKey } from "@/lib/score-count";
 import { recomposePrompt, type ScanPhase } from "@/lib/analysis-display";
 import { ReviewCanvas } from "@/components/review-canvas";
+import { RevealImage, setRevealOwner } from "@/components/creative/image-reveal";
+import { createArrivals, staggerPositions } from "@/lib/image-reveal";
 import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
 const AnalysisHistory=dynamic(()=>import("@/components/creative/analysis-history").then(m=>m.AnalysisHistory),{loading:()=> <p role="status">Reading history…</p>});
 const AnalysisPanel=dynamic(()=>import("@/components/creative/analysis").then(m=>m.AnalysisPanel),{loading:()=> <p role="status">Opening…</p>});
@@ -206,6 +208,14 @@ export default function Studio() {
     draftFingerprintRef = useRef("");
   const draftFingerprint = JSON.stringify({ prompt, title, tool, personaId, styleId, preset, refs, settings, parentId });
   draftFingerprintRef.current = draftFingerprint;
+  // OP-10: creations that arrive this session (after this account's library loaded) may reveal once; a batch shares one arrival.
+  const arrivalsRef = useRef<ReturnType<typeof createArrivals> | null>(null);
+  if (!arrivalsRef.current) arrivalsRef.current = createArrivals();
+  const arrivals = arrivalsRef.current;
+  // The owner key matches the workspace key below (local mode has no user); studio.loading is true for a new owner until its library loads.
+  const revealOwner = studio.user || "local";
+  arrivals.observe(revealOwner, studio.loading, studio.creations.map((c) => c.id));
+  setRevealOwner(revealOwner);
   const selected = studio.creations.find((c) => c.id === selection) || null;
   const fixReview = (selection && fixReviews[selection]) || null;
   function setFixReview(value: (typeof fixReviews)[string] | null, id = selection) {
@@ -920,7 +930,7 @@ export default function Studio() {
                   <div className="review-layout"><div className="review-media">
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
-                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.title || selected.title} feed={phone} pointer={motionInput === "pointer"} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} />
+                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.title || selected.title} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} uploaded={selected.lineage?.origin === "uploaded"} />
                       <div className="result-actions">
                         <button
                           className="neutral-button"
@@ -1290,7 +1300,7 @@ export default function Studio() {
               {hasReviewImage && resultPanel}
               {hydratedWorkspace===(studio.user||"local")&&!studio.loading&&<CreativeConversation key={(studio.user||"local")+":"+workspaceEpoch.current} contextKey={JSON.stringify({prompt,title,tool,format:settings.format,personaId,styleId,refs,videoUrl})} hasReferenceSelections={refs.length>0||!!personaId||!!styleId} selectionSummary={(personaId?"Selected persona brief. ":"")+(styleId?"Selected style brief. ":"")+refs.length+" direct references selected. "+(videoUrl?"Video link only; its content has not been watched.":"")} value={creativeDraft} onChange={setCreativeDraft} config={studio.config} call={callCreative} sourceId={selected?.image_path?selection:null} sourceTitle={selected?.title||""} disabled={busy} onProposal={(proposal,source)=>{if(source!==(selected?.image_path?selection:null))return;if(proposal.kind!=="generate"&&!selected?.image_path){studio.setError("Choose a thumbnail before preparing this action.");return;}applyDirection(proposal.prompt,proposal.title||title,proposal.kind==="analyze"?"analyze":proposal.kind==="edit"?"edit":"generate");}}/>}
               {(hydratedWorkspace!==(studio.user||"local")||studio.loading)&&<details className="creative-conversation" inert aria-busy="true" aria-label="Loading creative chat"><summary>Creative chat <span>Brainstorm, refine, then create.</span></summary></details>}
-              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)}/>}
+              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} arrivalOf={arrivals.arrival}/>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
                 aria-label="Thumbnail workspace"
@@ -1827,7 +1837,7 @@ export default function Studio() {
                     </button>
                   </div>
                   <div className="creation-grid">
-                    {studio.creations.slice(0, 3).map(card)}
+                    {cards(studio.creations.slice(0, 3))}
                   </div>
                 </section>
               )}
@@ -1865,7 +1875,7 @@ export default function Studio() {
                   Favorites
                 </button>
               </div>
-              <div className="creation-grid">{filtered.map(card)}</div>
+              <div className="creation-grid">{cards(filtered)}</div>
               {!filtered.length && (
                 <div className="library-empty">
                   <FolderOpen size={30} />
@@ -2156,7 +2166,12 @@ export default function Studio() {
       </dialog>
     </div>
   );
-  function card(item: Creation) {
+  // OP-10: a batch staggers left to right in the order this grid renders it.
+  function cards(items: Creation[]) {
+    const stagger = staggerPositions(items.map((c) => c.id), arrivals.arrival);
+    return items.map((item) => card(item, stagger));
+  }
+  function card(item: Creation, stagger: Map<string, number>) {
     return (
       <article className="creation-card" key={item.id}>
         <button
@@ -2167,7 +2182,7 @@ export default function Studio() {
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <img src={studio.images[item.image_path]} alt={item.title} />
+            <RevealImage surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} alt={item.title} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />

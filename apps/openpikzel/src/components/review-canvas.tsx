@@ -1,10 +1,14 @@
 "use client";
 import { useState } from "react";
 import { RefreshCw, ScanLine, MoreVertical, Play } from "lucide-react";
+import { RevealImage } from "@/components/creative/image-reveal";
+import type { Arrival } from "@/lib/image-reveal";
 
-export function ReviewCanvas({ src, title, feed, pointer, portrait, onRefresh }: {
-  src: string; title: string; feed: boolean; pointer: boolean; portrait: boolean;
+export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId, arrival, uploaded }: {
+  src: string; title: string; feed: boolean; portrait: boolean;
   onRefresh: () => Promise<unknown>;
+  // OP-10: which creation this is and whether it arrived this session (see createArrivals).
+  creationId: string; arrival: Arrival | null; uploaded: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
@@ -12,7 +16,7 @@ export function ReviewCanvas({ src, title, feed, pointer, portrait, onRefresh }:
   const [monochrome,setMonochrome]=useState(false);
   const image = <div className={`result-image ${feed ? "phone-preview" : ""} ${portrait ? "portrait" : ""}`}>
     {!size && <span className="review-preview-loading" role="status">Loading image…</span>}
-    <img key={src} className={size && pointer ? "review-image-arrive" : ""} src={src} alt={title}
+    <RevealImage key={src} surface="canvas" creationId={creationId} arrival={arrival} uploaded={uploaded} src={src} alt={title}
       width={size?.width ?? (portrait ? 720 : 1280)} height={size?.height ?? (portrait ? 1280 : 720)}
       onLoad={event=>setSize({width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight})}
       onError={()=>setFailed(true)}/>
