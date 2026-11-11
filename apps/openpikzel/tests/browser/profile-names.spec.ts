@@ -183,9 +183,13 @@ test('an owner switch during a cloud rename never shows the previous owner resul
  await waiting;
  await expect(page.getByRole('button',{name:'Saving…',exact:true})).toBeDisabled();
  await page.evaluate(s=>{localStorage.setItem('sb-test-auth-token',JSON.stringify(s));const bc=new BroadcastChannel('sb-test-auth-token');bc.postMessage({event:'SIGNED_IN',session:s});setTimeout(()=>bc.close(),100);},session(B));
- await expect(row(page,'Bruno')).toHaveCount(1);
+ await expect(page.getByRole('dialog')).toBeHidden();
  release();
+ await expect.poll(()=>f.personas.find(p=>p.user_id===A&&p.name==='Alicia Private')?.id).toBeTruthy();
  await page.waitForTimeout(500);
+ await expect(page.getByRole('alert').filter({hasText:'Alicia Private'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Persona',exact:true}).click();
+ await expect(row(page,'Bruno')).toHaveCount(1);
  await expect(page.getByText('Alicia Private')).toHaveCount(0);
  await expect(page.getByRole('alert').filter({hasText:'Your account changed'})).toHaveCount(0);
  await expect(page.getByRole('status').filter({hasText:'Renamed'})).toHaveCount(0);
