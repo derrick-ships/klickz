@@ -209,6 +209,37 @@ test("the generating placeholder fades out instead of popping, and goes at once 
   }
 });
 
+// Deterministic component check: the real GenerationDelivery and the real app CSS. Turning reduced motion on while the
+// placeholder fades out cancels its exit animation (the global reduced-motion reset), so animationend never fires:
+// the placeholder must still go, leaving the caption, never a stranded, hidden-but-sized block.
+test("turning reduced motion on mid-exit still removes the generating placeholder", async ({ page }) => {
+  const app = path.join(test.info().project.testDir, "..", "..");
+  const bundle = await build({
+    stdin: { contents: `import {createRoot} from "react-dom/client"; import {flushSync} from "react-dom";
+      import {GenerationDelivery} from "@/components/creative/generation-delivery";
+      const root=createRoot(document.getElementById("root"));
+      window.stage=(stage)=>flushSync(()=>root.render(<GenerationDelivery state={{id:"probe",stage}} portrait={false}/>));`, resolveDir: app, loader: "tsx" },
+    bundle: true, write: false, jsx: "automatic", alias: { "@": path.join(app, "src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
+  });
+  const css = ["globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
+  const stage = (s: string) => page.evaluate(s => (window as unknown as { stage: (s: string) => void }).stage(s), s);
+  for (const paused of [true, false]) {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setContent("<style>" + css + "</style><div id=root></div>");
+    await page.addScriptTag({ content: bundle.outputFiles[0].text });
+    const placeholder = page.locator(".delivery-placeholder");
+    await stage("generating");
+    await expect(placeholder).toBeVisible();
+    await stage("ready");
+    // Paused: the switch always lands mid-fade. Unpaused: the real-time race the reviewer reproduced.
+    if (paused) await page.evaluate(() => document.querySelector(".delivery-placeholder")!.getAnimations().forEach(a => a.pause()));
+    await expect(page.locator(".delivery-placeholder.leaving")).toHaveCount(1);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(placeholder).toHaveCount(0, { timeout: 1000 });
+    await expect(page.getByRole("status")).toBeVisible();
+  }
+});
+
 // Deterministic component check: the real RevealImage and the real app CSS, with a controlled clock for the
 // reveal registry, so the remount always lands inside the 120 ms reduced-motion window.
 test("reduced motion: a remount mid-fade continues the fade instead of starting over, with no stagger", async ({ page }) => {

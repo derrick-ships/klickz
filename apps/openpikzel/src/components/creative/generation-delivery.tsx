@@ -9,14 +9,18 @@ export function GenerationDelivery({state,portrait}:{state:DeliveryState;portrai
  useEffect(()=>{const media=matchMedia("(prefers-reduced-motion: reduce)"),update=()=>setReduced(media.matches);update();media.addEventListener("change",update);return()=>media.removeEventListener("change",update);},[]);
  useEffect(()=>{if(!active||reduced)return;const start=performance.now(),timer=setInterval(()=>setElapsed(performance.now()-start),250);return()=>clearInterval(timer);},[state.id,active,reduced]);
  useEffect(()=>{if(state.stage==="generating")region.current?.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});},[state.id]);
- // OP-10: when generation ends, the placeholder fades out (200ms) instead of popping; reduced motion removes it at once.
+ // OP-10: when generation ends, the placeholder fades out (200ms) instead of popping; reduced motion removes it at once,
+ // also when switched on mid-exit: the reduced-motion reset cancels the exit, so its animationend never arrives.
  // Derived during render (not in an effect) so the placeholder never unmounts for a frame before its exit starts.
  const generating=state.stage==="generating",[wasGenerating,setWasGenerating]=useState(generating),[leaving,setLeaving]=useState(false);
  if(generating!==wasGenerating){setWasGenerating(generating);setLeaving(!generating&&!reduced);}
+ else if(leaving&&reduced)setLeaving(false);
+ const placeholder=useRef<HTMLDivElement>(null);
+ useEffect(()=>{const node=placeholder.current;if(!leaving||!node)return;const cancel=(event:AnimationEvent)=>{if(event.animationName==="delivery-exit")setLeaving(false);};node.addEventListener("animationcancel",cancel);return()=>node.removeEventListener("animationcancel",cancel);},[leaving]);
  const complete=state.stage==="ready"||state.stage==="image-ready",counter=scanCounter(elapsed,complete?"succeeded":active?"running":"failed",reduced);
  const {label,detail}=deliveryCopy(state,elapsed);
  return <section ref={region} className={"generation-delivery "+(!active?"delivery-compact":"")} aria-label="Thumbnail delivery" data-stage={state.stage}>
-  {(state.stage==="generating"||leaving)&&<div className={"delivery-placeholder "+(portrait?"portrait":"")+(leaving?" leaving":"")} aria-hidden={leaving||undefined} onAnimationEnd={event=>{if(event.animationName==="delivery-exit")setLeaving(false);}}><div className="delivery-light" aria-hidden="true"/><span className="delivery-brand">OpenPikzels<span>✦</span></span><span className="delivery-count" aria-hidden="true">{counter}<small>/100</small></span></div>}
+  {(state.stage==="generating"||leaving)&&<div ref={placeholder} className={"delivery-placeholder "+(portrait?"portrait":"")+(leaving?" leaving":"")} aria-hidden={leaving||undefined} onAnimationEnd={event=>{if(event.animationName==="delivery-exit")setLeaving(false);}}><div className="delivery-light" aria-hidden="true"/><span className="delivery-brand">OpenPikzels<span>✦</span></span><span className="delivery-count" aria-hidden="true">{counter}<small>/100</small></span></div>}
   <div className="delivery-caption"><strong role="status">{label}</strong><p>{detail}</p>
   {active&&<small>{state.stage==="generating"?"Activity animation, not measured provider progress. ":""}Actual stages: create image → analyze → review. Provider time varies.</small>}</div>
  </section>;
