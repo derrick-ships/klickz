@@ -637,3 +637,66 @@ describe("profile unique names migration", () => {
     await local.close();
   });
 });
+
+describe("profile name normalization parity", () => {
+  async function database() {
+    const local = new PGlite();
+    await local.exec(`create table studio_personas(id text primary key, user_id text, name text, created_at timestamptz);
+      create table studio_styles(id text primary key, user_id text, name text, created_at timestamptz);`);
+    return local;
+  }
+
+  it("trims JavaScript whitespace before grouping and indexing names", async () => {
+    const local = await database();
+    try {
+      await local.query("insert into studio_personas values ($1,$2,$3,$4),($5,$2,$6,$7)", ["1", "u", "\tShared\t", "2020-01-01", "2", "Shared", "2021-01-01"]);
+      await local.exec(readFileSync("supabase/migrations/20261110130000_profile_unique_names.sql", "utf8"));
+      expect((await local.query("select name from studio_personas order by id")).rows).toEqual([{ name: "Shared" }, { name: "Shared (2)" }]);
+      await expect(local.query("insert into studio_personas values ($1,$2,$3,now())", ["3", "u", "\tshared\t"])).rejects.toMatchObject({ code: "23505" });
+    } finally { await local.close(); }
+  });
+
+  it("matches pinned application keys for Unicode, final sigma, and JavaScript whitespace", async () => {
+    const { profileNameKey } = await import("../src/lib/profile-name");
+    const data = (await import("../src/lib/profile-unicode.json")).default;
+    const sql = readFileSync("supabase/migrations/20261110130000_profile_unique_names.sql", "utf8");
+    const embedded = sql.match(/data constant jsonb := '([\s\S]*?)'::jsonb;/)?.[1].replaceAll("''", "'");
+    expect(JSON.parse(embedded!)).toEqual(data);
+    const local = await database();
+    try {
+      await local.exec(sql);
+      const inputs = [...Object.keys(data.map), "\u00a0Shared\u00a0", "ΟΣ", "ΟΣΑ", "Ο\u0301Σ", "Σ", "İdea", "idea"];
+      for (const input of inputs) {
+        const { rows } = await local.query<{ key: string }>("select public.profile_name_key($1) as key", [input]);
+        expect(rows[0].key).toBe(profileNameKey(input));
+        if (process.versions.unicode === data.unicode) expect(profileNameKey(input)).toBe(input.trim().toLowerCase());
+      }
+      await local.query("insert into studio_personas values ($1,$2,$3,now())", ["1", "u", "ΟΣ"]);
+      await expect(local.query("insert into studio_personas values ($1,$2,$3,now())", ["2", "u", "ος"])).rejects.toMatchObject({ code: "23505" });
+    } finally { await local.close(); }
+  }, 30000);
+
+  it("backfills supplementary characters within the JavaScript length limit", async () => {
+    const { dedupeProfileNames } = await import("../src/lib/profile-name");
+    const local = await database();
+    const base = "😀".repeat(40);
+    const expected = "😀".repeat(38) + " (2)";
+    try {
+      await local.query("insert into studio_personas values ($1,$2,$3,$4),($5,$2,$3,$6)", ["1", "u", base, "2020-01-01", "2", "2021-01-01"]);
+      await local.exec(readFileSync("supabase/migrations/20261110130000_profile_unique_names.sql", "utf8"));
+      const { rows } = await local.query("select name from studio_personas order by id");
+      expect(rows).toEqual([{ name: base }, { name: expected }]);
+      expect(dedupeProfileNames([{id:"1",name:base,created_at:"2020"},{id:"2",name:base,created_at:"2021"}]).map(row => row.name)).toEqual([base, expected]);
+    } finally { await local.close(); }
+  });
+
+  it("uses the same dotted-I case distinction as JavaScript", async () => {
+    const local = await database();
+    try {
+      await local.exec(readFileSync("supabase/migrations/20261110130000_profile_unique_names.sql", "utf8"));
+      expect("İdea".trim().toLowerCase()).not.toBe("idea".trim().toLowerCase());
+      await local.query("insert into studio_personas values ($1,$2,$3,now())", ["1", "u", "İdea"]);
+      await expect(local.query("insert into studio_personas values ($1,$2,$3,now())", ["2", "u", "idea"])).resolves.toBeDefined();
+    } finally { await local.close(); }
+  });
+});

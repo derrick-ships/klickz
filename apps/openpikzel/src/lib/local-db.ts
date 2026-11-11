@@ -83,7 +83,8 @@ export async function localProfileTransaction<T extends DatedProfile>(kind: Prof
         const rows = request.result as T[];
         if ("repair" in operation) {
           result = dedupeProfileNames(rows);
-          for (const row of result) if (rows.find(previous => previous.id === row.id)?.name !== row.name) objectStore.put(row);
+          const names = new Map(rows.map(row => [row.id, row.name]));
+          for (const row of result) if (names.get(row.id) !== row.name) objectStore.put(row);
         } else {
           const name = ("create" in operation ? operation.create.name : operation.name).trim();
           if (name.length < 3) throw new Error("Name must be at least 3 characters");

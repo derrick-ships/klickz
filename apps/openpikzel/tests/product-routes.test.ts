@@ -1,11 +1,24 @@
 import {describe,it,expect,vi,beforeEach,beforeAll} from 'vitest';
 import sharp from 'sharp';
+import {PGlite} from '@electric-sql/pglite';
+import {readFileSync} from 'node:fs';
 const owner='11111111-1111-4111-8111-111111111111';
-const state=vi.hoisted(()=>({images:new Map<string,Buffer>(),inserted:[] as any[],personas:[] as any[],styles:[] as any[],oauth:undefined as any}));
+const state=vi.hoisted(()=>({images:new Map<string,Buffer>(),inserted:[] as any[],personas:[] as any[],styles:[] as any[],oauth:undefined as any, local:undefined as any}));
 vi.mock('../src/lib/server',async()=>{
  const actual=await vi.importActual<typeof import('../src/lib/server')>('../src/lib/server');
  const owner='11111111-1111-4111-8111-111111111111';
  return {...actual,authenticated:async()=>({user:{id:owner},oauth:state.oauth,db:{storage:{from:()=>({download:async(path:string)=>({data:state.images.has(path)?new Blob([new Uint8Array(state.images.get(path)!)]):null,error:null})})},from:(table:string)=>{
+  if(state.local){
+   let row:Record<string,unknown>|undefined;const filters:Record<string,unknown>={};
+   const query=async()=>{
+    try{
+     if(row){const keys=Object.keys(row);const result=await state.local.query(`insert into ${table} (${keys.join(',')}) values (${keys.map((_,i)=>`$${i+1}`).join(',')}) returning *`,Object.values(row));return {data:result.rows[0],error:null};}
+     const keys=Object.keys(filters);const result=await state.local.query(`select * from ${table}`+(keys.length?' where '+keys.map((k,i)=>`${k}=$${i+1}`).join(' and '):''),Object.values(filters));return {data:result.rows,error:null};
+    }catch(error){return {data:null,error};}
+   };
+   const chain:any={insert:(value:Record<string,unknown>)=>{row=value;return chain;},select:()=>chain,eq:(key:string,value:unknown)=>{filters[key]=value;return chain;},single:query,then:(resolve:any,reject:any)=>query().then(resolve,reject)};
+   return chain;
+  }
   const list=table==='studio_personas'?state.personas:table==='studio_styles'?state.styles:null;
   let row:any;let patch:any;const filters:Record<string,unknown>={};
   const matches=()=>(list||[]).filter(r=>Object.entries(filters).every(([k,v])=>r[k]===v));
@@ -36,7 +49,7 @@ vi.mock('../src/lib/oauth/core', async () => {
 });
 const request=(body:unknown,origin='https://studio.example',method:'POST'|'PATCH'='POST')=>new Request('https://studio.example/api/profiles',{method,headers:{'content-type':'application/json',origin},body:JSON.stringify(body)});
 beforeAll(async()=>{for(const [i,color]of ['#ca3451','#385d8a','#6aa77c'].entries())state.images.set(owner+'/ref'+i+'.png',await sharp({create:{width:20,height:20,channels:3,background:color}}).png().toBuffer());});
-beforeEach(()=>{state.inserted=[];state.personas=[];state.styles=[];state.oauth=undefined;process.env.APP_ORIGIN='https://studio.example';});
+beforeEach(()=>{state.inserted=[];state.personas=[];state.styles=[];state.oauth=undefined;state.local=undefined;process.env.APP_ORIGIN='https://studio.example';});
 describe('profile API and official YouTube adapter',()=>{
  it('saves a distinct, owned, consented persona without model inference',async()=>{const {POST}=await import('../src/app/api/profiles/route');const r=await POST(request({kind:'persona',name:'Alice',notes:'Preserve identity',permission:true,refs:[0,1,2].map(i=>owner+'/ref'+i+'.png')}));expect(r.status).toBe(200);expect(state.inserted[0].consent_at).toBeTruthy();expect(JSON.stringify(await r.json())).not.toContain('API_KEY');});
  it('rejects cross-owner reference paths before a profile is written',async()=>{const {POST}=await import('../src/app/api/profiles/route');const r=await POST(request({kind:'persona',name:'Alice',permission:true,refs:[owner+'/ref0.png',owner+'/ref1.png','22222222-2222-4222-8222-222222222222/private.png']}));expect(r.status).toBe(403);expect(state.inserted).toHaveLength(0);});
@@ -126,6 +139,25 @@ describe('unique profile names on the profiles API',()=>{
   expect((await api(request(personaBody('BEATRICE')))).status).toBe(409);
   expect(state.personas).toHaveLength(2);
  });
+ it('shares real database writes across the MCP and API entry points',async()=>{
+  const local=new PGlite();
+  try{
+   await local.exec(`create table studio_personas(id text primary key default gen_random_uuid()::text,user_id text,name text,notes text,refs text[],profile_status text,consent_at timestamptz,created_at timestamptz default now());create table studio_styles(id text primary key default gen_random_uuid()::text,user_id text,name text,notes text,refs text[],profile_status text,source jsonb,created_at timestamptz default now());`);
+   await local.exec(readFileSync('supabase/migrations/20261110130000_profile_unique_names.sql','utf8'));
+   state.local=local;
+   const {POST:api}=await import('../src/app/api/profiles/route');
+   const {POST:mcp}=await import('../src/app/mcp/route');
+   expect((await api(request(personaBody('  İdea  ')))).status).toBe(200);
+   state.oauth={scope:['studio:read','studio:write']};
+   const invoke=async(name:string)=>{
+    const response=await mcp(new Request('https://studio.example/mcp',{method:'POST',headers:{Authorization:'Bearer opz1.fixture',Accept:'application/json,text/event-stream','Content-Type':'application/json','MCP-Protocol-Version':'2025-11-25'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'save_profile',arguments:{kind:'persona',name,notes:'',permission:true,references:refs}}})}));
+    return response.json();
+   };
+   expect((await invoke('idea')).result.structuredContent.profile.name).toBe('idea');
+   expect((await invoke(' İDEA ')).result.isError).toBe(true);
+   expect((await local.query('select name from studio_personas order by name collate "C"')).rows).toEqual([{name:'idea'},{name:'İdea'}]);
+  } finally {state.local=undefined;await local.close();}
+ },30000);
  it('applies the same uniqueness rule to local profile names, including suffix backfill',async()=>{
   const {assertUniqueProfileName,dedupeProfileNames,profileNameTakenError}=await import('../src/lib/profile-name');
   const existing=[{id:'1',name:'Alice',created_at:'2026-11-01T00:00:00.000Z'}];
