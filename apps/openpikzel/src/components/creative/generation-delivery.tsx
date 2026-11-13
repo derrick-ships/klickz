@@ -7,14 +7,20 @@ import {deliveryCopy} from "@/lib/score-on-generate";
 export type DeliveredImage={id:string;src?:string;alt:string};
 // Delivered images that already revealed in this slot: a remount or a refreshed URL shows them still (never a replay).
 const revealed=new Set<string>();
-function DeliveredTile({image,index}:{image:DeliveredImage;index:number}){
+// `hold`: the placeholder is still fading over this slot. A loaded image waits, hidden, until it has gone, so the reveal
+// plays in plain view from full blur instead of under the fade (where its first, most visible half was lost).
+function DeliveredTile({image,index,hold}:{image:DeliveredImage;index:number;hold:boolean}){
  const [phase,setPhase]=useState<"pending"|"running"|"still"|"failed">(()=>revealed.has(image.id)?"still":"pending");
  const ref=useRef<HTMLImageElement>(null);
  // Starts only on a real, successful load (a decoded image with pixels); a failed load never animates. Reduced motion: CSS fades only.
- const settle=(img:HTMLImageElement)=>{if(phase!=="pending")return;if(!(img.complete&&img.naturalWidth>0)){setPhase("failed");return;}revealed.add(image.id);setPhase("running");};
+ const settle=(img:HTMLImageElement)=>{if(phase!=="pending")return;if(!(img.complete&&img.naturalWidth>0)){setPhase("failed");return;}if(hold)return;revealed.add(image.id);setPhase("running");};
  useLayoutEffect(()=>{if(ref.current?.complete&&ref.current.src)settle(ref.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
+ // The placeholder has gone: start the images that loaded under it (the whole batch together, so the 70ms order holds).
+ useEffect(()=>{if(!hold&&ref.current?.complete&&ref.current.src)settle(ref.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[hold]);
  if(!image.src)return <div className="delivery-tile" data-load="loading"/>;
  return <div className="delivery-tile" data-load={phase==="failed"?"failed":undefined}>
   <img ref={ref} src={image.src} alt={image.alt} className={phase==="pending"?"delivery-reveal-pending":phase==="running"?"delivery-reveal":undefined}
@@ -49,7 +55,7 @@ export function GenerationDelivery({state,portrait,images=[]}:{state:DeliverySta
  const {label,detail}=deliveryCopy(state,elapsed);
  return <section ref={region} className={"generation-delivery "+(!active?"delivery-compact":"")} aria-label="Thumbnail delivery" data-stage={state.stage}>
   {(generating||leaving||tray)&&<div className="delivery-slot">
-   {tray&&<div className={"delivery-result "+(portrait?"portrait":"")} data-count={Math.min(images.length,4)}>{images.slice(0,4).map((image,index)=><DeliveredTile key={image.id} image={image} index={index}/>)}</div>}
+   {tray&&<div className={"delivery-result "+(portrait?"portrait":"")} data-count={Math.min(images.length,4)}>{images.slice(0,4).map((image,index)=><DeliveredTile key={image.id} image={image} index={index} hold={leaving}/>)}</div>}
    {(generating||leaving)&&<div ref={placeholder} className={"delivery-placeholder "+(portrait?"portrait":"")+(leaving?" leaving":"")} aria-hidden={leaving||undefined} onAnimationEnd={event=>{if(event.animationName==="delivery-exit")setLeaving(false);}}><div className="delivery-light" aria-hidden="true"/><span className="delivery-brand">OpenPikzels<span>✦</span></span><span className="delivery-count" aria-hidden="true">{counter}<small>/100</small></span></div>}
   </div>}
   <div className="delivery-caption"><strong role="status">{label}</strong><p>{detail}</p>

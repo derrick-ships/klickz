@@ -361,3 +361,51 @@ test("reduced motion: a remount mid-fade continues the fade instead of starting 
   expect(resumed).toMatchObject({ cls: "image-reveal", name: "image-reveal-fade", delay: "-0.06s" });
   expect(resumed.progress).toBeGreaterThanOrEqual(0.5);
 });
+
+// The real studio in real time, every frame (no paused clock): the delivered images' blur-to-sharp reveal must play in plain
+// view. It starts only once the fading placeholder has gone, from full blur, runs about 450 ms, and a batch keeps its 70 ms
+// order (Critiquito #27 rewrite round 3: a reveal that ran under the 200 ms placeholder fade was imperceptible).
+test("the delivered images blur to sharp in plain view: the reveal starts once the placeholder has gone, 70 ms apart in order", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const studio = await revealStudio(page);
+  let release!: () => void; const hold = new Promise<void>(r => release = r);
+  await studio.generate(4, { holdGenerate: hold });
+  const placeholder = page.locator(".delivery-placeholder");
+  await expect(placeholder).toBeVisible();
+  await page.waitForTimeout(900);
+  await placeholder.evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior }));
+  await page.evaluate(() => {
+    type Frame = { t: number; ph: number | null; imgs: { blur: number; opacity: number; cls: string; delay: string }[] };
+    const w = window as unknown as { frames: Frame[]; sampling: boolean }; w.frames = []; w.sampling = true;
+    const tick = () => {
+      const ph = document.querySelector(".delivery-placeholder");
+      w.frames.push({ t: performance.now(), ph: ph ? Number(getComputedStyle(ph).opacity) : null,
+        imgs: [...document.querySelectorAll<HTMLImageElement>(".delivery-result img")].map(img => { const s = getComputedStyle(img);
+          return { blur: Number(s.filter.match(/blur\(([\d.]+)px\)/)?.[1] ?? 0), opacity: Number(s.opacity), cls: img.className, delay: s.animationDelay }; }) });
+      if (w.sampling) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  release();
+  await expect(placeholder).toHaveCount(0, { timeout: 5000 });
+  await expect(page.locator(".delivery-result img")).toHaveCount(4);
+  await expect(page.locator(".delivery-result img.delivery-reveal, .delivery-result img.delivery-reveal-pending")).toHaveCount(0, { timeout: 3000 });
+  type Frame = { t: number; ph: number | null; imgs: { blur: number; opacity: number; cls: string; delay: string }[] };
+  const frames = await page.evaluate(() => { const w = window as unknown as { frames: Frame[]; sampling: boolean }; w.sampling = false; return w.frames; });
+  // Never under the overlay: while any of the placeholder still shows, every delivered image is still fully hidden.
+  for (const f of frames) if (f.ph !== null && f.ph > 0) for (const img of f.imgs) expect(img.opacity, `image visible under the placeholder (opacity ${f.ph}) at ${f.t}`).toBe(0);
+  // The reveal starts from full blur with nothing over it, and its in-between is on screen for real frames.
+  const firstVisible = frames.find(f => f.imgs.some(i => i.opacity > 0))!;
+  expect(firstVisible.ph).toBeNull();
+  expect(firstVisible.imgs[0].blur).toBeGreaterThanOrEqual(8);
+  const inBetween = frames.filter(f => f.ph === null && f.imgs[0] && f.imgs[0].blur >= 2 && f.imgs[0].blur < 12 && f.imgs[0].opacity > 0.05 && f.imgs[0].opacity < 1);
+  expect(inBetween.length, "frames showing the first image part-blurred in plain view").toBeGreaterThanOrEqual(4);
+  // About 450 ms from its first visible frame to sharp.
+  const sharp = frames.find(f => f.t > firstVisible.t && f.imgs[0].blur === 0 && f.imgs[0].opacity === 1)!;
+  expect(sharp.t - firstVisible.t).toBeGreaterThan(300);
+  expect(sharp.t - firstVisible.t).toBeLessThan(700);
+  // One batch, staggered 70 ms apart in rendered order, all started together.
+  const running = frames.find(f => f.imgs.length === 4 && f.imgs.every(i => i.cls === "delivery-reveal"))!;
+  expect(running.imgs.map(i => i.delay)).toEqual(["0s", "0.07s", "0.14s", "0.21s"]);
+});
