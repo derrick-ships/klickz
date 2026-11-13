@@ -340,7 +340,7 @@ test("a new image reveals blur-to-sharp on its real load event, and reduced moti
       return { name: a.animationName, duration: t.duration, delay: t.delay, easing: getComputedStyle(el).animationTimingFunction, mid };
     });
     if (!reduced) {
-      expect(anim).toMatchObject({ name: "image-reveal", duration: 450, delay: 0, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+      expect(anim).toMatchObject({ name: "image-reveal", duration: 450, delay: 0, easing: "cubic-bezier(0.33, 1, 0.68, 1)" });
       expect(anim.mid.filter).toMatch(/^blur\((\d|\.)+px\)$/);
       expect(Number(anim.mid.filter.match(/[\d.]+/)![0])).toBeGreaterThan(0);
       expect(Number(anim.mid.filter.match(/[\d.]+/)![0])).toBeLessThan(12);

@@ -7,7 +7,11 @@ const review = readFileSync(new URL("../src/app/review.css", import.meta.url), "
 
 describe("image reveal CSS", () => {
   it("uses the approved recipe: 450 ms, 70 ms stagger, blur 12px, scale 1.02, opacity 0", () => {
-    expect(review).toContain(`.image-reveal { animation: image-reveal ${REVEAL_MS}ms var(--ease-out) calc(var(--i, 0) * ${REVEAL_STAGGER_MS}ms) both;`);
+    // The 450 ms image reveal runs on --ease-out-count (Lead spec 2026-11-13): the global --ease-out lands its blur in the first
+    // third, so after 150 ms it already read as sharp. Only the reveals use it; the placeholder fade and the global token stay.
+    expect(review).toContain(`.image-reveal { animation: image-reveal ${REVEAL_MS}ms var(--ease-out-count) calc(var(--i, 0) * ${REVEAL_STAGGER_MS}ms) both;`);
+    expect(review).toContain(`.delivery-reveal { animation: delivery-reveal ${REVEAL_MS}ms var(--ease-out-count) calc(var(--i, 0) * ${REVEAL_STAGGER_MS}ms) both;`);
+    expect(review).toContain(".delivery-placeholder.leaving { animation: delivery-exit 200ms var(--ease-out) both;");
     const frames = review.match(/@keyframes image-reveal \{([^}]*\}[^}]*)\}/)![1];
     expect(frames).toContain("filter: blur(12px)"); expect(frames).toContain("transform: scale(1.02)"); expect(frames).toContain("opacity: 0");
     expect(frames.match(/[a-z-]+(?=:)/g)!.every(p => ["filter", "transform", "opacity"].includes(p))).toBe(true);

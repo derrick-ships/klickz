@@ -401,6 +401,11 @@ test("the delivered images blur to sharp in plain view: the reveal starts once t
   expect(firstVisible.imgs[0].blur).toBeGreaterThanOrEqual(8);
   const inBetween = frames.filter(f => f.ph === null && f.imgs[0] && f.imgs[0].blur >= 2 && f.imgs[0].blur < 12 && f.imgs[0].opacity > 0.05 && f.imgs[0].opacity < 1);
   expect(inBetween.length, "frames showing the first image part-blurred in plain view").toBeGreaterThanOrEqual(4);
+  // Still visibly sharpening past 150 ms (Lead spec 2026-11-13, --ease-out-count): real frames 150 ms after the first visible
+  // one keep at least 2px of blur, and the next 150 ms still take off at least 1px more. The global --ease-out failed this.
+  const blurAt = (ms: number) => frames.find(f => f.t >= firstVisible.t + ms)!.imgs[0].blur;
+  expect(blurAt(150), "blur 150 ms into the reveal").toBeGreaterThanOrEqual(2);
+  expect(blurAt(150) - blurAt(300), "blur still dropping between 150 and 300 ms").toBeGreaterThanOrEqual(1);
   // About 450 ms from its first visible frame to sharp.
   const sharp = frames.find(f => f.t > firstVisible.t && f.imgs[0].blur === 0 && f.imgs[0].opacity === 1)!;
   expect(sharp.t - firstVisible.t).toBeGreaterThan(300);
