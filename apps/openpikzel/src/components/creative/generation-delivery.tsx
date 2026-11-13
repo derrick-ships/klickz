@@ -17,13 +17,14 @@ export function GenerationDelivery({state,portrait}:{state:DeliveryState;portrai
  const generating=state.stage==="generating",[wasGenerating,setWasGenerating]=useState(generating),[leaving,setLeaving]=useState(false);
  if(generating!==wasGenerating){setWasGenerating(generating);setLeaving(!generating&&!reduced);}
  else if(leaving&&reduced)setLeaving(false);
- const placeholder=useRef<HTMLDivElement>(null),box=useRef<DOMRect|null>(null);
- useLayoutEffect(()=>{if(generating&&placeholder.current)box.current=placeholder.current.getBoundingClientRect();});
- useEffect(()=>{if(!generating)return;const read=()=>{if(placeholder.current)box.current=placeholder.current.getBoundingClientRect();};
-  addEventListener("scroll",read,{capture:true,passive:true});addEventListener("resize",read);
-  return()=>{removeEventListener("scroll",read,{capture:true});removeEventListener("resize",read);};},[generating]);
- useLayoutEffect(()=>{const node=placeholder.current,rect=box.current;if(!leaving||!node||!rect)return;
-  for(const [key,value] of [["top",rect.top],["left",rect.left],["width",rect.width],["height",rect.height]] as const)node.style.setProperty("--pin-"+key,value+"px");},[leaving]);
+ // Its box is read in every waiting commit and on scroll/resize, with the window scroll at that moment: a window scroll whose
+ // event has not fired yet when the image lands is subtracted, so the pin matches what was on screen.
+ const placeholder=useRef<HTMLDivElement>(null),box=useRef<{rect:DOMRect;x:number;y:number}|null>(null);
+ useLayoutEffect(()=>{if(!generating)return;const read=()=>{if(placeholder.current)box.current={rect:placeholder.current.getBoundingClientRect(),x:scrollX,y:scrollY};};
+  read();addEventListener("scroll",read,{capture:true,passive:true});addEventListener("resize",read);
+  return()=>{removeEventListener("scroll",read,{capture:true});removeEventListener("resize",read);};});
+ useLayoutEffect(()=>{const node=placeholder.current,last=box.current;if(!leaving||!node||!last)return;const {rect,x,y}=last;
+  for(const [key,value] of [["top",rect.top-(scrollY-y)],["left",rect.left-(scrollX-x)],["width",rect.width],["height",rect.height]] as const)node.style.setProperty("--pin-"+key,value+"px");},[leaving]);
  useEffect(()=>{const node=placeholder.current;if(!leaving||!node)return;const cancel=(event:AnimationEvent)=>{if(event.animationName==="delivery-exit")setLeaving(false);};node.addEventListener("animationcancel",cancel);return()=>node.removeEventListener("animationcancel",cancel);},[leaving]);
  const complete=state.stage==="ready"||state.stage==="image-ready",counter=scanCounter(elapsed,complete?"succeeded":active?"running":"failed",reduced);
  const {label,detail}=deliveryCopy(state,elapsed);
