@@ -609,7 +609,9 @@ export default function Studio() {
         const result = await createReviewed(input,async result=>{
         if(draftFingerprintRef.current===submittedFingerprint){
           setSelection(result.creations[0].id);setComposerOpen(false);
-          requestAnimationFrame(() => reviewHeadingRef.current?.focus());
+          // OP-10: focus (and its announcement) moves to the result, but the page does not scroll: the delivered image is
+          // already on screen in the delivery card, which points below to the full result.
+          requestAnimationFrame(() => reviewHeadingRef.current?.focus({ preventScroll: true }));
         }else{
           setPendingResult(result.creations[0].id);
           await studio.saveConversation({...chat,draft:chatDraftRef.current,updated_at:new Date().toISOString()},"draft");

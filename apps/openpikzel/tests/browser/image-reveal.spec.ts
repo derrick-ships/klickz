@@ -296,6 +296,9 @@ test("nothing on the page moves when a generated thumbnail lands", async ({ page
     const placeholder = page.locator(".delivery-placeholder");
     await expect(placeholder).toBeVisible();
     await page.waitForTimeout(900); // the smooth scroll that centres the placeholder has ended
+    // Frame it the way a person watching it would: the placeholder centred, so the result heading may sit at the fold.
+    await placeholder.evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior }));
+    await page.waitForTimeout(200);
     await page.evaluate(() => { type F = { title: string; row: number | null; result: number | null; slot: number[] | null; tray: number[] | null };
       const w = window as unknown as { frames: F[]; sampling: boolean }; w.frames = []; w.sampling = true;
       const rect = (el: Element | null) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.top, r.left, r.width, r.height]; };
@@ -308,6 +311,8 @@ test("nothing on the page moves when a generated thumbnail lands", async ({ page
     await page.waitForTimeout(600);
     const frames = await page.evaluate(() => { const w = window as unknown as { frames: { title: string; row: number | null; result: number | null; slot: number[] | null; tray: number[] | null }[]; sampling: boolean }; w.sampling = false; return w.frames; });
     const label = size.width + "px";
+    // Focus moves to the result heading (for keyboard and screen readers) without scrolling the page.
+    await expect(page.locator(".result-section h1, .result-section h2").first()).toBeFocused();
     expect(frames.some(f => f.title.includes("Fixture result 1")), label).toBe(true);
     for (const key of ["row", "result"] as const) {
       const tops = frames.map(f => f[key]).filter((v): v is number => v !== null);
