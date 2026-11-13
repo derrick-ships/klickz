@@ -178,9 +178,9 @@
 /* OP-10: the generating placeholder fades out when the image lands instead of popping (skipped with reduced motion). */
 .delivery-placeholder.leaving { animation: delivery-exit 200ms var(--ease-out) both; pointer-events: none; }
 @keyframes delivery-exit { to { opacity: 0; } }
-/* The fading placeholder hands its space back over the same 200ms, so the image and status below rise with it instead of jumping. */
-.generation-delivery.delivery-leaving { display: grid; grid-template-rows: 1fr auto; animation: delivery-collapse 200ms var(--ease-out) both; }
-@keyframes delivery-collapse { to { grid-template-rows: 0fr auto; } }
+/* It leaves the flow at once, so the page below takes its final place in the same frame and nothing slides; pinned to the
+   screen box it had (set by GenerationDelivery), it dissolves over the result revealing underneath. Below the sidebar (z 20). */
+.delivery-placeholder.leaving { position: fixed; z-index: 5; top: var(--pin-top); left: var(--pin-left); width: var(--pin-width); height: var(--pin-height); max-height: none; aspect-ratio: auto; border-radius: 15px 15px 0 0; box-shadow: 0 0 0 1px #414141; }
 @keyframes delivery-sweep { 0% { transform: translateX(-100%); opacity:.4; } 70% { transform: translateX(-5%); opacity:1; } 100% { transform: translateX(20%); opacity:0; } }
 .prompt-enhancer { margin: 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .prompt-enhancer > small { flex: 1 1 180px; color: var(--color-muted); line-height: 1.5; font-size: 12px; }

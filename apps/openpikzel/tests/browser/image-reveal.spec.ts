@@ -242,7 +242,7 @@ test("turning reduced motion on mid-exit still removes the generating placeholde
 
 // Deterministic component check: the exit gives the placeholder's space back while it fades, so the image and
 // status below rise with it instead of jumping up when it is removed (Critiquito #27 fix2 round 2).
-test("the placeholder's space collapses during its fade, with no jump when it is removed", async ({ page }) => {
+test("the placeholder hands its space back in the frame the image lands, and fades pinned where it was", async ({ page }) => {
   const app = path.join(test.info().project.testDir, "..", "..");
   const bundle = await build({
     stdin: { contents: `import {createRoot} from "react-dom/client"; import {flushSync} from "react-dom";
@@ -254,22 +254,67 @@ test("the placeholder's space collapses during its fade, with no jump when it is
   const css = ["tokens.css", "globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.setContent("<style>" + css + "</style><div id=root></div>");
+  // Content above the card and a block after it, standing in for the result that lands below.
+  await page.setContent("<style>" + css + "</style><div style='height:300px'></div><div id=root></div><div id=after style='height:2000px'>result</div>");
   await page.addScriptTag({ content: bundle.outputFiles[0].text });
   const stage = (s: string) => page.evaluate(s => (window as unknown as { stage: (s: string) => void }).stage(s), s);
-  // Distance from the top of the delivery card to its caption: the space the placeholder still takes.
-  const offset = () => page.evaluate(() => document.querySelector(".delivery-caption")!.getBoundingClientRect().top - document.querySelector(".generation-delivery")!.getBoundingClientRect().top - 1);
+  const box = (sel: string) => page.evaluate(sel => { const r = document.querySelector(sel)!.getBoundingClientRect(); return { top: r.top, left: r.left, width: r.width, height: r.height }; }, sel);
   await stage("generating");
-  const full = await offset();
-  expect(full).toBeGreaterThan(200);
+  await page.evaluate(() => scrollTo(0, 120));
+  const waiting = await box(".delivery-placeholder");
+  expect(waiting.height).toBeGreaterThan(200);
+  // Final layout from the first frame of the exit: the caption sits at the card's top and the block below is already in place.
+  const settled = async () => ({ caption: (await box(".delivery-caption")).top - (await box(".generation-delivery")).top, after: (await box("#after")).top });
   await stage("ready");
-  const at = (ms: number) => page.evaluate(ms => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = ms; } }, ms).then(offset);
-  expect(await at(0)).toBeGreaterThan(full - 2);
-  expect(await at(100)).toBeLessThan(full * 0.6);
-  expect(await at(199)).toBeLessThan(8);
+  const at = (ms: number) => page.evaluate(ms => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = ms; } }, ms);
+  await at(0);
+  const first = await settled();
+  expect(first.caption).toBeLessThan(2);
+  for (const ms of [0, 50, 100, 199]) {
+    await at(ms);
+    const ghost = await box(".delivery-placeholder.leaving");
+    for (const k of ["top", "left", "width", "height"] as const) expect(Math.abs(ghost[k] - waiting[k])).toBeLessThanOrEqual(2);
+    expect(Math.abs((await settled()).after - first.after)).toBeLessThanOrEqual(2);
+  }
   await page.evaluate(() => { for (const a of document.getAnimations()) a.play(); });
   await expect(page.locator(".delivery-placeholder")).toHaveCount(0);
-  expect(await offset()).toBeLessThan(1);
+  expect(Math.abs((await settled()).after - first.after)).toBeLessThanOrEqual(2);
+});
+
+// The real studio, frame by frame: from the frame the new result first shows until well after the placeholder is gone,
+// the result never moves more than 2 px, and the fading placeholder stays on its waiting box.
+test("the delivered result never slides while the generating placeholder fades", async ({ page }) => {
+  for (const size of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize(size);
+    const studio = await revealStudio(page);
+    let release!: () => void; const hold = new Promise<void>(r => release = r);
+    await studio.generate(1, { holdGenerate: hold });
+    const placeholder = page.locator(".delivery-placeholder");
+    await expect(placeholder).toBeVisible();
+    await page.waitForTimeout(900); // the smooth scroll that centres the placeholder has ended
+    await page.evaluate(() => { type F = { t: number; result: number | null; title: string; ghost: number[] | null; waiting: number[] | null };
+      const w = window as unknown as { frames: F[]; sampling: boolean }; w.frames = []; w.sampling = true;
+      const rect = (el: Element | null) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.top, r.left, r.width, r.height]; };
+      const tick = () => { const img = document.querySelector(".review-canvas .result-image");
+        w.frames.push({ t: performance.now(), result: img ? img.getBoundingClientRect().top : null, title: document.querySelector(".review-summary")?.textContent ?? "",
+          ghost: rect(document.querySelector(".delivery-placeholder.leaving")), waiting: rect(document.querySelector(".delivery-placeholder:not(.leaving)")) });
+        if (w.sampling) requestAnimationFrame(tick); };
+      requestAnimationFrame(tick); });
+    release();
+    await expect(placeholder).toHaveCount(0, { timeout: 5000 });
+    await page.waitForTimeout(500);
+    const frames = await page.evaluate(() => { const w = window as unknown as { frames: { t: number; result: number | null; title: string; ghost: number[] | null; waiting: number[] | null }[]; sampling: boolean }; w.sampling = false; return w.frames; });
+    const landed = frames.filter(f => f.title.includes("Fixture result 1") && f.result !== null).map(f => f.result!);
+    expect(landed.length).toBeGreaterThan(10);
+    expect(Math.max(...landed) - Math.min(...landed), `${size.width}px: result tops ${landed.join(",")}`).toBeLessThanOrEqual(2);
+    // No frame shows the new result while the placeholder still holds its space above it.
+    expect(frames.filter(f => f.title.includes("Fixture result 1") && f.waiting)).toEqual([]);
+    const waiting = frames.filter(f => f.waiting).at(-1)!.waiting!, ghosts = frames.filter(f => f.ghost).map(f => f.ghost!);
+    expect(ghosts.length).toBeGreaterThan(0);
+    for (const g of ghosts) for (let i = 0; i < 4; i++) expect(Math.abs(g[i] - waiting[i])).toBeLessThanOrEqual(2);
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  }
 });
 
 // Deterministic component check: the real RevealImage and the real app CSS, with a controlled clock for the
