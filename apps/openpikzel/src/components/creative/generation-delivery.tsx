@@ -53,6 +53,7 @@ export function GenerationDelivery({state,portrait,images=[]}:{state:DeliverySta
    {(generating||leaving)&&<div ref={placeholder} className={"delivery-placeholder "+(portrait?"portrait":"")+(leaving?" leaving":"")} aria-hidden={leaving||undefined} onAnimationEnd={event=>{if(event.animationName==="delivery-exit")setLeaving(false);}}><div className="delivery-light" aria-hidden="true"/><span className="delivery-brand">OpenPikzels<span>✦</span></span><span className="delivery-count" aria-hidden="true">{counter}<small>/100</small></span></div>}
   </div>}
   <div className="delivery-caption"><strong role="status">{label}</strong><p>{detail}</p>
-  {active&&<small>{state.stage==="generating"?"Activity animation, not measured provider progress. ":""}Actual stages: create image → analyze → review. Provider time varies.</small>}</div>
+  {active&&<small>{state.stage==="generating"?"Activity animation, not measured provider progress. ":""}Actual stages: create image → analyze → review. Provider time varies.</small>}
+  {tray&&!active&&<small>Edit, analyze or download {images.length>1?"them":"it"} below.</small>}</div>
  </section>;
 }
