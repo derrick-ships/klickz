@@ -38,6 +38,16 @@ Generation uses one Low image by default. Batches are capped at four. MCP inline
 
 Jev-only scoring makes a single Jev request and returns rubric-based edit guidance. Only when `includeVision=true`, a separate connected OpenAI or Google vision request adds image-specific observations. Missing title/factual brief leaves idea and curiosity unassessed and the overall score null. API fix plans require a complete signed diagnostic with supported evidence. The UI does not claim real analytics, measured CTR or fine-tuning.
 
+## Staged Mode B: named profile references
+
+This describes `get_profile_refs` staged in this branch, not a deployed or verified capability. It requires `studio:read` and existing authentication and revalidation. Mode A generation by profile name is not claimed available.
+
+Provide up to three persona names in `personas` and optionally one private style name in `style`; supply at least one. Names must not be blank; persona names must be distinct after trimming and case normalization. Resolution searches the caller-owned profiles, not public presets. Ambiguous names require a rename. No `@` parsing is performed. Results preserve persona request order, followed by style. Profiles without references have an empty list; only the first three stored references per profile are included.
+
+Successful results contain profile kind, name, ID, brief and notes, plus paths and signed URLs associated with inline JPEG blocks by `imageIndex` (zero-based among image blocks). There can be at most 12 images, resized inside 768 pixels without enlargement, JPEG quality 80. Links are intended to expire after 300 seconds. If any selected reference cannot be used, the entire call fails rather than returning partial metadata or images.
+
+This tool discloses private images, identity briefs, notes and bearer URLs to the requesting MCP host and model. Hosts may omit image blocks, retain or forward data. URL expiry cannot revoke copies already received. Use only with a trusted host. Actual storage signing and expiry require isolated non-production verification.
+
 ## Protocol and security
 
 - Streamable HTTP POST `/mcp`; JSON responses; stateless serverless transport, no persistent SSE connection required. GET/DELETE return 405 after authentication. OPTIONS supports preflight. Unauthenticated requests return a Bearer challenge with resource metadata.

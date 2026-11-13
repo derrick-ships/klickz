@@ -2,6 +2,11 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { pillars } from "../src/lib/types";
 const state = vi.hoisted(() => ({
   scope: ["studio:read", "studio:write", "studio:ai"],
+  denyRevalidation: false,
+  reads: [] as string[],
+  profiles: [] as any[],
+  signed: [] as any[],
+  failSign: false,
   score: {} as any,
   memory: [] as any[],
   keys: { jev: "sk-jev-test-0000FAKE", anthropic: "sk-ant-test-0000FAKE" } as Record<string, string>,
@@ -18,18 +23,20 @@ vi.mock("../src/lib/oauth/core", async () => {
   const actual = await vi.importActual<any>("../src/lib/oauth/core");
   return {
     ...actual,
-    resolveAccess: async (_token: string, scope = "studio:read") => {
-      if (!state.scope.includes(scope)) throw new Error("permission");
+    resolveAccess: async (_token: string, requestedScope?: string) => {
+      const scope = requestedScope || "studio:read";
+      if (!state.scope.includes(scope) || (state.denyRevalidation && requestedScope)) throw new Error("permission");
       return {
         user: { id: "11111111-1111-4111-8111-111111111111" },
         oauth: { scope: state.scope },
         db: {
           from: (table: string) => {
+            state.reads.push(table);
             let action = "select",
               value: any,
               filters: Record<string, string> = {},
               pattern = "",
-              limit = 20;
+              limit = 20, start = 0, end = 999;
             const chain: any = {
               insert: (v: any) => {
                 action = "insert";
@@ -62,6 +69,7 @@ vi.mock("../src/lib/oauth/core", async () => {
                 return chain;
               },
               order: () => chain,
+              range: (a: number, b: number) => { start = a; end = b; return chain; },
               limit: (n: number) => {
                 limit = n;
                 return chain;
@@ -118,6 +126,7 @@ vi.mock("../src/lib/oauth/core", async () => {
                 };
               },
               then: (resolve: any) => {
+                if (table === "studio_personas" || table === "studio_styles") return Promise.resolve({ data: state.profiles.filter(p => p.table === table && p.user_id === filters.user_id).slice(start, end + 1), error: null }).then(resolve);
                 if (table === "studio_upload_urls") {
                   let rows = state.uploads.filter(
                     (u) =>
@@ -196,11 +205,11 @@ vi.mock("../src/lib/oauth/core", async () => {
             return { data: [row], error: null };
           },
           storage: {
-            from: () => ({
-              createSignedUrl: async (path: string) => ({
-                data: { signedUrl: "https://test.supabase.co/signed-preview?path=" + path },
-                error: null,
-              }),
+            from: () => (state.reads.push("storage"), {
+              createSignedUrl: async (path: string, ttl: number) => {
+                state.signed.push({ path, ttl });
+                return state.failSign ? { data: null, error: { message: "failed" } } : { data: { signedUrl: "https://test.supabase.co/signed-preview?path=" + path }, error: null };
+              },
               createSignedUploadUrl: async (path: string) => ({
                 data: {
                   signedUrl:
@@ -310,6 +319,11 @@ beforeEach(() => {
   vi.stubEnv("APP_ORIGIN", "https://openpikzels.com");
   state.scope = ["studio:read", "studio:write", "studio:ai"];
   state.memory = [];
+  state.reads = [];
+  state.profiles = [];
+  state.signed = [];
+  state.failSign = false;
+  state.denyRevalidation = false;
   state.keys = { jev: "sk-jev-test-0000FAKE", anthropic: "sk-ant-test-0000FAKE" };
   state.uploads = [];
   state.objects = {};
@@ -828,4 +842,142 @@ describe("OP-17 analyze_thumbnail and create_upload_url", () => {
     expect(errorText(second)).not.toMatch(/already analyzed/i);
   });
 
+});
+
+it("denies revoked read scope before profile and storage access through MCP", async () => {
+  state.denyRevalidation = true;
+  const response = await (await call("tools/call", { name: "get_profile", arguments: { id: "11111111-1111-4111-8111-111111111111", kind: "persona" } })).json();
+  expect(response.result.isError).toBe(true);
+  expect(state.reads).toEqual([]);
+});
+
+it("returns an owned named profile through MCP", async () => {
+  state.profiles = [{ table: "studio_personas", user_id: "11111111-1111-4111-8111-111111111111", id: "p1", name: "Alice", refs: [], brief: "brief", notes: "notes" }];
+  const response = await (await call("tools/call", { name: "get_profile_refs", arguments: { personas: ["Alice"] } })).json();
+  expect(response.result.isError).not.toBe(true);
+  expect(response.result.structuredContent.profiles[0]).toMatchObject({ kind: "persona", name: "Alice", id: "p1", references: [] });
+});
+it("denies missing read scope before profile and storage access through MCP", async () => {
+  state.scope = ["studio:write"];
+  const response = await call("tools/call", { name: "get_profile", arguments: { id: "11111111-1111-4111-8111-111111111111", kind: "persona" } });
+  expect(response.status).toBe(400);
+  expect(state.reads).toEqual([]);
+});
+
+const profileUser = "11111111-1111-4111-8111-111111111111";
+async function refsCall(args: unknown) {
+  return (await (await call("tools/call", { name: "get_profile_refs", arguments: args })).json()).result;
+}
+it("maps twelve decoded JPEGs in profile and reference order and caps each profile at three", async () => {
+  const sharp = (await import("sharp")).default;
+  const png = await sharp({ create: { width: 900, height: 450, channels: 3, background: "red" } }).png().toBuffer();
+  for (let i = 0; i < 4; i++) {
+    const refs = Array.from({ length: 4 }, (_, j) => `${profileUser}/${i}-${j}.png`);
+    state.profiles.push({ table: i === 3 ? "studio_styles" : "studio_personas", user_id: profileUser, id: `p${i}`, name: `name${i}`, refs, identity_brief: `brief${i}`, notes: `notes${i}` });
+    for (const path of refs) state.objects[path] = { created_at: "2026-01-01", size: png.length, bytes: png };
+  }
+  const result = await refsCall({ personas: ["name2", "name0", "name1"], style: "name3" });
+  expect(result.isError).not.toBe(true);
+  expect(result.structuredContent.profiles.map((p: any) => p.name)).toEqual(["name2", "name0", "name1", "name3"]);
+  expect(result.structuredContent.profiles[0]).toMatchObject({ brief: "brief2", notes: "notes2" });
+  const refs = result.structuredContent.profiles.flatMap((p: any) => p.references);
+  expect(refs).toHaveLength(12);
+  expect(refs.map((r: any) => r.imageIndex)).toEqual(Array.from({ length: 12 }, (_, i) => i));
+  expect(state.signed.map((s: any) => s.ttl)).toEqual(Array(12).fill(300));
+  expect(state.signed.map((s: any) => s.path)).toEqual(refs.map((r: any) => r.path));
+  const images = result.content.filter((item: any) => item.type === "image");
+  expect(images).toHaveLength(12);
+  for (const image of images) {
+    const metadata = await sharp(Buffer.from(image.data, "base64")).metadata();
+    expect(image.mimeType).toBe("image/jpeg");
+    expect(metadata).toMatchObject({ format: "jpeg", width: 768, height: 384 });
+  }
+});
+it("rejects invalid selection without reads", async () => {
+  for (const args of [{}, { personas: [""] }, { style: "  " }, { personas: ["Alice", " alice "] }, { personas: ["a", "b", "c", "d"] }, { style: ["one", "two"] }]) {
+    state.reads = [];
+    expect((await refsCall(args)).isError).toBe(true);
+    expect(state.reads).toEqual([]);
+  }
+});
+it("rejects a foreign selected path before any storage access without exposing it", async () => {
+  const foreign = "22222222-2222-4222-8222-222222222222/private.png";
+  state.profiles = [{ table: "studio_personas", user_id: profileUser, id: "p", name: "Alice", refs: [`${profileUser}/ok.png`, foreign] }];
+  const result = await refsCall({ personas: ["Alice"] });
+  expect(result.isError).toBe(true);
+  expect(JSON.stringify(result)).not.toContain(foreign);
+  expect(state.reads).not.toContain("storage");
+  expect(state.signed).toEqual([]);
+});
+it("fails atomically on missing, undecodable, oversized and unsignable images", async () => {
+  const sharp = (await import("sharp")).default;
+  const path = `${profileUser}/one.png`;
+  const png = await sharp({ create: { width: 2, height: 2, channels: 3, background: "blue" } }).png().toBuffer();
+  state.profiles = [{ table: "studio_personas", user_id: profileUser, id: "p", name: "Alice", refs: [path] }];
+  for (const mode of ["missing", "invalid", "oversized", "unsignable"]) {
+    state.objects = {};
+    state.signed = [];
+    state.failSign = mode === "unsignable";
+    if (mode !== "missing") {
+      const bytes = mode === "invalid" ? Buffer.from("not an image") : mode === "oversized" ? Buffer.alloc(5 * 1024 * 1024 + 1) : png;
+      state.objects[path] = { created_at: "2026-01-01", size: bytes.length, bytes };
+    }
+    const result = await refsCall({ personas: ["Alice"] });
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content.every((c: any) => c.type === "text")).toBe(true);
+    expect(JSON.stringify(result)).not.toContain(path);
+  }
+});
+it("searches all owned pages and reports all ambiguity candidates", async () => {
+  state.profiles = Array.from({ length: 1001 }, (_, i) => ({ table: "studio_personas", user_id: profileUser, id: `id${i}`, name: i === 0 || i === 1000 ? "Alice" : `other${i}`, refs: [] }));
+  state.profiles.push({ table: "studio_personas", user_id: "other", id: "foreign", name: "Alice", refs: [] });
+  const result = await refsCall({ personas: ["Alice"] });
+  expect(result.isError).toBe(true);
+  expect(result.content[0].text).toContain("id0");
+  expect(result.content[0].text).toContain("id1000");
+  expect(result.content[0].text).not.toContain("foreign");
+});
+it("rechecks read scope for the new tool before reads", async () => {
+  state.denyRevalidation = true;
+  expect((await refsCall({ personas: ["Alice"] })).isError).toBe(true);
+  expect(state.reads).toEqual([]);
+});
+
+it("does not resolve foreign profiles or parse at-signs", async () => {
+  state.profiles = [{ table: "studio_personas", user_id: "other", id: "foreign", name: "Alice", refs: [] }];
+  const missing = await refsCall({ personas: ["Alice"] });
+  expect(missing.isError).toBe(true);
+  expect(missing.content[0].text).toBe("No persona named Alice");
+  state.profiles.push({ table: "studio_personas", user_id: profileUser, id: "literal", name: "@Alice", refs: [] });
+  const literal = await refsCall({ personas: ["@Alice"] });
+  expect(literal.structuredContent.profiles[0]).toMatchObject({ id: "literal", name: "@Alice", references: [] });
+});
+
+it("returns a style alone without enlarging its image", async () => {
+  const sharp = (await import("sharp")).default;
+  const path = `${profileUser}/small.png`;
+  const bytes = await sharp({ create: { width: 12, height: 7, channels: 3, background: "blue" } }).png().toBuffer();
+  state.objects[path] = { created_at: "2026-01-01", size: bytes.length, bytes };
+  state.profiles = [{ table: "studio_styles", user_id: profileUser, id: "style", name: "Look", identity_brief: "style brief", notes: "style notes", refs: [path] }];
+  const result = await refsCall({ style: "Look" });
+  expect(result.structuredContent.profiles[0]).toMatchObject({ kind: "style", brief: "style brief", notes: "style notes", references: [{ path, imageIndex: 0 }] });
+  const image = result.content.find((item: any) => item.type === "image");
+  expect(await sharp(Buffer.from(image.data, "base64")).metadata()).toMatchObject({ format: "jpeg", width: 12, height: 7 });
+});
+
+it("returns no partial output when a later selected image is missing", async () => {
+  const sharp = (await import("sharp")).default;
+  const good = `${profileUser}/good.png`;
+  const missing = `${profileUser}/missing.png`;
+  const bytes = await sharp({ create: { width: 2, height: 2, channels: 3, background: "red" } }).png().toBuffer();
+  state.objects[good] = { created_at: "2026-01-01", size: bytes.length, bytes };
+  state.profiles = [{ table: "studio_personas", user_id: profileUser, id: "p", name: "Alice", refs: [good, missing] }];
+  const result = await refsCall({ personas: ["Alice"] });
+  expect(result.isError).toBe(true);
+  expect(result.structuredContent).toBeUndefined();
+  expect(result.content.every((item: any) => item.type === "text")).toBe(true);
+  expect(JSON.stringify(result)).not.toContain(good);
+  expect(JSON.stringify(result)).not.toContain(missing);
+  expect(state.signed).toEqual([]);
 });
