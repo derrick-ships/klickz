@@ -180,7 +180,7 @@
 @keyframes delivery-exit { to { opacity: 0; } }
 /* It leaves the flow at once, so the page below takes its final place in the same frame and nothing slides; pinned to the
    screen box it had (set by GenerationDelivery), it dissolves over the result revealing underneath. Below the sidebar (z 20). */
-.delivery-placeholder.leaving { position: fixed; z-index: 5; top: var(--pin-top); left: var(--pin-left); width: var(--pin-width); height: var(--pin-height); max-height: none; aspect-ratio: auto; border-radius: 15px 15px 0 0; box-shadow: 0 0 0 1px #414141; }
+.delivery-placeholder.leaving { position: fixed; z-index: 5; top: var(--pin-top); left: var(--pin-left); width: var(--pin-width); height: var(--pin-height); max-height: none; aspect-ratio: auto; border-radius: 16px; box-shadow: 0 0 0 1px #414141; }
 @keyframes delivery-sweep { 0% { transform: translateX(-100%); opacity:.4; } 70% { transform: translateX(-5%); opacity:1; } 100% { transform: translateX(20%); opacity:0; } }
 .prompt-enhancer { margin: 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .prompt-enhancer > small { flex: 1 1 180px; color: var(--color-muted); line-height: 1.5; font-size: 12px; }
