@@ -188,7 +188,9 @@
 .delivery-result[data-count="3"], .delivery-result[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
 .delivery-tile { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #101010; }
 .delivery-tile > img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.delivery-tile[data-load]::after { content: "Loading image…"; content: "Loading image…" / ""; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); background: var(--color-panel); color: var(--color-muted); font-size: 12px; text-align: center; }
+/* A delivered image whose bytes are still on the way says so once the placeholder has gone, never a blank tile (as the timeline
+   thumbnails do). Only then: an image that loaded under the fading placeholder is held hidden too, and must not flash the label. */
+.delivery-tile[data-load]::after, .delivery-slot:not(:has(> .delivery-placeholder)) .delivery-tile:has(> img.delivery-reveal-pending)::after { content: "Loading image…"; content: "Loading image…" / ""; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); background: var(--color-panel); color: var(--color-muted); font-size: 12px; text-align: center; }
 .delivery-tile[data-load="failed"]::after { content: "Image didn’t load\A Open it below to refresh"; content: "Image didn’t load\A Open it below to refresh" / ""; white-space: pre-line; line-height: 1.4; }
 .delivery-reveal-pending { opacity: 0; }
 .delivery-reveal { animation: delivery-reveal 450ms var(--ease-out-count) calc(var(--i, 0) * 70ms) both; will-change: filter, transform, opacity; }

@@ -414,3 +414,121 @@ test("the delivered images blur to sharp in plain view: the reveal starts once t
   const running = frames.find(f => f.imgs.length === 4 && f.imgs.every(i => i.cls === "delivery-reveal"))!;
   expect(running.imgs.map(i => i.delay)).toEqual(["0s", "0.07s", "0.14s", "0.21s"]);
 });
+
+// The real GenerationDelivery and the real app CSS, frame by frame (independent check of #27 at 214e6bf): once the placeholder
+// has gone, a delivered image whose bytes are still on the way says "Loading image…" on screen instead of leaving a blank tile;
+// one that loaded under the placeholder goes straight into its reveal and never flashes the label; a failed one says it didn't
+// load and never animates; reduced motion shows the same label, then fades the image in.
+test("a delivered image still loading says so once the placeholder has gone; one that loaded under it never flashes the label", async ({ page }) => {
+  const app = path.join(test.info().project.testDir, "..", "..");
+  const bundle = await build({
+    stdin: { contents: `import {createRoot} from "react-dom/client"; import {flushSync} from "react-dom";
+      import {GenerationDelivery} from "@/components/creative/generation-delivery";
+      const root=createRoot(document.getElementById("root"));
+      window.stage=(stage,src)=>flushSync(()=>root.render(<GenerationDelivery state={{id:"probe",stage,reviewed:0,total:1}} portrait={false} images={stage==="generating"?[]:[{id:src,src,alt:"Delivered"}]}/>));`, resolveDir: app, loader: "tsx" },
+    bundle: true, write: false, jsx: "automatic", alias: { "@": path.join(app, "src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
+  });
+  const css = ["tokens.css", "globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
+  const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9'><rect width='16' height='9' fill='red'/></svg>";
+  const instant = "data:image/svg+xml," + encodeURIComponent(svg);
+  type Frame = { t: number; ph: boolean; label: string | null; cls: string | null; img: number | null; anim: string | null };
+  const mount = async (reduced: boolean) => {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    let release!: () => void; const held = new Promise<void>(r => release = r);
+    await page.route("https://assets.test/**", async route => {
+      await held;
+      if (route.request().url().includes("missing")) return route.fulfill({ status: 404, body: "missing" });
+      return route.fulfill({ status: 200, contentType: "image/svg+xml", body: svg });
+    });
+    await page.emulateMedia({ reducedMotion: reduced ? "reduce" : "no-preference" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setContent("<style>" + css + "</style><div id=root></div>");
+    await page.addScriptTag({ content: bundle.outputFiles[0].text });
+    await page.evaluate(() => (window as unknown as { stage: (s: string) => void }).stage("generating"));
+    await page.waitForTimeout(300);
+    // Every painted frame: is the placeholder there, and does the tile show a label (content, displayed, not transparent)?
+    await page.evaluate(() => {
+      const w = window as unknown as { frames: Frame[]; sampling: boolean }; w.frames = []; w.sampling = true;
+      const tick = () => {
+        const tile = document.querySelector(".delivery-tile"), img = tile?.querySelector("img"), after = tile ? getComputedStyle(tile, "::after") : null;
+        w.frames.push({ t: performance.now(), ph: !!document.querySelector(".delivery-placeholder"),
+          label: after && after.content !== "none" && after.display !== "none" && Number(after.opacity) > 0 ? after.content : null,
+          cls: img ? img.className : null, img: img ? Number(getComputedStyle(img).opacity) : null, anim: img ? getComputedStyle(img).animationName : null });
+        if (w.sampling) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    return release;
+  };
+  const deliver = (src: string) => page.evaluate(src => (window as unknown as { stage: (s: string, src: string) => void }).stage("image-ready", src), src);
+  const frames = () => page.evaluate(() => { const w = window as unknown as { frames: Frame[]; sampling: boolean }; w.sampling = false; return w.frames; });
+  const tile = page.locator(".delivery-tile"), img = page.locator(".delivery-tile img"), placeholder = page.locator(".delivery-placeholder");
+  // Painted proof, not computed style alone: the tile's own screenshot carries light text pixels (the label), not a blank tile.
+  const textPixels = async () => {
+    const shot = (await tile.screenshot()).toString("base64");
+    return page.evaluate(async b64 => {
+      const bitmap = await createImageBitmap(await (await fetch("data:image/png;base64," + b64)).blob());
+      const c = new OffscreenCanvas(bitmap.width, bitmap.height), g = c.getContext("2d")!; g.drawImage(bitmap, 0, 0);
+      const d = g.getImageData(0, 0, bitmap.width, bitmap.height).data; let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 90 && d[i + 1] > 90 && d[i + 2] > 90) n++;
+      return n;
+    }, shot);
+  };
+  const loadingLabel = /Loading image/;
+
+  // 1. Slow bytes, full motion: blank never, label as soon as the placeholder has gone, then the reveal takes over.
+  let release = await mount(false);
+  await deliver("https://assets.test/slow.png");
+  await expect(placeholder).toHaveCount(0, { timeout: 2000 });
+  await page.waitForTimeout(400);
+  expect(await img.getAttribute("class")).toBe("delivery-reveal-pending");
+  expect(await textPixels(), "the waiting tile paints its label").toBeGreaterThan(20);
+  release();
+  await expect(img).not.toHaveClass(/delivery-reveal/, { timeout: 3000 });
+  expect(await textPixels(), "the image itself, red, has no light text pixels").toBe(0);
+  let f = await frames();
+  for (const x of f) if (x.ph) expect(x.label, `label under the placeholder at ${x.t}`).toBeNull();
+  const gone = f.find(x => !x.ph)!.t, landed = f.find(x => x.cls === "delivery-reveal")!.t;
+  const waiting = f.filter(x => x.t > gone + 50 && x.t < landed);
+  expect(waiting.length, "frames held after the placeholder went").toBeGreaterThan(10);
+  for (const x of waiting) expect(x.label ?? "", `blank tile while the bytes are on the way at ${x.t}`).toMatch(loadingLabel);
+  for (const x of f.filter(x => x.cls === "delivery-reveal" || x.cls === "")) expect(x.label, `label over the revealing image at ${x.t}`).toBeNull();
+  expect(f.some(x => x.cls === "delivery-reveal" && x.img! > 0 && x.img! < 1), "the reveal still plays").toBe(true);
+
+  // 2. Bytes already there under the placeholder: never a frame of the label, before, during or after the exit; the reveal plays.
+  for (let run = 0; run < 3; run++) {
+    await mount(false);
+    await deliver(instant);
+    await expect(placeholder).toHaveCount(0, { timeout: 2000 });
+    await expect(img).not.toHaveClass(/delivery-reveal/, { timeout: 3000 });
+    f = await frames();
+    for (const x of f) expect(x.label, `label flashed at ${x.t} (placeholder ${x.ph}, image ${x.cls})`).toBeNull();
+    expect(f.some(x => x.cls === "delivery-reveal")).toBe(true);
+  }
+
+  // 3. Bytes that fail: the loading label, then the failure label; the image never animates.
+  release = await mount(false);
+  await deliver("https://assets.test/missing.png");
+  await expect(placeholder).toHaveCount(0, { timeout: 2000 });
+  await page.waitForTimeout(300);
+  expect(await textPixels()).toBeGreaterThan(20);
+  release();
+  await expect(tile).toHaveAttribute("data-load", "failed");
+  expect(await tile.evaluate(el => getComputedStyle(el, "::after").content)).toContain("Image didn’t load");
+  f = await frames();
+  expect(f.some(x => loadingLabel.test(x.label ?? "")), "loading label before the failure").toBe(true);
+  expect(f.every(x => x.cls !== "delivery-reveal"), "a failed image never animates").toBe(true);
+
+  // 4. Reduced motion: no placeholder exit, the same label while the bytes are on the way, then a plain fade.
+  release = await mount(true);
+  await deliver("https://assets.test/slow.png");
+  await expect(placeholder).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(await textPixels()).toBeGreaterThan(20);
+  release();
+  await expect(img).not.toHaveClass(/delivery-reveal/, { timeout: 3000 });
+  f = await frames();
+  expect(f.filter(x => x.cls === "delivery-reveal").every(x => x.anim === "delivery-reveal-fade" && x.label === null)).toBe(true);
+  expect(await img.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});
