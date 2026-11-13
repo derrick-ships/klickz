@@ -10,22 +10,18 @@ const revealed=new Set<string>();
 // `hold`: the placeholder is still fading over this slot. A loaded image waits, hidden, until it has gone, so the reveal
 // plays in plain view from full blur instead of under the fade (where its first, most visible half was lost).
 function DeliveredTile({image,index,hold}:{image:DeliveredImage;index:number;hold:boolean}){
- const [phase,setPhase]=useState<"pending"|"running"|"still"|"failed">(()=>revealed.has(image.id)?"still":"pending");
+ const initialPhase=()=>revealed.has(image.id)?"still" as const:"pending" as const;
+ const [phase,setPhase]=useState<"pending"|"running"|"still"|"failed">(initialPhase);
+ const [source,setSource]=useState(image.src);
  const ref=useRef<HTMLImageElement>(null);
- // Starts only on a real, successful load (a decoded image with pixels); a failed load never animates. Reduced motion: CSS fades only.
- const settle=(img:HTMLImageElement)=>{if(phase!=="pending")return;if(!(img.complete&&img.naturalWidth>0)){setPhase("failed");return;}if(hold)return;revealed.add(image.id);setPhase("running");};
- useLayoutEffect(()=>{if(ref.current?.complete&&ref.current.src)settle(ref.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[]);
- // The placeholder has gone: start the images that loaded under it (the whole batch together, so the 70ms order holds).
- useEffect(()=>{if(!hold&&ref.current?.complete&&ref.current.src)settle(ref.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[hold]);
+ if(source!==image.src){setSource(image.src);setPhase(initialPhase());}
+ const settle=(img:HTMLImageElement)=>{if(img!==ref.current||!img.complete)return;if(!img.naturalWidth){setPhase("failed");return;}if(phase!=="pending"||hold)return;revealed.add(image.id);setPhase("running");};
+ useLayoutEffect(()=>{if(ref.current?.complete&&ref.current.src)settle(ref.current);},[image.src,hold]);
  if(!image.src)return <div className="delivery-tile" data-load="loading"/>;
  return <div className="delivery-tile" data-load={phase==="failed"?"failed":undefined}>
-  <img ref={ref} src={image.src} alt={image.alt} className={phase==="pending"?"delivery-reveal-pending":phase==="running"?"delivery-reveal":undefined}
+  <img key={image.src} ref={ref} src={image.src} alt={image.alt} className={phase==="pending"?"delivery-reveal-pending":phase==="running"?"delivery-reveal":undefined}
    style={phase==="running"?{"--i":index} as CSSProperties:undefined}
-   onLoad={event=>settle(event.currentTarget)} onError={()=>{if(phase==="pending"||phase==="running")setPhase("failed");}}
+   onLoad={event=>settle(event.currentTarget)} onError={event=>{if(event.currentTarget===ref.current)setPhase("failed");}}
    onAnimationEnd={event=>{if(event.animationName.startsWith("delivery-reveal"))setPhase("still");}}/>
  </div>;
 }

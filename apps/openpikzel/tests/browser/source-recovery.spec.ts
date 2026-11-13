@@ -1,0 +1,67 @@
+import { test, expect } from "@playwright/test";
+import { build } from "esbuild";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+test("a failed delivery recovers visible pixels when the same ID receives a new source", async ({ page }) => {
+  const app = path.join(test.info().project.testDir, "..", "..");
+  const bundle = await build({ stdin: { contents: `import {createRoot} from "react-dom/client"; import {flushSync} from "react-dom";
+    import {GenerationDelivery} from "@/components/creative/generation-delivery";
+    let root=createRoot(document.getElementById("root")); window.remount=()=>{flushSync(()=>root.unmount());root=createRoot(document.getElementById("root"));};
+    window.deliver=(src)=>flushSync(()=>root.render(<GenerationDelivery state={{id:"probe",stage:"image-ready",reviewed:0,total:1}} portrait={false} images={[{id:"same",src,alt:"Delivered"}]}/>));`, resolveDir: app, loader: "tsx" }, bundle: true, write: false, jsx: "automatic", alias: { "@": path.join(app, "src") }, define: { "process.env.NODE_ENV": "\"production\"" }, logLevel: "silent" });
+  const css = ["tokens.css", "globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
+  await page.setContent("<style>" + css + "</style><div id=root></div>");
+  await page.addScriptTag({ content: bundle.outputFiles[0].text });
+  await page.route("https://assets.test/**", route => route.request().url().includes("missing") ? route.fulfill({ status: 404, body: "missing" }) : route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"9\"><rect width=\"16\" height=\"9\" fill=\"red\"/></svg>" }));
+  const deliver = (src: string) => page.evaluate(src => (window as unknown as {deliver: (src: string) => void}).deliver(src), src);
+  const tile = page.locator(".delivery-tile"), img = tile.locator("img");
+  await deliver("https://assets.test/missing.png");
+  await expect(tile).toHaveAttribute("data-load", "failed");
+  await deliver("https://assets.test/valid.png");
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBe(16);
+  await expect(tile).not.toHaveAttribute("data-load", "failed");
+  await expect(img).not.toHaveClass(/delivery-reveal/);
+  const shot = (await tile.screenshot()).toString("base64");
+  const red = await page.evaluate(async b64 => { const bitmap = await createImageBitmap(await (await fetch("data:image/png;base64," + b64)).blob()); const c = new OffscreenCanvas(bitmap.width, bitmap.height), g = c.getContext("2d")!; g.drawImage(bitmap,0,0); const d = g.getImageData(0,0,bitmap.width,bitmap.height).data; let n=0; for(let i=0;i<d.length;i+=4) if(d[i]>200 && d[i+1]<40 && d[i+2]<40)n++; return n; }, shot);
+  expect(red).toBeGreaterThan(100);
+  await deliver("https://assets.test/missing-again.png");
+  await expect(tile).toHaveAttribute("data-load", "failed");
+  await page.evaluate(() => { (window as any).oldImage = document.querySelector(".delivery-tile img"); });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => release = resolve);
+  await page.route("https://assets.test/held.png", async route => { await held; await route.fulfill({status: 200, contentType: "image/svg+xml", body: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"9\"><rect width=\"16\" height=\"9\" fill=\"red\"/></svg>"}); });
+  await deliver("https://assets.test/held.png");
+  await page.evaluate(() => { (window as any).oldImage.dispatchEvent(new Event("error")); (window as any).oldImage.dispatchEvent(new Event("load")); });
+  await expect(tile).not.toHaveAttribute("data-load", "failed");
+  release();
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBe(16);
+  await expect(img).not.toHaveClass(/delivery-reveal/);
+  await page.evaluate(() => (window as any).remount());
+  await deliver("https://assets.test/valid.png");
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBe(16);
+  await expect(tile).not.toHaveAttribute("data-load", "failed");
+  await expect(img).not.toHaveClass(/delivery-reveal/);
+});
+
+test("an already complete image settles without a load event", async ({ page }) => {
+  const app = path.join(test.info().project.testDir, "..", "..");
+  const bundle = await build({ stdin: { contents: `import {createRoot} from "react-dom/client"; import {flushSync} from "react-dom";
+    import {GenerationDelivery} from "@/components/creative/generation-delivery";
+    const root=createRoot(document.getElementById("root"));
+    window.deliverCached=(src)=>flushSync(()=>root.render(<GenerationDelivery state={{id:"cache-probe",stage:"image-ready",reviewed:0,total:1}} portrait={false} images={[{id:"cached-image",src,alt:"Cached"}]}/>));`, resolveDir: app, loader: "tsx" }, bundle: true, write: false, jsx: "automatic", alias: { "@": path.join(app, "src") }, define: { "process.env.NODE_ENV": "\"production\"" }, logLevel: "silent" });
+  await page.setContent("<div id=root></div>");
+  await page.addScriptTag({ content: bundle.outputFiles[0].text });
+  const observed = await page.evaluate(async () => {
+    const src = "data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2216%22%20height=%229%22%3E%3C/svg%3E";
+    const warm = new Image();
+    warm.src = src;
+    await warm.decode();
+    document.addEventListener("load", event => { if (event.target instanceof HTMLImageElement) event.stopImmediatePropagation(); }, true);
+    (window as any).deliverCached(src);
+    const img = document.querySelector(".delivery-tile img") as HTMLImageElement;
+    return { complete: img.complete, width: img.naturalWidth, className: img.className };
+  });
+  expect(observed.complete).toBe(true);
+  expect(observed.width).toBe(16);
+  expect(observed.className).not.toContain("delivery-reveal-pending");
+});
