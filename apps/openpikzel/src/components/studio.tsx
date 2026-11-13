@@ -216,6 +216,11 @@ export default function Studio() {
   const revealOwner = studio.user || "local";
   arrivals.observe(revealOwner, studio.loading, studio.creations.map((c) => c.id));
   setRevealOwner(revealOwner);
+  // OP-10: the newest arrival batch, in arrival order, is what the delivery card shows in the slot its placeholder held.
+  const newestBatch = Math.max(0, ...studio.creations.map((c) => arrivals.arrival(c.id)?.batch ?? 0));
+  const deliveredImages = newestBatch ? studio.creations.filter((c) => arrivals.arrival(c.id)?.batch === newestBatch)
+    .sort((a, b) => arrivals.arrival(a.id)!.index - arrivals.arrival(b.id)!.index)
+    .map((c) => ({ id: c.id, src: (c.image_path && studio.images[c.image_path]) || undefined, alt: c.title })) : [];
   const selected = studio.creations.find((c) => c.id === selection) || null;
   const fixReview = (selection && fixReviews[selection]) || null;
   function setFixReview(value: (typeof fixReviews)[string] | null, id = selection) {
@@ -1280,7 +1285,7 @@ export default function Studio() {
           )}
           {activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
-          {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"}/>}
+          {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={deliveredImages}/>}
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />

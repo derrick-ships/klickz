@@ -242,48 +242,51 @@ test("turning reduced motion on mid-exit still removes the generating placeholde
 
 // Deterministic component check: the exit gives the placeholder's space back while it fades, so the image and
 // status below rise with it instead of jumping up when it is removed (Critiquito #27 fix2 round 2).
-test("the placeholder hands its space back in the frame the image lands, and fades pinned where it was", async ({ page }) => {
+test("the delivered image takes the placeholder's slot and the card keeps its height: nothing moves while it fades", async ({ page }) => {
   const app = path.join(test.info().project.testDir, "..", "..");
   const bundle = await build({
     stdin: { contents: `import {createRoot} from "react-dom/client"; import {flushSync} from "react-dom";
       import {GenerationDelivery} from "@/components/creative/generation-delivery";
+      const src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9'%3E%3Crect width='16' height='9' fill='red'/%3E%3C/svg%3E";
       const root=createRoot(document.getElementById("root"));
-      window.stage=(stage)=>flushSync(()=>root.render(<GenerationDelivery state={{id:"probe",stage}} portrait={false}/>));`, resolveDir: app, loader: "tsx" },
+      window.stage=(stage)=>flushSync(()=>root.render(<GenerationDelivery state={{id:"probe",stage,reviewed:0,total:1}} portrait={false} images={stage==="generating"?[]:[{id:"probe-image",src,alt:"Delivered"}]}/>));`, resolveDir: app, loader: "tsx" },
     bundle: true, write: false, jsx: "automatic", alias: { "@": path.join(app, "src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
   });
   const css = ["tokens.css", "globals.css", "review.css"].map(f => readFileSync(path.join(app, "src", "app", f), "utf8")).join("\n");
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.setViewportSize({ width: 1440, height: 900 });
-  // Content above the card and a block after it, standing in for the result that lands below.
   await page.setContent("<style>" + css + "</style><div style='height:300px'></div><div id=root></div><div id=after style='height:2000px'>result</div>");
   await page.addScriptTag({ content: bundle.outputFiles[0].text });
   const stage = (s: string) => page.evaluate(s => (window as unknown as { stage: (s: string) => void }).stage(s), s);
-  const box = (sel: string) => page.evaluate(sel => { const r = document.querySelector(sel)!.getBoundingClientRect(); return { top: r.top, left: r.left, width: r.width, height: r.height }; }, sel);
+  const box = (sel: string) => page.evaluate(sel => { const r = document.querySelector(sel)!.getBoundingClientRect(); return [r.top, r.left, r.width, r.height]; }, sel);
+  const near = (a: number[], b: number[]) => a.forEach((v, i) => expect(Math.abs(v - b[i])).toBeLessThanOrEqual(2));
   await stage("generating");
   await page.evaluate(() => scrollTo(0, 120));
-  const waiting = await box(".delivery-placeholder");
-  expect(waiting.height).toBeGreaterThan(200);
-  // Final layout from the first frame of the exit: the caption sits at the card's top and the block below is already in place.
-  const settled = async () => ({ caption: (await box(".delivery-caption")).top - (await box(".generation-delivery")).top, after: (await box("#after")).top });
-  await stage("ready");
-  const at = (ms: number) => page.evaluate(ms => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = ms; } }, ms);
-  await at(0);
-  const first = await settled();
-  expect(first.caption).toBeLessThan(2);
+  const slot = await box(".delivery-placeholder"), after = await box("#after"), card = await box(".generation-delivery");
+  expect(slot[3]).toBeGreaterThan(200);
+  await stage("image-ready");
+  const at = (ms: number) => page.evaluate(ms => { for (const a of document.getAnimations()) if ((a as CSSAnimation).animationName === "delivery-exit") { a.pause(); a.currentTime = ms; } }, ms);
   for (const ms of [0, 50, 100, 199]) {
     await at(ms);
-    const ghost = await box(".delivery-placeholder.leaving");
-    for (const k of ["top", "left", "width", "height"] as const) expect(Math.abs(ghost[k] - waiting[k])).toBeLessThanOrEqual(2);
-    expect(Math.abs((await settled()).after - first.after)).toBeLessThanOrEqual(2);
+    near(await box(".delivery-placeholder.leaving"), slot);
+    near(await box(".delivery-result"), slot);
+    near(await box("#after"), after);
+    near(await box(".generation-delivery"), card);
   }
   await page.evaluate(() => { for (const a of document.getAnimations()) a.play(); });
   await expect(page.locator(".delivery-placeholder")).toHaveCount(0);
-  expect(Math.abs((await settled()).after - first.after)).toBeLessThanOrEqual(2);
+  near(await box(".delivery-result"), slot);
+  near(await box("#after"), after);
+  // The delivered image revealed on its real load, then sits still.
+  await expect(page.locator(".delivery-result img")).toHaveAttribute("alt", "Delivered");
+  await expect(page.locator(".delivery-result img")).not.toHaveClass(/delivery-reveal/, { timeout: 2000 });
+  expect(await page.locator(".delivery-result img").evaluate(img => getComputedStyle(img).opacity)).toBe("1");
 });
 
-// The real studio, frame by frame: from the frame the new result first shows until well after the placeholder is gone,
-// the result never moves more than 2 px, and the fading placeholder stays on its waiting box.
-test("the delivered result never slides while the generating placeholder fades", async ({ page }) => {
+// The real studio, frame by frame: from the last waiting frame until well after the placeholder is gone, the content
+// around the delivery (the API activity row and the result below) moves no more than 2 px, and the delivered image
+// appears in the box the placeholder held.
+test("nothing on the page moves when a generated thumbnail lands", async ({ page }) => {
   for (const size of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.setViewportSize(size);
@@ -293,26 +296,27 @@ test("the delivered result never slides while the generating placeholder fades",
     const placeholder = page.locator(".delivery-placeholder");
     await expect(placeholder).toBeVisible();
     await page.waitForTimeout(900); // the smooth scroll that centres the placeholder has ended
-    await page.evaluate(() => { type F = { t: number; result: number | null; title: string; ghost: number[] | null; waiting: number[] | null };
+    await page.evaluate(() => { type F = { title: string; row: number | null; result: number | null; slot: number[] | null; tray: number[] | null };
       const w = window as unknown as { frames: F[]; sampling: boolean }; w.frames = []; w.sampling = true;
       const rect = (el: Element | null) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.top, r.left, r.width, r.height]; };
-      const tick = () => { const img = document.querySelector(".review-canvas .result-image");
-        w.frames.push({ t: performance.now(), result: img ? img.getBoundingClientRect().top : null, title: document.querySelector(".review-summary")?.textContent ?? "",
-          ghost: rect(document.querySelector(".delivery-placeholder.leaving")), waiting: rect(document.querySelector(".delivery-placeholder:not(.leaving)")) });
+      const tick = () => { w.frames.push({ title: document.querySelector(".review-summary")?.textContent ?? "", row: rect(document.querySelector(".activity-summary"))?.[0] ?? null,
+          result: rect(document.querySelector(".review-canvas .result-image"))?.[0] ?? null, slot: rect(document.querySelector(".delivery-placeholder:not(.leaving)")), tray: rect(document.querySelector(".delivery-result")) });
         if (w.sampling) requestAnimationFrame(tick); };
       requestAnimationFrame(tick); });
     release();
     await expect(placeholder).toHaveCount(0, { timeout: 5000 });
-    await page.waitForTimeout(500);
-    const frames = await page.evaluate(() => { const w = window as unknown as { frames: { t: number; result: number | null; title: string; ghost: number[] | null; waiting: number[] | null }[]; sampling: boolean }; w.sampling = false; return w.frames; });
-    const landed = frames.filter(f => f.title.includes("Fixture result 1") && f.result !== null).map(f => f.result!);
-    expect(landed.length).toBeGreaterThan(10);
-    expect(Math.max(...landed) - Math.min(...landed), `${size.width}px: result tops ${landed.join(",")}`).toBeLessThanOrEqual(2);
-    // No frame shows the new result while the placeholder still holds its space above it.
-    expect(frames.filter(f => f.title.includes("Fixture result 1") && f.waiting)).toEqual([]);
-    const waiting = frames.filter(f => f.waiting).at(-1)!.waiting!, ghosts = frames.filter(f => f.ghost).map(f => f.ghost!);
-    expect(ghosts.length).toBeGreaterThan(0);
-    for (const g of ghosts) for (let i = 0; i < 4; i++) expect(Math.abs(g[i] - waiting[i])).toBeLessThanOrEqual(2);
+    await page.waitForTimeout(600);
+    const frames = await page.evaluate(() => { const w = window as unknown as { frames: { title: string; row: number | null; result: number | null; slot: number[] | null; tray: number[] | null }[]; sampling: boolean }; w.sampling = false; return w.frames; });
+    const label = size.width + "px";
+    expect(frames.some(f => f.title.includes("Fixture result 1")), label).toBe(true);
+    for (const key of ["row", "result"] as const) {
+      const tops = frames.map(f => f[key]).filter((v): v is number => v !== null);
+      expect(tops.length, label + " " + key).toBe(frames.length);
+      expect(Math.max(...tops) - Math.min(...tops), `${label} ${key} tops ${[...new Set(tops)].join(",")}`).toBeLessThanOrEqual(2);
+    }
+    const slot = frames.filter(f => f.slot).at(-1)!.slot!, trays = frames.filter(f => f.tray).map(f => f.tray!);
+    expect(trays.length, label).toBeGreaterThan(10);
+    for (const t of trays) for (let i = 0; i < 4; i++) expect(Math.abs(t[i] - slot[i]), label + " tray vs slot").toBeLessThanOrEqual(2);
     await page.unrouteAll({ behavior: "ignoreErrors" });
   }
 });

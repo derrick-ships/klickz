@@ -178,9 +178,26 @@
 /* OP-10: the generating placeholder fades out when the image lands instead of popping (skipped with reduced motion). */
 .delivery-placeholder.leaving { animation: delivery-exit 200ms var(--ease-out) both; pointer-events: none; }
 @keyframes delivery-exit { to { opacity: 0; } }
-/* It leaves the flow at once, so the page below takes its final place in the same frame and nothing slides; pinned to the
-   screen box it had (set by GenerationDelivery), it dissolves over the result revealing underneath. Below the sidebar (z 20). */
-.delivery-placeholder.leaving { position: fixed; z-index: 5; top: var(--pin-top); left: var(--pin-left); width: var(--pin-width); height: var(--pin-height); max-height: none; aspect-ratio: auto; border-radius: 16px; box-shadow: 0 0 0 1px #414141; }
+/* Nothing on the page moves when the image lands: the delivered images take the slot the placeholder held, and the
+   placeholder dissolves over them in place (GenerationDelivery also holds the card at its waiting height). */
+.delivery-slot { position: relative; }
+.delivery-placeholder.leaving { position: absolute; top: 0; left: 0; right: 0; z-index: 1; }
+.delivery-result { aspect-ratio: 16/9; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; background: #101010; }
+.delivery-result.portrait { aspect-ratio: 9/16; max-height: 440px; }
+.delivery-result[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.delivery-result[data-count="3"], .delivery-result[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.delivery-tile { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #101010; }
+.delivery-tile > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.delivery-tile[data-load]::after { content: "Loading image…"; content: "Loading image…" / ""; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); background: var(--color-panel); color: var(--color-muted); font-size: 12px; text-align: center; }
+.delivery-tile[data-load="failed"]::after { content: "Image didn’t load\A Open it below to refresh"; content: "Image didn’t load\A Open it below to refresh" / ""; white-space: pre-line; line-height: 1.4; }
+.delivery-reveal-pending { opacity: 0; }
+.delivery-reveal { animation: delivery-reveal 450ms var(--ease-out) calc(var(--i, 0) * 70ms) both; will-change: filter, transform, opacity; }
+@keyframes delivery-reveal { from { filter: blur(12px); transform: scale(1.02); opacity: 0; } to { filter: blur(0); transform: scale(1); opacity: 1; } }
+@keyframes delivery-reveal-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .delivery-reveal { animation: delivery-reveal-fade 120ms linear both !important; animation-delay: 0ms !important; will-change: opacity; } }
+/* One status at a time: while the delivery card reports generating or analyzing, the generic progress card stays mounted but
+   hidden, so it cannot vanish above the result when the work ends. */
+:has(> .generation-delivery:is([data-stage="generating"], [data-stage="analyzing"])) > .operation-progress { display: none; }
 @keyframes delivery-sweep { 0% { transform: translateX(-100%); opacity:.4; } 70% { transform: translateX(-5%); opacity:1; } 100% { transform: translateX(20%); opacity:0; } }
 .prompt-enhancer { margin: 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .prompt-enhancer > small { flex: 1 1 180px; color: var(--color-muted); line-height: 1.5; font-size: 12px; }
