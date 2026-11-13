@@ -214,7 +214,7 @@ export default function Studio() {
   const arrivals = arrivalsRef.current;
   // The owner key matches the workspace key below (local mode has no user); studio.loading is true for a new owner until its library loads.
   const revealOwner = studio.user || "local";
-  arrivals.observe(revealOwner, studio.loading, studio.creations.map((c) => c.id));
+  arrivals.observe(revealOwner, studio.loading, studio.creations.filter((c) => c.lineage?.origin !== "uploaded").map((c) => c.id));
   setRevealOwner(revealOwner);
   // OP-10: the newest arrival batch, in arrival order, is what the delivery card shows in the slot its placeholder held.
   const newestBatch = Math.max(0, ...studio.creations.map((c) => arrivals.arrival(c.id)?.batch ?? 0));

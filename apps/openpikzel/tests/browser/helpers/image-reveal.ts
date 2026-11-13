@@ -44,6 +44,7 @@ export async function revealStudio(page: Page, opts: { start?: { title?: string;
     const req = route.request(), url = new URL(req.url()), headers = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS" };
     if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
     if (url.pathname.includes("/auth/")) return route.fulfill({ json: session.user, headers });
+    if (url.pathname.includes("/storage/v1/object/studio-assets/") && req.method() === "POST") return route.fulfill({ json: {}, headers });
     if (url.pathname.includes("/storage/") && req.method() === "POST") { const paths = req.postDataJSON().paths || []; return route.fulfill({ json: paths.map((p: string) => ({ path: p, signedURL: "/object/sign/studio-assets/" + p + "?token=fixture" })), headers }); }
     if (url.pathname.includes("/storage/")) {
       const path = decodeURIComponent(url.pathname.split("/studio-assets/")[1] || ""), rule = rules.get(path) || {};
@@ -55,6 +56,7 @@ export async function revealStudio(page: Page, opts: { start?: { title?: string;
       return route.fulfill({ body: await png(path.includes("/start-") ? 7 - index : index), contentType: "image/png", headers });
     }
     const table = url.pathname.split("/").pop();
+    if (table === "studio_creations" && req.method() === "POST") { creations.unshift(req.postDataJSON()); return route.fulfill({ status: 201, body: "", headers }); }
     if (req.method() !== "GET") return route.fulfill({ status: 201, body: "", headers });
     const data = (table === "studio_conversations" ? chats : table === "studio_creations" ? creations : []) as { id: string }[];
     const rows = data.filter(v => !url.searchParams.has("id") || url.searchParams.get("id") === "eq." + v.id);
