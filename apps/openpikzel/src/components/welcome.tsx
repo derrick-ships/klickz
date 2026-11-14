@@ -1,4 +1,4 @@
-import { ArrowUpRight, ArrowRight, KeyRound, MessageCircle, Plug, ScanLine, Layers3, WandSparkles } from "lucide-react";
+import { ArrowUpRight, ArrowRight, ArrowDown, KeyRound, MessageCircle, Plug, ScanLine, Layers3, WandSparkles } from "lucide-react";
 import { BrandScene } from "@/components/brand-scene";
 
 export function Welcome() {
@@ -12,7 +12,7 @@ export function Welcome() {
      <h1 id="welcome-title" className="welcome-headline"><span>GET MILLIONS</span>{" "}<span>OF VIEWS</span></h1>
      <p className="welcome-subtitle">Without adding another subscription*</p>
      <p className="welcome-lead">Describe your video, get a thumbnail, see its score and fix it in one click.</p>
-     <div className="welcome-actions"><a className="welcome-primary" href="/studio">Start creating free <ArrowRight size={19}/></a><a className="welcome-secondary" href="#how-it-works">How it works <ArrowDown/></a></div>
+     <div className="welcome-actions"><a className="welcome-primary" href="/studio">Start creating free <ArrowRight size={19}/></a><a className="welcome-secondary" href="#how-it-works">How it works <ArrowDown size={15} aria-hidden="true"/></a></div>
      <p className="welcome-cost-inline">Free to try. To make images you connect your own AI account, which bills you directly. Views are not guaranteed.</p>
     </div>
    </section>
@@ -33,4 +33,3 @@ export function Welcome() {
   </main><footer className="welcome-footer"><span>OpenPikzels · Built for the next great idea.</span><a href="/connect">Connections</a><a href="/connect#chatgpt">ChatGPT connection</a></footer>
  </div>;
 }
-function ArrowDown(){return <span aria-hidden="true">↓</span>}
