@@ -8,6 +8,7 @@ import { generationReadiness } from "@/lib/generation-readiness";
 import { pickVisionProvider } from "@/lib/vision-provider";
 import { critiqueProviderFromScore, reviewerName, scorePlan, scoreStatusCopy, scoreStatusFromEvaluation } from "@/lib/score-on-generate";
 import { GEMINI_FIX_NOTICE } from "@/lib/fix-plan-notice";
+import { compareScore } from "@/lib/score-compare";
 import { promptValidationError } from "@/lib/prompt-validation";
 import {useRequestActivity} from "@/lib/use-request-activity";
 import { jobGuidance } from "@/lib/job-state";
@@ -241,6 +242,17 @@ export default function Studio() {
       selected?.score && [2, 3].includes(selected.score.version)
         ? selected.score
         : null;
+  const previousScoreRaw =
+    selected?.mode === "fix" && selected.parent_id
+      ? studio.creations.find((c) => c.id === selected.parent_id)?.score ?? null
+      : null;
+  const previousScore =
+    previousScoreRaw && [2, 3].includes(previousScoreRaw.version)
+      ? previousScoreRaw
+      : null;
+  const overallCompare = previousScore
+    ? compareScore(previousScore.overall, score?.overall ?? null, { name: "Score", empty: "Partial" })
+    : null;
   // OP-11: a score counts up once, and only when it arrives this session: while its creation is
   // selected, or with a creation that appeared after the library loaded (a new generation). A score
   // already there at load or selection is static. An explicit analysis reveals in its dialog first,
@@ -1045,9 +1057,22 @@ export default function Studio() {
                       <div className="score-header">
                         <div>
                           <span>OpenPikzels Score</span>
-                          <h2>
-                            {score.overall === null ? "Partial" : <ScoreNumber reveal={scoreReveal} final={score.overall} />}
-                            {score.overall !== null && <small>/100</small>}
+                          <h2 aria-label={overallCompare?.spoken}>
+                            {overallCompare && score.overall === null ? (
+                              overallCompare.visible
+                            ) : overallCompare && score.overall !== null ? (
+                              <>
+                                {previousScore?.overall ?? "Partial"} → <ScoreNumber reveal={scoreReveal} final={score.overall} />
+                                {previousScore?.overall != null &&
+                                  previousScore.overall !== score.overall &&
+                                  ` (${score.overall > previousScore.overall ? "+" : ""}${score.overall - previousScore.overall})`}
+                              </>
+                            ) : score.overall === null ? (
+                              "Partial"
+                            ) : (
+                              <ScoreNumber reveal={scoreReveal} final={score.overall} />
+                            )}
+                            {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
                           <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p><button className="quiet-button" onClick={()=>setDialog("analysis")}>Open analysis details</button>
                         </div>
@@ -1069,7 +1094,11 @@ export default function Studio() {
                       </div>
                       <div className="score-body">
                         <div className="pillar-list">
-                          {pillars.map((p, i) => (
+                          {pillars.map((p, i) => {
+                            const pillarCompare = previousScore
+                              ? compareScore(previousScore.dimensions[p].score, score.dimensions[p].score, { name: names[p], empty: "Not assessed" })
+                              : null;
+                            return (
                             <button
                               key={p}
                               className={
@@ -1077,11 +1106,12 @@ export default function Studio() {
                               }
                               aria-pressed={activePillar === p}
                               onClick={() => setActivePillar(p)}
+                              aria-label={pillarCompare?.spoken}
                             >
                               <span>{names[p]}</span>
                               <strong>
-                                {score.dimensions[p].score ?? "Not assessed"}
-                                {score.dimensions[p].score !== null && (
+                                {pillarCompare ? pillarCompare.visible : score.dimensions[p].score ?? "Not assessed"}
+                                {!pillarCompare && score.dimensions[p].score !== null && (
                                   <small>/100</small>
                                 )}
                               </strong>
@@ -1095,7 +1125,8 @@ export default function Studio() {
                                 </span>
                               )}
                             </button>
-                          ))}
+                            );
+                          })}
                         </div>
                         <div className="pillar-detail">
                           <h3>{names[activePillar]}</h3>

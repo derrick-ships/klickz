@@ -57,7 +57,7 @@ async function setup(page:Page,opts:{model?:'flare'|'gemini-flash'}={}){
  return {settings,chats,creations};
 }
 
-function recordCalls(page:Page,creations:any[],opts:{holdFixPlan?:Promise<void>;generateOnce?:'network'|'server'|'text504';analyzeOnce?:boolean}={}){
+function recordCalls(page:Page,creations:any[],opts:{holdFixPlan?:Promise<void>;generateOnce?:'network'|'server'|'text504';analyzeOnce?:boolean;childScore?:(title:string)=>any}={}){
  const calls:string[]=[],generateBodies:any[]=[],analyzeBodies:any[]=[],fixPlanBodies:any[]=[],tokens:string[]=[];
  const originalScore=structuredClone(creations.find((c:any)=>c.id===originalId).score);
  const jobs=new Map<string,{digest:string;result:any}>();
@@ -104,7 +104,7 @@ function recordCalls(page:Page,creations:any[],opts:{holdFixPlan?:Promise<void>;
   analyzeBodies.push(input);
   if(opts.analyzeOnce&&analyzeBodies.length===1)return r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}});
   calls.push('analyze');
-  const score=fixtureChildScore(input.title);
+  const score=opts.childScore?opts.childScore(input.title):fixtureChildScore(input.title);
   const item=creations.find((c:any)=>c.id===input.creationId);
   if(item)item.score=score;
   return r.fulfill({json:{score,creationId:input.creationId}});
@@ -307,4 +307,98 @@ test('after a 504 text response the retry reuses the same request id and token',
  expect(rec.generateBodies[0].fixPlanToken).toBe(rec.generateBodies[1].fixPlanToken);
  expect(rec.generateBodies[0].fixPlanToken).toBe(rec.tokens[0]);
  await expect(page.locator('.score-header')).toContainText('78');
+});
+
+
+test('after a fix the panel compares previous and new scores, including Partial and Not assessed',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const f=await setup(page);
+ const original=f.creations.find((c:any)=>c.id===originalId);
+ original.score.overall=62;
+ original.score.dimensions.clarity.score=62;
+ const rec=recordCalls(page,f.creations,{childScore:(title)=>({
+  ...fixtureScore(title),
+  overall:78,
+  dimensions:{
+   ...fixtureScore(title).dimensions,
+   clarity:{...fixtureScore(title).dimensions.clarity,score:78},
+   idea:{...fixtureScore(title).dimensions.idea,score:50},
+   curiosity:{...fixtureScore(title).dimensions.curiosity,score:null},
+  },
+ })});
+ await page.goto('/');
+ await page.getByRole('button',{name:"Fix what's holding it back",exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Score up 16, from 62 to 78'})).toBeVisible();
+ await expect(page.locator('.score-header h2 .score-count')).toHaveText('78');
+ await expect(page.locator('.score-header')).toContainText('62 → 78 (+16)');
+ const clarity=page.getByRole('button',{name:'Clarity up 16, from 62 to 78'});
+ await expect(clarity).toBeVisible();
+ await expect(clarity).toContainText('62 → 78 (+16)');
+ await expect(page.getByRole('button',{name:'Idea down 10, from 60 to 50'})).toContainText('60 → 50 (-10)');
+ await expect(page.getByRole('button',{name:'Curiosity not assessed, previously 60'})).toContainText('60 → Not assessed');
+ await expect(page.getByRole('button',{name:'Curiosity not assessed, previously 60'})).not.toContainText('+');
+ await expect(page.getByRole('button',{name:'Emotion unchanged, at 60'})).toContainText('60 → 60');
+ await expect(page.getByRole('button',{name:'Emotion unchanged, at 60'})).not.toContainText('+0');
+ await page.setViewportSize({width:1440,height:900});
+ await page.screenshot({path:'evidence/op-9-score-compare-1440.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await page.screenshot({path:'evidence/op-9-score-compare-390.png',fullPage:true});
+});
+
+test('a preloaded partial fix shows Partial and Not assessed without a delta',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const f=await setup(page);
+ const original=f.creations.find((c:any)=>c.id===originalId);
+ const child={...original,id:childId,parent_id:originalId,mode:'fix',lineage:{origin:'edited',sourceId:originalId},image_path:A+'/fixed-'+childId+'.png',score:{
+  ...fixtureScore('Account A image'),
+  overall:null,
+  dimensions:{
+   ...fixtureScore().dimensions,
+   clarity:{...fixtureScore().dimensions.clarity,score:null},
+  },
+ }};
+ f.creations.unshift(child);
+ await page.goto('/');
+ const overall=page.locator('.score-header h2');
+ await expect(overall).toHaveText('60 → Partial');
+ await expect(overall).toHaveAttribute('aria-label','Score partial, previously 60');
+ await expect(overall).not.toContainText(/\(\s*[+-]\d+\s*\)/);
+ const clarity=page.getByRole('button',{name:'Clarity not assessed, previously 60'});
+ await expect(clarity).toContainText('60 → Not assessed');
+ await expect(clarity).not.toContainText(/\(\s*[+-]\d+\s*\)/);
+ await expect(page.getByRole('button',{name:'Emotion unchanged, at 60'})).toContainText('60 → 60');
+});
+
+test('an unsupported parent score shows the new score alone and does not crash',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const f=await setup(page);
+ const original=f.creations.find((c:any)=>c.id===originalId);
+ original.score={source:'jev',version:1,overall:55};
+ const child={...original,id:childId,parent_id:originalId,mode:'fix',lineage:{origin:'edited',sourceId:originalId},image_path:A+'/fixed-'+childId+'.png',score:fixtureChildScore('Account A image')};
+ f.creations.unshift(child);
+ const pageErrors:string[]=[];
+ page.on('pageerror',(err)=>pageErrors.push(err.message));
+ await page.goto('/');
+ const overall=page.locator('.score-header h2');
+ await expect(overall).toBeVisible();
+ await expect(overall).toContainText('78');
+ await expect(overall).not.toContainText('55');
+ await expect(overall).not.toContainText('→');
+ await expect(overall.locator('.score-count')).toHaveText('78');
+ expect(pageErrors).toEqual([]);
+});
+
+test('a fix child still uses ScoreNumber for the new overall',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const f=await setup(page);
+ const original=f.creations.find((c:any)=>c.id===originalId);
+ original.score.overall=62;
+ const child={...original,id:childId,parent_id:originalId,mode:'fix',lineage:{origin:'edited',sourceId:originalId},image_path:A+'/fixed-'+childId+'.png',score:{...fixtureScore('Account A image'),overall:78}};
+ f.creations.unshift(child);
+ await page.goto('/');
+ const overall=page.locator('.score-header h2');
+ await expect(overall).toHaveAttribute('aria-label','Score up 16, from 62 to 78');
+ await expect(overall.locator('.score-count')).toHaveText('78');
+ await expect(overall).toContainText('62 → 78 (+16)');
 });
