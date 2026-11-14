@@ -296,9 +296,11 @@ describe("resource-bound MCP OAuth", () => {
   it("authenticates encryption, prevents token-purpose confusion and never lets tampering through", () => {
     const token = seal({ key: "private-placeholder" }, "provider:a:openai");
     expect(() => unseal(token, "oauth-access")).toThrow();
-    expect(() =>
-      unseal(token.slice(0, -2) + "aa", "provider:a:openai"),
-    ).toThrow();
+    // Always change the last character so the tamper is never a no-op.
+    const last = token.at(-1)!;
+    const tampered = token.slice(0, -1) + (last === "A" ? "B" : "A");
+    expect(tampered).not.toBe(token);
+    expect(() => unseal(tampered, "provider:a:openai")).toThrow();
     expect(unseal(token, "provider:a:openai")).toEqual({
       key: "private-placeholder",
     });
