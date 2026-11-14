@@ -3,8 +3,8 @@ import sharp from "sharp";
 // Deterministic colour palette from real thumbnail pixels: no AI call, no cost.
 // Pixels are quantized to a 4-bit-per-channel grid, near-grey/near-black pixels are
 // down-weighted so the vivid accents a thumbnail is built on are not drowned by
-// shadows, and similar buckets are merged. Returns up to `limit` hex colours,
-// most dominant first, plus each colour's share of the analysed pixels.
+// shadows when choosing colours, and similar buckets are merged. Returns up to
+// `limit` hex colours ordered by pixel share (most dominant first), plus each colour's share of the analysed pixels.
 export type PaletteColor = { hex: string; share: number };
 
 const hex = (r: number, g: number, b: number) =>
@@ -47,6 +47,6 @@ export async function extractPalette(images: Buffer[], limit = 6): Promise<Palet
     if (chosen.length < limit) chosen.push({ ...candidate });
   }
   return chosen
-    .sort((a, b) => b.weight - a.weight)
+    .sort((a, b) => b.count - a.count || b.weight - a.weight)
     .map((c) => ({ hex: hex(...c.rgb), share: total ? Math.round((c.count / total) * 1000) / 1000 : 0 }));
 }

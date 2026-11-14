@@ -54,7 +54,7 @@ export async function POST(request: Request) {
           "Studying a whole channel needs your own YouTube Data API key in Connections. You can paste a single video link instead.",
         );
       const page = await channelVideos(keys.youtube, input.url, input.order);
-      videoIds = page.videos.slice(0, 3).map((v) => v.id);
+      videoIds = page.videos.filter((v): v is NonNullable<typeof v> => !!v).slice(0, 3).map((v) => v.id);
       channelId = page.channel.id;
       channelName = page.channel.name;
       if (!videoIds.length) throw new AppError(404, "This channel has no public videos to study.");
