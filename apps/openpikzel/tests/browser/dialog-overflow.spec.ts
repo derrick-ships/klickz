@@ -34,15 +34,15 @@ for (const size of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) 
     await page.getByRole("button", { name: "Persona", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Your personas" });
     await expect(dialog).toBeVisible();
+    await expect(dialog.locator(".profile-item")).toHaveCount(12);
     const cue = page.getByTestId("dialog-overflow-cue");
-    const overflows = await dialog.evaluate((node) => node.scrollHeight > node.clientHeight + 8);
-    if (overflows) {
-      await expect(cue).toBeVisible();
-      await expect(cue).toHaveAttribute("aria-hidden", "true");
-      await dialog.evaluate((node) => { node.scrollTop = node.scrollHeight; });
-      await expect(cue).toHaveCount(0);
-    } else await expect(cue).toHaveCount(0);
+    // Twelve personas always continue below the fold at both sizes.
+    expect(await dialog.evaluate((node) => node.scrollHeight > node.clientHeight + 8)).toBe(true);
+    await expect(cue).toBeVisible();
+    await expect(cue).toHaveAttribute("aria-hidden", "true");
     await page.screenshot({ path: `test-results/dialog-overflow-${size.width}.png` });
+    await dialog.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+    await expect(cue).toHaveCount(0);
     await page.keyboard.press("Tab");
     const focusedInside = await page.evaluate(() => !!document.activeElement?.closest("dialog"));
     expect(focusedInside).toBe(true);
@@ -55,6 +55,7 @@ test("dialog shows no overflow cue when its content fits", async ({ page }) => {
   await page.getByRole("button", { name: "Persona", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Your personas" });
   await expect(dialog).toBeVisible();
-  const overflows = await dialog.evaluate((node) => node.scrollHeight > node.clientHeight + 8);
-  if (!overflows) await expect(page.getByTestId("dialog-overflow-cue")).toHaveCount(0);
+  await expect(dialog.getByText("Opening…")).toHaveCount(0);
+  expect(await dialog.evaluate((node) => node.scrollHeight <= node.clientHeight + 8)).toBe(true);
+  await expect(page.getByTestId("dialog-overflow-cue")).toHaveCount(0);
 });
