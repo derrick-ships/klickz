@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:browser": "playwright test --grep-invert @performance",
+    "test:browser:isolated": "node -e \"if(!process.env.PLAYWRIGHT_PORT){console.error('Set PLAYWRIGHT_PORT to a free port.');process.exit(1)}\" && playwright test --grep-invert @performance --workers=1",
     "verify": "npm run typecheck && npm test && npm run build && npm run test:browser",
     "perf:lighthouse": "node scripts/lighthouse-gate.mjs",
     "perf:lab": "playwright test tests/browser/performance.spec.ts --workers=1",

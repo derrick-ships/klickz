@@ -26,6 +26,8 @@ npx playwright install chromium --only-shell
 npm run test:browser
 ```
 
+For an isolated production check, choose a free port: `PLAYWRIGHT_PORT=3232 npm run test:browser:isolated`. With `PLAYWRIGHT_PORT` set, Playwright starts its own production server on that port and never reuses an existing one, so an occupied port fails the run instead of silently testing another server. Without it, the default (port 3000, existing server reused) is unchanged.
+
 The app runs at http://localhost:3000. No environment file is needed for local references, drafts and instant resize. AI functions fail explicitly if disconnected; no fabricated generations or scores are shown.
 
 ## Original brand imagery
