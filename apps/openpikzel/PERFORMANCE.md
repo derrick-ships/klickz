@@ -131,3 +131,21 @@ The full release gate passed with unchanged limits: TypeScript,69 logic/database
 | Total transfer B |266045|269025|
 
 Root mobile lab median LCP708ms,scripted INP72ms,CLS0.001; initial encoded-body JS219504B,CSS11335B,image5098B,total260355B,third-party0. Maximum local feedback47.5ms. Review preview-toggle maximum feedback20.3ms at390px and22.7ms at1440px under CPU4×, with no observed long tasks. Source and methods remain in the JSON reports. These controlled local results are not field p75, physical-device FPS, hosted performance or provider latency. Native Safari/iPhone remains unverified. No threshold was changed.
+
+## Optimize pass (14 Nov 2026)
+
+Production Lighthouse, mobile, /studio, measured before and after PR #55:
+
+| | Before | After |
+|---|---|---|
+| Performance | 98 | 96 |
+| Best practices | 96 | 100 |
+| Accessibility | 100 | 100 |
+| LCP | 1.0 s | 1.6 s |
+| CLS | 0.001 | 0 |
+| TBT | 0 ms | 0 ms |
+| Speed Index | 4.3 s | 4.4 s |
+
+Fixed: /favicon.ico 404 (console error on every page); layout shift from the example typing (every example is laid out invisibly to hold the space).
+
+Known trade-off, accepted: Speed Index counts any visual change until the page stops changing, so the deliberate example typing (DELIGHT.md exception 3, first-time visitors only, starts after load and idle) keeps Speed Index around 4.4 s under Lighthouse's simulated slow mobile network. Locally on a fast connection it reads 0.9 s. The page is complete and usable by about 1.6 s (LCP) with no blocking time; the typing is decoration over a ready page. Run-to-run LCP varies by roughly ±0.6 s on the simulated network; single runs are not proof of regression.
