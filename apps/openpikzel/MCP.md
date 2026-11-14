@@ -38,9 +38,9 @@ Generation uses one Low image by default. Batches are capped at four. MCP inline
 
 Jev-only scoring makes a single Jev request and returns rubric-based edit guidance. Only when `includeVision=true`, a separate connected OpenAI or Google vision request adds image-specific observations. Missing title/factual brief leaves idea and curiosity unassessed and the overall score null. API fix plans require a complete signed diagnostic with supported evidence. The UI does not claim real analytics, measured CTR or fine-tuning.
 
-## Staged Mode B: named profile references
+## Mode B: named profile references (`get_profile_refs`)
 
-This describes `get_profile_refs` staged in this branch, not a deployed or verified capability. It requires `studio:read` and existing authentication and revalidation. Mode A generation by profile name is not claimed available.
+`get_profile_refs` requires `studio:read` and existing authentication and revalidation. Mode A generation by profile name is not claimed available.
 
 Provide up to three persona names in `personas` and optionally one private style name in `style`; supply at least one. Names must not be blank; persona names must be distinct after trimming and case normalization. Resolution searches the caller-owned profiles, not public presets. Ambiguous names require a rename. No `@` parsing is performed. Results preserve persona request order, followed by style. Profiles without references have an empty list; only the first three stored references per profile are included.
 
