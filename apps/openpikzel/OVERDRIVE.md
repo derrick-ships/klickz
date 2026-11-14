@@ -25,3 +25,14 @@ Independent Hallmark finish review: ship, no concrete defect in supplied selecte
 Run npm run verify:release: TypeScript,69 unit/database/route/protocol cases, production build,25 functional browser cases, isolated3-sample root lab, budget checker, two-viewport Review Studio interaction gate and6 Lighthouse runs. The new perf:review uses five real preview toggles per390/1440 viewport under CPU4×, records RAF intervals/long tasks/CDP counters and enforces the existing100ms feedback budget. Samples are not field p75, INP or physical-device FPS.
 
 No new runtime dependency, media generation, API credit use, public deployment, bypass token, DNS change or hosted permission is part of this refinement. Native Safari/iPhone, real assistive technology, native zoom, live provider quality, real-client OAuth Allow and multiuser public activation remain unverified/pending. RELEASE.md retains the exact hosted restrictions. Actual current metrics are recorded in PERFORMANCE.md and machine-readable reports.
+
+## Live feed tests (Nov 2026)
+
+Chosen from three proposed directions (live feed tests, morphing fix, analysis X-ray) for the lowest risk and the highest daily use. The feed preview now runs the soul.md readability tests on the real thumbnail, all in the browser:
+
+- **Dark / Light:** the simulated YouTube feed switches between #0f0f0f and #ffffff.
+- **Black & white** and **Squint** (3px blur) combine, so the grayscale and squint tests can run together.
+- **Feed checks:** `src/lib/feed-check.ts` samples the image at 96px on a canvas and reports three pass/warn lines: the thumbnail's outer edge against the dark and light feed (WCAG contrast ratio ≥ 1.4), and tonal range in grayscale (p95−p5 luminance ≥ 0.35). They are readability heuristics, labelled as such; not YouTube rules, not predicted clicks.
+- Switching tests crossfades the feed with the View Transitions API (220ms); browsers without it switch instantly, as does reduced motion. No network request, no AI call, no cost. The original image and download are untouched.
+
+Tests: `tests/feed-check.test.ts` (pixel math), `tests/browser/feed-tests.spec.ts` (themes, squint, checks, 1440/390/320, no outbound requests, reduced motion).
