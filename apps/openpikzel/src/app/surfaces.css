@@ -506,3 +506,27 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 .typing-examples-use:hover { color: var(--color-ink); border-color: var(--color-hover-edge); }
 .typing-examples-use:focus-visible { outline: 2px solid var(--color-accent-edge); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .typing-caret { animation: none; opacity: 0; } }
+
+/* Layout (Nov 2026): one inline edge for everything inside the composer, and the
+   heading/footer/chat outside it all on the composer's outer edge. */
+.composer { --composer-inset: var(--space-6); }
+.composer-inner { padding-inline: var(--composer-inset); }
+.request-readiness.more-options { margin: 0; padding-inline: var(--composer-inset); border-top: 1px solid var(--color-separator); }
+.request-readiness.more-options > summary { min-height: 52px; }
+.workbench-heading { padding-inline: 0; }
+.composer-footer { margin-inline: 0; margin-block-start: var(--space-4); padding-inline: var(--space-1); }
+.creative-conversation { margin-block: var(--space-6) 0; }
+.creative-conversation > summary { padding-inline: var(--composer-inset, var(--space-6)); }
+.creative-conversation-body { padding-inline: calc(var(--space-6) + 15px) var(--space-6); }
+/* Tight inside a group, generous between: action → tools 12px, tools → options 16px. */
+.composer .generate-dock[data-placement="under-prompt"] { margin-block-end: 0; }
+.composer .prompt-tools { margin-block-start: var(--space-3); }
+.composer-inner > .more-options, .composer-inner .more-options:not(.request-readiness) { margin-block-start: var(--space-4); }
+@media (max-width: 760px) {
+  .composer { --composer-inset: var(--space-4); }
+  .creative-conversation > summary { padding-inline: var(--space-4); }
+  .creative-conversation-body { padding-inline: var(--space-4); }
+}
+/* Disclosure chevrons point toward the reading direction; transforms have no logical form. */
+[dir="rtl"] .more-options > summary::before, [dir="rtl"] .creative-conversation > summary::before { transform: rotate(135deg); }
+[dir="rtl"] .more-options[open] > summary::before, [dir="rtl"] .creative-conversation[open] > summary::before { transform: rotate(45deg); }
