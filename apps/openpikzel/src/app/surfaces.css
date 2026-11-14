@@ -492,10 +492,6 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 .typing-examples-text {
   margin: 0; font-size: 16px; line-height: 26.4px; color: var(--color-placeholder);
 }
-.typing-caret {
-  display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -0.18em;
-  background: var(--color-accent-lit); animation: typing-caret 1s steps(1) infinite;
-}
 @keyframes typing-caret { 50% { opacity: 0; } }
 .typing-examples-use {
   pointer-events: auto; margin-top: var(--space-2);
@@ -505,7 +501,6 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 }
 .typing-examples-use:hover { color: var(--color-ink); border-color: var(--color-hover-edge); }
 .typing-examples-use:focus-visible { outline: 2px solid var(--color-accent-edge); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { .typing-caret { animation: none; opacity: 0; } }
 
 /* Layout (Nov 2026): one inline edge for everything inside the composer, and the
    heading/footer/chat outside it all on the composer's outer edge. */
@@ -530,3 +525,14 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 /* Disclosure chevrons point toward the reading direction; transforms have no logical form. */
 [dir="rtl"] .more-options > summary::before, [dir="rtl"] .creative-conversation > summary::before { transform: rotate(135deg); }
 [dir="rtl"] .more-options[open] > summary::before, [dir="rtl"] .creative-conversation[open] > summary::before { transform: rotate(45deg); }
+/* The full example holds the space so typing never shifts the layout (CLS). */
+.typing-examples-text { display: grid; }
+.typing-examples-text > span { grid-area: 1 / 1; }
+.typing-examples-ghost { visibility: hidden; }
+.typing-examples-live { position: relative; }
+/* Caret as a text-flow pseudo-element: it moves with the text, never as a separate box. */
+.typing-caret-after::after {
+  content: ""; display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -0.18em;
+  background: var(--color-accent-lit); animation: typing-caret 1s steps(1) infinite;
+}
+@media (prefers-reduced-motion: reduce) { .typing-caret-after::after { animation: none; opacity: 0; } }

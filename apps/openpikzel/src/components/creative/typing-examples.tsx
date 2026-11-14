@@ -53,8 +53,20 @@ export function TypingExamples({ active, onUse }: { active: boolean; onUse: (tex
         timer.current = setTimeout(tick, ERASE_MS);
       }
     };
-    timer.current = setTimeout(tick, 600);
-    return () => { if (timer.current) clearTimeout(timer.current); };
+    // Start after the page has loaded and gone idle, so the typing never competes with first paint.
+    let idle: number | undefined;
+    const begin = () => { timer.current = setTimeout(tick, 600); };
+    const afterLoad = () => {
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+      if (w.requestIdleCallback) idle = w.requestIdleCallback(begin, { timeout: 2000 }); else begin();
+    };
+    if (document.readyState === "complete") afterLoad(); else window.addEventListener("load", afterLoad, { once: true });
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+      window.removeEventListener("load", afterLoad);
+      const w = window as Window & { cancelIdleCallback?: (id: number) => void };
+      if (idle !== undefined) w.cancelIdleCallback?.(idle);
+    };
     // index is only read at start so a restart resumes where it was.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, stopped]);
@@ -63,7 +75,10 @@ export function TypingExamples({ active, onUse }: { active: boolean; onUse: (tex
   const current = promptExamples[index % promptExamples.length];
   return (
     <div className="typing-examples" data-testid="typing-examples">
-      <p className="typing-examples-text" aria-hidden="true">{text}<span className="typing-caret" /></p>
+      <p className="typing-examples-text" aria-hidden="true">
+        {promptExamples.map((example) => <span key={example} className="typing-examples-ghost">{example}</span>)}
+        <span className="typing-examples-live typing-caret-after">{text}</span>
+      </p>
       <button type="button" className="typing-examples-use" onMouseDown={(e) => e.preventDefault()} onClick={() => onUse(current)}>
         Use this example
       </button>

@@ -4,6 +4,10 @@ const config: NextConfig = {
   poweredByHeader: false,
   // Pin the workspace root to this app; the repository root holds an unrelated Next app.
   turbopack: { root: fileURLToPath(new URL(".", import.meta.url)) },
+  // Browsers request /favicon.ico regardless of the <link rel=icon>; serve the app icon instead of a 404.
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/icon.svg" }];
+  },
   async headers() {
     return [
       {
