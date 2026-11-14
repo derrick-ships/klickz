@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 import { soul } from "./soul.generated";
 import { fixPrompt } from "./fix-prompt";
+import type { Evaluation } from "./types";
 import { resolveAccess, type Scope } from "./oauth/core";
 import { appOrigin } from "./crypto";
 import { AppError, ownedPath } from "./validation";
@@ -509,7 +510,7 @@ export async function createMcpServer(token: string) {
           kind: plan.kind,
           ...(plan.reason ? { reason: plan.reason } : {}),
           ...(plan.token ? { token: plan.token } : {}),
-          prompt: analyzed.score ? fixPrompt(analyzed.score) : null,
+          prompt: analyzed.score ? fixPrompt(analyzed.score as Evaluation) : null,
         },
         next: "To raise the score: paste fix.prompt into an image editor with the original, or call one_click_fix with fix.token (uses image credits) and rescore:true, then repeat analyze → fix until the score stops improving.",
         previewUrl: path ? await signed(path) : null,
@@ -593,7 +594,7 @@ export async function createMcpServer(token: string) {
           fixPlanToken: planToken,
           requestId,
         });
-        const child = generated.creations?.[0];
+        const child = (generated.creations as Array<{ id: string }> | undefined)?.[0];
         if (!child) return generated;
         const keys = await userKeys(db, user.id);
         const critiqueProvider = pickVisionProvider(keys);
@@ -605,14 +606,15 @@ export async function createMcpServer(token: string) {
           requestId: rescoreRequestId || crypto.randomUUID(),
         });
         const next = await backend(makePlan, { creationId: child.id, settings: { ...plan.settings, batch: 1 } }) as { kind: string; reason?: string; token?: string };
-        const before = parent.score?.overall ?? null, after = analyzed.score?.overall ?? null;
+        const newScore = analyzed.score as Evaluation | undefined;
+        const before = parent.score?.overall ?? null, after = newScore?.overall ?? null;
         return {
           ...generated,
           before,
           after,
           delta: before !== null && after !== null ? after - before : null,
-          score: analyzed.score,
-          fix: { kind: next.kind, ...(next.reason ? { reason: next.reason } : {}), ...(next.token ? { token: next.token } : {}), prompt: analyzed.score ? fixPrompt(analyzed.score) : null },
+          score: newScore,
+          fix: { kind: next.kind, ...(next.reason ? { reason: next.reason } : {}), ...(next.token ? { token: next.token } : {}), prompt: newScore ? fixPrompt(newScore) : null },
           next: after !== null && before !== null && after <= before ? "The score did not improve. Keep the stronger version, or adjust the plan before another round." : "Repeat one_click_fix with fix.token and rescore:true while the score keeps rising.",
         };
       }

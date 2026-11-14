@@ -652,11 +652,12 @@ describe("OP-17 analyze_thumbnail and create_upload_url", () => {
 
     for (const result of [fromCreation, fromPath, fromBase64]) {
       expect(Object.keys(result.structuredContent).sort()).toEqual(
-        ["creationId", "fix", "previewUrl", "reviewer", "score"].sort(),
+        ["creationId", "fix", "next", "previewUrl", "reviewer", "score"].sort(),
       );
       expect(result.structuredContent.score.overall).toBe(60);
       expect(result.structuredContent.reviewer).toBe("Claude");
-      expect(result.structuredContent.fix).toEqual({ kind: "ready", token: "fixture-plan-token" });
+      expect(result.structuredContent.fix).toMatchObject({ kind: "ready", token: "fixture-plan-token" });
+      expect("prompt" in result.structuredContent.fix).toBe(true);
       expect(result.content[0].text).toContain("Claude");
     }
   });
