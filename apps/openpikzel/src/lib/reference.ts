@@ -68,11 +68,17 @@ export async function fetchReference(value: string, hops = 0, allowedHosts?: rea
         url,
         {
           timeout: 15000,
+          // Pin the connection to the address we already verified as public. Newer Node asks
+          // for every address (options.all); older callers expect a single one.
           lookup: ((
             _host: unknown,
-            _options: unknown,
-            cb: (error: Error | null, address: string, family: number) => void,
-          ) => cb(null, addresses[0].address, 4)) as never,
+            options: { all?: boolean } | ((...args: unknown[]) => void),
+            cb?: (...args: unknown[]) => void,
+          ) => {
+            const done = (typeof options === "function" ? options : cb)!;
+            if (typeof options === "object" && options?.all) done(null, [{ address: addresses[0].address, family: 4 }]);
+            else done(null, addresses[0].address, 4);
+          }) as never,
           headers: { Accept: "image/*" },
         },
         (res) => {
