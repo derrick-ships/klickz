@@ -337,9 +337,13 @@ export function useStudio() {
       const value = await res.json();
       throw new Error(value.error || "Could not import the image. Check that the link is public, or upload the file instead.");
     }
-    return upload(
+    const encodedTitle = res.headers.get("X-Video-Title");
+    let videoTitle: string | null = null;
+    try { videoTitle = encodedTitle ? decodeURIComponent(encodedTitle) : null; } catch { videoTitle = null; }
+    const path = await upload(
       new File([await res.blob()], "reference.png", { type: "image/png" }),
     );
+    return { path, videoTitle };
   }
   async function blob(path: string) {
     if (cloud) {

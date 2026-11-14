@@ -560,3 +560,40 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
     .error-banner, .prompt-enhancer section { transform: none; }
   }
 }
+
+/* Result screen: one obvious action (Download); everything else under More. */
+.result-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
+.result-actions .download-button { min-height: 44px; gap: 8px; }
+.result-more { position: relative; }
+.result-more-menu .menu-item { transform: none !important; }
+.result-more > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding-inline: var(--space-4); cursor: pointer; }
+.result-more > summary::-webkit-details-marker { display: none; }
+.result-more > summary::after {
+  content: ""; width: 6px; height: 6px; margin-left: 2px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+.result-more-menu {
+  position: absolute; z-index: 40; inset-block-start: calc(100% + 6px); inset-inline-start: 0; isolation: isolate;
+  min-width: 240px; display: grid; padding: var(--space-1);
+  background-color: var(--color-modal-lit); border: 1px solid var(--color-panel-edge); border-radius: 12px;
+  box-shadow: 0 12px 32px var(--color-recess-shadow);
+}
+.result-more-menu .menu-item {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--color-ink); font-size: 14px; text-align: start;
+}
+.result-more-menu .menu-item:hover:not(:disabled) { background: var(--color-selected-fill); }
+.result-more-menu .menu-item:focus-visible { outline: 2px solid var(--color-accent-edge); outline-offset: -2px; }
+.result-more-menu .menu-item:disabled { color: var(--color-placeholder); }
+.app-shell[data-motion-input="pointer"] .result-more[open] > .result-more-menu {
+  transform-origin: top left; animation: menu-in 140ms var(--ease-out);
+}
+@keyframes menu-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+/* The menu floats above the content it covers. */
+.result-more[open] { z-index: 40; }
+.review-media:has(.result-more[open]) { z-index: 30; }
+@media (prefers-reduced-motion: reduce) {
+  .app-shell[data-motion-input="pointer"] .result-more[open] > .result-more-menu { animation: control-confirm 100ms ease-out !important; }
+}
+.analysis-general-tip { color: var(--color-placeholder); }

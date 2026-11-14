@@ -63,6 +63,7 @@ import { ScoreAnnouncer, ScoreNumber, useScoreArrival, useScoreReveal } from "@/
 import { revealKey } from "@/lib/score-count";
 import { recomposePrompt, type ScanPhase } from "@/lib/analysis-display";
 import { ReviewCanvas } from "@/components/review-canvas";
+import { needsImageReview } from "@/lib/score-on-generate";
 import { RevealImage, setRevealOwner } from "@/components/creative/image-reveal";
 import { createArrivals, staggerPositions } from "@/lib/image-reveal";
 import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
@@ -180,7 +181,7 @@ export default function Studio() {
   const scanAttempt = useRef(0);
   const [textProvider,setTextProvider]=useState<"openai"|"google">("openai");
   const [videoBrief, setVideoBrief] = useState(""),
-    [includeVision, setIncludeVision] = useState(false),
+    [visionChoice, setIncludeVision] = useState<boolean|null>(null),
     [promptFocused, setPromptFocused] = useState(false),
     [fixReviews, setFixReviews] = useState<Record<string, {
       kind: string;
@@ -331,8 +332,10 @@ export default function Studio() {
     return () => clearTimeout(timer);
   }, [saveReceipt]);
   const busy = !!studio.busy;
-  const analysisVision = includeVision;
   const selectedVision=pickVisionProvider(studio.config||{});
+  // Image review is what makes the score specific. On by default whenever a key that can see images is connected.
+  const includeVision = visionChoice ?? !!selectedVision;
+  const analysisVision = includeVision;
   const analysisReviewer = includeVision && selectedVision ? reviewerName(selectedVision) : null;
   useEffect(() => { scanAttempt.current++; setAnalysisScan(null); }, [studio.user, selection]);
   const navigating=["Opening chat","Starting a new chat","Opening creation"].includes(studio.busy||"");
@@ -341,7 +344,7 @@ export default function Studio() {
     workspaceEpoch.current++;
     const d=chat.draft;chatIdRef.current=chat.id;setActiveChatId(chat.id);localStorage.setItem("openpikzels.activeChat."+(studio.user||"local"),chat.id);
     setPrompt(d.prompt||"");setTitle(d.title||"");if(!preserveTool)setTool(modes.some(m=>m.id===d.tool)?d.tool as Tool:"generate");
-    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);setTextProvider(d.textProvider||"openai");
+    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setTitleAction(d.titleAction||"image");setIncludeVision(typeof d.includeVision==="boolean"?d.includeVision:null);setTextProvider(d.textProvider||"openai");
     const latest=studio.creations.find(c=>c.conversation_id===chat.id&&c.id===d.selection)||studio.creations.find(c=>c.conversation_id===chat.id);
     setSelection(latest?.id||null);setParentId(latest?.image_path?latest.id:latest?.parent_id||d.parentId||null);setComposerOpen(!latest?.image_path);setTab("studio");setTitles([]);setChatSaveState("");
     if(compactNavigation){setSidebar(false);if(focus)requestAnimationFrame(()=>mainRef.current?.focus());}
@@ -375,20 +378,20 @@ export default function Studio() {
   }
   async function openChat(chat:Conversation){if(busy||chat.id===chatIdRef.current)return;await studio.run("Opening chat",async()=>{const owner=studio.user;await flushDraft();if(ownerUI.current===owner)activateChat(chat);});}
   async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();const chat=await studio.createConversation();activateChat(chat);startNew();});}
-  useEffect(()=>{workspaceEpoch.current++;userPickedTool.current=false;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setReviewStatuses({});setIncludeVision(false);setTextProvider("openai");setDirectionUndo(null);setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReviews({});setDialog(null);setChatSaveState("");},[studio.user]);
+  useEffect(()=>{workspaceEpoch.current++;userPickedTool.current=false;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setReviewStatuses({});setIncludeVision(null);setTextProvider("openai");setDirectionUndo(null);setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReviews({});setDialog(null);setChatSaveState("");},[studio.user]);
   useEffect(()=>{
     if(studio.loading)return;const key=studio.user||"local";if(hydratedOwner.current===key)return;hydratedOwner.current=key;
     const saved=localStorage.getItem("openpikzels.activeChat."+key),chat=studio.conversations.find(c=>c.id===saved),checkpoint=readDraftCheckpoint(localStorage,key);
     if(chat)activateChat(checkpoint?.chatId===chat.id&&checkpoint.savedAt>=(chat.draft.draftSavedAt||0)?{...chat,draft:checkpoint.draft}:chat,false,userPickedTool.current);
     else if(checkpoint&&!checkpoint.chatId){
       const d=checkpoint.draft;setPrompt(d.prompt||"");setTitle(d.title||"");if(!userPickedTool.current)setTool((d.tool||"generate") as Tool);setSettings({...defaultSettings,...d.settings});
-      setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(!!d.includeVision);setTextProvider(d.textProvider||"openai");
+      setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(typeof d.includeVision==="boolean"?d.includeVision:null);setTextProvider(d.textProvider||"openai");
     }
     const requested=new URL(location.href).searchParams.get("mode");
     if(!userPickedTool.current&&modes.some(m=>m.id===requested))setTool(requested as Tool);
     setHydratedWorkspace(key);
   },[studio.loading,studio.user,studio.conversations]);
-  const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,videoUrl,selection,parentId,titleAction,includeVision,textProvider,creativeDraft};
+  const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,videoUrl,selection,parentId,titleAction,includeVision:visionChoice??undefined,textProvider,creativeDraft};
   const chatDraftRef=useRef(chatDraft);chatDraftRef.current=chatDraft;
   const chatDraftJSON=JSON.stringify(chatDraft);
   useEffect(()=>{
@@ -493,17 +496,23 @@ export default function Studio() {
       await studio.load();
     });
   }
-  async function importLink() {
-    await studio.run("Importing reference", async () => {
+  async function importLink(link: string = url) {
+    const source = link.trim();
+    if (!source) return;
+    await studio.run(tool === "analyze" ? "Getting the thumbnail" : "Importing reference", async () => {
       if (refs.length >= 6) throw new Error("Use up to six references.");
-      const path = await studio.importReference(url);
+      const { path, videoTitle } = await studio.importReference(source);
       setRefs((r) => [...r, path]);
       setUrl("");
       setLinkOpen(false);
+      // A YouTube link already names the video: use its public title and keep the link for the score.
+      const isYouTube = /(^|\.)youtu(\.be|be\.com)$/.test((() => { try { return new URL(source).hostname; } catch { return ""; } })());
+      if (videoTitle && !title.trim()) setTitle(videoTitle);
+      if (isYouTube && tool === "analyze") setVideoUrl(source);
       if (["analyze", "edit"].includes(tool)) {
         const item = await studio.saveUploaded(
           path,
-          title || "Imported thumbnail",
+          (title.trim() || videoTitle || "Imported thumbnail"),
           (await ensureChat()).id,
         );
         setSelection(item.id);
@@ -684,6 +693,15 @@ export default function Studio() {
     const source = selected;
     const work = studio.run("Applying one-click fix", async () => {
       const plan = scorePlan(studio.config);
+      // A fix needs specific findings. If this score was made without looking at the image,
+      // look at it first (one extra AI request), then fix — instead of a dead button.
+      if (needsImageReview(source.score)) {
+        if (!plan.critiqueProvider) throw new Error("To fix it, connect an AI account that can look at images (Claude, OpenAI or Google) in Connections.");
+        const reviewTitle = scoreIntent.current[source.id]?.title || source.score?.title || source.title || title;
+        if (!reviewTitle.trim()) throw new Error("Add the video title, then try the fix again.");
+        await studio.analyze(source, reviewTitle, "", true, scoreIntent.current[source.id]?.videoUrl ?? videoUrl, plan.critiqueProvider);
+        scoreIntent.current[source.id] = {title:reviewTitle,includeVision:true,videoUrl:scoreIntent.current[source.id]?.videoUrl ?? videoUrl,critiqueProvider:plan.critiqueProvider};
+      }
       const stored = scoreIntent.current[source.id];
       const critiqueProvider = stored?.critiqueProvider || critiqueProviderFromScore(source.score) || plan.critiqueProvider;
       const includeVision = stored ? stored.includeVision : !!critiqueProvider;
@@ -902,7 +920,7 @@ export default function Studio() {
                     <p className="generate-key-note" id="generate-key-note">{readiness.keyNote.connected?readiness.keyNote.text:<>{readiness.keyNote.text} <button type="button" className="generate-key-link" onClick={()=>setDialog("connections")}>{readiness.keyNote.link}</button></>}</p>
                   </div>
   );
-  const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy} connectedShownNearby={readiness.keyNote.connected&&readiness.keyNote.provider===(textProvider==="openai"?"OpenAI":"Google")}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Add image-specific review to analysis (one extra provider request)</label></>;
+  const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy} connectedShownNearby={readiness.keyNote.connected&&readiness.keyNote.provider===(textProvider==="openai"?"OpenAI":"Google")}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Review the image itself for specific advice (one extra AI request)</label></>;
   const ResultHeading = hasReviewImage ? "h1" : "h2";
   const ComposerHeading = hasReviewImage ? "h2" : "h1";
   const resultPanel = selected ? (
@@ -923,7 +941,7 @@ export default function Studio() {
 
                     </div>
                     <div className="result-utilities">
-                    {studio.cloud&&selected.image_path&&<button className="neutral-button" disabled={busy} onClick={()=>setDialog("analysis-history")}>Analysis history</button>}
+                    
                       {hasReviewImage && (
                       <button
                         className={phone ? "icon-button active" : "icon-button"}
@@ -959,7 +977,22 @@ export default function Studio() {
                       <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.title || selected.title} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} uploaded={selected.lineage?.origin === "uploaded"} />
                       <div className="result-actions">
                         <button
-                          className="neutral-button"
+                          className="primary-button download-button"
+                          disabled={busy}
+                          onClick={() =>
+                            studio.run("Downloading image", () =>
+                              studio.download(selected),
+                            )
+                          }
+                        >
+                          <Download size={15} />
+                          Download image
+                        </button>
+                        <details className="result-more">
+                          <summary className="neutral-button">More</summary>
+                          <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
+                        <button
+                          className="menu-item"
                           disabled={busy}
                           onClick={() => openReviewEditor("edit")}
                         >
@@ -967,7 +1000,7 @@ export default function Studio() {
                           Edit
                         </button>
                         <button
-                          className="neutral-button"
+                          className="menu-item"
                           disabled={busy}
                           onClick={() => openReviewEditor("analyze")}
                         >
@@ -975,8 +1008,9 @@ export default function Studio() {
                           Score it
                         </button>
                         <button
-                          className="neutral-button"
+                          className="menu-item"
                           disabled={busy}
+                          title="Makes one new image with your AI account (uses credits). The original stays saved."
                           onClick={resize}
                         >
                           {selected.settings?.format === "short" ? (
@@ -989,24 +1023,12 @@ export default function Studio() {
                             ? "long-form"
                             : "short-form"}
                         </button>
-                        <button
-                          className="neutral-button"
-                          disabled={busy}
-                          onClick={() =>
-                            studio.run("Downloading image", () =>
-                              studio.download(selected),
-                            )
-                          }
-                        >
-                          <Download size={15} />
-                          Download image
-                        </button>
+                            <button className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="menu-item" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="menu-item" disabled={busy} onClick={()=>{setRefs([selected.image_path!]);setTool("recreate");setComposerOpen(true);}}>Remix this thumbnail</button><button className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
+                            {studio.cloud&&selected.image_path&&<button className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}>Score history</button>}
+                          </div>
+                        </details>
                       </div>
-                      <div className="image-secondary-actions"><button className="quiet-button" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="quiet-button" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="quiet-button" disabled={busy} onClick={()=>{setRefs([selected.image_path!]);setTool("recreate");setComposerOpen(true);}}>Remix this thumbnail</button><button className="quiet-button" onClick={()=>setDialog("feedback")}>Leave feedback</button></div>
                       <details className="provenance-details"><summary>Prompt and generation details</summary><dl><dt>Exact request</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
-                      <p className="resize-note">
-                        AI resize creates one newly arranged image using {imageModel(settings.model).name}. Provider usage charges apply; a reliable cost estimate is unavailable. The original stays saved. Choose the model and quality in Generation settings.
-                      </p>
                     </>
                   ) : (
                     <div className="draft-preview">
@@ -1083,7 +1105,7 @@ export default function Studio() {
                         <div>
                         <button
                           className="primary-button fix-button"
-                          disabled={busy || !!score.fixBlocked || fixReview?.kind === "blocked" || fixReview?.kind === "noop"}
+                          disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"}
                           onClick={() => void runOneClickFix()}
                         >
                           <WandSparkles size={16} />
@@ -1440,20 +1462,26 @@ export default function Studio() {
                             <input
                               aria-label="Reference URL"
                               value={url}
+                              autoFocus
                               onChange={(e) => setUrl(e.target.value)}
-                              placeholder="Link to an image or a YouTube video"
+                              onPaste={(e) => {
+                                // Pasting a link is the action: fetch the thumbnail (and title) right away.
+                                const pasted = e.clipboardData.getData("text").trim();
+                                if (/^https:\/\//.test(pasted)) { e.preventDefault(); setUrl(pasted); void importLink(pasted); }
+                              }}
+                              placeholder="Paste a YouTube video or image link"
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   e.preventDefault();
-                                  importLink();
+                                  void importLink();
                                 }
                               }}
                             />
                             <button
-                              onClick={importLink}
+                              onClick={() => void importLink()}
                               disabled={busy || !url}
                             >
-                              Import
+                              Get thumbnail
                             </button>
                           </div>
                         ) : (
@@ -1647,7 +1675,7 @@ export default function Studio() {
                               onChange={(e) => setUrl(e.target.value)}
                             />
                             <button
-                              onClick={importLink}
+                              onClick={() => void importLink()}
                               disabled={busy || !url}
                             >
                               Import

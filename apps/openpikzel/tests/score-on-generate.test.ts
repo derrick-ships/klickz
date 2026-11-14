@@ -85,3 +85,16 @@ describe("delivery labels for spec §4.3",()=>{
   expect(deliveryCopy({stage:"failed",reviewed:0,total:0}).label).toBe("Generation did not finish.");
  });
 });
+
+import { needsImageReview } from "../src/lib/score-on-generate";
+describe("needsImageReview", () => {
+  it("only lets the fix review the image first when the score is complete and has a title", () => {
+    const base = { fixBlocked: true, vision: false, partial: false, context: { title: "Real title" } };
+    expect(needsImageReview(base)).toBe(true);
+    expect(needsImageReview({ ...base, vision: true })).toBe(false);
+    expect(needsImageReview({ ...base, partial: true })).toBe(false);
+    expect(needsImageReview({ ...base, context: { title: "" } })).toBe(false);
+    expect(needsImageReview({ ...base, fixBlocked: false })).toBe(false);
+    expect(needsImageReview(null)).toBe(false);
+  });
+});

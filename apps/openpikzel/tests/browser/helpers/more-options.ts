@@ -10,3 +10,10 @@ export async function openMoreOptions(page: Page) {
     await summary.click();
   }
 }
+
+// The review screen keeps Download visible and puts every other image action under "More".
+export async function openResultMore(page: Page) {
+  const menu = page.locator("details.result-more").first();
+  await menu.waitFor({ state: "visible", timeout: 15000 });
+  if ((await menu.getAttribute("open")) === null) await menu.locator("> summary").click();
+}

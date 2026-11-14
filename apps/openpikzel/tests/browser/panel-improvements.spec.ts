@@ -1,4 +1,5 @@
 import {test,expect} from "@playwright/test";
+import { openResultMore } from "./helpers/more-options";
 import {reviewFixture} from "./helpers/review-fixture";
 test.beforeEach(async({page})=>{
  await page.route("**/*",r=>(new URL(r.request().url()).hostname==="127.0.0.1"||/^(blob|data):/.test(r.request().url()))?r.continue():r.abort());
@@ -17,7 +18,7 @@ test("first-session typing survives immediate reload and does not create duplica
 });
 test("saved edit retains its original image and draft through reload",async({page})=>{
  await reviewFixture(page,false);
- await page.getByRole("region",{name:"Thumbnail review studio"}).getByRole("button",{name:"Edit",exact:true}).click();
+ await openResultMore(page);await page.getByRole("region",{name:"Thumbnail review studio"}).getByRole("button",{name:"Edit",exact:true}).click();
  await page.getByLabel("What should change?",{exact:true}).fill("Simplify the background and preserve the red subject");
  const preview=page.getByRole("img",{name:/Editing source:/});await expect(preview).toBeVisible();
  await page.getByRole("button",{name:"Save draft",exact:true}).click();await expect(page.getByRole("heading",{name:"Concept saved.",exact:true})).toBeVisible();
