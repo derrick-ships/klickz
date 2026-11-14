@@ -9,7 +9,7 @@ test("a successful draft locks its pixels once without delaying or replaying his
     await page.getByLabel("Describe your thumbnail", { exact: true }).fill("");
     const save = page.getByRole("button", { name: /Save draft/ });
     await save.click();
-    await expect(page.getByRole("alert").filter({ hasText: "at least eight characters" })).toContainText("at least eight characters");
+    await expect(page.getByRole("alert").filter({ hasText: "Write a direction or title before saving." })).toBeVisible();
     await expect(save).toHaveAttribute("data-confirmed", "false");
     await expect(page.locator(".pixel-confirmation")).toHaveCount(0);
     await page.getByLabel("Describe your thumbnail", { exact: true }).fill("A clear red thumbnail concept with one unmistakable subject");

@@ -49,7 +49,7 @@ test("unscored and failed previews stay useful, with reduced-motion and real ref
   await reviewFixture(page, false);
   await page.emulateMedia({ reducedMotion: "reduce" });
   const stage = page.getByRole("region", { name: "Thumbnail review studio" });
-  await expect(stage.getByRole("heading", { name: "Review thumbnail and title" })).toBeVisible();
+  await expect(stage.getByRole("heading", { name: "Connect Jev to score this image" })).toBeVisible();
   expect(await stage.locator(".result-image img").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
   await expect(stage.locator("figure")).toHaveAttribute("aria-busy", "false");
   await expect(stage.getByText("Loading image…", { exact: true })).toHaveCount(0);
@@ -61,8 +61,9 @@ test("unscored and failed previews stay useful, with reduced-motion and real ref
   await stage.getByRole("button", { name: "Refresh preview" }).click();
   await expect(stage.locator(".result-image img")).toBeVisible();
   await expect(stage.locator("figcaption")).toContainText("1344 × 752");
-  await stage.getByRole("button", { name: "Set up analysis" }).click();
-  await expect(page.getByLabel("Video title", { exact: true })).toBeFocused();
+  await stage.getByRole("button", { name: "Connections", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Manage connections");
+  await page.keyboard.press("Escape");
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: "evidence/review-studio-analysis-controls.png", fullPage: true });
 });

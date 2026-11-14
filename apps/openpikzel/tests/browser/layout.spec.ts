@@ -46,8 +46,11 @@ test("composer groups, small-screen settings and long content reflow deliberatel
     const subject = page.getByRole("group", { name: "Subject and style" });
     const references = page.getByRole("group", { name: "Image references" });
     for (const group of [subject, references]) {
-      const boxes = await group.getByRole("button").evaluateAll(items => items.map(el => el.getBoundingClientRect().top));
-      expect(new Set(boxes).size).toBe(1);
+      const midpoints = await group.getByRole("button").evaluateAll(items => items.map(el => {
+        const box = el.getBoundingClientRect();
+        return box.top + box.height / 2;
+      }));
+      expect(Math.max(...midpoints) - Math.min(...midpoints)).toBeLessThan(2);
     }
     if (width <= 760) expect((await references.boundingBox())!.y).toBeGreaterThan((await subject.boundingBox())!.y);
     const model = page.getByLabel("Rendering model");

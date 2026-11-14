@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 test.use({hasTouch:true});
 test('mobile backdrop preserves content through pointer transition, touch dismissal and reduced motion',async({page})=>{
  for(const width of [320,390,430]){
- await page.setViewportSize({width,height:844});await page.goto('/studio');await page.locator('.brand-scene img').evaluate(i=>(i as HTMLImageElement).decode());
+ await page.setViewportSize({width,height:844});await page.goto('/studio');
  await page.getByRole('button',{name:'Open sidebar',exact:true}).tap();
  await page.locator('.sidebar').evaluate(e=>e.getAnimations().forEach(a=>{a.pause();a.currentTime=100}));
  await page.screenshot({path:'evidence/backdrop-'+width+'-transition.png'});

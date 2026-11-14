@@ -65,7 +65,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
 });
 test("AI resize asks local visitors to sign in and preserves the original",async({page})=>{
   let paid=0;await page.route("**/api/generate",r=>{paid++;return r.abort();});
-  await page.goto("/?mode=analyze");await page.getByLabel("Upload thumbnail references").setInputFiles(await photo());
+  await page.goto("/?mode=analyze");await expect(page.getByLabel("Upload thumbnail references")).toBeEnabled();await page.getByLabel("Upload thumbnail references").setInputFiles(await photo());
   await expect(page.getByRole("img",{name:"Selected thumbnail"})).toBeVisible();
   await expect(page.locator(".resize-note")).toContainText("Provider usage charges apply");
   await page.getByRole("button",{name:"AI resize to short-form",exact:true}).click();

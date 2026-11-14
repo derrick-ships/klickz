@@ -157,11 +157,13 @@ export function useStudio() {
     };
   }, []);
   useEffect(() => {
+    let active = true;
     setLoading(true);
     load()
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [load]);
+      .catch((e) => { if (active && userRef.current === user) { loadedOwner.current = user; setError(e.message); } })
+      .finally(() => { if (active && userRef.current === user) setLoading(false); });
+    return () => { active = false; };
+  }, [load, user]);
   useEffect(() => {
     let active = true;
     const epoch = ownerEpoch.current;

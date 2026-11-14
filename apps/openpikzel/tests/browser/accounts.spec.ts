@@ -17,7 +17,7 @@ test("OAuth registration, consent branding and Deny work through HTTP", async ({
     response_type: "code",
     code_challenge: "a".repeat(43),
     code_challenge_method: "S256",
-    resource: "http://127.0.0.1:3000/mcp",
+    resource: new URL("/mcp", test.info().project.use.baseURL).toString(),
     scope: "studio:read studio:write studio:ai",
     state: "opaque-state",
   });

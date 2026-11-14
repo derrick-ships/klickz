@@ -4,7 +4,8 @@ test.beforeEach(async({page})=>{
  await page.route("**/*",r=>(new URL(r.request().url()).hostname==="127.0.0.1"||/^(blob|data):/.test(r.request().url()))?r.continue():r.abort());
 });
 test("analysis setup preserves a real title and video link across modes and reload",async({page})=>{
- await reviewFixture(page,false);
+ await reviewFixture(page,{scored:false,jev:true});
+ await expect(page.getByRole("heading",{name:"Review thumbnail and title"})).toBeVisible();
  await page.getByRole("button",{name:"Set up analysis",exact:true}).click();
  const title=page.getByLabel("Video title",{exact:true}),brief=page.getByLabel("YouTube video link (optional)",{exact:true});
  await expect(title).toBeFocused();

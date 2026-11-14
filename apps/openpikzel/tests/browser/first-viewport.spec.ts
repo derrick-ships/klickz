@@ -24,7 +24,7 @@ for(const size of sizes){
   const prompt=page.getByLabel("Describe your thumbnail",{exact:true}),action=page.getByRole("button",{name:"Sign in to generate",exact:true});
   await expect(action).toBeEnabled();expect(await page.evaluate(()=>scrollY)).toBe(0);
   await inView(prompt,page);await inView(action,page);
-  const cost=page.locator(".generate-cost");await expect(cost).toHaveText("~$0.03");await expect(cost).toHaveAttribute("aria-hidden","true");await inView(cost,page);
+  const cost=page.locator(".generate-cost");await expect(cost).toHaveText("~$0.03 + score");await expect(cost).toHaveAttribute("aria-hidden","true");await inView(cost,page);
   const note=page.locator("#generate-key-note");await expect(note).toHaveText("Uses your own API key. Connect once in Connections.");await inView(note,page);
   await expect(page.getByRole("region",{name:"Before you start"})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width);
@@ -33,8 +33,8 @@ for(const size of sizes){
   await page.setViewportSize(size);const f=await setup(page,{signedIn:true,openai:true});await page.goto("/studio?mode=generate");
   const action=page.getByRole("button",{name:"Create thumbnail",exact:true});await expect(action).toBeEnabled();
   await inView(page.getByLabel("Describe your thumbnail",{exact:true}),page);await inView(action,page);
-  await expect(action).toHaveAccessibleDescription(/Estimated image output about \$0\.03 for 1 image\. Inputs and any analysis are extra\./);
-  await expect(action.locator(".generate-cost")).toHaveText("~$0.03");
+  await expect(action).toHaveAccessibleDescription(/Estimated image output about \$0\.03 for 1 image, plus a score\. Inputs and any analysis are extra\./);
+  await expect(action.locator(".generate-cost")).toHaveText("~$0.03 + score");
   // Validation error: no paid request, the message is announced and the action stays in reach.
   await action.click();await expect(page.locator("#prompt-error")).toContainText("eight characters");expect(f.paid()).toBe(0);
   await page.evaluate(()=>scrollTo(0,0));await inView(action,page);
@@ -89,7 +89,7 @@ for(const size of allSizes){
    const r=await page.evaluate(()=>{const q=(s:string)=>document.querySelector(s)!.getBoundingClientRect();const b=q(".generate-split > .primary-button"),l=q(".generate-split > .primary-button > span:not(.generate-cost)"),c=q(".generate-cost"),s=q(".generate-split .batch-select");return {b:{l:b.left,r:b.right,t:b.top,bo:b.bottom},l:{l:l.left,r:l.right,t:l.top,bo:l.bottom},c:{l:c.left,r:c.right,t:c.top,bo:c.bottom},s:{l:s.left,r:s.right}};});
    const apart=(x:{l:number;r:number;t:number;bo:number},y:{l:number;r:number;t:number;bo:number})=>x.r+4<=y.l||y.r+4<=x.l||x.bo+1<=y.t||y.bo+1<=x.t;
    expect(apart(r.l,r.c),mode+": label and cost").toBe(true);
-   expect(r.c.r,mode+": cost inside the button").toBeLessThanOrEqual(r.b.r-8);expect(r.l.r).toBeLessThanOrEqual(r.b.r-8);
+   expect(r.c.r,mode+": cost inside the button").toBeLessThanOrEqual(r.b.r);expect(r.l.r,mode+": label inside the button").toBeLessThanOrEqual(r.b.r);
    expect(r.b.r,mode+": button before the selector").toBeLessThanOrEqual(r.s.l+1);
    await expect(button).toHaveAccessibleName("Sign in to generate");
   }

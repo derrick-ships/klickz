@@ -1,6 +1,15 @@
 import { expect, type Page } from "@playwright/test";
 
-export async function reviewFixture(page: Page, scored = true) {
+export async function reviewFixture(page: Page, scored: boolean | { scored?: boolean; jev?: boolean } = true) {
+  const options = typeof scored === "boolean" ? { scored, jev: false } : { scored: scored.scored ?? true, jev: !!scored.jev };
+  scored = options.scored;
+  if (options.jev) {
+    await page.route("**/api/config", async (route) => {
+      const response = await route.fetch();
+      const json = await response.json();
+      await route.fulfill({ json: { ...json, jev: true } });
+    });
+  }
   await page.goto("/?mode=analyze");
   await page.getByLabel("Video title", { exact: true }).fill("Fixture: I rebuilt my studio in seven days");
   await page.getByLabel("Upload thumbnail references").setInputFiles("public/brand/signal.webp");

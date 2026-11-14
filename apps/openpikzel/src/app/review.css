@@ -274,7 +274,7 @@
 .field-error{display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;color:var(--color-danger);font-size:13px;line-height:1.5}
 .field-error svg{flex-shrink:0;margin-top:2px}
 /* Narrow phones: the cost drops under the label so label, cost and the 1× selector never touch. */
-@media(max-width:360px){
+@media(max-width:400px){
  .generate-split{max-width:100%}
  .generate-split > .primary-button{flex-wrap:wrap;column-gap:8px;row-gap:2px;min-width:0;padding:6px 14px;line-height:1.3}
  .generate-split > .primary-button > svg:not(.spin){display:none}
