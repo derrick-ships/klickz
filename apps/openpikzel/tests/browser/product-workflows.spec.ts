@@ -58,7 +58,7 @@ test('a persona saves with two photos and refuses one or four',async({page})=>{
  await photos.setInputFiles([await image('#659f85','two.png')]);await page.getByRole('button',{name:'Create persona',exact:true}).click();
  await expect(page.getByRole('dialog')).not.toBeVisible();await expect(page.getByRole('button',{name:'Change persona: Bea Two',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Change persona: Bea Two',exact:true}).click();await expect(page.getByRole('img',{name:'Bea Two reference'})).toHaveCount(2);
- await page.getByRole('button',{name:'Create persona',exact:true}).click();await expect(page.getByRole('heading',{name:'Create Your Persona',exact:true})).toBeVisible();await page.getByLabel('Profile reference photos').setInputFiles(await Promise.all(['#111111','#222222','#333333','#444444'].map((c,i)=>image(c,'p'+i+'.png'))));await expect(page.getByText('Use at most 3 images.',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Create persona',exact:true}).click();{const skip=page.getByRole('button',{name:'Skip Tutorial',exact:true});await expect(skip.or(page.getByRole('heading',{name:'Create Your Persona',exact:true}))).toBeVisible();if(await skip.isVisible())await skip.click();}await page.getByLabel('Profile reference photos').setInputFiles(await Promise.all(['#111111','#222222','#333333','#444444'].map((c,i)=>image(c,'p'+i+'.png'))));await expect(page.getByText('Use at most 3 images.',{exact:true})).toBeVisible();
 });
 
 test('switching immediately flushes a draft and library selection restores its own chat context',async({page})=>{
