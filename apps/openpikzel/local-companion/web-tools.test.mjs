@@ -131,3 +131,63 @@ test('web off removes the tools and keeps web_search disabled; web on enables se
  assert.ok(onArg);
  assert.notEqual(onArg,'web_search="disabled"');
 });
+
+test('web tools follow public and relative redirects and reject private or excessive hops',async t=>{
+ const {engine}=await tempEngine(t);
+ for(const name of ['fetch_url','download_file']){
+  net.resetNetwork();
+  net.mockResponse({status:302,headers:{location:'/next'}});
+  net.mockResponse({status:301,headers:{location:'https://8.8.8.8/final'}});
+  net.mockResponse({headers:{'content-type':'text/plain'},body:'redirected'});
+  const result=await engine.hostCall('default',name,{url:publicUrl,filename:`${name}.txt`});
+  assert.match(toolText(result),name==='fetch_url'?/redirected/:/deleted.*run/i);
+  assert.deepEqual(net.mockRequests().map(r=>r.url),[publicUrl,'https://1.1.1.1/next','https://8.8.8.8/final']);
+  net.resetNetwork();
+  net.mockResponse({status:302,headers:{location:'https://127.0.0.1/secret'}});
+  await assert.rejects(engine.hostCall('default',name,{url:publicUrl,filename:`private-${name}.txt`}),/private|local/i);
+  assert.equal(net.mockRequests().length,1);
+  net.resetNetwork();
+  for(let i=0;i<6;i++)net.mockResponse({status:302,headers:{location:'/next'}});
+  await assert.rejects(engine.hostCall('default',name,{url:publicUrl,filename:`limit-${name}.txt`}),/redirect.*(limit|many|5)/i);
+  assert.equal(net.mockRequests().length,6);
+ }
+});
+
+test('duplicate downloads are not overwritten and have a clear error',async t=>{
+ const {engine}=await tempEngine(t);
+ net.resetNetwork();
+ net.mockResponse({body:'first'}); net.mockResponse({body:'second'});
+ const first=JSON.parse(toolText(await engine.hostCall('default','download_file',{url:downloadUrl,filename:'same.txt'})));
+ assert.match(first.notice,/deleted.*run/i);
+ await assert.rejects(engine.hostCall('default','download_file',{url:downloadUrl,filename:'same.txt'}),e=>/already exists/i.test(e.message)&&!e.message.includes('EEXIST'));
+ assert.equal((await readFile(first.path)).toString(),'first');
+});
+
+test('fetch_url refuses binary content',async t=>{
+ const {engine}=await tempEngine(t);
+ net.resetNetwork(); net.mockResponse({headers:{'content-type':'application/octet-stream'},body:'binary'});
+ await assert.rejects(engine.hostCall('default','fetch_url',{url:publicUrl}),/non-text|not text/i);
+});
+
+
+test('socket-time DNS validation rejects a private rebind',async()=>{
+ net.resetNetwork(); net.resolveSocketAs('localhost');
+ await assert.rejects(safeFetch(publicUrl,{redirect:'manual'}),/private/i);
+});
+
+test('five redirects are allowed',async t=>{
+ const {engine}=await tempEngine(t);
+ net.resetNetwork();
+ for(let i=0;i<5;i++)net.mockResponse({status:302,headers:{location:'/next'}});
+ net.mockResponse({headers:{'content-type':'text/plain'},body:'ok'});
+ assert.match(toolText(await engine.hostCall('default','fetch_url',{url:publicUrl})),/ok/);
+ assert.equal(net.mockRequests().length,6);
+});
+
+test('rejecting binary content cancels the response body',async()=>{
+ const {fetchUrl}=await import('./web-tools.mjs');
+ let cancelled=false;
+ const body=new ReadableStream({cancel(){cancelled=true;}});
+ await assert.rejects(fetchUrl(publicUrl,{fetchFn:async()=>new Response(body,{headers:{'content-type':'application/octet-stream'}})}),/non-text/i);
+ assert.equal(cancelled,true);
+});

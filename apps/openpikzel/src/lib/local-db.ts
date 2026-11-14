@@ -1,3 +1,4 @@
+import { assertUniqueProfileName, dedupeProfileNames, type ProfileKind, type DatedProfile } from "./profile-name";
 import type { Creation, Persona, Style } from "./types";
 export type LocalRecord = Creation | Persona | Style;
 export type Store = "creations" | "personas" | "styles" | "assets" | "conversations" | "preferences" | "feedback";
@@ -66,4 +67,45 @@ export async function localDelete(store: Store, id: string) {
       reject(tx.error);
     };
   });
+}
+
+export async function localProfileTransaction<T extends DatedProfile>(kind: ProfileKind, operation: { create: T } | { id: string; name: string } | { repair: true }): Promise<T | T[]> {
+  const db = await database();
+  const store = kind === "persona" ? "personas" : "styles";
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, "readwrite");
+    const objectStore = tx.objectStore(store);
+    const request = objectStore.getAll();
+    let result: T | T[];
+    let error: unknown;
+    request.onsuccess = () => {
+      try {
+        const rows = request.result as T[];
+        if ("repair" in operation) {
+          result = dedupeProfileNames(rows);
+          const names = new Map(rows.map(row => [row.id, row.name]));
+          for (const row of result) if (names.get(row.id) !== row.name) objectStore.put(row);
+        } else {
+          const name = ("create" in operation ? operation.create.name : operation.name).trim();
+          if (name.length < 3) throw new Error("Name must be at least 3 characters");
+          if (name.length > 80) throw new Error("Use a name up to 80 characters.");
+          const id = "create" in operation ? undefined : operation.id;
+          const row = "create" in operation ? operation.create : rows.find(item => item.id === id);
+          if (!row) throw new Error("This profile could not be found.");
+          assertUniqueProfileName(rows, name, kind, id);
+          result = { ...row, name };
+          if ("create" in operation) objectStore.add(result); else objectStore.put(result);
+        }
+      } catch (cause) { error = cause; tx.abort(); }
+    };
+    tx.oncomplete = () => { db.close(); resolve(result); };
+    tx.onabort = () => { db.close(); reject(error || tx.error); };
+    tx.onerror = () => { error ||= tx.error; };
+  });
+}
+export async function localCreateProfile<T extends DatedProfile>(kind: ProfileKind, profile: T): Promise<T> {
+  return localProfileTransaction(kind, { create: profile }) as Promise<T>;
+}
+export async function localRenameProfile<T extends DatedProfile>(kind: ProfileKind, id: string, name: string): Promise<T> {
+  return localProfileTransaction(kind, { id, name }) as Promise<T>;
 }

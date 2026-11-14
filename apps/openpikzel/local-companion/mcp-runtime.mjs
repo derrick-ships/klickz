@@ -56,7 +56,12 @@ export async function safeFetch(input,init={}){
   }},response=>{
    request.setTimeout(0);
    const status=response.statusCode||500;
-   if(status>=300&&status<400&&response.headers.location){response.destroy();reject(new Error('MCP redirects require an explicit server URL.'));return;}
+   if(status>=300&&status<400&&response.headers.location){
+    response.destroy();
+    if(init.redirect==='manual')resolve(new Response(null,{status,headers:{location:response.headers.location}}));
+    else reject(new Error('MCP redirects require an explicit server URL.'));
+    return;
+   }
    let bytes=0;const limiter=new Transform({transform(chunk,encoding,done){bytes+=chunk.length;done(bytes>maxBytes?new Error('MCP response exceeds the local limit.'):null,chunk);}});
    response.pipe(limiter);response.on('error',e=>limiter.destroy(e));limiter.on('error',()=>response.destroy());
    const responseHeaders=new Headers();for(const [key,value]of Object.entries(response.headers))if(value!==undefined)responseHeaders.set(key,Array.isArray(value)?value.join(', '):value);

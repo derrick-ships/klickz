@@ -559,3 +559,144 @@ describe("signed upload claim and grants", () => {
     expect(JSON.parse(pgrst.rows[0].body)).toEqual([]);
   });
 });
+
+describe("profile unique names migration", () => {
+  it("trims names, suffixes later duplicates, skips taken suffixes, then the unique index holds", async () => {
+    const local = new PGlite();
+    await local.exec(`create role anon;create role authenticated;create schema auth;create schema storage;
+ create table auth.users(id uuid primary key);insert into auth.users values('${alice}'),('${bob}');
+ create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+ create function auth.jwt() returns jsonb language sql stable as $$ select '{}'::jsonb $$;
+ create function public.app_web_access() returns boolean language sql stable as $$ select coalesce(current_setting('request.jwt.claim.owner',true),'true') <> 'false' $$;
+ create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+ create table storage.objects(id uuid default gen_random_uuid() primary key,bucket_id text,name text);
+ create function storage.foldername(text) returns text[] language sql immutable as $$ select (string_to_array($1,'/'))[1:array_length(string_to_array($1,'/'),1)-1] $$;
+ alter table storage.objects enable row level security;
+ grant usage on schema auth,storage,public to authenticated,anon;grant all on storage.objects to authenticated;
+ `);
+    const files = readdirSync("supabase/migrations")
+      .filter((s) => s.endsWith(".sql"))
+      .sort();
+    const uniqueNames = files.filter((s) => s.endsWith("_profile_unique_names.sql"));
+    expect(uniqueNames).toEqual(["20261110130000_profile_unique_names.sql"]);
+    for (const file of files.filter((s) => s !== uniqueNames[0]))
+      await local.exec(readFileSync("supabase/migrations/" + file, "utf8"));
+    const aliceRef = `${alice}/references/a.png`,
+      bobRef = `${bob}/references/a.png`;
+    await local.exec(`
+      insert into studio_personas(id,user_id,name,refs,created_at) values
+        ('aaaaaaaa-aaaa-4aaa-8aaa-000000000001','${alice}','  Derrick  ',array['${aliceRef}'],'2026-11-01T00:00:00Z'),
+        ('aaaaaaaa-aaaa-4aaa-8aaa-000000000002','${alice}','Derrick (2)',array['${aliceRef}'],'2026-11-02T00:00:00Z'),
+        ('aaaaaaaa-aaaa-4aaa-8aaa-000000000003','${alice}','derrick',array['${aliceRef}'],'2026-11-03T00:00:00Z'),
+        ('aaaaaaaa-aaaa-4aaa-8aaa-000000000004','${bob}','Derrick',array['${bobRef}'],'2026-11-01T00:00:00Z');
+      insert into studio_styles(id,user_id,name,refs,created_at) values
+        ('bbbbbbbb-bbbb-4bbb-8bbb-000000000001','${alice}','  Derrick  ',array['${aliceRef}'],'2026-11-01T00:00:00Z'),
+        ('bbbbbbbb-bbbb-4bbb-8bbb-000000000002','${alice}','DERRICK',array['${aliceRef}'],'2026-11-04T00:00:00Z');
+    `);
+    await local.exec(readFileSync("supabase/migrations/" + uniqueNames[0], "utf8"));
+    const personas = await local.query<{ id: string; name: string }>(
+      "select id,name from studio_personas order by id",
+    );
+    expect(personas.rows).toEqual([
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000001", name: "Derrick" },
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000002", name: "Derrick (2)" },
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000003", name: "derrick (3)" },
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000004", name: "Derrick" },
+    ]);
+    const styles = await local.query<{ id: string; name: string }>(
+      "select id,name from studio_styles order by id",
+    );
+    expect(styles.rows).toEqual([
+      { id: "bbbbbbbb-bbbb-4bbb-8bbb-000000000001", name: "Derrick" },
+      { id: "bbbbbbbb-bbbb-4bbb-8bbb-000000000002", name: "DERRICK (2)" },
+    ]);
+    const leftover = await local.query(
+      `select user_id,kind,key,count(*) from (
+         select user_id,'persona'::text as kind,lower(btrim(name)) as key from studio_personas
+         union all
+         select user_id,'style',lower(btrim(name)) from studio_styles
+       ) s group by 1,2,3 having count(*)>1`,
+    );
+    expect(leftover.rows).toHaveLength(0);
+    await local.exec(`reset role;set request.jwt.claim.sub='${alice}';set role authenticated;`);
+    await expect(
+      local.exec(
+        `insert into studio_personas(user_id,name,refs) values('${alice}',' derrick ',array['${aliceRef}'])`,
+      ),
+    ).rejects.toThrow();
+    await local.exec(
+      `insert into studio_personas(user_id,name,refs) values('${alice}','Beatrice',array['${aliceRef}'])`,
+    );
+    const race = await Promise.allSettled([
+      local.exec(`insert into studio_personas(user_id,name,refs) values('${alice}','Race Name',array['${aliceRef}'])`),
+      local.exec(`insert into studio_personas(user_id,name,refs) values('${alice}',' race name ',array['${aliceRef}'])`),
+    ]);
+    expect(race.map(result => result.status).sort()).toEqual(["fulfilled", "rejected"]);
+    const raceRows = await local.query("select name from studio_personas where lower(btrim(name))='race name'");
+    expect(raceRows.rows).toHaveLength(1);
+    await local.close();
+  });
+});
+
+describe("profile name normalization parity", () => {
+  async function database() {
+    const local = new PGlite();
+    await local.exec(`create table studio_personas(id text primary key, user_id text, name text, created_at timestamptz);
+      create table studio_styles(id text primary key, user_id text, name text, created_at timestamptz);`);
+    return local;
+  }
+
+  it("trims JavaScript whitespace before grouping and indexing names", async () => {
+    const local = await database();
+    try {
+      await local.query("insert into studio_personas values ($1,$2,$3,$4),($5,$2,$6,$7)", ["1", "u", "\tShared\t", "2020-01-01", "2", "Shared", "2021-01-01"]);
+      await local.exec(readFileSync("supabase/migrations/20261110130000_profile_unique_names.sql", "utf8"));
+      expect((await local.query("select name from studio_personas order by id")).rows).toEqual([{ name: "Shared" }, { name: "Shared (2)" }]);
+      await expect(local.query("insert into studio_personas values ($1,$2,$3,now())", ["3", "u", "\tshared\t"])).rejects.toMatchObject({ code: "23505" });
+    } finally { await local.close(); }
+  });
+
+  it("matches pinned application keys for Unicode, final sigma, and JavaScript whitespace", async () => {
+    const { profileNameKey } = await import("../src/lib/profile-name");
+    const data = (await import("../src/lib/profile-unicode.json")).default;
+    const sql = readFileSync("supabase/migrations/20261110130000_profile_unique_names.sql", "utf8");
+    const embedded = sql.match(/data constant jsonb := '([\s\S]*?)'::jsonb;/)?.[1].replaceAll("''", "'");
+    expect(JSON.parse(embedded!)).toEqual(data);
+    const local = await database();
+    try {
+      await local.exec(sql);
+      const inputs = [...Object.keys(data.map), "\u00a0Shared\u00a0", "ΟΣ", "ΟΣΑ", "Ο\u0301Σ", "Σ", "İdea", "idea"];
+      for (const input of inputs) {
+        const { rows } = await local.query<{ key: string }>("select public.profile_name_key($1) as key", [input]);
+        expect(rows[0].key).toBe(profileNameKey(input));
+        if (process.versions.unicode === data.unicode) expect(profileNameKey(input)).toBe(input.trim().toLowerCase());
+      }
+      await local.query("insert into studio_personas values ($1,$2,$3,now())", ["1", "u", "ΟΣ"]);
+      await expect(local.query("insert into studio_personas values ($1,$2,$3,now())", ["2", "u", "ος"])).rejects.toMatchObject({ code: "23505" });
+    } finally { await local.close(); }
+  }, 30000);
+
+  it("backfills supplementary characters within the JavaScript length limit", async () => {
+    const { dedupeProfileNames } = await import("../src/lib/profile-name");
+    const local = await database();
+    const base = "😀".repeat(40);
+    const expected = "😀".repeat(38) + " (2)";
+    try {
+      await local.query("insert into studio_personas values ($1,$2,$3,$4),($5,$2,$3,$6)", ["1", "u", base, "2020-01-01", "2", "2021-01-01"]);
+      await local.exec(readFileSync("supabase/migrations/20261110130000_profile_unique_names.sql", "utf8"));
+      const { rows } = await local.query("select name from studio_personas order by id");
+      expect(rows).toEqual([{ name: base }, { name: expected }]);
+      expect(dedupeProfileNames([{id:"1",name:base,created_at:"2020"},{id:"2",name:base,created_at:"2021"}]).map(row => row.name)).toEqual([base, expected]);
+    } finally { await local.close(); }
+  });
+
+  it("uses the same dotted-I case distinction as JavaScript", async () => {
+    const local = await database();
+    try {
+      await local.exec(readFileSync("supabase/migrations/20261110130000_profile_unique_names.sql", "utf8"));
+      expect("İdea".trim().toLowerCase()).not.toBe("idea".trim().toLowerCase());
+      await local.query("insert into studio_personas values ($1,$2,$3,now())", ["1", "u", "İdea"]);
+      await expect(local.query("insert into studio_personas values ($1,$2,$3,now())", ["2", "u", "idea"])).resolves.toBeDefined();
+    } finally { await local.close(); }
+  });
+});
