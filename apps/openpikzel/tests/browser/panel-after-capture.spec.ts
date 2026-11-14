@@ -10,7 +10,7 @@ test("capture local panel final",async({page})=>{
  await page.reload();await page.screenshot({path:"evidence/panel-after-04-reloaded.png",fullPage:true});
  await page.evaluate(()=>localStorage.clear());
  await reviewFixture(page,false);await page.setViewportSize({width:1100,height:900});await page.screenshot({path:"evidence/panel-after-05-review.png",fullPage:true});
- await openResultMore(page);await page.getByRole("region",{name:"Thumbnail review studio"}).getByRole("button",{name:"Edit",exact:true}).click();await page.getByLabel("What should change?",{exact:true}).fill("Make the headline white and keep the original red subject");await page.getByRole("button",{name:"Save draft",exact:true}).click();await page.screenshot({path:"evidence/panel-after-06-edit-draft.png",fullPage:true});
+ await openResultMore(page);await page.screenshot({path:"evidence/panel-after-06-image-actions.png",fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.goto("/connect");await page.screenshot({path:"evidence/panel-after-07-connect-mobile.png",fullPage:true});
  await page.goto("/studio?mode=generate");await page.screenshot({path:"evidence/panel-after-08-studio-mobile.png",fullPage:true});
 });

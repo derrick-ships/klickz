@@ -205,7 +205,8 @@ export async function observePackaging(
         }),
         signal: AbortSignal.timeout(45000),
       });
-      if (!response.ok) throw new Error("Claude request failed");
+      // Never echo the provider body (it can contain secrets); keep only the status for diagnosis.
+      if (!response.ok) throw Object.assign(new AppError(502, "Image review did not finish"), { reviewStatus: response.status });
       const payload = await response.json();
       if (payload?.stop_reason === "max_tokens")
         throw new Error("Claude response was truncated");
@@ -220,7 +221,8 @@ export async function observePackaging(
       return observationSchema.parse(JSON.parse(json));
     } catch (error) {
       if (error instanceof AppError) throw error;
-      throw new AppError(502, "Image review did not finish");
+      const reason = error instanceof SyntaxError ? "unreadable response" : error instanceof Error && /timeout|abort/i.test(error.name + error.message) ? "timed out" : "request failed";
+      throw Object.assign(new AppError(502, "Image review did not finish"), { reviewStatus: reason });
     }
   }
   if (provider === "google")
@@ -318,15 +320,28 @@ export async function evaluateThumbnail(
           ),
         };
   let visionFinished = false;
-  let observations;
+  let observations = observationSchema.parse(withoutVision);
+  const visionProvider: VisionProvider = critiqueProvider;
+  const visionErrors: string[] = [];
   if (withVision) {
+    // Only the reviewer the user chose is called; never a silent second provider.
     try {
       observations = observationSchema.parse(
         await observePackaging(prepared, title, context.videoBrief, small, critiqueProvider),
       );
       visionFinished = true;
-    } catch {
-      observations = observationSchema.parse(withoutVision);
+    } catch (error) {
+      const status = (error as { reviewStatus?: unknown })?.reviewStatus;
+      const label = critiqueProvider === "anthropic" ? "Claude" : critiqueProvider === "openai" ? "OpenAI" : "Google";
+      visionErrors.push(
+        status === 401 || status === 403 ? label + " rejected the API key. Reconnect it in Connections."
+        : status === 404 ? label + " doesn't offer the image-review model to this key."
+        : status === 429 ? label + " is rate-limiting or out of balance. Try again later or add credit."
+        : status === 400 ? label + " refused the request (the image may be too large or not allowed)."
+        : status === "timed out" ? label + " took too long to answer."
+        : typeof status === "number" ? label + " returned an error (" + status + ")."
+        : label + " didn't return a usable review.",
+      );
     }
   } else {
     observations = observationSchema.parse(withoutVision);
@@ -401,9 +416,9 @@ export async function evaluateThumbnail(
   );
   diagnostic.instructionVersion = instructionVersion;
   if(withVision && !visionFinished){
-    diagnostic.warnings = [...(diagnostic.warnings||[]).filter(warning=>!warning.includes("Numeric Jev rubrics only")),"Image review did not finish"];
+    diagnostic.warnings = [...(diagnostic.warnings||[]).filter(warning=>!warning.includes("Numeric Jev rubrics only")),"Image review did not finish",...visionErrors];
   }
-  diagnostic.contributors = [{provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(visionFinished ? [{provider:critiqueProvider === "anthropic" ? "Anthropic API" : critiqueProvider === "openai" ? "OpenAI API" : "Google API",model:critiqueProvider === "anthropic" ? anthropicVisionModel() : critiqueProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
+  diagnostic.contributors = [{provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(visionFinished ? [{provider:visionProvider === "anthropic" ? "Anthropic API" : visionProvider === "openai" ? "OpenAI API" : "Google API",model:visionProvider === "anthropic" ? anthropicVisionModel() : visionProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
   return diagnostic;
 }
 // Legacy name is retained only for callers that explicitly supply a real image.

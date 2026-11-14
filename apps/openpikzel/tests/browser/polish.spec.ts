@@ -12,13 +12,12 @@ test("mode tabs support roving keyboard navigation and visible focus", async ({ 
   await expect(analyze).toHaveAttribute("aria-selected", "true");
   await expect(prompt).toHaveAttribute("tabindex", "-1");
   expect(await analyze.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe("none");
-  await page.keyboard.press("End");
-  await expect(page.getByRole("tab", { name: "Titles", exact: true })).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(prompt).toBeFocused();
   await page.keyboard.press("End");
-  await page.keyboard.press("ArrowLeft");
-  await expect(page.getByRole("tab", { name: "Remix", exact: true })).toBeFocused();
+  await expect(analyze).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(prompt).toBeFocused();
 });
 test("a mode tab chosen during load survives hydration", async ({ page }) => {
   let release!: () => void;

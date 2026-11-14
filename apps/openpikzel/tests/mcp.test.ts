@@ -386,10 +386,12 @@ describe("real Streamable HTTP MCP transport and Apps resources", () => {
         "get_fix_prompt",
         "one_click_fix",
         "resize_thumbnail",
-        "recompose_thumbnail",
         "enhance_prompt",
       ]),
     );
+    // One loop: no separate title or remix tools.
+    expect(tools.result.tools.map((t: any) => t.name)).not.toContain("suggest_titles");
+    expect(tools.result.tools.map((t: any) => t.name)).not.toContain("recompose_thumbnail");
     expect(
       tools.result.tools.find((t: any) => t.name === "score_thumbnail")._meta.ui
         .resourceUri,
@@ -424,8 +426,8 @@ describe("real Streamable HTTP MCP transport and Apps resources", () => {
     state.scope = ["studio:read"];
     const r = await (
       await call("tools/call", {
-        name: "suggest_titles",
-        arguments: { prompt: "A specific video concept" },
+        name: "generate_thumbnail",
+        arguments: { prompt: "A specific video concept", requestId: "33333333-3333-4333-8333-333333333333" },
       })
     ).json();
     expect(r.result.isError).toBe(true);
@@ -439,13 +441,6 @@ describe("real Streamable HTTP MCP transport and Apps resources", () => {
   });
 });
 
-it("requires both AI and write scopes for source recomposition",async()=>{
- for(const scope of [["studio:read"],["studio:read","studio:ai"]]){
-  state.scope=scope;
-  const result=await(await call("tools/call",{name:"recompose_thumbnail",arguments:{creationId:"11111111-1111-4111-8111-111111111111",format:"short",requestId:"22222222-2222-4222-8222-222222222222"}})).json();
-  expect(result.result.isError).toBe(true);
- }
-});
 
 it("lists memory tools and rejects remember_fact without studio:agent", async () => {
   const tools = await (await call("tools/list", {})).json();

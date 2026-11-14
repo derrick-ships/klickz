@@ -16,22 +16,6 @@ test("first-session typing survives immediate reload and does not create duplica
  await expect(page.getByRole("button",{name:/^Open chat:/})).toHaveCount(1);
  await page.reload();await expect(prompt).toHaveValue("A second revision of this same first idea");
 });
-test("saved edit retains its original image and draft through reload",async({page})=>{
- await reviewFixture(page,false);
- await openResultMore(page);await page.getByRole("region",{name:"Thumbnail review studio"}).getByRole("button",{name:"Edit",exact:true}).click();
- await page.getByLabel("What should change?",{exact:true}).fill("Simplify the background and preserve the red subject");
- const preview=page.getByRole("img",{name:/Editing source:/});await expect(preview).toBeVisible();
- await page.getByRole("button",{name:"Save draft",exact:true}).click();await expect(page.getByRole("heading",{name:"Concept saved.",exact:true})).toBeVisible();
- await expect(preview).toBeVisible();await page.reload();await expect(preview).toBeVisible();
- await expect(page.getByLabel("What should change?",{exact:true})).toHaveValue("Simplify the background and preserve the red subject");
- await expect(page.locator(".source-input .upload-target")).toBeHidden();
- for(const width of [1440,1100,390,320]){
-  await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});
-  await expect(preview).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-  const controls=page.locator("details.more-options:not(.request-readiness) > summary").first();expect(parseFloat(await controls.evaluate(e=>getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(12);
-  await page.screenshot({path:"evidence/panel-after-edit-"+width+".png",fullPage:true});
- }
-});
 test("setup is actionable without a paid call and preserves the draft",async({page})=>{
  const paid:string[]=[];page.on("request",r=>{if(/\/api\/(generate|analyze|titles)$/.test(r.url()))paid.push(r.url());});
  await page.goto("/studio");await page.getByLabel("Describe your thumbnail",{exact:true}).fill("Keep this idea while I connect my account");

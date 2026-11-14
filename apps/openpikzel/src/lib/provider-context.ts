@@ -42,3 +42,7 @@ export async function userKeys(db: SupabaseClient, userId: string) {
   }
   return keys;
 }
+
+export function hasProviderKey(provider: Provider) {
+  return !!providerContext.getStore()?.[provider];
+}

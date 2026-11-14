@@ -285,15 +285,17 @@ export function useStudio() {
   }
   async function upload(file: File) {
     const epoch=ownerEpoch.current;ensureCurrentOwner();
-    if (
-      !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
-      file.size > 5 * 1024 * 1024
-    )
-      throw new Error("Choose a PNG, JPG or WebP under 5 MB.");
-    const bitmap = await createImageBitmap(file);
-    if (bitmap.width * bitmap.height > 40000000) {
+    // Any phone photo or export works: the image is resized here, in the browser, before upload.
+    if (!/^image\/(png|jpeg|webp|avif|heic|heif|gif)$/.test(file.type) && !/\.(png|jpe?g|webp|avif|heic|heif|gif)$/i.test(file.name))
+      throw new Error("Choose an image file (PNG, JPG, WebP, HEIC or AVIF).");
+    if (file.size > 30 * 1024 * 1024)
+      throw new Error("Choose an image under 30 MB.");
+    let bitmap: ImageBitmap;
+    try { bitmap = await createImageBitmap(file); }
+    catch { throw new Error("This browser can't open that image. Export it as JPG or PNG and try again."); }
+    if (bitmap.width * bitmap.height > 100000000) {
       bitmap.close();
-      throw new Error("Use an image smaller than 40 megapixels.");
+      throw new Error("Use an image smaller than 100 megapixels.");
     }
     const canvas = document.createElement("canvas"),
       scale = Math.min(1, 1568 / Math.max(bitmap.width, bitmap.height));

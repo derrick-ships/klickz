@@ -24,7 +24,6 @@ import { fixInstructions } from "./providers";
 import { POST as generate } from "@/app/api/generate/route";
 import { POST as analyze } from "@/app/api/analyze/route";
 import { POST as resize } from "@/app/api/resize/route";
-import { POST as titles } from "@/app/api/titles/route";
 import { POST as makePlan } from "@/app/api/fix-plan/route";
 import { POST as compare } from "@/app/api/compare/route";
 import { unseal } from "./crypto";
@@ -33,7 +32,6 @@ import {POST as saveProfileRoute} from "@/app/api/profiles/route";
 import {POST as browseChannel} from "@/app/api/youtube/route";
 import {POST as studyStyle} from "@/app/api/styles/study/route";
 import { POST as prepare } from "@/app/api/persona/prepare/route";
-import { recomposePrompt } from "./analysis-display";
 import { userKeys } from "./provider-context";
 import { pickVisionProvider } from "./vision-provider";
 import { missingVisionKeyMessage, reviewerName } from "./score-on-generate";
@@ -46,7 +44,7 @@ import {
 import { widgetHtml } from "./widget.generated";
 import { forgetFact, recallFacts, rememberFact } from "./agent-memory";
 export const uiUri = "ui://openpikzels/studio.html";
-export const agentGuide = `OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. A saved connection is not proof of model entitlement or balance; select a provider explicitly for each role and never substitute another provider silently. Use create_conversation/list_conversations/get_conversation to keep a project together; pass conversationId on generation. Personas need 2 or 3 distinct photos; styles need 1 to 3 references; names need at least 3 characters. A persona also requires explicit permission=true for likeness use. browse_style_channel uses the user’s own separate YouTube Data API key; never reuse an image-provider key for it. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. When asked to OpenPikzels Analyze a thumbnail, call analyze_thumbnail with exactly one of creationId, imagePath or base64; use create_upload_url first when the file is too large for base64. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail defaults to Jev only; includeVision explicitly opts into one additional OpenAI/Google request. A title supports all five visible packaging rubrics; no written video brief is required. Optional videoUrl retrieves YouTube title/description using the user’s YouTube key. Missing titles or provider evidence remain unassessed; the video is not watched. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. enhance_prompt proposes a reviewed rewrite using one user-funded OpenAI or Google text request and a stable requestId. Conversation and image providers are independent; no consumer subscription is assumed to provide API access. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. recompose_thumbnail generates one new arrangement from the source in 9:16 or 16:9 using image-provider credits; preserve its requestId on an uncertain retry. The older resize_thumbnail tool remains a non-AI contained layout with a blurred background. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.\n\n${soul}`;
+export const agentGuide = `OpenPikzels does one loop: create a thumbnail, score it, fix what's holding it back, score again. Use generate_thumbnail to create (persona by name keeps the face), score_thumbnail or analyze_thumbnail to score, and get_fix_prompt / one_click_fix to improve; there are no separate edit, remix or title tools. OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. A saved connection is not proof of model entitlement or balance; select a provider explicitly for each role and never substitute another provider silently. Use create_conversation/list_conversations/get_conversation to keep a project together; pass conversationId on generation. Personas need 2 or 3 distinct photos; styles need 1 to 3 references; names need at least 3 characters. A persona also requires explicit permission=true for likeness use. browse_style_channel uses the user’s own separate YouTube Data API key; never reuse an image-provider key for it. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. When asked to OpenPikzels Analyze a thumbnail, call analyze_thumbnail with exactly one of creationId, imagePath or base64; use create_upload_url first when the file is too large for base64. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail includes an image review by default when a Claude, OpenAI or Google key is connected (one extra request); without it the score is numbers only and one_click_fix reviews the image first. A title supports all five visible packaging rubrics; no written video brief is required. Optional videoUrl retrieves YouTube title/description using the user’s YouTube key. Missing titles or provider evidence remain unassessed; the video is not watched. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. enhance_prompt proposes a reviewed rewrite using one user-funded OpenAI or Google text request and a stable requestId. Conversation and image providers are independent; no consumer subscription is assumed to provide API access. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. recompose_thumbnail generates one new arrangement from the source in 9:16 or 16:9 using image-provider credits; preserve its requestId on an uncertain retry. The older resize_thumbnail tool remains a non-AI contained layout with a blurred background. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.\n\n${soul}`;
 export async function createMcpServer(token: string) {
   const context = await resolveAccess(token),
     { db, user, oauth } = context;
@@ -374,21 +372,9 @@ export async function createMcpServer(token: string) {
       return backend(prepare, args);
     },
   );
-  tool(
-    "suggest_titles",
-    "Suggest five truthful title variations using the explicitly selected OpenAI or Google API provider. No provider fallback.",
-    {
-      prompt: z.string().min(8).max(2400),
-      audience: z.string().max(200).default("YouTube viewers"),
-      provider: z.enum(["openai","google"]).default("openai"),
-    },
-    "studio:ai",
-    (args) => backend(titles, args),
-  );
   const generationInput = {
     prompt: z.string().min(8).max(2400),
     title: z.string().max(100).default(""),
-    mode: z.enum(["generate", "recreate", "edit", "title"]).default("generate"),
     conversationId:z.string().uuid().optional(),
     parentId: z.string().uuid().optional(),
     personaId: z.string().uuid().optional(),
@@ -407,7 +393,7 @@ export async function createMcpServer(token: string) {
   };
   tool(
     "generate_thumbnail",
-    "Generate, recreate, edit, or create from title using your own image-provider credits. Preserve requestId across an uncertain retry; check history first.",
+    "Create a new thumbnail from a description (with an optional saved persona or style) using your own image-provider credits. It is scored automatically when Jev is connected; use one_click_fix to improve it. Preserve requestId across an uncertain retry; check history first.",
     generationInput,
     "studio:ai",
     async (args) => {
@@ -419,20 +405,9 @@ export async function createMcpServer(token: string) {
       if (style) rest.styleId = await profileIdByName("style", style);
       return backend(generate, {
         ...rest,
+        mode: "generate",
         settings: { model, quality, complexity, format, batch },
       });
-    },
-  );
-  tool(
-    "recompose_thumbnail",
-    "Generate one newly arranged 9:16 or 16:9 variant from an owned thumbnail, preserving subject, wording and identity. Uses your image-provider credits. Original stays saved. Preserve requestId on uncertain retry.",
-    {creationId:z.string().uuid(),format:z.enum(["long","short"]),model:generationInput.model,quality:generationInput.quality,complexity:generationInput.complexity,requestId:z.string().uuid()},
-    "studio:ai",
-    async ({creationId,format,model,quality,complexity,requestId}) => {
-      await allowed("studio:write");
-      const source=await creation(creationId);
-      if(!source.image_path)throw new AppError(400,"Choose an uploaded or generated thumbnail.");
-      return backend(generate,{prompt:recomposePrompt(format),title:source.title,mode:"edit",intent:"recompose",style:source.style,parentId:source.id,referencePaths:[source.image_path],conversationId:source.conversation_id || undefined,settings:{model,quality,complexity,format,batch:1},requestId});
     },
   );
   tool("list_analyses","Read saved analysis versions and their exact source/context/provider provenance without scoring, editing or replacing a title.",{creationId:z.string().uuid(),cursor:z.string().max(512).optional()},"studio:read",({creationId,cursor})=>analysisHistory(db,user.id,creationId,cursor));

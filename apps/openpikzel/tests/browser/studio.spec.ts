@@ -80,7 +80,7 @@ test("all five modes and truthful disabled-AI boundaries are present", async ({
   request,
 }) => {
   await page.goto("/?mode=generate");
-  for (const name of ["Create", "Score", "Edit", "Remix", "Titles"])
+  for (const name of ["Create", "Score"])
     await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
   await page
     .getByLabel("Describe your thumbnail", { exact: true })

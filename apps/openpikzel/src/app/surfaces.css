@@ -597,3 +597,7 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
   .app-shell[data-motion-input="pointer"] .result-more[open] > .result-more-menu { animation: control-confirm 100ms ease-out !important; }
 }
 .analysis-general-tip { color: var(--color-placeholder); }
+.create-title { margin-top: var(--space-4); }
+.create-title label { display: block; margin-bottom: var(--space-2); font-size: 13px; color: var(--color-ink); }
+.create-title label span { color: var(--color-placeholder); }
+.create-title input { width: 100%; min-height: 44px; }
