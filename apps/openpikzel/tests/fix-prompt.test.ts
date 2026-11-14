@@ -1,0 +1,19 @@
+import { it, expect } from "vitest";
+import { fixPrompt } from "../src/lib/fix-prompt";
+import type { Evaluation } from "../src/lib/types";
+
+const dim = (score: number | null, fix: string) => ({ score, confidence: 0.8, observation: "o", strength: "s", weakness: "w", fix });
+const evaluation = (dims: Record<string, ReturnType<typeof dim>>) => ({ source: "jev", version: 3, overall: 60, title: "Why Nokia Lost", note: "", priority: "clarity", created_at: "", dimensions: dims } as unknown as Evaluation);
+
+it("orders fixes weakest pillar first and keeps identity and wording", () => {
+  const prompt = fixPrompt(evaluation({ virality: dim(80, "Add one surprising object."), clarity: dim(40, "Enlarge the face."), idea: dim(55, "Show the phone."), curiosity: dim(null, "ignored"), emotion: dim(70, "") }))!;
+  expect(prompt.indexOf("clarity (40/100)")).toBeLessThan(prompt.indexOf("idea (55/100)"));
+  expect(prompt.indexOf("idea (55/100)")).toBeLessThan(prompt.indexOf("virality (80/100)"));
+  expect(prompt).not.toContain("ignored");
+  expect(prompt).not.toContain("emotion (");
+  expect(prompt).toContain('"Why Nokia Lost"');
+  expect(prompt).toContain("must not repeat the title");
+});
+it("returns null when no concrete change is supported", () => {
+  expect(fixPrompt(evaluation({ virality: dim(80, ""), clarity: dim(null, "x"), idea: dim(90, " "), curiosity: dim(70, ""), emotion: dim(75, "") }))).toBeNull();
+});

@@ -48,6 +48,14 @@ Successful results contain profile kind, name, ID, brief and notes, plus paths a
 
 This tool discloses private images, identity briefs, notes and bearer URLs to the requesting MCP host and model. Hosts may omit image blocks, retain or forward data. URL expiry cannot revoke copies already received. Use only with a trusted host. Actual storage signing and expiry require isolated non-production verification.
 
+## Personas, styles and the analyze → fix loop
+
+- **Personas:** `save_profile` with `kind:"persona"` takes 2 or 3 of your own uploaded photo paths (at most 3) and `permission:true`. Upload photos first with `upload_reference`.
+- **Styles from YouTube:** `study_style` takes a YouTube video link (no YouTube key needed; saves that thumbnail) or a channel link (uses your own YouTube Data API key; saves its 3 most popular or recent thumbnails). It measures the colour palette from the pixels and saves both to a private style. No AI provider is charged. Call `prepare_profile` afterwards for a written style brief. Styles can also be made with 1 to 3 uploads via `save_profile`.
+- **Use by name:** `generate_thumbnail` accepts `persona` and `style` by saved name (a leading `@` is ignored), resolved only within your own profiles. `get_profile_refs` returns the saved photos by name for hosts that should see them. In ChatGPT, write for example “make a thumbnail with persona Derrick and style Noticias”; the model passes those names to the tools. A host's own `@` mention menu is not controlled by OpenPikzels.
+- **Analysis:** `analyze_thumbnail` scores with Jev and reviews the image with your vision provider (Claude first, then OpenAI, then Google, whichever is connected). Every reviewer reads the OpenPikzels soul (`openpikzels://agent-guide`) before the image. The result already includes `fix.prompt` (a copyable edit prompt, weakest pillar first) and, when supported by evidence, `fix.token`.
+- **Loop:** `one_click_fix` with `planToken: fix.token` and `rescore:true` renders the fix, re-analyzes it and returns `before`, `after`, `delta`, the new score and the next `fix`. Repeat while the score keeps rising; stop when it doesn't. Each round uses your image and scoring credits.
+
 ## Protocol and security
 
 - Streamable HTTP POST `/mcp`; JSON responses; stateless serverless transport, no persistent SSE connection required. GET/DELETE return 405 after authentication. OPTIONS supports preflight. Unauthenticated requests return a Bearer challenge with resource metadata.

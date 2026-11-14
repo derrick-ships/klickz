@@ -10,6 +10,7 @@ import {
 } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { soul } from "./soul.generated";
+import { fixPrompt } from "./fix-prompt";
 import { resolveAccess, type Scope } from "./oauth/core";
 import { appOrigin } from "./crypto";
 import { AppError, ownedPath } from "./validation";
@@ -459,7 +460,7 @@ export async function createMcpServer(token: string) {
     const overall = score.overall == null ? "incomplete" : String(score.overall);
     const weakest = score.priority || "unknown";
     const topFix = score.dimensions?.[weakest]?.fix || "none";
-    return `Score ${overall}. Weakest pillar: ${weakest}. Top fix: ${topFix}. Reviewer: ${result.reviewer}.`;
+    return `Score ${overall}. Weakest pillar: ${weakest}. Top fix: ${topFix}. Reviewer: ${result.reviewer}.${result.fix?.prompt ? `\n\nOne-click fix prompt:\n${result.fix.prompt}` : ""}`;
   }
   tool(
     "analyze_thumbnail",
@@ -508,7 +509,9 @@ export async function createMcpServer(token: string) {
           kind: plan.kind,
           ...(plan.reason ? { reason: plan.reason } : {}),
           ...(plan.token ? { token: plan.token } : {}),
+          prompt: analyzed.score ? fixPrompt(analyzed.score) : null,
         },
+        next: "To raise the score: paste fix.prompt into an image editor with the original, or call one_click_fix with fix.token (uses image credits) and rescore:true, then repeat analyze → fix until the score stops improving.",
         previewUrl: path ? await signed(path) : null,
       };
     },
@@ -529,7 +532,7 @@ export async function createMcpServer(token: string) {
           "Score this thumbnail with its current title first.",
         );
       return {
-        prompt: `Edit the attached original thumbnail for the video titled "${c.title}". Keep the same person, identity and truthful video promise. Preserve strong elements. Apply these visual improvements in order:\n${fixInstructions(c.score)}\nUse a clear focal point, readable short text only if useful, and strong mobile-feed hierarchy. Return the edited thumbnail. Do not claim guaranteed clicks or invent evidence.`,
+        prompt: fixPrompt(c.score) ?? "No concrete change is supported by this analysis. Keep the current thumbnail.",
         creationId,
       };
     },
@@ -573,12 +576,46 @@ export async function createMcpServer(token: string) {
   );
   tool(
     "one_click_fix",
-    "Apply the exact reviewed create_fix_plan token. One image request, original preserved, no automatic scoring. Model and quality are bound to the plan.",
-    { planToken: z.string().max(32000), requestId: z.string().uuid() },
+    "Apply the exact reviewed fix token from analyze_thumbnail or create_fix_plan. One image request, original preserved. Model and quality are bound to the plan. With rescore:true it then analyzes the new image (Jev + your vision reviewer) and returns before/after scores and the next fix, so you can repeat the loop.",
+    { planToken: z.string().max(32000), requestId: z.string().uuid(), rescore: z.boolean().default(false), rescoreRequestId: z.string().uuid().optional() },
     "studio:ai",
-    async ({ planToken, requestId }) => {
+    async ({ planToken, requestId, rescore, rescoreRequestId }) => {
       await allowed("studio:write");
       const plan = unseal<FixPlan>(planToken, "fix-plan");
+      if (rescore) {
+        const parent = await creation(plan.sourceId);
+        const generated = await backend(generate, {
+          parentId: plan.sourceId,
+          title: plan.title,
+          prompt: "Apply the reviewed packaging edits while preserving the original.",
+          mode: "fix",
+          settings: plan.settings,
+          fixPlanToken: planToken,
+          requestId,
+        });
+        const child = generated.creations?.[0];
+        if (!child) return generated;
+        const keys = await userKeys(db, user.id);
+        const critiqueProvider = pickVisionProvider(keys);
+        const analyzed = await backend(analyze, {
+          creationId: child.id,
+          title: plan.title,
+          includeVision: !!critiqueProvider,
+          ...(critiqueProvider ? { critiqueProvider } : {}),
+          requestId: rescoreRequestId || crypto.randomUUID(),
+        });
+        const next = await backend(makePlan, { creationId: child.id, settings: { ...plan.settings, batch: 1 } }) as { kind: string; reason?: string; token?: string };
+        const before = parent.score?.overall ?? null, after = analyzed.score?.overall ?? null;
+        return {
+          ...generated,
+          before,
+          after,
+          delta: before !== null && after !== null ? after - before : null,
+          score: analyzed.score,
+          fix: { kind: next.kind, ...(next.reason ? { reason: next.reason } : {}), ...(next.token ? { token: next.token } : {}), prompt: analyzed.score ? fixPrompt(analyzed.score) : null },
+          next: after !== null && before !== null && after <= before ? "The score did not improve. Keep the stronger version, or adjust the plan before another round." : "Repeat one_click_fix with fix.token and rescore:true while the score keeps rising.",
+        };
+      }
       return backend(generate, {
         parentId: plan.sourceId,
         title: plan.title,
