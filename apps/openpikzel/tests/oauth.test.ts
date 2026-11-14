@@ -296,9 +296,15 @@ describe("resource-bound MCP OAuth", () => {
   it("authenticates encryption, prevents token-purpose confusion and never lets tampering through", () => {
     const token = seal({ key: "private-placeholder" }, "provider:a:openai");
     expect(() => unseal(token, "oauth-access")).toThrow();
-    // Always change the last character so the tamper is never a no-op.
-    const last = token.at(-1)!;
-    const tampered = token.slice(0, -1) + (last === "A" ? "B" : "A");
+    // Flip the top bit of a middle ciphertext character. (The last character of a
+    // base64url segment carries unused padding bits, so changing it can decode to
+    // the same bytes, which made the old tamper a no-op in some runs.)
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const parts = token.split(".");
+    const at = Math.floor(parts[2].length / 2);
+    const flipped = alphabet[alphabet.indexOf(parts[2][at]) ^ 32];
+    parts[2] = parts[2].slice(0, at) + flipped + parts[2].slice(at + 1);
+    const tampered = parts.join(".");
     expect(tampered).not.toBe(token);
     expect(() => unseal(tampered, "provider:a:openai")).toThrow();
     expect(unseal(token, "provider:a:openai")).toEqual({
