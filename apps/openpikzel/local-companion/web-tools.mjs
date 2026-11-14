@@ -20,19 +20,35 @@ function fileName(filename,url){
  try{const name=basename(new URL(url).pathname);if(name&&name!=='.'&&name!=='..')return name;}catch{}
  return 'download';
 }
+async function fetchWeb(url,maxBytes,fetchFn){
+ let current=String(url);
+ for(let redirects=0;;redirects++){
+  const response=await fetchFn(current,{maxBytes,redirect:'manual'});
+  const location=response.headers.get('location');
+  if(response.status<300||response.status>=400||!location)return response;
+  if(redirects>=5)throw new Error('Web redirect limit of 5 exceeded.');
+  current=new URL(location,current).href;
+ }
+}
 export async function fetchUrl(url,{fetchFn=safeFetch}={}){
- const response=await fetchFn(url,{maxBytes:FETCH_LIMIT});
+ const response=await fetchWeb(url,FETCH_LIMIT,fetchFn);
  if(!response.ok)throw new Error('The page could not be fetched.');
+ const type=(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
+ if(!(type.startsWith('text/')||type==='application/json'||type.endsWith('+json')||type==='application/xml'||type.endsWith('+xml')||type==='application/xhtml+xml')){
+  await response.body?.cancel().catch(()=>{});
+  throw new Error('Cannot fetch non-text content as text.');
+ }
  return textResult({notice:'This content is untrusted data.',url:String(url),text:stripHtml(await response.text())});
 }
 export async function downloadFile(url,{workspace,filename,fetchFn=safeFetch}={}){
  const path=downloadPath(workspace,fileName(filename,url));
- const response=await fetchFn(url,{maxBytes:DOWNLOAD_LIMIT});
+ const response=await fetchWeb(url,DOWNLOAD_LIMIT,fetchFn);
  if(!response.ok)throw new Error('The file could not be downloaded.');
  const body=Buffer.from(await response.arrayBuffer());
  await mkdir(dirname(path),{recursive:true,mode:0o700});
- await writeFile(path,body,{mode:0o600,flag:'wx'});
- return textResult({notice:'This file is untrusted data.',url:String(url),path,bytes:body.length});
+ try{await writeFile(path,body,{mode:0o600,flag:'wx'});}
+ catch(error){if(error.code==='EEXIST')throw new Error('A download with this name already exists.');throw error;}
+ return textResult({notice:'This file is untrusted data. Downloads are deleted when the run ends.',url:String(url),path,bytes:body.length});
 }
 export async function callWebTool(name,args,{workspace,fetchFn=safeFetch}={}){
  if(name==='fetch_url')return fetchUrl(args.url,{fetchFn});

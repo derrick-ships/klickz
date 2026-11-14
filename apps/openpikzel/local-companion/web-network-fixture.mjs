@@ -2,12 +2,14 @@ import {registerHooks} from 'node:module';
 import {Readable,Writable} from 'node:stream';
 
 const queue=[],captured=[];
+let socketHost;
 
 export function mockResponse({status=200,headers={'content-type':'text/html; charset=utf-8'},body=Buffer.alloc(0)}={}){
  queue.push({status,headers,body:Buffer.isBuffer(body)?body:Buffer.from(body)});
 }
 export function mockRequests(){return captured;}
-export function resetNetwork(){queue.length=0;captured.length=0;}
+export function resetNetwork(){queue.length=0;captured.length=0;socketHost=undefined;}
+export function resolveSocketAs(host){socketHost=host;}
 
 function fakeRequest(url,options,cb){
  if(typeof options==='function'){cb=options;options=typeof url==='object'&&url&&!Array.isArray(url)?url:{};}
@@ -18,6 +20,7 @@ function fakeRequest(url,options,cb){
   write(c,e,d){d();},
   final(d){
    d();
+   if(socketHost){options.lookup(socketHost,{},error=>{if(error)req.emit('error',error);});return;}
    const response=Readable.from([queued.body]);
    response.statusCode=queued.status;
    response.headers=queued.headers;
@@ -37,5 +40,5 @@ export function installNetworkFixture(){
   }
  });
  globalThis.__openpikzelsFakeHttpsRequest=fakeRequest;
- return {mockResponse,mockRequests,resetNetwork};
+ return {mockResponse,mockRequests,resetNetwork,resolveSocketAs};
 }
