@@ -76,6 +76,7 @@ import {ChatHistory,ChatTitle,ChatTimeline} from "@/components/creative/chat";
 import { readDraftCheckpoint, writeDraftCheckpoint } from "@/lib/draft-checkpoint";
 import type {Conversation,WorkspaceDraft} from "@/lib/workspaces";
 import { useStudio } from "@/lib/use-studio";
+import { DialogOverflowCue } from "@/components/dialog-overflow-cue";
 import {
   defaultSettings,
   pillars,
@@ -2175,6 +2176,7 @@ export default function Studio() {
             </p>
           )}
         </div>
+        <DialogOverflowCue dialog={dialogRef} open={!!dialog} />
       </dialog>
     </div>
   );

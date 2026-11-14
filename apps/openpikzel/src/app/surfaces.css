@@ -375,3 +375,23 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 .provider-key-guide li + li { margin-top: 8px; }
 .provider-key-guide a { display: inline-block; min-height: 44px; padding-block: 10px; color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; font-size: 14px; line-height: 1.6; }
 .provider-key-guide summary:focus-visible, .provider-key-guide a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; border-radius: 4px; }
+
+/* #29: visible cue while dialog content continues below the fold. */
+.dialog-overflow-cue {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 28px 0 10px;
+  margin-top: -38px;
+  pointer-events: none;
+  background: linear-gradient(transparent, var(--color-modal-base) 70%);
+  z-index: 13;
+}
+.dialog-overflow-cue span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
