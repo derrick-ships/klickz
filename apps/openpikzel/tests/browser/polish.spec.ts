@@ -2,23 +2,23 @@ import { test, expect } from "@playwright/test";
 test("mode tabs support roving keyboard navigation and visible focus", async ({ page }) => {
   await page.goto("/?mode=generate");
   await expect(page.getByLabel("Loading creative chat")).toHaveCount(0);
-  const prompt = page.getByRole("tab", { name: "Prompt", exact: true });
+  const prompt = page.getByRole("tab", { name: "Create", exact: true });
   await expect(prompt).toHaveAttribute("aria-selected", "true");
   await expect(prompt).toBeEnabled();
   await prompt.focus();
   await page.keyboard.press("ArrowRight");
-  const analyze = page.getByRole("tab", { name: "Analyze", exact: true });
+  const analyze = page.getByRole("tab", { name: "Score", exact: true });
   await expect(analyze).toBeFocused();
   await expect(analyze).toHaveAttribute("aria-selected", "true");
   await expect(prompt).toHaveAttribute("tabindex", "-1");
   expect(await analyze.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe("none");
   await page.keyboard.press("End");
-  await expect(page.getByRole("tab", { name: "Title", exact: true })).toBeFocused();
-  await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("tab", { name: "Recreate", exact: true })).toBeFocused();
-  await page.keyboard.press("Home");
+  await expect(page.getByRole("tab", { name: "Titles", exact: true })).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(prompt).toBeFocused();
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByRole("tab", { name: "Remix", exact: true })).toBeFocused();
 });
 test("a mode tab chosen during load survives hydration", async ({ page }) => {
   let release!: () => void;
@@ -29,7 +29,7 @@ test("a mode tab chosen during load survives hydration", async ({ page }) => {
     await route.fulfill({ response });
   });
   await page.goto("/?mode=generate");
-  const analyze = page.getByRole("tab", { name: "Analyze", exact: true });
+  const analyze = page.getByRole("tab", { name: "Score", exact: true });
   await expect(analyze).toBeVisible();
   await expect(analyze).toBeEnabled();
   await analyze.click();

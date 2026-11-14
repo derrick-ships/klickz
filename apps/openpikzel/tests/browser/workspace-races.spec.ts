@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
+import { openMoreOptions } from "./helpers/more-options";
 import sharp from 'sharp';
 const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222',chatA='33333333-3333-4333-8333-333333333333',chatB='44444444-4444-4444-8444-444444444444';
 function session(id:string){return {access_token:'header.'+Buffer.from(JSON.stringify({sub:id,exp:4102444800})).toString('base64url')+'.signature',refresh_token:'fixture-only-refresh',expires_at:4102444800,expires_in:3600,token_type:'bearer',user:{id,aud:'authenticated',role:'authenticated',email:id===A?'a@example.test':'b@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:'2026-11-08T00:00:00Z'}};}
@@ -112,7 +113,7 @@ async function switchAccount(page:Page,id:string){
 for(const returnToA of [false,true])test('stale title response cannot enter '+(returnToA?'a new session of account A':'account B'),async({page})=>{
  await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('**/api/titles',async r=>{entered();await hold;await r.fulfill({json:{titles:['PRIVATE STALE TITLE']}});});
- await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('tab',{name:'Title',exact:true}).click();await page.getByRole('button',{name:'Title ideas',exact:true}).click();await page.getByRole('button',{name:'Generate titles',exact:true}).click();await waiting;
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('tab',{name:'Titles',exact:true}).click();await page.getByRole('button',{name:'Title ideas',exact:true}).click();await page.getByRole('button',{name:'Generate titles',exact:true}).click();await waiting;
  await switchAccount(page,B);if(returnToA)await switchAccount(page,A);release();
  await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByText('PRIVATE STALE TITLE',{exact:true})).toHaveCount(0);
 });
@@ -159,12 +160,12 @@ test('ready actions describe each task and generated labels never become video t
  await page.route('**/api/generate',async route=>{generated=route.request().postDataJSON();const item={...f.creations[0],id:'66666666-6666-4666-8666-666666666666',title:generated.prompt.slice(0,80)};f.creations.unshift(item);await route.fulfill({json:{creations:[item],partial:false}});});
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
  await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
- await page.getByRole('tab',{name:'Recreate',exact:true}).click();await expect(page.getByRole('button',{name:'Create variation',exact:true})).toBeVisible();
+ await page.getByRole('tab',{name:'Remix',exact:true}).click();await expect(page.getByRole('button',{name:'Create variation',exact:true})).toBeVisible();
  await page.getByRole('tab',{name:'Edit',exact:true}).click();await expect(page.getByRole('button',{name:'Apply AI edit',exact:true})).toBeVisible();
- await page.getByRole('tab',{name:'Title',exact:true}).click();await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
+ await page.getByRole('tab',{name:'Titles',exact:true}).click();await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Title ideas',exact:true}).click();await expect(page.getByRole('button',{name:'Generate titles',exact:true})).toBeVisible();
  await page.route('**/api/analyze',r=>r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}}));
- await page.getByRole('tab',{name:'Prompt',exact:true}).click();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
+ await page.getByRole('tab',{name:'Create',exact:true}).click();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Your thumbnail.',exact:true})).toBeVisible();
  expect(generated.title).toBe('');
  await expect(page.getByRole('button',{name:'Retry score',exact:true})).toBeVisible();
@@ -174,8 +175,8 @@ test('blank title mode stops before dispatch and preserves entered title after r
  await setup(page);let paid=0;
  await page.route('**/api/generate',async r=>{paid++;await r.fulfill({status:409,json:{error:'Fixture stops before provider dispatch'}});});
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('');
- await page.getByRole('tab',{name:'Title',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('');
- await expect(page.locator('#request-readiness')).toContainText('Add a video title or direction before generating.');
+ await page.getByRole('tab',{name:'Titles',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('');
+ await expect(page.locator('.request-ready')).toContainText('Add a video title or direction before generating.');
  await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:'Add a video title or direction before generating.'})).toBeVisible();expect(paid).toBe(0);
  await page.getByLabel('Video title',{exact:true}).fill('Seven days rebuilding my studio');await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
  await expect.poll(()=>paid).toBe(1);await expect(page.getByLabel('Video title',{exact:true})).toHaveValue('Seven days rebuilding my studio');
@@ -211,7 +212,7 @@ test('analysis scanner waits for a saved result and includes explicitly requeste
  });
  await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();
  await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
- await page.getByLabel('YouTube video link (optional)',{exact:true}).fill('https://youtu.be/abcdefghijk');await page.getByLabel('Add image-specific review to analysis (one extra provider request)',{exact:true}).check();
+ await openMoreOptions(page);await page.getByLabel('YouTube video link (optional)',{exact:true}).fill('https://youtu.be/abcdefghijk');await page.getByLabel('Add image-specific review to analysis (one extra provider request)',{exact:true}).check();
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  const scanner=page.getByRole('region',{name:'Thumbnail analysis activity'});
  await expect(scanner).toHaveAttribute('data-phase','running');
@@ -346,7 +347,7 @@ test('prompt enhancement is reviewed, reversible, and never generates an image',
  await page.route('**/api/creative',r=>{expect(r.request().postDataJSON().task).toBe('enhance');return r.fulfill({json:{model:'gpt-5.4-nano',value:{prompt:'A factual studio portrait, one clear subject and a readable headline.',changes:['Clarified composition']}}});});
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
  const composer=page.getByLabel('Describe your thumbnail',{exact:true}),before=await composer.inputValue();
- await page.getByRole('button',{name:'Enhance prompt',exact:true}).click();await expect(page.getByRole('region',{name:'Prompt enhancement'})).toBeVisible();await expect(composer).toHaveValue(before);
+ await openMoreOptions(page);await page.getByRole('button',{name:'Improve my description',exact:true}).click();await expect(page.getByRole('region',{name:'Prompt enhancement'})).toBeVisible();await expect(composer).toHaveValue(before);
  await page.getByRole('button',{name:'Apply enhancement',exact:true}).click();await expect(composer).toHaveValue('A factual studio portrait, one clear subject and a readable headline.');
  await page.getByRole('button',{name:'Undo direction change',exact:true}).click();await expect(composer).toHaveValue(before);expect(images).toBe(0);
 });
@@ -354,8 +355,8 @@ test('prompt enhancement is reviewed, reversible, and never generates an image',
 test('late prompt enhancement cannot replace newer user text and failed retries keep request ID',async({page})=>{
  await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);const ids:string[]=[];
  await page.route('**/api/creative',async r=>{ids.push(r.request().postDataJSON().requestId);if(ids.length===1)return r.fulfill({status:502,json:{error:'Fixture temporary text failure'}});await hold;return r.fulfill({json:{model:'fixture',value:{prompt:'A proposed clear portrait with warm light.',changes:[]}}});});
- await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'Enhance prompt',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:'Fixture temporary text failure'})).toBeVisible();
- await page.getByRole('button',{name:'Enhance prompt',exact:true}).click();await expect.poll(()=>ids.length).toBe(2);expect(ids[0]).toBe(ids[1]);
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await openMoreOptions(page);await page.getByRole('button',{name:'Improve my description',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:'Fixture temporary text failure'})).toBeVisible();
+ await openMoreOptions(page);await page.getByRole('button',{name:'Improve my description',exact:true}).click();await expect.poll(()=>ids.length).toBe(2);expect(ids[0]).toBe(ids[1]);
  const input=page.getByLabel('Describe your thumbnail',{exact:true});await input.fill('A newer unsent direction must survive this response');release();await expect(page.getByRole('button',{name:'Apply enhancement',exact:true})).toBeDisabled();await expect(input).toHaveValue('A newer unsent direction must survive this response');
 });
 
@@ -419,9 +420,9 @@ test('text and image review providers require explicit selection and survive rel
  await page.route('**/api/creative',r=>{calls++;expect(r.request().postDataJSON().provider).toBe('google');return r.fulfill({json:{model:'Google fixture',value:{prompt:'A revised factual thumbnail direction',changes:[]}}});});
  await page.route('**/api/titles',r=>{calls++;expect(r.request().postDataJSON().provider).toBe('google');return r.fulfill({json:{titles:['One','Two','Three','Four','Five']}});});
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
- const provider=page.getByLabel('Text and review provider',{exact:true});await expect(provider).toHaveValue('openai');await expect(page.getByRole('button',{name:'Enhance prompt',exact:true})).toBeDisabled();expect(calls).toBe(0);
- await provider.selectOption('google');await page.getByRole('button',{name:'Enhance prompt',exact:true}).click();await expect(page.getByRole('region',{name:'Prompt enhancement'})).toBeVisible();
- await page.getByRole('tab',{name:'Title',exact:true}).click();await page.getByRole('button',{name:'Title ideas',exact:true}).click();await page.getByRole('button',{name:'Generate titles',exact:true}).click();await expect.poll(()=>calls).toBe(2);
+ await openMoreOptions(page);const provider=page.getByLabel('Text and review provider',{exact:true});await expect(provider).toHaveValue('openai');await expect(page.getByRole('button',{name:'Improve my description',exact:true})).toBeDisabled();expect(calls).toBe(0);
+ await provider.selectOption('google');await openMoreOptions(page);await page.getByRole('button',{name:'Improve my description',exact:true}).click();await expect(page.getByRole('region',{name:'Prompt enhancement'})).toBeVisible();
+ await page.getByRole('tab',{name:'Titles',exact:true}).click();await page.getByRole('button',{name:'Title ideas',exact:true}).click();await page.getByRole('button',{name:'Generate titles',exact:true}).click();await expect.poll(()=>calls).toBe(2);
  await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByLabel('Text and review provider',{exact:true})).toHaveValue('google');
 });
 
@@ -455,7 +456,7 @@ test('native ratio warnings keep the full saved result and preserve the chosen s
 test('chat reference images require opt-in and late proposals cannot replace a newer direction',async({page})=>{
  await setup(page);let release!:()=>void;const hold=new Promise<void>(r=>release=r);let calls=0;
  await page.route('**/api/creative',async r=>{calls++;const input=r.request().postDataJSON();expect(input.includeReferences).toBe(true);expect(input.referencePaths).toContain(A+'/image.png');await hold;return r.fulfill({json:{model:'fixture',value:{reply:'A reply for the earlier direction',proposal:{kind:'edit',prompt:'An earlier edit direction',title:''}}}});});
- await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('button',{name:'Choose references from library',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Account A image',exact:true}).click();
+ await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await openMoreOptions(page);await page.getByRole('button',{name:'Choose references from library',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Account A image',exact:true}).click();
  await page.locator('.creative-conversation summary').click();const optIn=page.getByRole("checkbox",{name:/Include the first two selected reference/});await expect(optIn).not.toBeChecked();await optIn.check();await page.getByLabel('Message your creative partner').fill('How should this selected image change?');await page.getByRole('button',{name:'Send message',exact:true}).click();await expect.poll(()=>calls).toBe(1);const prompt=page.getByLabel('Describe your thumbnail',{exact:true});await prompt.fill('A newer unsent direction must be preserved');release();await expect(page.getByRole('log',{name:'Creative conversation'})).toContainText('A reply for the earlier direction');await expect(page.getByRole('button',{name:'Review in composer',exact:true})).toBeDisabled();await expect(prompt).toHaveValue('A newer unsent direction must be preserved');
 });
 

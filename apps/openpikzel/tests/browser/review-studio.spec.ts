@@ -40,7 +40,7 @@ test("review puts the real image first, with a neighboring inspector and an actu
   await expect(page.getByRole("button", { name: "Hide prompt and settings" })).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "Hide prompt and settings" }).click();
   await expect(page.getByLabel("Video title", { exact: true })).toBeHidden();
-  await page.getByRole("tab", { name: "Prompt", exact: true }).click();
+  await page.getByRole("tab", { name: "Create", exact: true }).click();
   await expect(page.getByLabel("Describe your thumbnail", { exact: true })).toBeVisible();
   expect(paid).toEqual([]);
 });
@@ -77,7 +77,7 @@ test("topmost dialog owns Escape and keyboard presses keep a static control foot
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).not.toBeVisible(); await expect(personas).toBeFocused();
     if (width <= 1024) { await page.keyboard.press("Escape"); await expect(page.getByRole("button", { name: "Open sidebar", exact: true })).toBeFocused(); }
-    const controls = page.getByRole("button", { name: "Generation settings", exact: true }); await controls.focus();
+    const controls = page.locator("details.more-options:not(.request-readiness) > summary").first(); await controls.focus();
     const before = await controls.boundingBox(); await page.keyboard.down("Space");
     expect(await controls.evaluate(el => getComputedStyle(el).transform)).toBe("none");
     expect(await controls.boundingBox()).toEqual(before); await page.keyboard.up("Space");

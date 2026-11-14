@@ -106,11 +106,11 @@ type Dialog =
   | "login"
   | null;
 const modes = [
-  { id: "recreate", label: "Recreate", icon: RefreshCw },
-  { id: "generate", label: "Prompt", icon: ImagePlus },
-  { id: "analyze", label: "Analyze", icon: ChartNoAxesCombined },
+  { id: "generate", label: "Create", icon: ImagePlus },
+  { id: "analyze", label: "Score", icon: ChartNoAxesCombined },
   { id: "edit", label: "Edit", icon: WandSparkles },
-  { id: "title", label: "Title", icon: Type },
+  { id: "recreate", label: "Remix", icon: RefreshCw },
+  { id: "title", label: "Titles", icon: Type },
 ] as const;
 const names: Record<Pillar, string> = {
   virality: "Virality",
@@ -1244,16 +1244,7 @@ export default function Studio() {
           {studio.creations.filter(c=>!c.conversation_id).slice(0,8).map(item=><button key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.images[item.image_path]} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
         <div className="sidebar-bottom">
-          <div className="workspace-account">
-            <span className="avatar">O</span>
-            <div>
-              <strong>Your workspace</strong>
-              <small>
-                {studio.cloud ? "Private cloud library" : "Local library"}
-              </small>
-            </div>
 
-          </div>
           <div className="profile-shortcuts">
             <button onClick={(event) => { event.currentTarget.focus({preventScroll:true}); openProfiles("personas"); }}>
               <Users size={16} />
@@ -1264,7 +1255,7 @@ export default function Studio() {
               Styles
             </button>
           </div>
-          <p className="sidebar-workspace-status">{studio.cloud ? "Workspace signed in" : "Drafts saved on this device"}</p>
+          <p className="sidebar-workspace-status">{studio.cloud ? "Signed in · saved to your account" : "Saved on this device"}</p>
         </div>
       </aside>
       <div className="workspace-main" inert={compactNavigation && sidebar}>
@@ -1282,11 +1273,7 @@ export default function Studio() {
                 <PanelLeft size={18} />
               </button>
             )}
-            <span className="workspace-name">
-              {sidebar ? "Personal studio" : "OpenPikzels"}
-            </span>
-            <span className="topbar-divider" />
-            <span className="topbar-caption">Your next great thumbnail.</span>
+            {!sidebar && <span className="workspace-name">OpenPikzels</span>}
           </div>
           <div className="topbar-actions">
             <button
@@ -1339,8 +1326,6 @@ export default function Studio() {
           {tab === "studio" ? (
             <>
               {hasReviewImage && resultPanel}
-              {hydratedWorkspace===(studio.user||"local")&&!studio.loading&&<CreativeConversation key={(studio.user||"local")+":"+workspaceEpoch.current} contextKey={JSON.stringify({prompt,title,tool,format:settings.format,personaId,styleId,refs,videoUrl})} hasReferenceSelections={refs.length>0||!!personaId||!!styleId} selectionSummary={(personaId?"Selected persona brief. ":"")+(styleId?"Selected style brief. ":"")+refs.length+" direct references selected. "+(videoUrl?"Video link only; its content has not been watched.":"")} value={creativeDraft} onChange={setCreativeDraft} config={studio.config} call={callCreative} sourceId={selected?.image_path?selection:null} sourceTitle={selected?.title||""} disabled={busy} onProposal={(proposal,source)=>{if(source!==(selected?.image_path?selection:null))return;if(proposal.kind!=="generate"&&!selected?.image_path){studio.setError("Choose a thumbnail before preparing this action.");return;}applyDirection(proposal.prompt,proposal.title||title,proposal.kind==="analyze"?"analyze":proposal.kind==="edit"?"edit":"generate");}}/>}
-              {(hydratedWorkspace!==(studio.user||"local")||studio.loading)&&<details className="creative-conversation" inert aria-busy="true" aria-label="Loading creative chat"><summary>Creative chat <span>Brainstorm, refine, then create.</span></summary></details>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} arrivalOf={arrivals.arrival}/>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
@@ -1349,13 +1334,15 @@ export default function Studio() {
               >
                 <div className="workbench-heading">
                   <ComposerHeading>
-                    {hasReviewImage ? "Creation controls" : tool === "analyze"
-                      ? "What’s holding it back?"
+                    {hasReviewImage ? "Make another" : tool === "analyze"
+                      ? "Score your thumbnail"
                       : tool === "edit"
-                        ? "Make it exactly right."
-                        : tool === "title"
-                          ? "Start with a great title."
-                          : "What will you create?"}
+                        ? "Change your thumbnail"
+                        : tool === "recreate"
+                          ? "Remix a thumbnail"
+                          : tool === "title"
+                            ? "Find a great title"
+                            : "What will you create?"}
                   </ComposerHeading>
                   <div
                     className="mode-tabs"
@@ -1515,16 +1502,17 @@ export default function Studio() {
                         />
                       </div>
                     )}
-                    {tool==="analyze"&&providerControls}
                     {tool === "analyze" && (
                       <div className="diagnostic-context">
-                        <p id="video-title-guidance">Use the title viewers will see, or add a YouTube video link to retrieve it. No written summary is required.</p>
+                        <p id="video-title-guidance">Add the title viewers will see. No written summary is required.</p>
+                        <details className="more-options"><summary>More options</summary>
                         <label htmlFor="analysis-video-url">YouTube video link (optional)</label>
                         <input id="analysis-video-url" type="url" maxLength={500} value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
-                        <p>A connected YouTube API key can retrieve the public title and description. This does not watch the video or verify its contents.</p>
+                        <p>Reads the video’s public title and description with your YouTube key. It does not watch the video.</p>
+                        {providerControls}
                         <p className="analysis-provider-note">{analysisReviewer ? "Jev scoring + "+analysisReviewer+" image review. Uses two provider requests." : "Jev scoring. Connect a Claude, OpenAI, or Google API key for image-specific guidance."}</p>
-                        <small>ChatGPT and Claude plan connections do not currently provide image analysis here.</small>
-                        <p>All five pillars assess the visible thumbnail and its stated promise. Missing title or provider evidence is marked “Not assessed”; no scores are invented.</p>
+                        <p>Anything the evidence can’t support is marked “Not assessed”; no scores are invented.</p>
+                        </details>
                         {analysisScan && <AnalysisScanner key={analysisScan.id} src={analysisScan.src} phase={analysisScan.phase} reviewer={analysisScan.reviewer}/>}
                       </div>
                     )}
@@ -1567,10 +1555,7 @@ export default function Studio() {
                         {generateAction}
                           </div>
                         </div>
-                        {providerControls}
-                        <PromptEnhancer provider={textProvider} key={(studio.user||"local")+":"+workspaceEpoch.current} prompt={prompt} title={title} mode={tool} format={settings.format} config={studio.config} call={callCreative} disabled={busy} onApply={(before,after)=>{if(prompt===before)applyDirection(after);}}/>
                         {directionUndo&&<div className="direction-undo" role="status"><span>Direction updated. Review it before generating.</span><button className="neutral-button" disabled={prompt!==directionUndo.after} onClick={()=>{setPrompt(directionUndo.before.prompt);setTitle(directionUndo.before.title);setTool(directionUndo.before.tool);setDirectionUndo(null);}}>Undo direction change</button>{prompt!==directionUndo.after&&<small>Your newer edits are preserved; undo is unavailable.</small>}</div>}
-                        <div className="public-style-chips" role="group" aria-label="Quick styles">{publicStyles.map(style=><button type="button" className="tool-chip" key={style.name} aria-label={style.name+" style"} aria-pressed={!styleId&&preset===style.name} onClick={()=>{setPreset(style.name);setStyleId("");}}>{style.name}</button>)}</div>
                         <div className="reference-strip">
                           {refs.map((path, i) => (
                             <div className="reference-thumb" key={path}>
@@ -1618,24 +1603,31 @@ export default function Studio() {
                             onClick={() => uploadRef.current?.click()}
                           >
                             <ImagePlus size={15} />
-                            Add references
+                            Add image
                             {refs.length > 0 && <span>{refs.length}/6</span>}
                           </button>
-                          <button
-                            className="tool-chip"
-                            aria-label="Import references from link"
-                            onClick={() => setLinkOpen((x) => !x)}
-                          >
-                            <Link2 size={15} />Link
-                          </button>
-                          <button
-                            className="tool-chip"
-                            aria-label="Choose references from library"
-                            onClick={() => setDialog("references")}
-                          >
-                            <Images size={15} />Library
-                          </button>
+
                           </div>}
+                          <div className="composer-tool-group format-choice"><label className="tool-chip format-chip">
+                            {settings.format === "long" ? (
+                              <RectangleHorizontal size={14} />
+                            ) : (
+                              <RectangleVertical size={14} />
+                            )}
+                            <select
+                              aria-label="Format"
+                              value={settings.format}
+                              onChange={(e) =>
+                                changeSettings(
+                                  "format",
+                                  e.target.value as Settings["format"],
+                                )
+                              }
+                            >
+                              <option value="long">Long-form 16:9</option>
+                              <option value="short">Short-form 9:16</option>
+                            </select>
+                          </label></div>
                         </div>
                         {linkOpen && !["recreate", "edit"].includes(tool) && (
                           <div className="link-input">
@@ -1656,9 +1648,7 @@ export default function Studio() {
                       </>
                     )}
                     {tool === "analyze" ? (
-                      <p className="analysis-helper">
-                        A title supports all five visible packaging pillars. Unavailable evidence stays unassessed.
-                      </p>
+                      null
                     ) : (
                       <>
                         {settings.model.startsWith("gemini-") && (
@@ -1667,43 +1657,29 @@ export default function Studio() {
                             planning effort controls apply to Sunburst and Flare.
                           </p>
                         )}
-                        <div className="settings-row">
-                          <ModelTrigger label="Rendering model" model={settings.model} expanded={dialog==="models"} onOpen={()=>setDialog("models")}/>
-                          <label>
-                            {settings.format === "long" ? (
-                              <RectangleHorizontal size={14} />
-                            ) : (
-                              <RectangleVertical size={14} />
-                            )}
-                            <select
-                              aria-label="Format"
-                              value={settings.format}
-                              onChange={(e) =>
-                                changeSettings(
-                                  "format",
-                                  e.target.value as Settings["format"],
-                                )
-                              }
-                            >
-                              <option value="long">Long-form 16:9</option>
-                              <option value="short">Short-form 9:16</option>
-                            </select>
-                          </label>
+                        <details className="more-options" open={advanced} onToggle={e=>setAdvanced((e.currentTarget as HTMLDetailsElement).open)}><summary>More options</summary>
+                          <div className="more-options-body">
+                            <section className="option-group" aria-label="Look"><h3>Look</h3><div className="public-style-chips" role="group" aria-label="Quick styles">{publicStyles.map(style=><button type="button" className="tool-chip" key={style.name} aria-label={style.name+" style"} aria-pressed={!styleId&&preset===style.name} onClick={()=>{setPreset(style.name);setStyleId("");}}>{style.name}</button>)}</div></section>
+                            <section className="option-group" aria-label="Your description"><h3>Your description</h3><PromptEnhancer provider={textProvider} key={(studio.user||"local")+":"+workspaceEpoch.current} prompt={prompt} title={title} mode={tool} format={settings.format} config={studio.config} call={callCreative} disabled={busy} onApply={(before,after)=>{if(prompt===before)applyDirection(after);}}/></section>
+                            {!["recreate","edit","analyze"].includes(tool)&&<section className="option-group" aria-label="More image sources"><h3>More image sources</h3><div className="composer-tool-group" role="group" aria-label="More image sources">
                           <button
-                            className={
-                              advanced
-                                ? "advanced-button active"
-                                : "advanced-button"
-                            }
-                            onClick={() => setAdvanced((x) => !x)}
-                            aria-expanded={advanced}
+                            className="tool-chip"
+                            aria-label="Import references from link"
+                            onClick={() => setLinkOpen((x) => !x)}
                           >
-                            <SlidersHorizontal size={14} />
-                            Generation settings
+                            <Link2 size={15} />Link
                           </button>
-                        </div>
-                        {advanced && (
-                          <div className="advanced-controls">
+                          <button
+                            className="tool-chip"
+                            aria-label="Choose references from library"
+                            onClick={() => setDialog("references")}
+                          >
+                            <Images size={15} />Library
+                          </button>
+                            </div></section>}
+                            <section className="option-group" aria-label="AI model"><h3>AI model</h3><div className="settings-row">
+                              <ModelTrigger label="Rendering model" model={settings.model} expanded={dialog==="models"} onOpen={()=>setDialog("models")}/>
+                            </div>{providerControls}<div className="advanced-controls">
                             <label>
                               Quality
                               <select
@@ -1768,26 +1744,28 @@ export default function Studio() {
                               Quality controls image detail. Planning effort controls preparation.
                               Higher settings may take longer and cost more with your provider.
                             </p>
+                          </div></section>
                           </div>
-                        )}
+                        </details>
                       </>
                     )}
                   </fieldset>
-                  <div className="request-readiness" id="request-readiness" role="group" aria-label="Before you run">
+                  <details className="request-readiness more-options" id="request-readiness" role="group" aria-label="Before you run">
+                    <summary>Cost and what you need</summary>
                     <p className="request-identity">{readiness.identity}</p><p>{readiness.quantity}</p>
-                    <p className="request-ready" role="status">{readiness.readiness}</p>
                     <p className="request-key"><strong>{studio.cloud?"Your connected provider creates the image.":"Free drafts. Your own AI connection for generation."}</strong> Generating images requires an OpenPikzels account and your own OpenAI or Google API key. Provider usage is billed to that account; ChatGPT and Claude subscriptions alone do not enable studio generation.{!studio.cloud&&<> <a href="/connect#api">Sign in, then connect your API key</a></>}</p>
                     <p className="request-cost">{readiness.cost} {readiness.pricingSource&&<a href={readiness.pricingSource} target="_blank" rel="noreferrer">Provider pricing</a>}</p>{readiness.apiModel&&<details><summary>Provider details</summary><p>API model: {readiness.apiModel}</p></details>}
-                  </div>
+                  </details>
+                  <p className="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"?"":readiness.readiness}</p>
                   {tool==="analyze"&&generateAction}
                 </div>
                 <div className="composer-footer" hidden={!showComposer}>
                   <span>
                     {tool === "analyze"
-                      ? "Analysis and AI recomposition use your provider account."
+                      ? ""
                       : studio.cloud
-                        ? <>{chatSaveState || "Draft changes save to your workspace."}{" "}{studio.live ? "Generation uses your connected API credits." : readiness.action === "connect" ? "Connect an API key to generate." : "Check Connections before generating."}</>
-                        : "Your draft saves on this device. Sign in and connect an API key to generate."}
+                        ? (chatSaveState || "Your work saves to your account.")
+                        : "Your work saves on this device."}
                   </span>
                   {tool !== "analyze" && (
                     <div className="save-draft-feedback">
@@ -1820,6 +1798,8 @@ export default function Studio() {
                   }}
                 />
               </section>
+              {hydratedWorkspace===(studio.user||"local")&&!studio.loading&&<CreativeConversation key={(studio.user||"local")+":"+workspaceEpoch.current} contextKey={JSON.stringify({prompt,title,tool,format:settings.format,personaId,styleId,refs,videoUrl})} hasReferenceSelections={refs.length>0||!!personaId||!!styleId} selectionSummary={(personaId?"Selected persona brief. ":"")+(styleId?"Selected style brief. ":"")+refs.length+" direct references selected. "+(videoUrl?"Video link only; its content has not been watched.":"")} value={creativeDraft} onChange={setCreativeDraft} config={studio.config} call={callCreative} sourceId={selected?.image_path?selection:null} sourceTitle={selected?.title||""} disabled={busy} onProposal={(proposal,source)=>{if(source!==(selected?.image_path?selection:null))return;if(proposal.kind!=="generate"&&!selected?.image_path){studio.setError("Choose a thumbnail before preparing this action.");return;}applyDirection(proposal.prompt,proposal.title||title,proposal.kind==="analyze"?"analyze":proposal.kind==="edit"?"edit":"generate");}}/>}
+              {(hydratedWorkspace!==(studio.user||"local")||studio.loading)&&<details className="creative-conversation" inert aria-busy="true" aria-label="Loading creative chat"><summary>Creative chat <span>Brainstorm, refine, then create.</span></summary></details>}
               {titles.length > 0 && (
                 <section className="title-results result-section">
                   <div className="section-heading">

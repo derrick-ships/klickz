@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openMoreOptions } from "./helpers/more-options";
 import sharp from "sharp";
 
 test("compact navigation protects the workbench and returns keyboard focus", async ({ page }) => {
@@ -53,7 +54,7 @@ test("composer groups, small-screen settings and long content reflow deliberatel
       expect(Math.max(...midpoints) - Math.min(...midpoints)).toBeLessThan(2);
     }
     if (width <= 760) expect((await references.boundingBox())!.y).toBeGreaterThan((await subject.boundingBox())!.y);
-    const model = page.getByLabel("Rendering model");
+    await openMoreOptions(page);const model = page.getByLabel("Rendering model");
     await model.click();await page.getByRole("button",{name:"Gemini Pro",exact:true}).click();
     await page.getByLabel("Describe your thumbnail", { exact: true }).fill("Una composición cinematográfica con un personaje consistente y referencias bien definidas. ".repeat(30));
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

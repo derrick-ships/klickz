@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openMoreOptions } from "./helpers/more-options";
 import sharp from "sharp";
 const photo = async () => ({
   name: "reference.png",
@@ -16,7 +17,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await expect(
     page.getByRole("heading", { name: "What will you create?" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Generation settings", exact: true }).click();
+  await page.locator('details.more-options:not(.request-readiness):not([open]) > summary').first().click().catch(()=>{});
   await page.getByLabel("Quality", { exact: true }).selectOption("xhigh");
   await page.getByLabel("Planning effort", { exact: true }).selectOption("high");
   await page.getByLabel("Images per request", { exact: true }).selectOption("4");
@@ -36,6 +37,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
     .first()
     .click();
   await expect(page.getByLabel("Images per request")).toHaveValue("1");
+  await openMoreOptions(page);
   await expect(page.getByRole("button",{name:/^Rendering model:/})).toHaveText("Sunburst 2.6");
   await expect(page.getByLabel("Format", { exact: true })).toHaveValue("short");
   await page.getByRole("button", { name: "Persona", exact: true }).click();
@@ -78,7 +80,7 @@ test("all five modes and truthful disabled-AI boundaries are present", async ({
   request,
 }) => {
   await page.goto("/?mode=generate");
-  for (const name of ["Recreate", "Prompt", "Analyze", "Edit", "Title"])
+  for (const name of ["Create", "Score", "Edit", "Remix", "Titles"])
     await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
   await page
     .getByLabel("Describe your thumbnail", { exact: true })
@@ -88,7 +90,7 @@ test("all five modes and truthful disabled-AI boundaries are present", async ({
     page.getByRole("dialog"),
   ).toContainText("Sign in");
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
-  await page.getByRole("tab", { name: "Analyze", exact: true }).click();
+  await page.getByRole("tab", { name: "Score", exact: true }).click();
   for (const name of ["Virality", "Clarity", "Idea", "Curiosity", "Emotion"])
     await expect(
       page.getByRole("heading", { name, exact: true }),
@@ -123,9 +125,8 @@ test("desktop and mobile editor fit their viewport", async ({ page }) => {
     ).toBe(true);
     if (width === 390) {
       for (const control of [
-        page.getByLabel("Rendering model"),
-        page.getByLabel("Format", { exact: true }),
-        page.getByRole("tab", { name: "Prompt", exact: true }),
+        page.locator(".format-chip"),
+        page.getByRole("tab", { name: "Create", exact: true }),
       ])
         expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(
           44,

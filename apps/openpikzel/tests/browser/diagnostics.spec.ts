@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openMoreOptions } from "./helpers/more-options";
 test("partial diagnostic fixtures expose missing evidence and cannot silently dispatch a paid fix", async ({
   page,
 }) => {
@@ -139,7 +140,8 @@ test("partial diagnostic fixtures expose missing evidence and cannot silently di
     await page.screenshot({ path: `evidence/clarify-ready-fix-${width}.png` });
   }
   await page.getByRole("button", { name: "Close dialog" }).click();
-  await page.getByRole("tab", { name: "Analyze", exact: true }).click();
+  await page.getByRole("tab", { name: "Score", exact: true }).click();
+  await openMoreOptions(page);
   await expect(
     page.getByLabel("YouTube video link (optional)"),
   ).toBeVisible();

@@ -21,7 +21,7 @@ test("workspace input stays blocked until hydration and retains work afterwards"
   release();
   await expect(page.getByLabel("Loading creative chat")).toHaveCount(0);
   await expect(page.getByRole("tab", { name: /edit/i })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: /prompt/i }).click();
+  await page.getByRole("tab", { name: /create/i }).click();
   await expect(prompt).toBeEnabled();
   await expect(upload).toBeEnabled();
   await prompt.fill("A surviving workspace draft");

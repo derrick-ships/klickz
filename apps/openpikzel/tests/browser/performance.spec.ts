@@ -28,7 +28,7 @@ test("controlled mobile lab budgets and immediate feedback @performance", async 
       return {script_bytes:size(".js"),css_bytes:size(".css"),image_bytes:resources.filter(r=>r.initiatorType==="img"||/\.(webp|png)$/.test(r.name)).reduce((n,r)=>n+r.encodedBodySize,0),total_bytes:nav.encodedBodySize+resources.reduce((n,r)=>n+r.encodedBodySize,0),third_party:resources.filter(r=>new URL(r.name).origin!==location.origin).length};
     });
     const feedback:number[]=[];
-    for(const name of ["Analyze","Edit","Prompt"]) {
+    for(const name of ["Score","Edit","Create"]) {
       await page.getByRole("tab",{name,exact:true}).evaluate(el=>el.addEventListener("click",()=>{
         const w=window as any,start=performance.now();
         requestAnimationFrame(()=>requestAnimationFrame(()=>{w.__feedback=performance.now()-start;}));

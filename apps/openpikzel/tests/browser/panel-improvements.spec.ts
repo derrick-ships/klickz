@@ -27,7 +27,7 @@ test("saved edit retains its original image and draft through reload",async({pag
  for(const width of [1440,1100,390,320]){
   await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});
   await expect(preview).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-  const controls=page.getByRole("button",{name: "Generation settings",exact:true});expect(parseFloat(await controls.evaluate(e=>getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(12);
+  const controls=page.locator("details.more-options:not(.request-readiness) > summary").first();expect(parseFloat(await controls.evaluate(e=>getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(12);
   await page.screenshot({path:"evidence/panel-after-edit-"+width+".png",fullPage:true});
  }
 });

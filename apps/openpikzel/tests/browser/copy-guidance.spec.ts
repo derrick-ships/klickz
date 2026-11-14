@@ -1,4 +1,5 @@
 import {test,expect} from "@playwright/test";
+import { openMoreOptions } from "./helpers/more-options";
 import {reviewFixture} from "./helpers/review-fixture";
 test.beforeEach(async({page})=>{
  await page.route("**/*",r=>(new URL(r.request().url()).hostname==="127.0.0.1"||/^(blob|data):/.test(r.request().url()))?r.continue():r.abort());
@@ -9,10 +10,10 @@ test("analysis setup preserves a real title and video link across modes and relo
  await page.getByRole("button",{name:"Set up analysis",exact:true}).click();
  const title=page.getByLabel("Video title",{exact:true}),brief=page.getByLabel("YouTube video link (optional)",{exact:true});
  await expect(title).toBeFocused();
- await title.fill("My actual video title, not the image brief");await brief.fill("https://www.youtube.com/watch?v=abcdefghijk");
- await page.getByRole("tab",{name:"Prompt",exact:true}).click();await page.getByRole("button",{name:"Set up analysis",exact:true}).click();
+ await openMoreOptions(page);await title.fill("My actual video title, not the image brief");await brief.fill("https://www.youtube.com/watch?v=abcdefghijk");
+ await page.getByRole("tab",{name:"Create",exact:true}).click();await page.getByRole("button",{name:"Set up analysis",exact:true}).click();
  await expect(title).toHaveValue("My actual video title, not the image brief");
- await expect(brief).toHaveValue("https://www.youtube.com/watch?v=abcdefghijk");
+ await openMoreOptions(page);await expect(brief).toHaveValue("https://www.youtube.com/watch?v=abcdefghijk");
  await expect(page.locator(".diagnostic-context")).toContainText("No written summary is required.");
  await page.reload();await page.getByRole("button",{name:"Set up analysis",exact:true}).click();
  await expect(title).toHaveValue("My actual video title, not the image brief");
@@ -25,7 +26,7 @@ test("analysis setup preserves a real title and video link across modes and relo
 test("prompt guidance and expanded settings fit desktop and narrow screens without losing a draft",async({page})=>{
  await page.goto("/studio");const prompt=page.getByLabel("Describe your thumbnail",{exact:true});
  await prompt.fill('A red studio desk with the words "SEVEN DAYS"');
- await page.getByRole("button",{name:"Generation settings",exact:true}).click();
+ await page.locator('details.more-options:not(.request-readiness):not([open]) > summary').first().click().catch(()=>{});
  await expect(page.getByLabel("Planning effort",{exact:true})).toHaveValue("medium");
  await page.getByLabel("Planning effort",{exact:true}).selectOption("high");
  for(const width of [1440,390,320]){
@@ -34,7 +35,7 @@ test("prompt guidance and expanded settings fit desktop and narrow screens witho
   await page.screenshot({path:"evidence/copy-settings-"+width+".png",fullPage:true});
  }
  await page.reload();await expect(prompt).toHaveValue('A red studio desk with the words "SEVEN DAYS"');
- await page.getByRole("button",{name:"Generation settings",exact:true}).click();await expect(page.getByLabel("Planning effort",{exact:true})).toHaveValue("high");
+ await page.locator('details.more-options:not(.request-readiness):not([open]) > summary').first().click().catch(()=>{});await expect(page.getByLabel("Planning effort",{exact:true})).toHaveValue("high");
 });
 
 test("clearing a filtered library recovers existing drafts without creating a chat",async({page})=>{
