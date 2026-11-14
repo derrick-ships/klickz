@@ -110,10 +110,10 @@ type Dialog =
 const modes = [
   { id: "generate", label: "Create", icon: ImagePlus },
   { id: "analyze", label: "Score", icon: ChartNoAxesCombined },
-  { id: "edit", label: "Edit", icon: WandSparkles },
-  { id: "recreate", label: "Remix", icon: RefreshCw },
-  { id: "title", label: "Titles", icon: Type },
 ] as const;
+// OpenPikzels does one loop: create a thumbnail, score it, fix it. Older links and drafts
+// that point at the retired Edit/Remix/Titles modes open Create instead.
+const visibleTool = (value: string | null | undefined): Tool => (value === "analyze" ? "analyze" : "generate");
 const names: Record<Pillar, string> = {
   virality: "Virality",
   clarity: "Clarity",
@@ -268,7 +268,7 @@ export default function Studio() {
   });
   useEffect(() => {
     const initial = new URL(location.href).searchParams.get("mode");
-    if (modes.some((m) => m.id === initial)) setTool(initial as Tool);
+    if (initial) setTool(visibleTool(initial));
   }, []);
   useEffect(() => {
     const media = matchMedia("(max-width: 1024px)");
@@ -384,11 +384,11 @@ export default function Studio() {
     const saved=localStorage.getItem("openpikzels.activeChat."+key),chat=studio.conversations.find(c=>c.id===saved),checkpoint=readDraftCheckpoint(localStorage,key);
     if(chat)activateChat(checkpoint?.chatId===chat.id&&checkpoint.savedAt>=(chat.draft.draftSavedAt||0)?{...chat,draft:checkpoint.draft}:chat,false,userPickedTool.current);
     else if(checkpoint&&!checkpoint.chatId){
-      const d=checkpoint.draft;setPrompt(d.prompt||"");setTitle(d.title||"");if(!userPickedTool.current)setTool((d.tool||"generate") as Tool);setSettings({...defaultSettings,...d.settings});
+      const d=checkpoint.draft;setPrompt(d.prompt||"");setTitle(d.title||"");if(!userPickedTool.current)setTool(visibleTool(d.tool));setSettings({...defaultSettings,...d.settings});
       setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDirectionUndo(null);setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(typeof d.includeVision==="boolean"?d.includeVision:null);setTextProvider(d.textProvider||"openai");
     }
     const requested=new URL(location.href).searchParams.get("mode");
-    if(!userPickedTool.current&&modes.some(m=>m.id===requested))setTool(requested as Tool);
+    if(!userPickedTool.current&&requested)setTool(visibleTool(requested));
     setHydratedWorkspace(key);
   },[studio.loading,studio.user,studio.conversations]);
   const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,videoUrl,selection,parentId,titleAction,includeVision:visionChoice??undefined,textProvider,creativeDraft};
@@ -991,14 +991,7 @@ export default function Studio() {
                         <details className="result-more">
                           <summary className="neutral-button">More</summary>
                           <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
-                        <button
-                          className="menu-item"
-                          disabled={busy}
-                          onClick={() => openReviewEditor("edit")}
-                        >
-                          <Pencil size={15} />
-                          Edit
-                        </button>
+                        
                         <button
                           className="menu-item"
                           disabled={busy}
@@ -1023,7 +1016,7 @@ export default function Studio() {
                             ? "long-form"
                             : "short-form"}
                         </button>
-                            <button className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="menu-item" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="menu-item" disabled={busy} onClick={()=>{setRefs([selected.image_path!]);setTool("recreate");setComposerOpen(true);}}>Remix this thumbnail</button><button className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
+                            <button className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="menu-item" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
                             {studio.cloud&&selected.image_path&&<button className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}>Score history</button>}
                           </div>
                         </details>
@@ -1511,7 +1504,7 @@ export default function Studio() {
                                     ? "Drop a thumbnail to recreate"
                                     : "Drop your thumbnail here"}
                                 </span>
-                                <small>PNG, JPG or WebP, up to 5 MB</small>
+                                <small>Any photo or image file, up to 30 MB</small>
                               </>
                             )}
                           </button>
@@ -1617,6 +1610,12 @@ export default function Studio() {
                           {persona && <div className="selection-chip-group"><button className="selection-chip" onClick={()=>openProfiles("personas")} aria-label={"Change persona: "+persona.name}>{studio.images[persona.refs[0]]&&<img src={studio.images[persona.refs[0]]} alt=""/>}<span className="selection-name">{persona.name}</span></button><button className="selection-remove" aria-label={"Remove persona: "+persona.name} onClick={()=>{setPersonaId("");document.querySelector<HTMLButtonElement>('.composer-tool-group button')?.focus();}}><X size={14}/></button></div>}
                           {styleProfile && <div className="selection-chip-group"><button className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+styleProfile.name}><Palette size={13}/><span className="selection-name">{styleProfile.name}</span></button><button className="selection-remove" aria-label={"Remove style: "+styleProfile.name} onClick={()=>{setStyleId("");document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[1]?.focus();}}><X size={14}/></button></div>}
                         </div>
+                        {tool === "generate" && (
+                          <div className="field-block create-title">
+                            <label htmlFor="create-video-title">Video title <span>(optional, gives a complete score)</span></label>
+                            <input id="create-video-title" maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The title your audience will see" />
+                          </div>
+                        )}
                         <div className="prompt-tools">
                           <div className="composer-tool-group" role="group" aria-label="Subject and style">
                           <button
@@ -1828,7 +1827,7 @@ export default function Studio() {
                   aria-label="Upload thumbnail references"
                   disabled={!workspaceReady}
                   multiple
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/png,image/jpeg,image/webp,image/avif,image/heic,image/heif"
                   onChange={(e) => {
                     uploadFiles(e.target.files);
                     e.target.value = "";

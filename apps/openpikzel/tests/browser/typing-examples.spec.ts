@@ -26,7 +26,7 @@ test("examples stop on focus and on typing, and never show in other modes", asyn
   await prompt.blur();
   await expect(examples).toHaveCount(0);
   await prompt.fill("");
-  await page.getByRole("tab", { name: "Edit", exact: true }).click();
+  await page.getByRole("tab", { name: "Score", exact: true }).click();
   await expect(examples).toHaveCount(0);
 });
 

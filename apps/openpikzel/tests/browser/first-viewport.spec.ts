@@ -59,7 +59,7 @@ test("loading keeps a neutral disabled action with no cost claim",async({page})=
 });
 test("reduced motion and mode switches keep the action beside the prompt",async({page})=>{
  await page.emulateMedia({reducedMotion:"reduce"});await page.setViewportSize({width:390,height:844});await setup(page,{signedIn:false,openai:false});await page.goto("/studio?mode=generate");
- for(const mode of ["Remix","Edit","Titles","Create"]){await page.getByRole("tab",{name:mode,exact:true}).click();const prompt=page.locator("#thumbnail-prompt"),action=page.locator(".generate-split > .primary-button");const p=(await prompt.boundingBox())!,a=(await action.boundingBox())!;expect(a.y).toBeGreaterThan(p.y+p.height-1);expect(a.y-(p.y+p.height)).toBeLessThan(80);}
+ for(const mode of ["Create"]){await page.getByRole("tab",{name:"Score",exact:true}).click();await page.getByRole("tab",{name:mode,exact:true}).click();const prompt=page.locator("#thumbnail-prompt"),action=page.locator(".generate-split > .primary-button");const p=(await prompt.boundingBox())!,a=(await action.boundingBox())!;expect(a.y).toBeGreaterThan(p.y+p.height-1);expect(a.y-(p.y+p.height)).toBeLessThan(80);}
 });
 // Critiquito FIX: prompt validation sits under the field, never as a top banner.
 const allSizes=[{width:1440,height:900},{width:390,height:844},{width:320,height:640}];
@@ -84,7 +84,7 @@ for(const size of allSizes){
  });
  test("split button parts never touch at "+size.width+"x"+size.height,async({page})=>{
   await page.setViewportSize(size);await setup(page,{signedIn:false,openai:false});await page.goto("/studio?mode=generate");
-  for(const mode of ["Create","Remix","Edit","Titles"]){
+  for(const mode of ["Create"]){
    await page.getByRole("tab",{name:mode,exact:true}).click();
    const button=page.locator(".generate-split > .primary-button");await expect(button.locator(".generate-cost")).toBeVisible();
    const r=await page.evaluate(()=>{const q=(s:string)=>document.querySelector(s)!.getBoundingClientRect();const b=q(".generate-split > .primary-button"),l=q(".generate-split > .primary-button > span:not(.generate-cost)"),c=q(".generate-cost"),s=q(".generate-split .batch-select");return {b:{l:b.left,r:b.right,t:b.top,bo:b.bottom},l:{l:l.left,r:l.right,t:l.top,bo:l.bottom},c:{l:c.left,r:c.right,t:c.top,bo:c.bottom},s:{l:s.left,r:s.right}};});
@@ -98,10 +98,10 @@ for(const size of allSizes){
  });
 }
 test("non-validation errors keep the top banner",async({page})=>{
- await page.setViewportSize({width:1440,height:900});await setup(page,{signedIn:true,openai:true});await page.goto("/studio?mode=recreate");
- await page.locator("#thumbnail-prompt").fill("Swap the desk for a kitchen, keep the layout");
- await page.getByRole("button",{name:"Create variation",exact:true}).click();
- await expect(page.locator(".error-banner")).toContainText("Add a thumbnail reference to recreate.");
+ await page.setViewportSize({width:1440,height:900});await setup(page,{signedIn:true,openai:true});await page.route("**/api/generate",r=>r.fulfill({status:502,json:{error:"Fixture provider unavailable"}}));await page.goto("/studio?mode=generate");
+ await page.locator("#thumbnail-prompt").fill("A clear studio portrait with a bold headline");
+ await page.getByRole("button",{name:"Create thumbnail",exact:true}).click();
+ await expect(page.locator(".error-banner")).toContainText("Fixture provider unavailable");
  await expect(page.locator("#prompt-error")).toHaveCount(0);await expect(page.locator("#thumbnail-prompt")).not.toHaveAttribute("aria-invalid","true");
 });
 
@@ -132,9 +132,9 @@ test("a different text provider keeps its own connected status, because it is a 
 // Motion #2: the error banner arrives (opacity + 4px) instead of popping, and reduced motion keeps only a fade.
 for(const reduced of [false,true])test("error banner enters with a short settle"+(reduced?" (reduced motion: fade only)":""),async({page})=>{
  await page.setViewportSize({width:1440,height:900});await page.emulateMedia({reducedMotion:reduced?"reduce":"no-preference"});
- await setup(page,{signedIn:true,openai:true});await page.goto("/studio?mode=recreate");
- await page.locator("#thumbnail-prompt").fill("Swap the desk for a kitchen, keep the layout");
- await page.getByRole("button",{name:"Create variation",exact:true}).click();
+ await setup(page,{signedIn:true,openai:true});await page.route("**/api/generate",r=>r.fulfill({status:502,json:{error:"Fixture provider unavailable"}}));await page.goto("/studio?mode=generate");
+ await page.locator("#thumbnail-prompt").fill("A clear studio portrait with a bold headline");
+ await page.getByRole("button",{name:"Create thumbnail",exact:true}).click();
  const banner=page.locator(".error-banner");await expect(banner).toBeVisible();
  const css=await banner.evaluate(el=>{const c=getComputedStyle(el);return {prop:c.transitionProperty,dur:c.transitionDuration};});
  if(reduced){expect(css.prop).toBe("opacity");expect(css.dur).toBe("0.12s");}

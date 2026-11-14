@@ -23,7 +23,7 @@ test("LOOP provisional automated accessibility matrix",async({page})=>{
  await page.route("**/api/config",r=>r.fulfill({json:{cloud:true,ai:true,openai:false,google:false,jev:false,ownerGate:false,supabaseUrl:"https://test.supabase.co",supabaseKey:"sb_publishable_test",secureConnections:true,codexDevice:true}}));
  await page.goto("/connect");await expect(page.getByRole("heading",{name:"Sign in to OpenPikzels",exact:true})).toBeVisible();await scan("connection page signed out");
  await page.goto("/local-companion");await scan("local companion");
- await page.evaluate(()=>localStorage.clear());await reviewFixture(page,true);await scan("partial analysis");await openResultMore(page);await page.getByRole("region",{name:"Thumbnail review studio"}).getByRole("button",{name:"Edit",exact:true}).click();await scan("selected image edit");
+ await page.evaluate(()=>localStorage.clear());await reviewFixture(page,true);await scan("partial analysis");await openResultMore(page);await scan("image actions menu");
  await writeFile("evidence/loop-axe.json",JSON.stringify({method:"Automated axe WCAG A/AA checks on local fixtures; incomplete findings need manual review; not a screen-reader test.",reports},null,2));
  console.log(JSON.stringify(reports.map(r=>({state:r.state,width:r.width,violations:r.violations.map((v:any)=>v.id),incomplete:r.incomplete.length}))));
  expect(reports.flatMap(r=>r.violations.map((v:any)=>({state:r.state,width:r.width,...v})))).toEqual([]);

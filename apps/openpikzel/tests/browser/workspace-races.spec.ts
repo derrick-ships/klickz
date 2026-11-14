@@ -67,16 +67,6 @@ test('explicit save cannot overwrite newer edits already checkpointed during a s
  await expect(page.locator('.operation-progress')).toHaveCount(0);await page.reload();await expect(page.getByLabel('Describe your thumbnail',{exact:true})).toHaveValue('The newer edited concept must survive');
 });
 
-test('editing uses the newly selected library source and preserves the unsent brief',async({page})=>{
- const f=await setup(page),newSource={...f.creations[0],id:"99999999-9999-4999-8999-999999999999",title:"New selected source",image_path:A+"/replacement.png"};f.creations.push(newSource);
- let submitted:any=null;await page.route("**/api/generate",async route=>{submitted=route.request().postDataJSON();await route.fulfill({status:409,json:{error:"Fixture stopped before provider dispatch"}});});
- await page.goto("/");await openResultMore(page);await page.getByRole("region",{name:"Thumbnail review studio"}).getByRole("button",{name:"Edit",exact:true}).click();
- await page.getByLabel("What should change?",{exact:true}).fill("Preserve this direction when I change the source");
- await page.getByRole("button",{name:"Choose references from library",exact:true}).click();await page.getByRole("dialog").getByRole("button",{name:"New selected source"}).click();
- await expect(page.getByRole("img",{name:"Editing source: New selected source",exact:true})).toBeVisible();await expect(page.getByLabel("What should change?",{exact:true})).toHaveValue("Preserve this direction when I change the source");
- for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});const preview=page.getByRole("img",{name:"Editing source: New selected source",exact:true});await page.getByLabel("What should change?",{exact:true}).scrollIntoViewIfNeeded();await expect(preview).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);if(width===1440){const a=await preview.boundingBox(),b=await page.getByLabel("What should change?",{exact:true}).boundingBox();expect(a!.x+a!.width).toBeLessThan(b!.x);}else{await page.locator(".edit-source-preview summary").click();await expect(preview).toBeHidden();await page.locator(".edit-source-preview summary").click();await expect(preview).toBeVisible();}await page.screenshot({path:"evidence/audit-cloud-edit-"+width+".png"});}
- await page.getByRole("button",{name:"Apply AI edit",exact:true}).click();await expect.poll(()=>submitted?.parentId).toBe(newSource.id);expect(submitted.prompt).toBe("Preserve this direction when I change the source");expect(submitted.settings.model).toBe("flare");
-});
 
 test('typing while generation runs preserves new direction and offers a result without stealing focus',async({page})=>{
  const f=await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
@@ -110,13 +100,6 @@ async function switchAccount(page:Page,id:string){
  await page.evaluate(s=>{localStorage.setItem('sb-test-auth-token',JSON.stringify(s));const channel=new BroadcastChannel('sb-test-auth-token');channel.postMessage({event:'SIGNED_IN',session:s});setTimeout(()=>channel.close(),100);},session(id));
  await expect(page.locator('.chat-title')).toContainText(id===A?'Account A chat':'Account B chat');
 }
-for(const returnToA of [false,true])test('stale title response cannot enter '+(returnToA?'a new session of account A':'account B'),async({page})=>{
- await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
- await page.route('**/api/titles',async r=>{entered();await hold;await r.fulfill({json:{titles:['PRIVATE STALE TITLE']}});});
- await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByRole('tab',{name:'Titles',exact:true}).click();await page.getByRole('button',{name:'Title ideas',exact:true}).click();await page.getByRole('button',{name:'Generate titles',exact:true}).click();await waiting;
- await switchAccount(page,B);if(returnToA)await switchAccount(page,A);release();
- await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByText('PRIVATE STALE TITLE',{exact:true})).toHaveCount(0);
-});
 test('stale comparison cannot reopen another account image dialog',async({page})=>{
  const f=await setup(page);f.creations[0].parent_id='99999999-9999-4999-8999-999999999999';f.creations[0].mode='fix';
  let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
@@ -129,17 +112,8 @@ test('composer locks while a slow chat navigation saves then restores editable d
  let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('https://test.supabase.co/rest/v1/studio_conversations*',async r=>{if(r.request().method()==='POST'){entered();await hold;}await r.fallback();});
  await page.getByRole('button',{name:'Open chat: Account A other chat',exact:true}).click();await waiting;
- await expect(prompt).toBeDisabled();await expect(page.getByRole('tab',{name:'Edit',exact:true})).toBeDisabled();release();
+ await expect(prompt).toBeDisabled();await expect(page.getByRole('tab',{name:'Score',exact:true})).toBeDisabled();release();
  await expect(page.locator('.chat-title')).toContainText('Account A other chat');await expect(prompt).toBeEnabled();await expect(prompt).toHaveValue('Another A project');
-});
-test('explicit save does not reselect an old editing source after a new source is chosen',async({page})=>{
- const f=await setup(page),source={...f.creations[0],id:'99999999-9999-4999-8999-999999999999',title:'New selected source',image_path:A+'/replacement.png'};f.creations.push(source);
- let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
- await page.route('https://test.supabase.co/rest/v1/studio_creations*',async r=>{if(r.request().method()!=='POST')return r.fallback();entered();await hold;f.creations.push(r.request().postDataJSON());await r.fulfill({status:201,body:'',headers:{'access-control-allow-origin':'*'}});});
- await page.goto('/');await openResultMore(page);await page.getByRole('region',{name:'Thumbnail review studio'}).getByRole('button',{name:'Edit',exact:true}).click();await page.getByLabel("What should change?",{exact:true}).fill('Keep my newest image as the editing source');await page.getByRole('button',{name:'Save draft',exact:true}).click();await waiting;
- await page.getByRole('button',{name:'Choose references from library',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'New selected source'}).click();release();
- await expect(page.locator('.operation-progress')).toHaveCount(0);await expect(page.getByRole('img',{name:'Editing source: New selected source',exact:true})).toBeVisible();
- await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByRole('img',{name:'Editing source: New selected source',exact:true})).toBeVisible();
 });
 
 test('reselecting the active chat preserves an unsent prompt',async({page})=>{
@@ -160,10 +134,7 @@ test('ready actions describe each task and generated labels never become video t
  await page.route('**/api/generate',async route=>{generated=route.request().postDataJSON();const item={...f.creations[0],id:'66666666-6666-4666-8666-666666666666',title:generated.prompt.slice(0,80)};f.creations.unshift(item);await route.fulfill({json:{creations:[item],partial:false}});});
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
  await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
- await page.getByRole('tab',{name:'Remix',exact:true}).click();await expect(page.getByRole('button',{name:'Create variation',exact:true})).toBeVisible();
- await page.getByRole('tab',{name:'Edit',exact:true}).click();await expect(page.getByRole('button',{name:'Apply AI edit',exact:true})).toBeVisible();
- await page.getByRole('tab',{name:'Titles',exact:true}).click();await expect(page.getByRole('button',{name:'Create thumbnail',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Title ideas',exact:true}).click();await expect(page.getByRole('button',{name:'Generate titles',exact:true})).toBeVisible();
+ await expect(page.getByRole('tab',{name:'Edit',exact:true})).toHaveCount(0);await expect(page.getByRole('tab',{name:'Remix',exact:true})).toHaveCount(0);await expect(page.getByRole('tab',{name:'Titles',exact:true})).toHaveCount(0);
  await page.route('**/api/analyze',r=>r.fulfill({status:502,json:{error:'Fixture scoring unavailable'}}));
  await page.getByRole('tab',{name:'Create',exact:true}).click();await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Your thumbnail.',exact:true})).toBeVisible();
@@ -171,16 +142,6 @@ test('ready actions describe each task and generated labels never become video t
  await expect(page.getByRole('button',{name:'Retry score',exact:true})).toBeVisible();
 });
 
-test('blank title mode stops before dispatch and preserves entered title after recovery',async({page})=>{
- await setup(page);let paid=0;
- await page.route('**/api/generate',async r=>{paid++;await r.fulfill({status:409,json:{error:'Fixture stops before provider dispatch'}});});
- await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await page.getByLabel('Describe your thumbnail',{exact:true}).fill('');
- await page.getByRole('tab',{name:'Titles',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('');
- await expect(page.locator('.request-ready')).toContainText('Add a video title or direction before generating.');
- await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:'Add a video title or direction before generating.'})).toBeVisible();expect(paid).toBe(0);
- await page.getByLabel('Video title',{exact:true}).fill('Seven days rebuilding my studio');await page.getByRole('button',{name:'Create thumbnail',exact:true}).click();
- await expect.poll(()=>paid).toBe(1);await expect(page.getByLabel('Video title',{exact:true})).toHaveValue('Seven days rebuilding my studio');
-});
 test('ready image without a preview offers only a read refresh',async({page})=>{
  const f=await setup(page);f.creations[0].image_path=null;let paid=0;await page.route('**/api/generate',r=>{paid++;return r.abort();});
  await page.goto('/');await expect(page.getByText('This image preview is unavailable. Refresh the preview to check again.',{exact:true})).toBeVisible();
@@ -424,7 +385,7 @@ test('text and image review providers require explicit selection and survive rel
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
  await openMoreOptions(page);const provider=page.getByLabel('Text and review provider',{exact:true});await expect(provider).toHaveValue('openai');await expect(page.getByRole('button',{name:'Improve my description',exact:true})).toBeDisabled();expect(calls).toBe(0);
  await provider.selectOption('google');await openMoreOptions(page);await page.getByRole('button',{name:'Improve my description',exact:true}).click();await expect(page.getByRole('region',{name:'Prompt enhancement'})).toBeVisible();
- await page.getByRole('tab',{name:'Titles',exact:true}).click();await page.getByRole('button',{name:'Title ideas',exact:true}).click();await page.getByRole('button',{name:'Generate titles',exact:true}).click();await expect.poll(()=>calls).toBe(2);
+ await expect.poll(()=>calls).toBe(1);
  await page.reload();await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();await expect(page.getByLabel('Text and review provider',{exact:true})).toHaveValue('google');
 });
 

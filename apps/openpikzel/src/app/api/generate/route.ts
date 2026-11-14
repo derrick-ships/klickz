@@ -8,6 +8,7 @@ import {
 } from "@/lib/server";
 import { generationSchema, AppError } from "@/lib/validation";
 import { renderThumbnail } from "@/lib/providers";
+import { personaIdentityContract } from "@/lib/instructions";
 import {
   digest,
   editorInstructions,
@@ -87,18 +88,6 @@ async function handle(request: Request) {
         notes.push(editorInstructions(fixPlan));
       }
     }
-    const paths = [
-      ...new Set(
-        [input.referencePath, ...input.referencePaths].filter(
-          (p): p is string => !!p,
-        ),
-      ),
-    ];
-    for (const path of paths) await addReference(path);
-    if (paths.length)
-      notes.push(
-        "Additional image references guide composition and subject details. Create an original result.",
-      );
     for (const [table, id, label] of [
       ["studio_personas", input.personaId, "Persona"],
       ["studio_styles", input.styleId, "Style"],
@@ -111,13 +100,29 @@ async function handle(request: Request) {
         .eq("user_id", user.id)
         .single();
       if (error || !data) throw new AppError(404, `${label} not found.`);
-      for (const path of data.refs.slice(0, 3))
+      // Persona photos go first and as many as the model allows (up to 4): the model weighs early references most.
+      const startIndex = refs.length;
+      for (const path of data.refs.slice(0, label === "Persona" ? 4 : 3))
         await addReference(path);
+      if (label === "Persona" && refs.length > startIndex)
+        notes.push(personaIdentityContract(data.name || "the person", startIndex + 1, refs.length));
       const palette = Array.isArray(data.source?.palette) ? data.source.palette.filter((c: unknown) => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)) : [];
       notes.push(
         `${label} guidance: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos; use style references for treatment and palette.${palette.length ? ` Measured style palette, most dominant first: ${palette.join(", ")}.` : ""}`,
       );
     }
+    const paths = [
+      ...new Set(
+        [input.referencePath, ...input.referencePaths].filter(
+          (p): p is string => !!p,
+        ),
+      ),
+    ];
+    for (const path of paths) await addReference(path);
+    if (paths.length)
+      notes.push(
+        "Additional image references guide composition and subject details. Create an original result.",
+      );
     if (input.mode === "fix" && !fixPlan)
       throw new AppError(400, "Choose the reviewed source variant.");
     if(refs.length>imageModel(input.settings.model).maxReferences)throw new AppError(400,"Too many references for the selected image model. Remove extra references before running.");

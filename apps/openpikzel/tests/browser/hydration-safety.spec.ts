@@ -17,10 +17,10 @@ test("workspace input stays blocked until hydration and retains work afterwards"
   await expect(prompt).toBeDisabled();
   await expect(upload).toBeDisabled();
   await expect(page.getByRole("button", { name: /checking your workspace/i })).toBeDisabled();
-  await page.getByRole("tab", { name: /edit/i }).click();
+  await page.getByRole("tab", { name: /score/i }).click();
   release();
   await expect(page.getByLabel("Loading creative chat")).toHaveCount(0);
-  await expect(page.getByRole("tab", { name: /edit/i })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: /score/i })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: /create/i }).click();
   await expect(prompt).toBeEnabled();
   await expect(upload).toBeEnabled();
