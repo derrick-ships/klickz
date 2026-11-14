@@ -1,4 +1,5 @@
 import {test,expect,type Page} from "@playwright/test";
+import { openMoreOptions } from "./helpers/more-options";
 import {writeFile} from "node:fs/promises";
 import {reviewFixture} from "./helpers/review-fixture";
 test("LOOP provisional automated accessibility matrix",async({page})=>{
@@ -16,7 +17,7 @@ test("LOOP provisional automated accessibility matrix",async({page})=>{
   await page.goto("/studio");await expect(page.getByLabel("Describe your thumbnail",{exact:true})).toBeVisible();await scan("studio blank");expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  }
  await page.setViewportSize({width:390,height:844});
- await page.getByRole("button",{name:/^Rendering model:/}).click();await scan("model picker");await page.keyboard.press("Escape");await expect(page.getByRole("button",{name:/^Rendering model:/})).toBeFocused();
+ await openMoreOptions(page);await page.getByRole("button",{name:/^Rendering model:/}).click();await scan("model picker");await page.keyboard.press("Escape");await expect(page.getByRole("button",{name:/^Rendering model:/})).toBeFocused();
  await page.getByRole("button",{name:"Connections",exact:true}).click();await scan("connections modal");await page.keyboard.press("Escape");
  await page.getByRole("button",{name:"Sign in to generate",exact:true}).click();await scan("sign-in modal");await page.keyboard.press("Escape");
  await page.route("**/api/config",r=>r.fulfill({json:{cloud:true,ai:true,openai:false,google:false,jev:false,ownerGate:false,supabaseUrl:"https://test.supabase.co",supabaseKey:"sb_publishable_test",secureConnections:true,codexDevice:true}}));

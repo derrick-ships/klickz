@@ -179,7 +179,7 @@ export function ConnectionsPage() {
       <div className="account-intro">
         <h1>{session ? "Connect your AI" : "Your studio starts here"}</h1>
         <p>
-          {session ? "Connect the provider for the job you want to do. Image generation and analysis use your provider account; usage charges may apply." : "Sign in to save your thumbnails, personas and styles. You can connect an AI provider when you’re ready."}
+          {session ? "Connect the provider for the job you want to do. Image generation and analysis use your provider account; usage charges may apply." : "Sign in with your email. It’s free, and your thumbnails, faces and styles stay saved."}
         </p>
       </div>
       {!ready ? (
@@ -190,7 +190,7 @@ export function ConnectionsPage() {
           <a href="/studio">Save drafts in this browser.</a>
         </p>
       ) : !session ? (
-        <section id="api" className="account-panel"><p>Step 1: sign in. Step 2: connect your own OpenAI or Google API key to generate images. Your provider bills usage separately.</p><AccountSignIn db={db} initialNotice={signInNotice} /><div id="chatgpt"><h2>ChatGPT connection after sign-in</h2><p>Sign in above to manage ChatGPT models and usage. This connection alone does not generate studio images.</p><a href="#api">Sign in to manage connections</a></div><div id="mcp"><h2>Connect your agent after sign-in</h2><p>Sign in above, then review the permissions requested by your MCP client before allowing access.</p><a href="#api">Sign in to connect an agent</a></div></section>
+        <section id="api" className="account-panel"><AccountSignIn db={db} initialNotice={signInNotice} /><p className="account-next" id="chatgpt"><span id="mcp"/>After you sign in, you’ll connect your AI account here. Then you can also use OpenPikzels from ChatGPT or Claude.</p></section>
       ) : (
         <>
           <section id="api" className="account-panel">

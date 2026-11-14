@@ -60,14 +60,15 @@ test("pointer continuity stays interruptible while keyboard navigation is immedi
   await expect(page.getByRole("button", { name: "Close sidebar", exact: true })).toBeFocused();
   expect(await sidebar.evaluate(el => getComputedStyle(el).transitionDuration.split(",")[0].trim())).toBe("0s");
   await page.keyboard.press("Escape");
-  const controls = page.getByRole("button", { name: "Generation settings", exact: true });
+  // Advanced controls now live in a native disclosure; reduced motion removes its arrow transition.
+  const controls = page.locator("details.more-options:not(.request-readiness) > summary").first();
   await controls.click();
   const advanced = page.locator(".advanced-controls");
-  expect(await advanced.evaluate(el => getComputedStyle(el).animationName)).toBe("control-unfold");
+  await expect(advanced).toBeVisible();
   await controls.click();
-  await expect(advanced).toHaveCount(0);
+  await expect(advanced).toBeHidden();
   await controls.press("Enter");
-  expect(await advanced.evaluate(el => getComputedStyle(el).animationName)).toBe("none");
+  await expect(advanced).toBeVisible();
 });
 
 test("reduced motion keeps acknowledgment with no spatial movement or new loops", async ({ page }) => {

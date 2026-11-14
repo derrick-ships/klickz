@@ -1,4 +1,5 @@
 import {test,expect,type Page,type Locator} from "@playwright/test";
+import { openMoreOptions } from "./helpers/more-options";
 // OP-3: the prompt and the Generate action share the first viewport, with the cost on the button.
 const user="11111111-1111-4111-8111-111111111111";
 const session={access_token:"header."+Buffer.from(JSON.stringify({sub:user,exp:4102444800})).toString("base64url")+".signature",refresh_token:"fixture-only-refresh",expires_at:4102444800,expires_in:3600,token_type:"bearer",user:{id:user,aud:"authenticated",role:"authenticated",email:"a@example.test",app_metadata:{provider:"email"},user_metadata:{},created_at:"2026-11-08T00:00:00Z"}};
@@ -58,7 +59,7 @@ test("loading keeps a neutral disabled action with no cost claim",async({page})=
 });
 test("reduced motion and mode switches keep the action beside the prompt",async({page})=>{
  await page.emulateMedia({reducedMotion:"reduce"});await page.setViewportSize({width:390,height:844});await setup(page,{signedIn:false,openai:false});await page.goto("/studio?mode=generate");
- for(const mode of ["Recreate","Edit","Title","Prompt"]){await page.getByRole("tab",{name:mode,exact:true}).click();const prompt=page.locator("#thumbnail-prompt"),action=page.locator(".generate-split > .primary-button");const p=(await prompt.boundingBox())!,a=(await action.boundingBox())!;expect(a.y).toBeGreaterThan(p.y+p.height-1);expect(a.y-(p.y+p.height)).toBeLessThan(80);}
+ for(const mode of ["Remix","Edit","Titles","Create"]){await page.getByRole("tab",{name:mode,exact:true}).click();const prompt=page.locator("#thumbnail-prompt"),action=page.locator(".generate-split > .primary-button");const p=(await prompt.boundingBox())!,a=(await action.boundingBox())!;expect(a.y).toBeGreaterThan(p.y+p.height-1);expect(a.y-(p.y+p.height)).toBeLessThan(80);}
 });
 // Critiquito FIX: prompt validation sits under the field, never as a top banner.
 const allSizes=[{width:1440,height:900},{width:390,height:844},{width:320,height:640}];
@@ -83,7 +84,7 @@ for(const size of allSizes){
  });
  test("split button parts never touch at "+size.width+"x"+size.height,async({page})=>{
   await page.setViewportSize(size);await setup(page,{signedIn:false,openai:false});await page.goto("/studio?mode=generate");
-  for(const mode of ["Prompt","Recreate","Edit","Title"]){
+  for(const mode of ["Create","Remix","Edit","Titles"]){
    await page.getByRole("tab",{name:mode,exact:true}).click();
    const button=page.locator(".generate-split > .primary-button");await expect(button.locator(".generate-cost")).toBeVisible();
    const r=await page.evaluate(()=>{const q=(s:string)=>document.querySelector(s)!.getBoundingClientRect();const b=q(".generate-split > .primary-button"),l=q(".generate-split > .primary-button > span:not(.generate-cost)"),c=q(".generate-cost"),s=q(".generate-split .batch-select");return {b:{l:b.left,r:b.right,t:b.top,bo:b.bottom},l:{l:l.left,r:l.right,t:l.top,bo:l.bottom},c:{l:c.left,r:c.right,t:c.top,bo:c.bottom},s:{l:s.left,r:s.right}};});
@@ -124,7 +125,7 @@ test("no key and signed out keep the connect line with its link",async({page})=>
 test("a different text provider keeps its own connected status, because it is a different fact",async({page})=>{
  await setup(page,{signedIn:true,openai:true,google:true});await page.goto("/studio?mode=generate");
  await expect(page.locator("#generate-key-note")).toHaveText("Using your OpenAI key.");
- await page.getByRole("combobox",{name:"Text and review provider",exact:true}).selectOption("google");
+ await openMoreOptions(page);await page.getByRole("combobox",{name:"Text and review provider",exact:true}).selectOption("google");
  await expect(page.locator(".composer .provider-choice p")).toContainText("Google key connected.");
  await expect(page.locator("#generate-key-note")).toHaveText("Using your OpenAI key.");
 });

@@ -404,3 +404,46 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 .fix-prompt-text { white-space: pre-wrap; word-break: break-word; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--color-modal-base); border: 1px solid var(--edge-highlight, rgba(255,255,255,.12)); border-radius: 10px; padding: 12px; margin: 8px 0 0; max-height: 260px; overflow: auto; }
 .analysis-fix-prompt { margin: 14px 0 6px; }
 .analysis-fix-prompt summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: 600; min-height: 44px; }
+
+/* Distill (Nov 2026): one visible path (describe → create); everything else is behind "More options". */
+.more-options { margin-top: var(--space-3); border-top: 1px solid var(--color-separator); }
+.more-options > summary {
+  display: flex; align-items: center; gap: var(--space-2);
+  min-height: 44px; cursor: pointer; list-style: none;
+  font-size: 14px; color: var(--color-control-muted);
+}
+.more-options > summary::-webkit-details-marker { display: none; }
+.more-options > summary::before {
+  content: ""; width: 7px; height: 7px; margin-inline: 3px 4px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform var(--duration-surface) var(--ease-surface);
+}
+.more-options[open] > summary::before { transform: rotate(45deg); }
+.more-options > summary:hover { color: var(--color-ink); }
+.more-options > summary:focus-visible { outline: 2px solid var(--color-accent-edge); outline-offset: 2px; border-radius: 6px; }
+.more-options-body { display: grid; gap: var(--space-4); padding: var(--space-2) 0 var(--space-4); }
+.more-options-body .settings-row { display: flex; margin: 0; padding: 0; border: 0; }
+.more-options-body .public-style-chips { margin: 0; }
+.more-options-body .advanced-controls { margin: 0; }
+.settings-row.settings-row--simple { display: flex; grid-template-columns: none; margin-top: var(--space-4); padding-top: 0; border-top: 0; }
+.settings-row.settings-row--simple > label { flex: 0 1 220px; }
+.request-readiness.more-options { margin: var(--space-2) 0 0; padding: 0 20px; }
+.request-readiness.more-options[open] { padding-bottom: var(--space-4); }
+.request-ready:empty { display: none; }
+.request-ready { margin: 0; padding: 0 20px 12px; font-size: 13px; color: var(--color-ink); }
+.diagnostic-context .more-options { margin-top: var(--space-2); }
+.diagnostic-context .more-options[open] > :not(summary) { margin-top: var(--space-2); }
+@media (prefers-reduced-motion: reduce) { .more-options > summary::before { transition: none; } }
+.format-choice .format-chip { display: inline-flex; align-items: center; gap: 6px; padding-right: 6px; }
+.format-choice .format-chip select { min-height: 0; height: auto; padding: 0 18px 0 0; border: 0; background-color: transparent; font: inherit; color: inherit; }
+.composer-inner:has(.more-options) { padding-bottom: var(--space-4); }
+.prompt-tools { row-gap: var(--space-2); }
+.option-group { display: grid; gap: var(--space-2); }
+.option-group > h3 { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--color-placeholder); }
+.option-group .provider-choice, .option-group .permission-field, .option-group .advanced-controls { margin: 0; }
+.option-group .provider-choice p { margin: 4px 0 0; font-size: 12px; color: var(--color-placeholder); }
+.format-choice .format-chip { min-height: 44px; min-width: 150px; }
+.format-choice .format-chip select { flex: 1; min-width: 120px; }
+.signin-alternatives { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-1) var(--space-4); }
+.signin-alternatives .quiet-button { min-height: 44px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--color-placeholder); }
+.account-next { margin-top: var(--space-6); color: var(--color-placeholder); }

@@ -20,7 +20,7 @@ test("welcome artwork preserves its isolated composition", async ({ page }) => {
     const before = (await hero.boundingBox())!;
     const boxes = await page.evaluate(() => {
       const rect = (el: Element) => { const r = el.getBoundingClientRect(); return { x:r.x, y:r.y, right:r.right, bottom:r.bottom, width:r.width, height:r.height }; };
-      const selectors = [".welcome-hook", ".welcome-headline", ".welcome-subtitle", ".welcome-lead", ".welcome-primary", ".welcome-secondary", ".welcome-cost-inline", ".welcome-outcome", ".welcome-hero-index span"];
+      const selectors = [".welcome-hook", ".welcome-headline", ".welcome-subtitle", ".welcome-lead", ".welcome-primary", ".welcome-secondary", ".welcome-cost-inline"];
       const hero = document.querySelector(".welcome-hero")!;
       const walker = document.createTreeWalker(hero, NodeFilter.SHOW_TEXT);
       const lines: { x:number; y:number; right:number; bottom:number; color:string; buttonBg:string | null; text:string }[] = [];
@@ -37,9 +37,9 @@ test("welcome artwork preserves its isolated composition", async ({ page }) => {
           lines.push({ x:r.x, y:r.y, right:r.right, bottom:r.bottom, color:style.color, buttonBg:button ? getComputedStyle(button).backgroundColor : null, text:node.textContent.trim() });
         }
       }
-      return { lead:rect(document.querySelector(".welcome-lead")!), index:rect(document.querySelector(".welcome-hero-index")!), texts:selectors.flatMap(s => Array.from(document.querySelectorAll(s), el => rect(el))), lines };
+      return { lead:rect(document.querySelector(".welcome-lead")!), texts:selectors.flatMap(s => Array.from(document.querySelectorAll(s), el => rect(el))), lines };
     });
-    await page.addStyleTag({ content: ".welcome-hero-copy,.welcome-hero-index{visibility:hidden!important}" });
+    await page.addStyleTag({ content: ".welcome-hero-copy{visibility:hidden!important}" });
     expect(await hero.boundingBox()).toEqual(before);
     const clip = { x:before.x, y:before.y, width:before.width, height:before.height };
     const image = await pixels(await page.screenshot({ clip, fullPage: true }));
@@ -58,7 +58,6 @@ test("welcome artwork preserves its isolated composition", async ({ page }) => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     if (width<=430) {
       expect(top+before.y, `W2 clearance ${width}`).toBeGreaterThanOrEqual(boxes.lead.bottom+24);
-      expect(bottom+before.y, `W3 index ${width}`).toBeLessThanOrEqual(boxes.index.y-8);
       for (const box of boxes.texts.slice(0,4)) {
         let max=0;
         for(let y=Math.max(0,Math.floor(box.y-before.y));y<Math.min(info.height,Math.ceil(box.bottom-before.y));y++) for(let x=Math.max(0,Math.floor(box.x-before.x));x<Math.min(info.width,Math.ceil(box.right-before.x));x++) { const i=(y*info.width+x)*info.channels; max=Math.max(max,luminance(data[i],data[i+1],data[i+2])); }

@@ -17,7 +17,7 @@ test("upload after a settled delivery keeps the generated result and never revea
   await expect(delivered).not.toHaveClass(/delivery-reveal/);
   const src = await delivered.getAttribute("src");
   await page.getByRole("button", { name: "Show prompt and settings", exact: true }).click();
-  await page.getByRole("tab", { name: "Analyze", exact: true }).click();
+  await page.getByRole("tab", { name: "Score", exact: true }).click();
   await page.getByLabel("Upload thumbnail references").setInputFiles("public/brand/signal.webp");
   await expect(page.locator(".review-summary")).toContainText("Uploaded thumbnail");
   await expect(delivered).toHaveAttribute("src", src!);
@@ -34,12 +34,12 @@ test("an upload before generation stays static and does not become a delivery", 
   const studio = await revealStudio(page);
   await studio.open();
   await page.getByRole("button", { name: "Show prompt and settings", exact: true }).click();
-  await page.getByRole("tab", { name: "Analyze", exact: true }).click();
+  await page.getByRole("tab", { name: "Score", exact: true }).click();
   await page.getByLabel("Upload thumbnail references").setInputFiles("public/brand/signal.webp");
   await expect(page.locator(".review-summary")).toContainText("Uploaded thumbnail");
   await expect(page.locator(".delivery-result img")).toHaveCount(0);
   await expect(page.locator(".review-canvas img")).not.toHaveClass(/image-reveal/);
-  await page.getByRole("tab", { name: "Prompt", exact: true }).click();
+  await page.getByRole("tab", { name: "Create", exact: true }).click();
   await studio.generate(1);
   await expect(page.locator(".delivery-result img")).toHaveAttribute("alt", "Fixture result 1");
 });
