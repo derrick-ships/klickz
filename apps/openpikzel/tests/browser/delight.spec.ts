@@ -160,7 +160,7 @@ test("a score arriving in-session counts up once with staggered pillar fills, an
   await page.waitForTimeout(900);
   expect((await ticks(page)).filter(r => r.reveal === "running")).toEqual([]);
   expect((await announcements(page)).filter(a => a.text)).toEqual([]);
-  await panel.getByRole("button", { name: "Open analysis details" }).click();
+  await panel.getByRole("button", { name: "See full score" }).click();
   await expect(page.getByRole("dialog").locator(".score-ring strong")).toHaveText("72/100");
   await expect(page.getByRole("dialog").locator(".score-ring .score-count")).not.toHaveAttribute("aria-hidden", /.*/);
   await expect(page.getByRole("dialog").locator("[data-score-announcer]")).toHaveText("");

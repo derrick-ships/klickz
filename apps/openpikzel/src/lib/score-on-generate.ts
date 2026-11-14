@@ -41,7 +41,7 @@ export function scoreStatusFromEvaluation(score:Pick<Evaluation,"vision"|"warnin
 }
 
 export function scoreStatusCopy(status:ScoreView):{title:string;action?:"connect"|"retry"|"analyze"}{
- if(status.kind==="no-jev")return {title:"Connect Jev to score this image",action:"connect"};
+ if(status.kind==="no-jev")return {title:"Connect scoring to see this image’s score",action:"connect"};
  if(status.kind==="pending")return {title:"Score on the way"};
  if(status.kind==="failed")return {title:"Score did not finish",action:"retry"};
  if(status.kind==="idle")return {title:"Review thumbnail and title",action:"analyze"};
@@ -52,6 +52,6 @@ export function scoreStatusCopy(status:ScoreView):{title:string;action?:"connect
 
 export function deliveryCopy(state:Pick<DeliveryState,"stage"|"reviewed"|"total">,elapsed=0){
  const label=state.stage==="generating"?(elapsed>60000?"Still generating your image…":"Creating your thumbnail…"):state.stage==="analyzing"?"Image ready. Analyzing…":state.stage==="ready"?"Image and analysis ready":state.stage==="image-ready"?"Image ready":state.stage==="review-pending"?(state.reviewed<state.total?"Score on the way":"Score did not finish"):"Generation did not finish.";
- const detail=state.stage==="analyzing"?"Reviewing "+(state.reviewed+1)+" of "+state.total+". You can inspect your saved image while the score and comments arrive.":state.stage==="review-pending"?(state.reviewed<state.total?"The score will appear when it lands. You can inspect your saved image in the meantime.":"Your image is safe. Retry score to reuse the same request, or check API activity; generating the image again is unnecessary."):state.stage==="ready"?"Scores and comments are saved. One-Click Fix is available when the assessment supports a concrete edit.":state.stage==="image-ready"?"Connect Jev to score this image":state.stage==="failed"?"Check API activity and saved creations before starting another paid request.":"The studio stays available while your provider works.";
+ const detail=state.stage==="analyzing"?"Reviewing "+(state.reviewed+1)+" of "+state.total+". You can inspect your saved image while the score and comments arrive.":state.stage==="review-pending"?(state.reviewed<state.total?"The score will appear when it lands. You can inspect your saved image in the meantime.":"Your image is safe. Retry score to reuse the same request, or check API activity; generating the image again is unnecessary."):state.stage==="ready"?"Scores and comments are saved. One-Click Fix is available when the assessment supports a concrete edit.":state.stage==="image-ready"?"Connect scoring to see this image’s score":state.stage==="failed"?"Check API activity and saved creations before starting another paid request.":"The studio stays available while your provider works.";
  return {label,detail};
 }

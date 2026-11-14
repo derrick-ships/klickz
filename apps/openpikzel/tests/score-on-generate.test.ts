@@ -45,7 +45,7 @@ const scored=(extra:Partial<Evaluation>={})=>{
 
 describe("score status copy for spec §4.3",()=>{
  it("shows Connect Jev when the key is missing",()=>{
-  expect(scoreStatusCopy({kind:"no-jev"})).toMatchObject({title:"Connect Jev to score this image",action:"connect"});
+  expect(scoreStatusCopy({kind:"no-jev"})).toMatchObject({title:"Connect scoring to see this image’s score",action:"connect"});
  });
  it("shows Score on the way while a review is pending after the hold",()=>{
   expect(scoreStatusCopy({kind:"pending"}).title).toBe("Score on the way");
@@ -79,7 +79,7 @@ describe("delivery labels for spec §4.3",()=>{
   expect(deliveryCopy({stage:"review-pending",reviewed:4,total:4}).label).toBe("Score did not finish");
  });
  it("points to Connect Jev when the image is ready without a review",()=>{
-  expect(deliveryCopy({stage:"image-ready",reviewed:0,total:1}).detail).toBe("Connect Jev to score this image");
+  expect(deliveryCopy({stage:"image-ready",reviewed:0,total:1}).detail).toBe("Connect scoring to see this image’s score");
  });
  it("keeps the existing failed generation copy",()=>{
   expect(deliveryCopy({stage:"failed",reviewed:0,total:0}).label).toBe("Generation did not finish.");

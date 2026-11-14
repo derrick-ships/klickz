@@ -538,11 +538,11 @@ export default function Studio() {
 
   async function callCreative(input:Record<string,unknown>){
     const owner=studio.user,epoch=workspaceEpoch.current,source=selection;
-    if(!studio.cloud)throw new Error("Sign in and connect your own API key in Connections.");
+    if(!studio.cloud)throw new Error("Sign in first, then connect your AI account in Connections.");
     const chat=await ensureChat();
-    if(ownerUI.current!==owner||workspaceEpoch.current!==epoch||selectedIdRef.current!==source)throw new Error("Your project or selected image changed. Send the request again from the current context.");
+    if(ownerUI.current!==owner||workspaceEpoch.current!==epoch||selectedIdRef.current!==source)throw new Error("You switched to a different image while this was sending. Send it again from the image you’re on now.");
     const result=await studio.api("/api/creative",{title,mode:tool,format:settings.format,direction:prompt,personaId:personaId||undefined,styleId:styleId||undefined,referencePaths:refs,videoUrl,...input,conversationId:chat.id,...(source?{creationId:source}:{})});
-    if(ownerUI.current!==owner||workspaceEpoch.current!==epoch||selectedIdRef.current!==source)throw new Error("Your context changed. The result remains in API activity.");
+    if(ownerUI.current!==owner||workspaceEpoch.current!==epoch||selectedIdRef.current!==source)throw new Error("You switched to a different image. The result is still saved; find it in API activity.");
     return result;
   }
   function applyDirection(after:string,nextTitle=title,nextTool:Tool=tool){
@@ -635,7 +635,7 @@ export default function Studio() {
         });
         if (result.partial)
           studio.setError(
-            "Some images were saved, but the batch stopped. Check My creations before generating again to avoid duplicate charges.",
+            "Some images were saved, then the batch stopped. Check My creations before you try again, so you aren’t charged twice.",
           );
       },
     );
@@ -792,7 +792,7 @@ export default function Studio() {
     if (!studio.config?.[model.provider]) { setDialog("connections"); return; }
     const source=selected, format=source.settings?.format === "short" ? "long" : "short";
     const fingerprint=draftFingerprintRef.current;
-    await studio.run("Recomposing thumbnail with AI", async () => {
+    await studio.run("Rearranging your thumbnail", async () => {
       const result=await createReviewed({
         conversationId: source.conversation_id || activeChatId || undefined,
         prompt: recomposePrompt(format), title: source.title || title, mode:"edit",intent:"recompose", style:source.style,
@@ -972,7 +972,7 @@ export default function Studio() {
                           onClick={() => openReviewEditor("analyze")}
                         >
                           <ChartNoAxesCombined size={15} />
-                          Analyze
+                          Score it
                         </button>
                         <button
                           className="neutral-button"
@@ -1002,7 +1002,7 @@ export default function Studio() {
                           Download image
                         </button>
                       </div>
-                      <div className="image-secondary-actions"><button className="quiet-button" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="quiet-button" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="quiet-button" disabled={busy} onClick={()=>{setRefs([selected.image_path!]);setTool("recreate");setComposerOpen(true);}}>Recreate this thumbnail</button><button className="quiet-button" onClick={()=>setDialog("feedback")}>Leave feedback</button></div>
+                      <div className="image-secondary-actions"><button className="quiet-button" onClick={()=>setDialog("inspect")}>Inspect image</button><button className="quiet-button" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button className="quiet-button" disabled={busy} onClick={()=>{setRefs([selected.image_path!]);setTool("recreate");setComposerOpen(true);}}>Remix this thumbnail</button><button className="quiet-button" onClick={()=>setDialog("feedback")}>Leave feedback</button></div>
                       <details className="provenance-details"><summary>Prompt and generation details</summary><dl><dt>Exact request</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
                       <p className="resize-note">
                         AI resize creates one newly arranged image using {imageModel(settings.model).name}. Provider usage charges apply; a reliable cost estimate is unavailable. The original stays saved. Choose the model and quality in Generation settings.
@@ -1014,14 +1014,14 @@ export default function Studio() {
                       <p>{selected.prompt}</p>
                       <span>
                         {selected.status === "draft"
-                          ? (readiness.action==="signin"?"Your instructions are saved on this device. Sign in to generate when you are ready.":readiness.action==="connect"?"Your instructions are saved. Connect your "+readiness.provider+" API key to generate.":"Your instructions are saved. Generate an image with your connected API credits when you are ready.")
+                          ? (readiness.action==="signin"?"Your description is saved on this device. Sign in when you’re ready to make the image.":readiness.action==="connect"?"Your description is saved. Connect your "+readiness.provider+" API key to generate.":"Your description is saved. Make the image whenever you’re ready; it uses your AI account’s credits.")
                           : selected.status === "failed"
-                            ? "This image did not finish generating. Your instructions are saved; check My creations before retrying."
+                            ? "This image didn’t finish. Your description is saved. Check My creations before you try again."
                             : selected.status === "ready"
                               ? "This image preview is unavailable. Refresh the preview to check again."
                               : selected.status === "reconciling"
-                                ? "The request outcome is uncertain. Check My creations and provider history before starting another request."
-                                : "This image is still processing. Check My creations before starting another request."}
+                                ? "We couldn’t confirm whether this finished. Check My creations (and your AI account’s history) before you try again, so you aren’t charged twice."
+                                : "This image is still being made. Check My creations before you start another."}
                       </span>
                       {selected.status === "ready" && <button className="neutral-button" disabled={busy} onClick={() => studio.run("Refreshing preview", studio.load)}>Refresh preview</button>}
                       <button
@@ -1078,7 +1078,7 @@ export default function Studio() {
                             )}
                             {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p><button className="quiet-button" onClick={()=>setDialog("analysis")}>Open analysis details</button>
+                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p><button className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
                         </div>
                         <div>
                         <button
@@ -1170,13 +1170,13 @@ export default function Studio() {
                     <aside className="review-inspector review-inspector--empty" aria-label="Scoring inspector">
                       <h2>{scoreCopy.title}</h2>
                       {scoreView.kind==="idle"&&<>
-                        <p>Review the thumbnail and its video title across five criteria. No written summary is needed.</p>
+                        <p>Get a score for the thumbnail and its title on five things viewers notice.</p>
                         <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
-                        <button className="neutral-button" onClick={() => openReviewEditor("analyze")}>Set up analysis</button>
+                        <button className="neutral-button" onClick={() => openReviewEditor("analyze")}>Score this thumbnail</button>
                       </>}
                       {scoreView.kind==="no-jev"&&<button type="button" className="neutral-button" onClick={()=>setDialog("connections")}>Connections</button>}
                       {scoreView.kind==="failed"&&<button type="button" className="neutral-button" disabled={busy} onClick={()=>{void retryScore();}}>Retry score</button>}
-                      <p className="score-disclaimer">Analysis uses your connected API credits. Scores are visual estimates, not measured CTR.</p>
+                      <p className="score-disclaimer">Scoring uses your AI account’s credits. Scores estimate how clear and clickable the image looks; they aren’t real click data.</p>
                     </aside>
                   ) : null}
                   </div>
@@ -1920,7 +1920,7 @@ export default function Studio() {
                   <p>
                     {search || onlyFavorites
                       ? "Clear your search and favorites filter to see your creations."
-                      : "Upload an image, write a prompt, or save a concept."}
+                      : "Describe a thumbnail, upload one to score, or save an idea for later."}
                   </p>
                   <button className="neutral-button" onClick={() => { if (search || onlyFavorites) { setSearch(""); setOnlyFavorites(false); } else void newChat(); }}>
                     {search || onlyFavorites ? "Clear filters" : "Create a thumbnail"}
