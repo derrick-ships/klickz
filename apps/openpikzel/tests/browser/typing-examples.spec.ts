@@ -38,5 +38,5 @@ test("reduced motion shows one still example with no caret blink", async ({ page
   const first = await text.textContent();
   await page.waitForTimeout(1200);
   expect(await text.textContent()).toBe(first);
-  expect(await page.locator(".typing-caret").evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
+  expect(await page.locator(".typing-caret-after").evaluate((el) => getComputedStyle(el, "::after").animationName)).toBe("none");
 });
