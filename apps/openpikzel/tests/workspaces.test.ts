@@ -1,9 +1,11 @@
 import {describe,it,expect} from 'vitest';
 describe('creative workspace contracts',()=>{
- it('requires3photos, a3-character name and explicit persona permission',async()=>{
+ it('requires 2 or 3 persona photos, a 3-character name and explicit persona permission',async()=>{
   const {profileInput}=await import('../src/lib/profile-schema');
   expect(profileInput.safeParse({kind:'persona',name:'ab',notes:'',refs:['a','b','c'],permission:true}).success).toBe(false);
-  expect(profileInput.safeParse({kind:'persona',name:'Alice',notes:'',refs:['a','b'],permission:true}).success).toBe(false);
+  expect(profileInput.safeParse({kind:'persona',name:'Alice',notes:'',refs:['a'],permission:true}).success).toBe(false);
+  expect(profileInput.safeParse({kind:'persona',name:'Alice',notes:'',refs:['a','b','c','d'],permission:true}).success).toBe(false);
+  expect(profileInput.safeParse({kind:'persona',name:'Alice',notes:'',refs:['a','b'],permission:true}).success).toBe(true);
   expect(profileInput.safeParse({kind:'persona',name:'Alice',notes:'',refs:['a','b','c'],permission:false}).success).toBe(false);
   expect(profileInput.safeParse({kind:'persona',name:'Alice',notes:'',refs:['a','b','c'],permission:true}).success).toBe(true);
  });

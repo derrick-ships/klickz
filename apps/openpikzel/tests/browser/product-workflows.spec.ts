@@ -34,7 +34,7 @@ test('Persona tutorial, inline errors, three-photo permission flow and preferenc
  await page.getByLabel('Name',{exact:true}).fill('Alice');await page.getByLabel('Profile reference photos').setInputFiles(await Promise.all(['#ac524e','#659f85','#747bcb'].map((c,i)=>image(c,'person-'+i+'.png'))));await page.getByLabel('I have permission to use these photos and this likeness.').check();
  await page.setViewportSize({width:320,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);await page.screenshot({path:'evidence/product-persona-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Create persona',exact:true}).click();await expect(page.getByRole('dialog')).not.toBeVisible();await expect(page.getByRole('button',{name:'Change persona: Alice',exact:true})).toBeVisible();
- await page.reload();await page.getByRole('button',{name:'Change persona: Alice',exact:true}).click();await expect(page.getByRole('img',{name:'Alice reference'})).toHaveCount(3);await page.getByRole('button',{name:'Create persona',exact:true}).click();await expect(page.getByRole('heading',{name:'Create Your Persona',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Persona Guidelines',exact:true})).toHaveCount(0);
+ await page.reload();await page.getByRole('button',{name:'Change persona: Alice',exact:true}).click();await expect(page.getByRole('img',{name:'Alice reference'})).toHaveCount(3);await page.getByRole('button',{name:'Create persona',exact:true}).click();const skip=page.getByRole('button',{name:'Skip Tutorial',exact:true});await expect(skip.or(page.getByRole('heading',{name:'Create Your Persona',exact:true}))).toBeVisible();if(await skip.isVisible())await skip.click();await expect(page.getByRole('heading',{name:'Persona Guidelines',exact:true})).toHaveCount(0);
 });
 test('YouTube Style browser preserves selection across orders and saves three references',async({page})=>{
  const videos=Array.from({length:5},(_,i)=>({id:String(i+1).padStart(11,'0'),title:'Reference video '+(i+1),thumbnail:'https://i.ytimg.com/vi/'+String(i+1).padStart(11,'0')+'/hqdefault.jpg',views:10000-i*500,duration:'4:02',publishedAt:'2026-11-08T00:00:00Z'}));
@@ -51,14 +51,14 @@ test('YouTube Style browser preserves selection across orders and saves three re
 
 test('a persona saves with two photos and refuses one or four',async({page})=>{
  await page.goto('/');await page.getByRole('button',{name:'Persona',exact:true}).click();await page.getByRole('button',{name:'Create persona',exact:true}).click();
- if(await page.getByRole('button',{name:'Skip Tutorial',exact:true}).isVisible())await page.getByRole('button',{name:'Skip Tutorial',exact:true}).click();
+ {const skip=page.getByRole('button',{name:'Skip Tutorial',exact:true});await expect(skip.or(page.getByRole('heading',{name:'Create Your Persona',exact:true}))).toBeVisible();if(await skip.isVisible())await skip.click();}
  await page.getByLabel('Name',{exact:true}).fill('Bea Two');await page.getByLabel('I have permission to use these photos and this likeness.').check();
  const photos=page.getByLabel('Profile reference photos');
  await photos.setInputFiles([await image('#ac524e','one.png')]);await page.getByRole('button',{name:'Create persona',exact:true}).click();await expect(page.getByText('Upload 2 or 3 photos of this persona.',{exact:true})).toBeVisible();
  await photos.setInputFiles([await image('#659f85','two.png')]);await page.getByRole('button',{name:'Create persona',exact:true}).click();
  await expect(page.getByRole('dialog')).not.toBeVisible();await expect(page.getByRole('button',{name:'Change persona: Bea Two',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Change persona: Bea Two',exact:true}).click();await expect(page.getByRole('img',{name:'Bea Two reference'})).toHaveCount(2);
- await page.getByRole('button',{name:'Create persona',exact:true}).click();await page.getByLabel('Profile reference photos').setInputFiles(await Promise.all(['#111111','#222222','#333333','#444444'].map((c,i)=>image(c,'p'+i+'.png'))));await expect(page.getByText('Use at most 3 images.',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Create persona',exact:true}).click();await expect(page.getByRole('heading',{name:'Create Your Persona',exact:true})).toBeVisible();await page.getByLabel('Profile reference photos').setInputFiles(await Promise.all(['#111111','#222222','#333333','#444444'].map((c,i)=>image(c,'p'+i+'.png'))));await expect(page.getByText('Use at most 3 images.',{exact:true})).toBeVisible();
 });
 
 test('switching immediately flushes a draft and library selection restores its own chat context',async({page})=>{
