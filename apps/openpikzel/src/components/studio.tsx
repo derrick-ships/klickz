@@ -78,6 +78,7 @@ import { readDraftCheckpoint, writeDraftCheckpoint } from "@/lib/draft-checkpoin
 import type {Conversation,WorkspaceDraft} from "@/lib/workspaces";
 import { useStudio } from "@/lib/use-studio";
 import { DialogOverflowCue } from "@/components/dialog-overflow-cue";
+import { TypingExamples } from "@/components/creative/typing-examples";
 import {
   defaultSettings,
   pillars,
@@ -180,6 +181,7 @@ export default function Studio() {
   const [textProvider,setTextProvider]=useState<"openai"|"google">("openai");
   const [videoBrief, setVideoBrief] = useState(""),
     [includeVision, setIncludeVision] = useState(false),
+    [promptFocused, setPromptFocused] = useState(false),
     [fixReviews, setFixReviews] = useState<Record<string, {
       kind: string;
       plan?: FixPlan;
@@ -840,6 +842,8 @@ export default function Studio() {
   const scoreCopy = scoreStatusCopy(scoreView);
   const showComposer = !hasReviewImage || composerOpen;
   const workspaceReady = !studio.loading && hydratedWorkspace === (studio.user || "local");
+  // Living empty state: only for a first-time visitor on an empty Create prompt.
+  const showExamples = workspaceReady && tool === "generate" && !prompt && !promptFocused && !hasReviewImage && studio.creations.length === 0;
   const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:!workspaceReady,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider});
   // The inline prompt message follows the current text and mode, and clears once the prompt is valid.
   useEffect(()=>{if(!promptError)return;const next=promptValidationError({tool,titleAction,prompt,title})||"";if(next!==promptError)setPromptError(next);},[promptError,tool,titleAction,prompt,title]);
@@ -1533,9 +1537,12 @@ export default function Studio() {
                           </label>
                           <span>{prompt.length}/2400</span>
                         </div>
+                        <div className={"prompt-field"+(showExamples?" prompt-field--examples":"")}>
                         <textarea
                           id="thumbnail-prompt"
                           ref={promptRef}
+                          onFocus={() => setPromptFocused(true)}
+                          onBlur={() => setPromptFocused(false)}
                           aria-invalid={promptError?true:undefined}
                           aria-describedby={promptError?"prompt-error":undefined}
                           maxLength={2400}
@@ -1551,6 +1558,8 @@ export default function Studio() {
                                   : "Who or what is the focus? Describe the scene, mood and any words to show. Put exact wording in quotation marks."
                           }
                         />
+                        <TypingExamples active={showExamples} onUse={(text)=>{setPrompt(text);requestAnimationFrame(()=>promptRef.current?.focus());}} />
+                        </div>
                         {promptError&&<p className="field-error" id="prompt-error" role="alert"><AlertCircle size={15} aria-hidden="true"/><span>{promptError}</span></p>}
                         {generateAction}
                           </div>

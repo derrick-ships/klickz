@@ -28,7 +28,9 @@ Spec decision F approves exactly these three exceptions. Nothing else in this li
 
 **Not approved:** hover glow, card lift and the spinning busy border. Do not add them.
 
-Exceptions 1 (image reveal, OP-10) and 2 (score count-up, OP-11) are implemented (see the motion system table). Exception 3 is not implemented yet.
+Exceptions 1 (image reveal, OP-10) and 2 (score count-up, OP-11) are implemented (see the motion system table). Exception 3 is implemented as below.
+
+**Exception 3 as built (Nov 2026).** Only for a first-time visitor (no creations) on an empty, unfocused Create prompt. Four example descriptions type in place of the placeholder at 35 ms per character, hold 2.5 s, erase, and stop after 3 cycles, on focus, on typing, when the tab is hidden or when the mode changes. A red caret blinks while it types. A "Use this example" chip fills the prompt and focuses it, so the moment teaches what a good description looks like and gives a one-tap first output. The typed text is aria-hidden; the textarea keeps its real placeholder for assistive tech. The fanned stack of brand thumbnails is not added: the composer was just simplified and a decorative stack would compete with the action. Reduced motion: one still example, no caret blink. Tests: `tests/browser/typing-examples.spec.ts`.
 
 ## Deliberate exclusions
 
