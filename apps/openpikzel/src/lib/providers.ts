@@ -1,4 +1,4 @@
-import {thumbnailRubric as rubric, visionInstructions, scoringInstructions, instructionVersion} from "./instructions";
+import {thumbnailRubric as rubric, soulVisionInstructions as visionInstructions, scoringInstructions, instructionVersion} from "./instructions";
 import OpenAI, { toFile } from "openai";
 import { imageModel } from "./image-models";
 import sharp from "sharp";
@@ -275,7 +275,7 @@ export async function observePackaging(
         },
       ],
       text: { format: { type: "json_object" } },
-      max_output_tokens: 2200,
+      max_output_tokens: 4000,
     },
     { timeout: 45000, maxRetries: 0 },
   );
