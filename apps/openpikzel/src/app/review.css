@@ -282,3 +282,29 @@
  .generate-split > .primary-button > .generate-cost{flex-basis:100%;text-align:center;font-size:12px}
  .generate-cost::before{content:none}
 }
+
+/* Overdrive: live feed tests */
+.youtube-preview { view-transition-name: feed-preview; transition: background-color .2s var(--ease-out), border-color .2s var(--ease-out); }
+.youtube-preview[data-theme="light"] { background: #fff; color: #0f0f0f; border-color: #e5e5e5; }
+.youtube-preview[data-theme="light"] .youtube-preview-copy h3 { color: #0f0f0f; }
+.youtube-preview[data-theme="light"] .youtube-preview-copy p,
+.youtube-preview[data-theme="light"] .youtube-preview-copy small,
+.youtube-preview[data-theme="light"] .youtube-preview-header > span,
+.youtube-preview[data-theme="light"] .feed-simulation-note { color: #606060; }
+.youtube-preview[data-theme="light"] .youtube-preview-context > * { background: #f2f2f2; color: #0f0f0f; }
+.youtube-preview[data-theme="light"] .youtube-preview-context > b { background: #0f0f0f; color: #fff; }
+.youtube-preview[data-theme="light"] .feed-avatar { background: #e5e5e5; color: #0f0f0f; }
+.youtube-preview[data-theme="light"] .result-image.phone-preview { background: #fff; }
+.youtube-preview .youtube-preview-thumbnail { transition: filter .25s var(--ease-out); }
+.youtube-preview[data-squint="true"] .youtube-preview-thumbnail { filter: blur(3px); }
+.youtube-preview[data-squint="true"][data-monochrome="true"] .youtube-preview-thumbnail { filter: grayscale(1) blur(3px); }
+.feed-verdicts { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+.feed-verdicts li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: var(--color-muted); }
+.feed-verdicts li strong { color: var(--color-ink); font-weight: 500; }
+.feed-verdicts li svg { flex-shrink: 0; margin-top: 3px; }
+.feed-verdicts li[data-pass="true"] svg { color: #4ade80; }
+.feed-verdicts li[data-pass="false"] svg { color: #fbbf24; }
+::view-transition-old(feed-preview), ::view-transition-new(feed-preview) { animation-duration: 220ms; animation-timing-function: cubic-bezier(.23,1,.32,1); }
+@media (prefers-reduced-motion: reduce) {
+  .youtube-preview, .youtube-preview .youtube-preview-thumbnail { transition: none; }
+}
