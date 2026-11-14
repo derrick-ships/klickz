@@ -210,7 +210,7 @@ test('analysis scanner waits for a saved result and includes explicitly requeste
    warnings:["The video itself was not watched."],dimensions:Object.fromEntries(["virality","clarity","idea","curiosity","emotion"].map(p=>[p,{score:67,confidence:.7,observation:"Fixture image evidence",strength:"One subject",weakness:"Small text",fix:"Simplify text"}]))};
   f.creations[0].score=score;await route.fulfill({json:{score,creationId:f.creations[0].id}});
  });
- await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();
+ await page.goto('/');await page.getByRole('button',{name:'Score it',exact:true}).click();
  await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
  await openMoreOptions(page);await page.getByLabel('YouTube video link (optional)',{exact:true}).fill('https://youtu.be/abcdefghijk');await page.getByLabel('Add image-specific review to analysis (one extra provider request)',{exact:true}).check();
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
@@ -231,7 +231,7 @@ test('analysis scanner waits for a saved result and includes explicitly requeste
 test('failed analysis never shows completion and retries keep the same request identity',async({page})=>{
  await setup(page);const ids:string[]=[];
  await page.route('**/api/analyze',r=>{ids.push(r.request().postDataJSON().requestId);return r.fulfill({status:502,json:{error:"Fixture analysis could not finish"}});});
- await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('Actual video title');
+ await page.goto('/');await page.getByRole('button',{name:'Score it',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('Actual video title');
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  const scanner=page.getByRole('region',{name:'Thumbnail analysis activity'});
  await expect(scanner).toHaveAttribute('data-phase','failed');await expect(scanner).toContainText('check saved results before retrying');
@@ -250,7 +250,7 @@ test('a fresh analysis counts up once in its dialog, then the score panel shows 
    dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:67,confidence:.7,observation:'Fixture',strength:'Fixture',weakness:'Fixture',fix:'Fixture'}]))};
   f.creations[0].score=score;await route.fulfill({json:{score,creationId:f.creations[0].id}});
  });
- await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
+ await page.goto('/');await page.getByRole('button',{name:'Score it',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  await expect(page.getByRole('region',{name:'Thumbnail analysis activity'})).toHaveAttribute('data-phase','running');
  await expect(page.locator('.score-count')).toHaveCount(0);
@@ -309,7 +309,7 @@ test('analysis retry reuses the job after a successful response but failed libra
    dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:60,confidence:.5,observation:'Fixture',strength:'Fixture',weakness:'Fixture',fix:'Fixture'}]))};
   f.creations[0].score=score;return r.fulfill({json:{score,creationId:f.creations[0].id}});
  });
- await page.goto('/');await page.getByRole('button',{name:'Analyze',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual title');
+ await page.goto('/');await page.getByRole('button',{name:'Score it',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual title');
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  await expect(page.locator('.analysis-scanner')).toHaveAttribute('data-phase','failed');
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();

@@ -35,7 +35,7 @@ test("review puts the real image first, with a neighboring inspector and an actu
   await expect(stage.getByText("Browse · thumbnail at 200 px")).toBeVisible();
   await page.screenshot({ path: "evidence/review-studio-feed-1440.png", fullPage: true });
   await preview.click();
-  await stage.getByRole("button", { name: "Analyze", exact: true }).click();
+  await stage.getByRole("button", { name: "Score it", exact: true }).click();
   await expect(page.getByLabel("Video title", { exact: true })).toBeFocused();
   await expect(page.getByRole("button", { name: "Hide prompt and settings" })).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "Hide prompt and settings" }).click();
@@ -49,7 +49,7 @@ test("unscored and failed previews stay useful, with reduced-motion and real ref
   await reviewFixture(page, false);
   await page.emulateMedia({ reducedMotion: "reduce" });
   const stage = page.getByRole("region", { name: "Thumbnail review studio" });
-  await expect(stage.getByRole("heading", { name: "Connect Jev to score this image" })).toBeVisible();
+  await expect(stage.getByRole("heading", { name: "Connect scoring to see this image’s score" })).toBeVisible();
   expect(await stage.locator(".result-image img").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
   await expect(stage.locator("figure")).toHaveAttribute("aria-busy", "false");
   await expect(stage.getByText("Loading image…", { exact: true })).toHaveCount(0);
