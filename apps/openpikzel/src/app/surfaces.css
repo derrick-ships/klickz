@@ -447,3 +447,39 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 .signin-alternatives { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-1) var(--space-4); }
 .signin-alternatives .quiet-button { min-height: 44px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--color-placeholder); }
 .account-next { margin-top: var(--space-6); color: var(--color-placeholder); }
+
+/* Polish (Nov 2026) */
+.more-options[open] > summary { margin-bottom: var(--space-1); }
+.more-options-body { gap: var(--space-6); padding-top: var(--space-1); }
+.option-group > h3 { text-transform: none; }
+.composer-inner:has(> .more-options) { padding-bottom: var(--space-2); }
+.composer-footer { margin-top: var(--space-6); align-items: center; }
+.composer-footer > span { color: var(--color-placeholder); font-size: 13px; }
+.composer-footer > span:empty { display: none; }
+.composer-footer .save-draft-button { min-inline-size: auto; justify-content: center; gap: 8px; white-space: nowrap; }
+.save-draft-feedback { margin-left: auto; }
+.creative-conversation > summary { list-style: none; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.creative-conversation > summary::-webkit-details-marker { display: none; }
+.creative-conversation > summary::before {
+  content: ""; align-self: center; width: 7px; height: 7px; margin-right: 4px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform var(--duration-surface) var(--ease-surface);
+}
+.creative-conversation[open] > summary::before { transform: rotate(45deg); }
+.creative-conversation > summary span { margin: 0; }
+@media (max-width: 760px) {
+  .creative-conversation > summary span { flex-basis: 100%; padding-left: 15px; }
+}
+@media (prefers-reduced-motion: reduce) { .creative-conversation > summary::before { transition: none; } }
+@media (max-width: 420px) {
+  .topbar { flex-wrap: nowrap; }
+  .topbar-actions .quiet-button > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .topbar-actions .quiet-button { padding-inline: 10px; }
+}
+.creative-conversation-body { display: grid; gap: var(--space-4); padding: 0 20px 20px 35px; }
+.creative-conversation-body > p, .creative-conversation-body > small, .creative-availability, .creative-context { margin: 0; font-size: 13px; line-height: 1.6; color: var(--color-placeholder); }
+.creative-conversation-body .permission-field { margin: 0; }
+.creative-conversation-body > button, .creative-conversation-body .creative-actions { justify-self: start; }
+.prompt-enhancer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0; }
+.prompt-enhancer small { font-size: 13px; color: var(--color-placeholder); }
+@media (max-width: 760px) { .creative-conversation-body { padding: 0 14px 14px; } }
