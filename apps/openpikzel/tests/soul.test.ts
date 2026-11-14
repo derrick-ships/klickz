@@ -18,7 +18,7 @@ it("loads the soul into the MCP agent guide and the image reviewer", () => {
   expect(instructionVersion).toBe("openpikzels-harness-1.2-soul");
 });
 it("keeps the channel house style opt-in and every section sourced", () => {
-  expect(source).toMatch(/Opt-in channel profile[\s\S]*Apply it ONLY when/);
+  expect(source).toMatch(/Opt-in channel profile[\s\S]*Apply ONLY when/);
   const sections = source.split(/\n## /).slice(1);
   for (const section of sections.filter((s) => !s.startsWith("11. Limits"))) expect(section).toMatch(/Source: \d\d-/);
 });
