@@ -129,3 +129,16 @@ test("a different text provider keeps its own connected status, because it is a 
  await expect(page.locator(".composer .provider-choice p")).toContainText("Google key connected.");
  await expect(page.locator("#generate-key-note")).toHaveText("Using your OpenAI key.");
 });
+// Motion #2: the error banner arrives (opacity + 4px) instead of popping, and reduced motion keeps only a fade.
+for(const reduced of [false,true])test("error banner enters with a short settle"+(reduced?" (reduced motion: fade only)":""),async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await page.emulateMedia({reducedMotion:reduced?"reduce":"no-preference"});
+ await setup(page,{signedIn:true,openai:true});await page.goto("/studio?mode=recreate");
+ await page.locator("#thumbnail-prompt").fill("Swap the desk for a kitchen, keep the layout");
+ await page.getByRole("button",{name:"Create variation",exact:true}).click();
+ const banner=page.locator(".error-banner");await expect(banner).toBeVisible();
+ const css=await banner.evaluate(el=>{const c=getComputedStyle(el);return {prop:c.transitionProperty,dur:c.transitionDuration};});
+ if(reduced){expect(css.prop).toBe("opacity");expect(css.dur).toBe("0.12s");}
+ else{expect(css.prop).toContain("opacity");expect(css.prop).toContain("transform");expect(css.dur).toContain("0.18s");}
+ await expect.poll(()=>banner.evaluate(el=>getComputedStyle(el).opacity)).toBe("1");
+ await expect.poll(()=>banner.evaluate(el=>getComputedStyle(el).transform)).toBe("none");
+});

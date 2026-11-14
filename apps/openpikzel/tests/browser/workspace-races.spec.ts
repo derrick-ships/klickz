@@ -348,6 +348,8 @@ test('prompt enhancement is reviewed, reversible, and never generates an image',
  await page.goto('/');await page.getByRole('button',{name:'Show prompt and settings',exact:true}).click();
  const composer=page.getByLabel('Describe your thumbnail',{exact:true}),before=await composer.inputValue();
  await openMoreOptions(page);await page.getByRole('button',{name:'Improve my description',exact:true}).click();await expect(page.getByRole('region',{name:'Prompt enhancement'})).toBeVisible();await expect(composer).toHaveValue(before);
+ // Motion #3: the suggestion settles in (opacity + transform, 180ms) and ends fully visible.
+ const suggestion=page.getByRole('region',{name:'Prompt enhancement'});expect(await suggestion.evaluate(el=>getComputedStyle(el).transitionProperty)).toContain('transform');await expect.poll(()=>suggestion.evaluate(el=>getComputedStyle(el).opacity)).toBe('1');
  await page.getByRole('button',{name:'Apply enhancement',exact:true}).click();await expect(composer).toHaveValue('A factual studio portrait, one clear subject and a readable headline.');
  await page.getByRole('button',{name:'Undo direction change',exact:true}).click();await expect(composer).toHaveValue(before);expect(images).toBe(0);
 });
