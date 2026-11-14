@@ -7,9 +7,12 @@ names=sorted(p.name for p in base.iterdir() if p.is_file() and p.name not in ['v
 destination=Path(os.environ['COMPANION_ZIP']) if os.environ.get('COMPANION_ZIP') else root/'public/downloads/openpikzels-local-companion.zip'
 destination.parent.mkdir(parents=True,exist_ok=True)
 with ZipFile(destination,'w',ZIP_DEFLATED) as archive:
+ soul=root/'soul.md'
+ info=ZipInfo('openpikzels-local-companion/soul.md',(2026,11,8,0,0,0));info.compress_type=ZIP_DEFLATED;info.external_attr=(0o100644<<16)
+ archive.writestr(info,soul.read_bytes())
  for name in names:
   info=ZipInfo('openpikzels-local-companion/'+name,(2026,11,8,0,0,0))
   info.compress_type=ZIP_DEFLATED
   info.external_attr=((0o100755 if name.endswith(('.command','.sh')) else 0o100644)<<16)
   archive.writestr(info,(base/name).read_bytes())
-print(json.dumps({'archive':str(destination.relative_to(root) if destination.is_relative_to(root) else destination),'files':len(names),'sha256':hashlib.sha256(destination.read_bytes()).hexdigest()}))
+print(json.dumps({'archive':str(destination.relative_to(root) if destination.is_relative_to(root) else destination),'files':len(names)+1,'sha256':hashlib.sha256(destination.read_bytes()).hexdigest()}))

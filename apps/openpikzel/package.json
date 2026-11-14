@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
-    "build": "node scripts/build-widget.mjs && next build",
+    "build": "node scripts/build-soul.mjs && node scripts/build-widget.mjs && next build",
+    "build:soul": "node scripts/build-soul.mjs",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
