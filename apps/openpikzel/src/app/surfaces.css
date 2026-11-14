@@ -395,3 +395,12 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
   font-size: 13px;
   color: var(--color-muted);
 }
+
+.style-palette-large { display: flex; gap: 6px; margin: 12px 0 6px; }
+.style-palette-large span { flex: 1; height: 36px; border-radius: 8px; border: 1px solid var(--edge-highlight, rgba(255,255,255,.12)); }
+.profile-item .style-palette { display: flex; gap: 3px; margin-top: 6px; }
+.profile-item .style-palette span { width: 14px; height: 14px; border-radius: 4px; }
+
+.fix-prompt-text { white-space: pre-wrap; word-break: break-word; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--color-modal-base); border: 1px solid var(--edge-highlight, rgba(255,255,255,.12)); border-radius: 10px; padding: 12px; margin: 8px 0 0; max-height: 260px; overflow: auto; }
+.analysis-fix-prompt { margin: 14px 0 6px; }
+.analysis-fix-prompt summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: 600; min-height: 44px; }

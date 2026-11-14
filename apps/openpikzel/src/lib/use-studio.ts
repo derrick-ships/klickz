@@ -557,10 +557,10 @@ export function useStudio() {
   async function saveProfile(kind:"persona"|"style",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]}){
     const epoch=ownerEpoch.current;
     if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
-    if(files.length!==3)throw new Error("Upload exactly 3 images");
+    if(files.length<(kind==="persona"?2:1)||files.length>3)throw new Error(kind==="persona"?"Upload 2 or 3 photos of this persona.":"Use 1 to 3 style references.");
     if(kind==="persona"&&!permission)throw new Error("Confirm you have permission to use these photos and this likeness.");
     const hashes=await Promise.all(files.map(async file=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",await file.arrayBuffer()))).join(",")));
-    if(new Set(hashes).size!==3)throw new Error("Choose three different reference images.");
+    if(new Set(hashes).size!==files.length)throw new Error("Choose different reference images.");
     const refs:string[]=[];let dispatched=false;
     try{
       for(const file of files){if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Start again in this workspace.");refs.push(await upload(file));}

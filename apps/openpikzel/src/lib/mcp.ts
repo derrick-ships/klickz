@@ -10,6 +10,8 @@ import {
 } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { soul } from "./soul.generated";
+import { fixPrompt } from "./fix-prompt";
+import type { Evaluation } from "./types";
 import { resolveAccess, type Scope } from "./oauth/core";
 import { appOrigin } from "./crypto";
 import { AppError, ownedPath } from "./validation";
@@ -29,6 +31,7 @@ import { unseal } from "./crypto";
 import type { FixPlan } from "./diagnostics";
 import {POST as saveProfileRoute} from "@/app/api/profiles/route";
 import {POST as browseChannel} from "@/app/api/youtube/route";
+import {POST as studyStyle} from "@/app/api/styles/study/route";
 import { POST as prepare } from "@/app/api/persona/prepare/route";
 import { recomposePrompt } from "./analysis-display";
 import { userKeys } from "./provider-context";
@@ -43,7 +46,7 @@ import {
 import { widgetHtml } from "./widget.generated";
 import { forgetFact, recallFacts, rememberFact } from "./agent-memory";
 export const uiUri = "ui://openpikzels/studio.html";
-export const agentGuide = `OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. A saved connection is not proof of model entitlement or balance; select a provider explicitly for each role and never substitute another provider silently. Use create_conversation/list_conversations/get_conversation to keep a project together; pass conversationId on generation. Profiles require three distinct owned references and names of at least3characters. A persona also requires explicit permission=true for likeness use. browse_style_channel uses the user’s own separate YouTube Data API key; never reuse an image-provider key for it. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. When asked to OpenPikzels Analyze a thumbnail, call analyze_thumbnail with exactly one of creationId, imagePath or base64; use create_upload_url first when the file is too large for base64. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail defaults to Jev only; includeVision explicitly opts into one additional OpenAI/Google request. A title supports all five visible packaging rubrics; no written video brief is required. Optional videoUrl retrieves YouTube title/description using the user’s YouTube key. Missing titles or provider evidence remain unassessed; the video is not watched. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. enhance_prompt proposes a reviewed rewrite using one user-funded OpenAI or Google text request and a stable requestId. Conversation and image providers are independent; no consumer subscription is assumed to provide API access. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. recompose_thumbnail generates one new arrangement from the source in 9:16 or 16:9 using image-provider credits; preserve its requestId on an uncertain retry. The older resize_thumbnail tool remains a non-AI contained layout with a blurred background. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.\n\n${soul}`;
+export const agentGuide = `OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. A saved connection is not proof of model entitlement or balance; select a provider explicitly for each role and never substitute another provider silently. Use create_conversation/list_conversations/get_conversation to keep a project together; pass conversationId on generation. Personas need 2 or 3 distinct photos; styles need 1 to 3 references; names need at least 3 characters. A persona also requires explicit permission=true for likeness use. browse_style_channel uses the user’s own separate YouTube Data API key; never reuse an image-provider key for it. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. When asked to OpenPikzels Analyze a thumbnail, call analyze_thumbnail with exactly one of creationId, imagePath or base64; use create_upload_url first when the file is too large for base64. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail defaults to Jev only; includeVision explicitly opts into one additional OpenAI/Google request. A title supports all five visible packaging rubrics; no written video brief is required. Optional videoUrl retrieves YouTube title/description using the user’s YouTube key. Missing titles or provider evidence remain unassessed; the video is not watched. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. enhance_prompt proposes a reviewed rewrite using one user-funded OpenAI or Google text request and a stable requestId. Conversation and image providers are independent; no consumer subscription is assumed to provide API access. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. recompose_thumbnail generates one new arrangement from the source in 9:16 or 16:9 using image-provider credits; preserve its requestId on an uncertain retry. The older resize_thumbnail tool remains a non-AI contained layout with a blurred background. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.\n\n${soul}`;
 export async function createMcpServer(token: string) {
   const context = await resolveAccess(token),
     { db, user, oauth } = context;
@@ -64,6 +67,16 @@ export async function createMcpServer(token: string) {
     const r = await db.storage.from("studio-assets").createSignedUrl(path, 300);
     if (r.error) throw new AppError(404, "Image is unavailable.");
     return r.data.signedUrl;
+  }
+  // Resolve a saved profile name (as a user would write it after @) to its id,
+  // within the caller's own rows only, using the same unique-name rules as the app.
+  async function profileIdByName(kind: ProfileKind, raw: string) {
+    const name = raw.trim().replace(/^@/, "");
+    const rows = await db.from(kind === "persona" ? "studio_personas" : "studio_styles").select("id,name,created_at").eq("user_id", user.id);
+    if (rows.error) throw rows.error;
+    const resolved = resolveProfileName(rows.data || [], name, kind);
+    if (resolved.status !== 200) throw new AppError(resolved.status, resolved.error);
+    return resolved.profile.id as string;
   }
   async function creation(id: string) {
     const r = await db
@@ -345,7 +358,7 @@ export async function createMcpServer(token: string) {
       kind: z.enum(["persona", "style"]),
       name: z.string().trim().min(3).max(80),
       notes: z.string().max(800).default(""),
-      references: z.array(z.string().max(400)).length(3),
+      references: z.array(z.string().max(400)).min(1).max(3),
       permission: z.boolean().default(false),
     },
     "studio:write",
@@ -380,6 +393,8 @@ export async function createMcpServer(token: string) {
     parentId: z.string().uuid().optional(),
     personaId: z.string().uuid().optional(),
     styleId: z.string().uuid().optional(),
+    persona: z.string().max(80).optional().describe("Saved persona name, e.g. the name the user typed after @. Resolved to your own persona."),
+    style: z.string().max(80).optional().describe("Saved private style name. Resolved to your own style."),
     referencePaths: z.array(z.string().max(400)).max(6).default([]),
     model: z
       .enum(["sunburst", "flare", "gemini-flash", "gemini-pro"])
@@ -397,7 +412,11 @@ export async function createMcpServer(token: string) {
     "studio:ai",
     async (args) => {
       await allowed("studio:write");
-      const { model, quality, complexity, format, batch, ...rest } = args;
+      const { model, quality, complexity, format, batch, persona, style, ...rest } = args;
+      if (persona && rest.personaId) throw new AppError(400, "Use either persona or personaId, not both.");
+      if (style && rest.styleId) throw new AppError(400, "Use either style or styleId, not both.");
+      if (persona) rest.personaId = await profileIdByName("persona", persona);
+      if (style) rest.styleId = await profileIdByName("style", style);
       return backend(generate, {
         ...rest,
         settings: { model, quality, complexity, format, batch },
@@ -442,7 +461,7 @@ export async function createMcpServer(token: string) {
     const overall = score.overall == null ? "incomplete" : String(score.overall);
     const weakest = score.priority || "unknown";
     const topFix = score.dimensions?.[weakest]?.fix || "none";
-    return `Score ${overall}. Weakest pillar: ${weakest}. Top fix: ${topFix}. Reviewer: ${result.reviewer}.`;
+    return `Score ${overall}. Weakest pillar: ${weakest}. Top fix: ${topFix}. Reviewer: ${result.reviewer}.${result.fix?.prompt ? `\n\nOne-click fix prompt:\n${result.fix.prompt}` : ""}`;
   }
   tool(
     "analyze_thumbnail",
@@ -491,7 +510,9 @@ export async function createMcpServer(token: string) {
           kind: plan.kind,
           ...(plan.reason ? { reason: plan.reason } : {}),
           ...(plan.token ? { token: plan.token } : {}),
+          prompt: analyzed.score ? fixPrompt(analyzed.score as Evaluation) : null,
         },
+        next: "To raise the score: paste fix.prompt into an image editor with the original, or call one_click_fix with fix.token (uses image credits) and rescore:true, then repeat analyze → fix until the score stops improving.",
         previewUrl: path ? await signed(path) : null,
       };
     },
@@ -512,7 +533,7 @@ export async function createMcpServer(token: string) {
           "Score this thumbnail with its current title first.",
         );
       return {
-        prompt: `Edit the attached original thumbnail for the video titled "${c.title}". Keep the same person, identity and truthful video promise. Preserve strong elements. Apply these visual improvements in order:\n${fixInstructions(c.score)}\nUse a clear focal point, readable short text only if useful, and strong mobile-feed hierarchy. Return the edited thumbnail. Do not claim guaranteed clicks or invent evidence.`,
+        prompt: fixPrompt(c.score) ?? "No concrete change is supported by this analysis. Keep the current thumbnail.",
         creationId,
       };
     },
@@ -556,12 +577,47 @@ export async function createMcpServer(token: string) {
   );
   tool(
     "one_click_fix",
-    "Apply the exact reviewed create_fix_plan token. One image request, original preserved, no automatic scoring. Model and quality are bound to the plan.",
-    { planToken: z.string().max(32000), requestId: z.string().uuid() },
+    "Apply the exact reviewed fix token from analyze_thumbnail or create_fix_plan. One image request, original preserved. Model and quality are bound to the plan. With rescore:true it then analyzes the new image (Jev + your vision reviewer) and returns before/after scores and the next fix, so you can repeat the loop.",
+    { planToken: z.string().max(32000), requestId: z.string().uuid(), rescore: z.boolean().default(false), rescoreRequestId: z.string().uuid().optional() },
     "studio:ai",
-    async ({ planToken, requestId }) => {
+    async ({ planToken, requestId, rescore, rescoreRequestId }) => {
       await allowed("studio:write");
       const plan = unseal<FixPlan>(planToken, "fix-plan");
+      if (rescore) {
+        const parent = await creation(plan.sourceId);
+        const generated = await backend(generate, {
+          parentId: plan.sourceId,
+          title: plan.title,
+          prompt: "Apply the reviewed packaging edits while preserving the original.",
+          mode: "fix",
+          settings: plan.settings,
+          fixPlanToken: planToken,
+          requestId,
+        });
+        const child = (generated.creations as Array<{ id: string }> | undefined)?.[0];
+        if (!child) return generated;
+        const keys = await userKeys(db, user.id);
+        const critiqueProvider = pickVisionProvider(keys);
+        const analyzed = await backend(analyze, {
+          creationId: child.id,
+          title: plan.title,
+          includeVision: !!critiqueProvider,
+          ...(critiqueProvider ? { critiqueProvider } : {}),
+          requestId: rescoreRequestId || crypto.randomUUID(),
+        });
+        const next = await backend(makePlan, { creationId: child.id, settings: { ...plan.settings, batch: 1 } }) as { kind: string; reason?: string; token?: string };
+        const newScore = analyzed.score as Evaluation | undefined;
+        const before = parent.score?.overall ?? null, after = newScore?.overall ?? null;
+        return {
+          ...generated,
+          before,
+          after,
+          delta: before !== null && after !== null ? after - before : null,
+          score: newScore,
+          fix: { kind: next.kind, ...(next.reason ? { reason: next.reason } : {}), ...(next.token ? { token: next.token } : {}), prompt: newScore ? fixPrompt(newScore) : null },
+          next: after !== null && before !== null && after <= before ? "The score did not improve. Keep the stronger version, or adjust the plan before another round." : "Repeat one_click_fix with fix.token and rescore:true while the score keeps rising.",
+        };
+      }
       return backend(generate, {
         parentId: plan.sourceId,
         title: plan.title,
@@ -624,6 +680,7 @@ export async function createMcpServer(token: string) {
   tool("list_conversations","List your private creative chats. Old creations remain in the library.",{},"studio:read",async()=>{const r=await db.from("studio_conversations").select("id,title,created_at,updated_at").eq("user_id",user.id).order("updated_at",{ascending:false}).limit(50);if(r.error)throw r.error;return {conversations:r.data};},true);
   tool("get_conversation","Get an owned chat and its exact saved prompts, settings and images.",{id:z.string().uuid()},"studio:read",async({id})=>{const chat=await db.from("studio_conversations").select("*").eq("id",id).eq("user_id",user.id).single();if(chat.error||!chat.data)throw new AppError(404,"Chat not found.");const rows=await db.from("studio_creations").select("*").eq("conversation_id",id).eq("user_id",user.id).order("created_at",{ascending:true});if(rows.error)throw rows.error;return {conversation:chat.data,creations:rows.data};},true);
   tool("create_conversation","Start a new private creative chat; pass its id as conversationId when generating.",{title:z.string().trim().min(1).max(100).default("New chat")},"studio:write",async({title})=>{const r=await db.from("studio_conversations").insert({user_id:user.id,title}).select("*").single();if(r.error)throw r.error;return {conversation:r.data};});
+  tool("study_style","Study a thumbnail style from a YouTube video link (no key needed) or a channel link (uses your own YouTube Data API key: its top 3 popular or recent videos) and save it as a private style with up to 3 reference thumbnails and a measured colour palette. No AI provider charge. Then call prepare_profile to write a style brief, and pass style by name to generate_thumbnail.",{url:z.string().min(1).max(500),name:z.string().trim().min(3).max(80).optional(),notes:z.string().max(800).default(""),order:z.enum(["recent","popular"]).default("popular"),videoIds:z.array(z.string().regex(/^[\w-]{11}$/)).min(1).max(3).optional()},"studio:write",args=>backend(studyStyle,args));
   tool("browse_style_channel","Browse public YouTube channel thumbnails with your own connected YouTube Data API key.",{channel:z.string().max(300),order:z.enum(["recent","popular"]).default("recent"),pageToken:z.string().max(300).default("")},"studio:read",args=>backend(browseChannel,args),true);
   tool("remember_fact","Remember a short fact for this user. Values that look like secrets are rejected and never stored.",{fact:z.string().min(1).max(1000),tags:z.array(z.string().max(40)).max(12).optional(),agent:z.string().min(1).max(60).optional(),source:z.string().max(200).optional()},"studio:agent",args=>rememberFact(context,{fact:args.fact,tags:args.tags,agent:args.agent,source:args.source}));
   tool("recall_facts","Recall this user's newest matching remembered facts, at most 20.",{query:z.string().max(200).optional()},"studio:agent",args=>recallFacts(context,args),true);

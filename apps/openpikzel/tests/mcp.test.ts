@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   analyzeByRequestId: {} as Record<string, any>,
   analyzeFailure: false as boolean,
   planCalls: [] as any[],
+  generateCalls: [] as any[],
 }));
 vi.mock("../src/lib/oauth/core", async () => {
   const actual = await vi.importActual<any>("../src/lib/oauth/core");
@@ -289,6 +290,13 @@ vi.mock("@/app/api/analyze/route", () => ({
     return Response.json(result);
   },
 }));
+vi.mock("@/app/api/generate/route", () => ({
+  POST: async (request: Request) => {
+    const body = await request.json();
+    state.generateCalls.push(body);
+    return Response.json({ creation: { id: "dddddddd-dddd-4ddd-8ddd-ddddddddddd1" }, creations: [{ id: "dddddddd-dddd-4ddd-8ddd-ddddddddddd1" }], partial: false, jobId: body.requestId });
+  },
+}));
 vi.mock("@/app/api/fix-plan/route", () => ({
   POST: async (request: Request) => {
     const body = await request.json();
@@ -333,6 +341,7 @@ beforeEach(() => {
   state.analyzeByRequestId = {};
   state.analyzeFailure = false;
   state.planCalls = [];
+  state.generateCalls = [];
   state.score = {
     source: "jev",
     version: 3,
@@ -652,11 +661,12 @@ describe("OP-17 analyze_thumbnail and create_upload_url", () => {
 
     for (const result of [fromCreation, fromPath, fromBase64]) {
       expect(Object.keys(result.structuredContent).sort()).toEqual(
-        ["creationId", "fix", "previewUrl", "reviewer", "score"].sort(),
+        ["creationId", "fix", "next", "previewUrl", "reviewer", "score"].sort(),
       );
       expect(result.structuredContent.score.overall).toBe(60);
       expect(result.structuredContent.reviewer).toBe("Claude");
-      expect(result.structuredContent.fix).toEqual({ kind: "ready", token: "fixture-plan-token" });
+      expect(result.structuredContent.fix).toMatchObject({ kind: "ready", token: "fixture-plan-token" });
+      expect("prompt" in result.structuredContent.fix).toBe(true);
       expect(result.content[0].text).toContain("Claude");
     }
   });
@@ -980,4 +990,57 @@ it("returns no partial output when a later selected image is missing", async () 
   expect(JSON.stringify(result)).not.toContain(good);
   expect(JSON.stringify(result)).not.toContain(missing);
   expect(state.signed).toEqual([]);
+});
+
+describe("analyze → fix loop and profiles by name", () => {
+  it("analyze_thumbnail returns a ready fix prompt with the score, weakest pillar first", async () => {
+    const result = await invoke("analyze_thumbnail", { creationId: "11111111-1111-4111-8111-111111111111", title: "The actual video title", requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1" });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent.fix.prompt).toMatch(/^Edit the attached original thumbnail/);
+    expect(result.structuredContent.fix.prompt.indexOf("clarity (40/100)")).toBeGreaterThan(0);
+    expect(result.content[0].text).toContain("One-click fix prompt");
+  });
+  it("one_click_fix with rescore renders once, re-analyzes the child and returns before/after and the next fix", async () => {
+    const { seal } = await import("../src/lib/crypto");
+    vi.stubEnv("STUDIO_ENCRYPTION_KEY", "a".repeat(64));
+    const planToken = seal({ sourceId: "11111111-1111-4111-8111-111111111111", title: "The actual video title", settings: { model: "flare", quality: "low", complexity: "medium", format: "long", batch: 1 } }, "fix-plan");
+    state.score = { ...state.score, overall: 60 };
+    const result = await invoke("one_click_fix", { planToken, requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2", rescore: true });
+    expect(result.isError).not.toBe(true);
+    expect(state.generateCalls).toHaveLength(1);
+    expect(state.generateCalls[0]).toMatchObject({ mode: "fix", parentId: "11111111-1111-4111-8111-111111111111", fixPlanToken: planToken });
+    expect(state.analyzeCalls.at(-1)).toMatchObject({ creationId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd1", includeVision: true, critiqueProvider: "anthropic" });
+    expect(result.structuredContent).toMatchObject({ before: 60, after: 60, delta: 0, fix: { kind: "ready", token: "fixture-plan-token" } });
+    expect(result.structuredContent.next).toMatch(/did not improve/);
+  });
+  it("one_click_fix without rescore keeps the single image request and no scoring", async () => {
+    const { seal } = await import("../src/lib/crypto");
+    vi.stubEnv("STUDIO_ENCRYPTION_KEY", "a".repeat(64));
+    const planToken = seal({ sourceId: "11111111-1111-4111-8111-111111111111", title: "The actual video title", settings: { model: "flare", quality: "low", complexity: "medium", format: "long", batch: 1 } }, "fix-plan");
+    const result = await invoke("one_click_fix", { planToken, requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3" });
+    expect(result.isError).not.toBe(true);
+    expect(state.generateCalls).toHaveLength(1);
+    expect(state.analyzeCalls).toHaveLength(0);
+  });
+  it("generate_thumbnail resolves @persona and style names within the caller's own profiles", async () => {
+    state.scope = ["studio:read", "studio:write", "studio:ai"];
+    state.profiles = [
+      { table: "studio_personas", user_id: uid, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", name: "Derrick", created_at: "2026-11-10T00:00:00Z" },
+      { table: "studio_styles", user_id: uid, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2", name: "Noticias", created_at: "2026-11-10T00:00:00Z" },
+      { table: "studio_personas", user_id: "22222222-2222-4222-8222-222222222222", id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3", name: "Other", created_at: "2026-11-10T00:00:00Z" },
+    ];
+    const ok = await invoke("generate_thumbnail", { prompt: "A clear studio portrait", persona: "@derrick", style: "Noticias", requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4" });
+    expect(ok.isError).not.toBe(true);
+    expect(state.generateCalls.at(-1)).toMatchObject({ personaId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", styleId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2" });
+    expect(state.generateCalls.at(-1)).not.toHaveProperty("persona");
+    const foreign = await invoke("generate_thumbnail", { prompt: "A clear studio portrait", persona: "Other", requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee5" });
+    expect(foreign.isError).toBe(true);
+    expect(state.generateCalls).toHaveLength(1);
+  });
+  it("lists study_style for saving a style from a YouTube link", async () => {
+    const tools = await (await call("tools/list", {})).json();
+    const study = tools.result.tools.find((t: any) => t.name === "study_style");
+    expect(study.description).toMatch(/colour palette/);
+    expect(study.inputSchema.required).toContain("url");
+  });
 });

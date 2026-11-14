@@ -41,6 +41,7 @@ export type Style = {
   created_at: string;
   profile_status?: "draft" | "ready";
   identity_brief?: string;
+  source?: { kind?: "youtube"; channelId?: string; videoIds?: string[]; palette?: string[] };
 };
 export const pillars = [
   "virality",

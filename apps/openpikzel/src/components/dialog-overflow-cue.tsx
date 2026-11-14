@@ -14,7 +14,11 @@ export function DialogOverflowCue({ dialog, open }: { dialog: RefObject<HTMLDial
       setMore(false);
       return;
     }
-    const update = () => setMore(node.scrollHeight - node.clientHeight - node.scrollTop > 8);
+    // Dialogs with their own sticky action footer already signal continuation and
+    // must not have their actions covered.
+    const stickyFooter = () =>
+      !!node.querySelector(".analysis-overlay .consent-actions, .youtube-picker > .primary-button");
+    const update = () => setMore(!stickyFooter() && node.scrollHeight - node.clientHeight - node.scrollTop > 8);
     update();
     const resize = new ResizeObserver(update);
     resize.observe(node);
