@@ -174,7 +174,7 @@
 .delivery-caption p,.delivery-caption small { color: #bcbcbc; line-height: 1.6; margin: 8px 0 0; }
 .delivery-caption p { font-size: 14px; }
 .delivery-caption small { font-size: 12px; }
-.delivery-compact { border-left: 3px solid #ff3046; }
+.delivery-compact { background: var(--color-accent-recess); border-radius: 12px; }
 /* OP-10: the generating placeholder fades out when the image lands instead of popping (skipped with reduced motion). */
 .delivery-placeholder.leaving { animation: delivery-exit 200ms var(--ease-out) both; pointer-events: none; }
 @keyframes delivery-exit { to { opacity: 0; } }
