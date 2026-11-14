@@ -55,3 +55,8 @@ export function deliveryCopy(state:Pick<DeliveryState,"stage"|"reviewed"|"total"
  const detail=state.stage==="analyzing"?"Reviewing "+(state.reviewed+1)+" of "+state.total+". You can inspect your saved image while the score and comments arrive.":state.stage==="review-pending"?(state.reviewed<state.total?"The score will appear when it lands. You can inspect your saved image in the meantime.":"Your image is safe. Retry score to reuse the same request, or check API activity; generating the image again is unnecessary."):state.stage==="ready"?"Scores and comments are saved. One-Click Fix is available when the assessment supports a concrete edit.":state.stage==="image-ready"?"Connect scoring to see this image’s score":state.stage==="failed"?"Check API activity and saved creations before starting another paid request.":"The studio stays available while your provider works.";
  return {label,detail};
 }
+
+/** The fix is blocked only because the image itself was never reviewed: complete score, title present, no vision. */
+export function needsImageReview(score:{fixBlocked?:boolean;vision?:boolean;partial?:boolean;context?:{title?:string}|null}|null|undefined){
+ return !!score&&!!score.fixBlocked&&!score.vision&&!score.partial&&!!score.context?.title;
+}

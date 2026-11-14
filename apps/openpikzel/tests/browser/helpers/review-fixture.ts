@@ -23,7 +23,7 @@ export async function reviewFixture(page: Page, scored: boolean | { scored?: boo
           rows.onsuccess = () => {
             const item = rows.result.find(c => c.title.startsWith("Fixture:"));
             store.put({ ...item, score: {
-              source: "jev", version: 3, overall: null, partial: true,
+              source: "jev", version: 3, overall: null, partial: true, vision: true,
               title: item.title, priority: "clarity", created_at: new Date().toISOString(),
               note: "Explicit UI fixture. No provider was called.", warnings: [],
               dimensions: Object.fromEntries(["virality", "clarity", "idea", "curiosity", "emotion"].map(p => [p, {

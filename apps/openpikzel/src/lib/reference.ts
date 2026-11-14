@@ -15,7 +15,8 @@ export function publicIPv4(ip: string) {
     x >= 224 ||
     (x === 169 && y === 254) ||
     (x === 172 && y >= 16 && y <= 31) ||
-    x === 192 ||
+    // Only the reserved 192.x ranges; Google serves YouTube thumbnails from public 192.178.x.x.
+    (x === 192 && (y === 168 || (y === 0 && (a[2] === 0 || a[2] === 2)) || (y === 88 && a[2] === 99))) ||
     (x === 100 && y >= 64 && y <= 127) ||
     (x === 198 && (y === 18 || y === 19 || y === 51)) ||
     (x === 203 && y === 0)
@@ -120,4 +121,22 @@ export async function fetchReference(value: string, hops = 0, allowedHosts?: rea
     .resize(1568, 1568, { fit: "inside", withoutEnlargement: true })
     .png()
     .toBuffer();
+}
+
+/** Public title of a YouTube video via YouTube's oEmbed endpoint. Fixed host, no API key, best effort. */
+export async function youtubeTitle(value: string): Promise<string | null> {
+  let id: string | null = null;
+  try {
+    const url = new URL(value), host = url.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") id = url.pathname.split("/")[1] || null;
+    else if (["youtube.com", "m.youtube.com"].includes(host))
+      id = url.searchParams.get("v") || url.pathname.match(/^\/(?:shorts|embed|live)\/([^/]+)/)?.[1] || null;
+  } catch { return null; }
+  if (!id || !/^[a-zA-Z0-9_-]{11}$/.test(id)) return null;
+  try {
+    const res = await fetch("https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent("https://www.youtube.com/watch?v=" + id), { signal: AbortSignal.timeout(8000), redirect: "error" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { title?: unknown };
+    return typeof data.title === "string" ? data.title.trim().slice(0, 100) || null : null;
+  } catch { return null; }
 }

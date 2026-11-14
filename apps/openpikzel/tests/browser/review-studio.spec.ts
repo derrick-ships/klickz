@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openResultMore } from "./helpers/more-options";
 import { reviewFixture } from "./helpers/review-fixture";
 
 
@@ -35,7 +36,7 @@ test("review puts the real image first, with a neighboring inspector and an actu
   await expect(stage.getByText("Browse · thumbnail at 200 px")).toBeVisible();
   await page.screenshot({ path: "evidence/review-studio-feed-1440.png", fullPage: true });
   await preview.click();
-  await stage.getByRole("button", { name: "Score it", exact: true }).click();
+  await openResultMore(page);await stage.getByRole("button", { name: "Score it", exact: true }).click();
   await expect(page.getByLabel("Video title", { exact: true })).toBeFocused();
   await expect(page.getByRole("button", { name: "Hide prompt and settings" })).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "Hide prompt and settings" }).click();

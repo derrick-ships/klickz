@@ -99,11 +99,31 @@ describe("input, reference and score boundaries", () => {
       "224.0.0.1",
     ])
       expect(publicIPv4(ip)).toBe(false);
+    for (const ip of ["192.0.0.1", "192.0.2.1", "192.88.99.1"]) expect(publicIPv4(ip)).toBe(false);
     expect(publicIPv4("8.8.8.8")).toBe(true);
+    // i.ytimg.com resolves into 192.178.0.0/15; it must stay importable.
+    expect(publicIPv4("192.178.41.6")).toBe(true);
   });
   it("resolves YouTube references to a fixed image host", () => {
     expect(referenceURL("https://youtu.be/dQw4w9WgXcQ").href).toBe(
       "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
     );
+  });
+});
+
+import { youtubeTitle } from "../src/lib/reference";
+import { afterEach, vi } from "vitest";
+describe("youtubeTitle", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("reads the public title through oEmbed and ignores non-YouTube links", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ title: "Abelardo destruye el mito del M-19" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await youtubeTitle("https://youtu.be/R1d0VZ0Hk4c?si=x")).toBe("Abelardo destruye el mito del M-19");
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("youtube.com/oembed");
+    expect(await youtubeTitle("https://example.com/a.png")).toBeNull();
+  });
+  it("returns null when YouTube does not answer", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 404 })));
+    expect(await youtubeTitle("https://www.youtube.com/watch?v=R1d0VZ0Hk4c")).toBeNull();
   });
 });

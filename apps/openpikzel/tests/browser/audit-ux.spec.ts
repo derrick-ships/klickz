@@ -1,5 +1,5 @@
 import {test,expect} from "@playwright/test";
-import { openMoreOptions } from "./helpers/more-options";
+import { openMoreOptions, openResultMore } from "./helpers/more-options";
 import {reviewFixture} from "./helpers/review-fixture";
 test("composer is the sole settings home with provider-aware identity and honest readiness",async({page})=>{
  await page.setViewportSize({width:1440,height:900});await page.goto("/studio?mode=generate");
@@ -18,7 +18,7 @@ test("editing keeps the selected image next to unsent instructions at desktop an
  await page.setViewportSize({width:1440,height:900});await reviewFixture(page,false);
  await page.getByRole("tab",{name:"Create",exact:true}).click();await page.getByLabel("Describe your thumbnail",{exact:true}).fill("Keep my unsent edit instructions");
  const stage=page.getByRole("region",{name:"Thumbnail review studio"});
- await stage.getByRole("button",{name:"Edit",exact:true}).click();
+ await openResultMore(page);await stage.getByRole("button",{name:"Edit",exact:true}).click();
  const edits=page.getByLabel("What should change?",{exact:true}),image=page.getByRole("img",{name:/Editing source:/});
  await expect(edits).toHaveValue("Keep my unsent edit instructions");await expect(edits).toBeFocused();await expect(image).toBeInViewport();
  const original=await stage.locator(".result-image img").getAttribute("src");await expect(image).toHaveAttribute("src",original!);
