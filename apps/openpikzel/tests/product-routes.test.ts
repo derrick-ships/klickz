@@ -7,7 +7,7 @@ const state=vi.hoisted(()=>({images:new Map<string,Buffer>(),inserted:[] as any[
 vi.mock('../src/lib/server',async()=>{
  const actual=await vi.importActual<typeof import('../src/lib/server')>('../src/lib/server');
  const owner='11111111-1111-4111-8111-111111111111';
- return {...actual,authenticated:async()=>({user:{id:owner},oauth:state.oauth,db:{storage:{from:()=>({download:async(path:string)=>({data:state.images.has(path)?new Blob([new Uint8Array(state.images.get(path)!)]):null,error:null})})},from:(table:string)=>{
+ return {...actual,authenticated:async()=>({user:{id:owner},oauth:state.oauth,db:{storage:{from:()=>({download:async(path:string)=>({data:state.images.has(path)?new Blob([new Uint8Array(state.images.get(path)!)]):null,error:null}),createSignedUrl:async(path:string,ttl:number)=>({data:{signedUrl:`https://example.test/${ttl}/${path}`},error:null})})},from:(table:string)=>{
   if(state.local){
    let row:Record<string,unknown>|undefined;const filters:Record<string,unknown>={};
    const query=async()=>{
@@ -175,4 +175,22 @@ describe('unique profile names on the profiles API',()=>{
    {id:'new',name:'derrick (3)',created_at:'2026-11-03T00:00:00.000Z'},
   ]);
  });
+});
+
+it('preserves save_profile and get_profile MCP result shapes',async()=>{
+ const {POST:mcp}=await import('../src/app/mcp/route');
+ state.oauth={scope:['studio:read','studio:write']};
+ const invoke=async(name:string,args:unknown)=>{
+  const response=await mcp(new Request('https://studio.example/mcp',{method:'POST',headers:{Authorization:'Bearer opz1.fixture',Accept:'application/json,text/event-stream','Content-Type':'application/json','MCP-Protocol-Version':'2025-11-25'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})}));
+  return (await response.json()).result;
+ };
+ const saved=await invoke('save_profile',{kind:'persona',name:'Alice',notes:'Preserve identity',permission:true,references:refs});
+ expect(saved.isError).not.toBe(true);
+ expect(Object.keys(saved.structuredContent)).toEqual(['profile','method']);
+ expect(saved.structuredContent.profile).toMatchObject({id:'33333333-3333-4333-8333-333333333333',name:'Alice',refs});
+ expect(JSON.parse(saved.content[0].text)).toEqual(saved.structuredContent);
+ const got=await invoke('get_profile',{kind:'persona',id:saved.structuredContent.profile.id});
+ expect(got.isError).not.toBe(true);
+ expect(got.structuredContent).toEqual({profile:saved.structuredContent.profile,pictures:refs.map(path=>({path,url:`https://example.test/300/${path}`})),previewExpiresIn:300});
+ expect(JSON.parse(got.content[0].text)).toEqual(got.structuredContent);
 });

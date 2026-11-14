@@ -11,7 +11,9 @@ import {
 import { z } from "zod";
 import { resolveAccess, type Scope } from "./oauth/core";
 import { appOrigin } from "./crypto";
-import { AppError } from "./validation";
+import { AppError, ownedPath } from "./validation";
+import sharp from "sharp";
+import { profileNameKey, resolveProfileName, type ProfileKind } from "./profile-name";
 import { ownedAsset } from "./assets";
 import { fetchReference } from "./reference";
 import { reconcileJobs } from "./jobs";
@@ -265,6 +267,47 @@ export async function createMcpServer(token: string) {
     },
     true,
   );
+  server.registerTool("get_profile_refs", {
+    description: "Return owned persona and private style references by name, with short-lived links and images.",
+    inputSchema: { personas: z.array(z.string()).max(3).default([]), style: z.string().optional() },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async ({ personas, style }) => {
+    try {
+      await allowed("studio:read");
+      if ((!personas.length && style === undefined) || personas.some((name) => !name.trim()) || (style !== undefined && !style.trim()) || new Set(personas.map(profileNameKey)).size !== personas.length) throw new AppError(400, "Choose distinct non-empty profile names.");
+      const selections: Array<{ kind: ProfileKind; name: string }> = personas.map((name) => ({ kind: "persona", name }));
+      if (style !== undefined) selections.push({ kind: "style", name: style });
+      const rows: Record<ProfileKind, any[]> = { persona: [], style: [] };
+      for (const kind of ["persona", "style"] as const) {
+        if (!selections.some((item) => item.kind === kind)) continue;
+        for (let offset = 0; ; offset += 1000) {
+          const result = await db.from(kind === "persona" ? "studio_personas" : "studio_styles").select("*").eq("user_id", user.id).order("id").range(offset, offset + 999);
+          if (result.error) throw result.error;
+          rows[kind].push(...(result.data || []));
+          if (!result.data || result.data.length < 1000) break;
+        }
+      }
+      const selected = selections.map(({ kind, name }) => {
+        const result = resolveProfileName(rows[kind], name, kind);
+        if (result.status !== 200) throw new AppError(result.status, result.error);
+        return { kind, row: result.profile };
+      });
+      const paths = selected.flatMap(({ row }) => Array.isArray(row.refs) ? row.refs.slice(0, 3) : []);
+      if (paths.some((path) => typeof path !== "string" || !ownedPath(path, user.id))) throw new AppError(403, "This reference is not in your library.");
+      const images = await Promise.all(paths.map(async (path) => sharp(await ownedAsset(db, user.id, path), { limitInputPixels: 40000000 }).resize(768, 768, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer()));
+      const urls = await Promise.all(paths.map(async (path) => {
+        const url = await signed(path);
+        if (!url) throw new AppError(404, "Image is unavailable.");
+        return url;
+      }));
+      let index = 0;
+      const profiles = selected.map(({ kind, row }) => ({ kind, name: row.name, id: row.id, brief: row.identity_brief ?? null, notes: row.notes ?? null, references: (Array.isArray(row.refs) ? row.refs.slice(0, 3) : []).map((path: string) => ({ path, url: urls[index], imageIndex: index++ })) }));
+      const result = { profiles, previewExpiresIn: 300, notice: "Hosts may omit, retain or forward images and links; expiry cannot revoke copies." };
+      return { structuredContent: result, content: [{ type: "text" as const, text: JSON.stringify(result) }, ...images.map((image) => ({ type: "image" as const, mimeType: "image/jpeg", data: image.toString("base64") }))] };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text" as const, text: error instanceof AppError ? error.message : "The tool could not complete. Check your account connections." }] };
+    }
+  });
   tool(
     "upload_reference",
     "Save an image made in chat or another tool as a private reference. Supply one public HTTPS image/YouTube URL or base64 image (max 2 MB decoded).",
