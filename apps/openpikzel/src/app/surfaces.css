@@ -536,3 +536,27 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
   background: var(--color-accent-lit); animation: typing-caret 1s steps(1) infinite;
 }
 @media (prefers-reduced-motion: reduce) { .typing-caret-after::after { animation: none; opacity: 0; } }
+
+/* Motion (Nov 2026, find-animation-opportunities #1–#3). All reuse existing tokens. */
+/* #1 Disclosures: the opened content settles in like Advanced controls did. Pointer only; keyboard opens instantly. */
+.app-shell[data-motion-input="pointer"] .more-options[open] > :not(summary),
+.app-shell[data-motion-input="pointer"] .creative-conversation[open] > :not(summary) {
+  animation: control-unfold 160ms var(--ease-out);
+}
+/* #2 Errors and #3 the suggested prompt arrive instead of popping in. Transitions, so a quick replace retargets. */
+.error-banner, .prompt-enhancer section {
+  transition: opacity 180ms var(--ease-surface), transform 180ms var(--ease-surface);
+}
+@starting-style {
+  .error-banner { opacity: 0; transform: translateY(-4px); }
+  .prompt-enhancer section { opacity: 0; transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Gentler, not zero: keep the fade, drop the movement. */
+  .app-shell[data-motion-input="pointer"] .more-options[open] > :not(summary),
+  .app-shell[data-motion-input="pointer"] .creative-conversation[open] > :not(summary) { animation: control-confirm 100ms ease-out !important; }
+  .error-banner, .prompt-enhancer section { transition: opacity 120ms ease-out !important; }
+  @starting-style {
+    .error-banner, .prompt-enhancer section { transform: none; }
+  }
+}
