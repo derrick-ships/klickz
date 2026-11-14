@@ -301,3 +301,61 @@ test("a partial score arriving in-session shows Partial and its bars without any
   expect(await panel.locator(".pillar-meter progress").first().evaluate(el => getComputedStyle(el).animationName)).toBe("none");
   expect((await announcements(page)).filter(a => a.text)).toEqual([]);
 });
+
+// OP-10: blur-to-sharp reveal (DELIGHT.md approved exception 1). Every request is a local fixture; no provider is called.
+import { revealStudio } from "./helpers/image-reveal";
+import sharp from "sharp";
+
+test("a new image reveals blur-to-sharp on its real load event, and reduced motion only fades it", async ({ page }) => {
+  for (const reduced of [false, true]) {
+    await page.emulateMedia({ reducedMotion: reduced ? "reduce" : "no-preference" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const studio = await revealStudio(page);
+    let release!: () => void; const hold = new Promise<void>(r => release = r);
+    studio.rule(0, { hold });
+    await studio.generate(1);
+    const img = page.locator(".review-canvas .result-image img");
+    await expect(page.locator(".review-summary")).toContainText("Fixture result 1");
+    // Before the real image loads: hidden and not animating; the loading status holds the space.
+    await expect(img).toHaveClass(/image-reveal-pending/);
+    await expect(img).toHaveCSS("opacity", "0");
+    await expect(img).toHaveCSS("animation-name", "none");
+    await expect(page.getByText("Loading image…", { exact: true })).toBeVisible();
+    // The hidden slot shows the card surface with a hairline (no border, so no layout shift), not bare black.
+    const slot = page.locator(".review-canvas .result-image");
+    await expect(slot).toHaveCSS("background-color", "rgb(24, 24, 24)");
+    await expect(slot).toHaveCSS("box-shadow", "rgb(48, 48, 48) 0px 0px 0px 1px inset");
+    await expect(slot).toHaveCSS("border-top-width", "0px");
+    // What is painted, not just computed: the "Loading image…" overlay must not cover the surface with bare canvas black.
+    const painted = async () => { const { data, info } = await sharp(await slot.screenshot()).raw().toBuffer({ resolveWithObject: true });
+      const at = (x: number, y: number) => Array.from(data.subarray((y * info.width + x) * info.channels, (y * info.width + x) * info.channels + 3));
+      return { inside: at(12, 12), edge: at(0, Math.floor(info.height / 2)) }; };
+    expect(await painted()).toEqual({ inside: [24, 24, 24], edge: [48, 48, 48] });
+    release();
+    await expect(img).toHaveClass(/(^| )image-reveal( |$)/);
+    const anim = await img.evaluate(el => {
+      const a = el.getAnimations()[0] as CSSAnimation, t = a.effect!.getTiming();
+      a.pause(); a.currentTime = 100;
+      const s = getComputedStyle(el), mid = { filter: s.filter, transform: s.transform, opacity: Number(s.opacity) };
+      return { name: a.animationName, duration: t.duration, delay: t.delay, easing: getComputedStyle(el).animationTimingFunction, mid };
+    });
+    if (!reduced) {
+      expect(anim).toMatchObject({ name: "image-reveal", duration: 450, delay: 0, easing: "cubic-bezier(0.33, 1, 0.68, 1)" });
+      expect(anim.mid.filter).toMatch(/^blur\((\d|\.)+px\)$/);
+      expect(Number(anim.mid.filter.match(/[\d.]+/)![0])).toBeGreaterThan(0);
+      expect(Number(anim.mid.filter.match(/[\d.]+/)![0])).toBeLessThan(12);
+      expect(anim.mid.transform).toMatch(/^matrix\(1\.0\d+, 0, 0, 1\.0\d+, 0, 0\)$/);
+    } else {
+      expect(anim).toMatchObject({ name: "image-reveal-fade", duration: 120, delay: 0, easing: "linear" });
+      expect(anim.mid).toMatchObject({ filter: "none", transform: "none" });
+    }
+    expect(anim.mid.opacity).toBeGreaterThan(0); expect(anim.mid.opacity).toBeLessThan(1);
+    await img.evaluate(el => el.getAnimations().forEach(a => a.finish()));
+    await expect(img).not.toHaveClass(/image-reveal/);
+    await expect(img).toHaveCSS("filter", "none");
+    await expect(img).toHaveCSS("opacity", "1");
+    await expect(slot).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(slot).toHaveCSS("box-shadow", "none");
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  }
+});

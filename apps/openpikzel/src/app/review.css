@@ -45,8 +45,22 @@
 .review-editor-toggle { margin: 0 0 var(--space-6); min-height: 44px; }
 .review-editor-toggle[aria-expanded="true"] > svg { rotate: 180deg; }
 .creation-workbench [hidden] { display: none !important; }
-.review-image-arrive { animation: review-image-arrive 180ms var(--ease-out); }
-@keyframes review-image-arrive { from { opacity: .8; } to { opacity: 1; } }
+/* OP-10: blur-to-sharp reveal (DELIGHT.md approved exception 1). Only images that arrive this session,
+   starting on their real load event; --i staggers a batch 70ms apart. Compositor-only properties. */
+.image-reveal-pending { opacity: 0; }
+/* While the canvas image is hidden or revealing, its slot shows the card surface with an inset hairline (box-shadow, so no layout shift) instead of bare black. */
+.review-canvas .result-image:has(> img.image-reveal-pending, > img.image-reveal) { background: var(--color-panel); box-shadow: inset 0 0 0 1px var(--color-line); }
+/* A thumbnail still waiting for its bytes says so in its own slot (the canvas's words, on the card surface) instead of reading as an empty box.
+   Hidden from assistive tech: the image alt and the delivery status already speak. */
+.chat-timeline article button:has(> img.image-reveal-pending), .creation-card-image:has(> img.image-reveal-pending) { position: relative; box-shadow: inset 0 0 0 1px var(--color-line); }
+.chat-timeline article button:has(> img.image-reveal-pending)::after, .creation-card-image:has(> img.image-reveal-pending)::after { content: "Loading image…"; content: "Loading image…" / ""; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); color: var(--color-muted); font-size: 12px; line-height: 1.4; text-align: center; pointer-events: none; }
+/* A thumbnail that failed to load says so on the card surface instead of a bare broken-image icon, and points to the canvas,
+   whose error offers Refresh preview. The image stays in place (alt keeps naming the button); the note only covers it. */
+.chat-timeline article button:has(> img[data-load="failed"]), .creation-card-image:has(> img[data-load="failed"]) { position: relative; }
+.chat-timeline article button:has(> img[data-load="failed"])::after, .creation-card-image:has(> img[data-load="failed"])::after { content: "Image didn’t load\A Open it to refresh"; content: "Image didn’t load\A Open it to refresh" / ""; white-space: pre-line; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); background: var(--color-panel); box-shadow: inset 0 0 0 1px var(--color-line); color: var(--color-muted); font-size: 12px; line-height: 1.4; text-align: center; pointer-events: none; }
+.image-reveal { animation: image-reveal 450ms var(--ease-out-count) calc(var(--i, 0) * 70ms) both; will-change: filter, transform, opacity; }
+@keyframes image-reveal { from { filter: blur(12px); transform: scale(1.02); opacity: 0; } to { filter: blur(0); transform: scale(1); opacity: 1; } }
+@keyframes image-reveal-fade { from { opacity: 0; } to { opacity: 1; } }
 .review-stage { container-type: inline-size; }
 @container (min-width: 960px) {
   .review-stage .review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-8); align-items: start; }
@@ -64,7 +78,9 @@
   .review-stage .result-actions button { justify-content: center; }
   .review-stage .original-link { flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 }
-@media (prefers-reduced-motion: reduce) { .review-image-arrive { animation: none; } }
+/* Reduced motion: a 120ms opacity fade only, no blur, scale or stagger (overrides the global reduced-motion reset on purpose).
+   The delay keeps a negative resume offset from RevealImage (--reveal-delay), so a remount mid-fade continues, and drops any positive stagger. */
+@media (prefers-reduced-motion: reduce) { .image-reveal { animation: image-reveal-fade 120ms linear both !important; animation-delay: min(var(--reveal-delay, 0ms), 0ms) !important; will-change: opacity; } }
 .review-summary .result-utilities button:first-child { width: auto; min-width: 122px; gap: var(--space-2); border: 1px solid var(--color-select-edge); border-radius: 999px; padding-inline: var(--space-3); white-space: nowrap; }
 .review-stage .result-actions button { white-space: nowrap; }
 @media (max-width: 360px) { .review-stage .result-actions { grid-template-columns: minmax(0, 1fr); } }
@@ -80,7 +96,7 @@
 /* Loading remains explicit while intrinsic dimensions reserve the image space. */
 .review-canvas .result-image { position: relative; }
 .review-canvas .result-image > img { height: auto; }
-.review-preview-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--color-muted); background: var(--color-sidebar); font-size: 13px; pointer-events: none; }
+.review-preview-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--color-muted); background: var(--color-panel); box-shadow: inset 0 0 0 1px var(--color-line); font-size: 13px; pointer-events: none; }
 .review-stage .pillar strong, .review-stage .score-header h2 { font-variant-numeric: tabular-nums; }
 
 /* Analysis activity is an explicitly labeled animation, not provider telemetry. */
@@ -159,6 +175,31 @@
 .delivery-caption p { font-size: 14px; }
 .delivery-caption small { font-size: 12px; }
 .delivery-compact { border-left: 3px solid #ff3046; }
+/* OP-10: the generating placeholder fades out when the image lands instead of popping (skipped with reduced motion). */
+.delivery-placeholder.leaving { animation: delivery-exit 200ms var(--ease-out) both; pointer-events: none; }
+@keyframes delivery-exit { to { opacity: 0; } }
+/* Nothing on the page moves when the image lands: the delivered images take the slot the placeholder held, and the
+   placeholder dissolves over them in place (GenerationDelivery also holds the card at its waiting height). */
+.delivery-slot { position: relative; }
+.delivery-placeholder.leaving { position: absolute; top: 0; left: 0; right: 0; z-index: 1; }
+.delivery-result { aspect-ratio: 16/9; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; background: #101010; }
+.delivery-result.portrait { aspect-ratio: 9/16; max-height: 440px; }
+.delivery-result[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.delivery-result[data-count="3"], .delivery-result[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.delivery-tile { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #101010; }
+.delivery-tile > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* A delivered image whose bytes are still on the way says so once the placeholder has gone, never a blank tile (as the timeline
+   thumbnails do). Only then: an image that loaded under the fading placeholder is held hidden too, and must not flash the label. */
+.delivery-tile[data-load]::after, .delivery-slot:not(:has(> .delivery-placeholder)) .delivery-tile:has(> img.delivery-reveal-pending)::after { content: "Loading image…"; content: "Loading image…" / ""; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); background: var(--color-panel); color: var(--color-muted); font-size: 12px; text-align: center; }
+.delivery-tile[data-load="failed"]::after { content: "Image didn’t load\A Open it below to refresh"; content: "Image didn’t load\A Open it below to refresh" / ""; white-space: pre-line; line-height: 1.4; }
+.delivery-reveal-pending { opacity: 0; }
+.delivery-reveal { animation: delivery-reveal 450ms var(--ease-out-count) calc(var(--i, 0) * 70ms) both; will-change: filter, transform, opacity; }
+@keyframes delivery-reveal { from { filter: blur(12px); transform: scale(1.02); opacity: 0; } to { filter: blur(0); transform: scale(1); opacity: 1; } }
+@keyframes delivery-reveal-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .delivery-reveal { animation: delivery-reveal-fade 120ms linear both !important; animation-delay: 0ms !important; will-change: opacity; } }
+/* One status at a time: while the delivery card reports generating or analyzing, the generic progress card stays mounted but
+   hidden, so it cannot vanish above the result when the work ends. */
+:has(> .generation-delivery:is([data-stage="generating"], [data-stage="analyzing"])) > .operation-progress { display: none; }
 @keyframes delivery-sweep { 0% { transform: translateX(-100%); opacity:.4; } 70% { transform: translateX(-5%); opacity:1; } 100% { transform: translateX(20%); opacity:0; } }
 .prompt-enhancer { margin: 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .prompt-enhancer > small { flex: 1 1 180px; color: var(--color-muted); line-height: 1.5; font-size: 12px; }
