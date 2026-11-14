@@ -194,3 +194,21 @@ it('preserves save_profile and get_profile MCP result shapes',async()=>{
  expect(got.structuredContent).toEqual({profile:saved.structuredContent.profile,pictures:refs.map(path=>({path,url:`https://example.test/300/${path}`})),previewExpiresIn:300});
  expect(JSON.parse(got.content[0].text)).toEqual(got.structuredContent);
 });
+
+describe('persona photo count and style references',()=>{
+ it('accepts a persona with two photos and rejects one photo or four',async()=>{
+  const {POST}=await import('../src/app/api/profiles/route');
+  expect((await POST(request(personaBody('Two Photos',{refs:refs.slice(0,2)})))).status).toBe(200);
+  const one=await POST(request(personaBody('One Photo',{refs:refs.slice(0,1)})));expect(one.status).toBe(400);
+  const four=await POST(request(personaBody('Four Photos',{refs:[...refs,owner+'/ref0.png']})));expect(four.status).toBe(400);
+ });
+ it('accepts a style with a single reference',async()=>{
+  const {POST}=await import('../src/app/api/profiles/route');
+  const r=await POST(request({kind:'style',name:'Single Ref',refs:refs.slice(0,1)}));expect(r.status).toBe(200);
+ });
+ it('MCP save_profile accepts two persona references',async()=>{
+  const {POST:mcp}=await import('../src/app/mcp/route');state.oauth={scope:['studio:read','studio:write']};
+  const response=await mcp(new Request('https://studio.example/mcp',{method:'POST',headers:{Authorization:'Bearer opz1.fixture',Accept:'application/json,text/event-stream','Content-Type':'application/json','MCP-Protocol-Version':'2025-11-25'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'save_profile',arguments:{kind:'persona',name:'Pair',permission:true,references:refs.slice(0,2)}}})}));
+  const result=(await response.json()).result;expect(result.isError).not.toBe(true);expect(result.structuredContent.profile.refs).toEqual(refs.slice(0,2));
+ });
+});

@@ -113,8 +113,9 @@ async function handle(request: Request) {
       if (error || !data) throw new AppError(404, `${label} not found.`);
       for (const path of data.refs.slice(0, 3))
         await addReference(path);
+      const palette = Array.isArray(data.source?.palette) ? data.source.palette.filter((c: unknown) => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)) : [];
       notes.push(
-        `${label} guidance: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos; use style references for treatment and palette.`,
+        `${label} guidance: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos; use style references for treatment and palette.${palette.length ? ` Measured style palette, most dominant first: ${palette.join(", ")}.` : ""}`,
       );
     }
     if (input.mode === "fix" && !fixPlan)

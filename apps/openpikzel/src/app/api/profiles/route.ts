@@ -44,8 +44,8 @@ export async function POST(request:Request){
   const raw=await limitedJson(request,12000),input=profileInput.parse(raw);
   const images=await Promise.all(input.refs.map(p=>ownedAsset(db,user.id,p)));
   const digests=new Set(images.map(b=>createHash('sha256').update(b).digest('hex')));
-  if(digests.size!==3)throw new AppError(400,'Choose three different reference images.');
-  for(const image of images){const meta=await sharp(image,{limitInputPixels:40000000}).metadata();if(!['png','jpeg','webp'].includes(meta.format||'')||!meta.width||!meta.height||image.length>5*1024*1024)throw new AppError(400,'Use three PNG, JPG or WebP images under5MB.');}
+  if(digests.size!==images.length)throw new AppError(400,'Choose different reference images.');
+  for(const image of images){const meta=await sharp(image,{limitInputPixels:40000000}).metadata();if(!['png','jpeg','webp'].includes(meta.format||'')||!meta.width||!meta.height||image.length>5*1024*1024)throw new AppError(400,'Use 2 or 3 PNG, JPG or WebP images under 5 MB.');}
   assertUniqueProfileName(await ownedNames(db,user.id,input.kind),input.name,input.kind);
   const row:Record<string,unknown>={name:input.name,notes:input.notes,refs:input.refs,user_id:user.id,profile_status:'draft',...(input.kind==='persona'?{consent_at:new Date().toISOString()}:{source:input.source||{}})};
   const result=await db.from(tableFor(input.kind)).insert(row).select('*').single();

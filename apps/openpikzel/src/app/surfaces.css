@@ -395,3 +395,8 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
   font-size: 13px;
   color: var(--color-muted);
 }
+
+.style-palette-large { display: flex; gap: 6px; margin: 12px 0 6px; }
+.style-palette-large span { flex: 1; height: 36px; border-radius: 8px; border: 1px solid var(--edge-highlight, rgba(255,255,255,.12)); }
+.profile-item .style-palette { display: flex; gap: 3px; margin-top: 6px; }
+.profile-item .style-palette span { width: 14px; height: 14px; border-radius: 4px; }
