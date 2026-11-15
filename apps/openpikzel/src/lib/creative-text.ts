@@ -11,7 +11,7 @@ export async function structuredCreativeText(provider:"openai"|"google",instruct
  try{
   if(provider==="google")return {value:JSON.parse(await googleText(instructions,JSON.stringify(context),images,true)),provider:"Google API",model,instructionVersion};
   const api=new OpenAI({apiKey:providerKey("openai"),maxRetries:0,timeout:45000});
-  const response=await api.responses.create({model,store:false,instructions,input:[{role:"user",content:[{type:"input_text",text:JSON.stringify(context)},...images.map(image=>({type:"input_image" as const,image_url:"data:image/jpeg;base64,"+image.toString("base64"),detail:"low" as const}))]}],text:{format:{type:"json_object"}},max_output_tokens:1600},{maxRetries:0,timeout:45000});
+  const response=await api.responses.create({model,store:false,instructions,input:[{role:"user",content:[{type:"input_text",text:"Answer in JSON. Data:\n"+JSON.stringify(context)},...images.map(image=>({type:"input_image" as const,image_url:"data:image/jpeg;base64,"+image.toString("base64"),detail:"low" as const}))]}],text:{format:{type:"json_object"}},max_output_tokens:1600},{maxRetries:0,timeout:45000});
   return {value:JSON.parse(response.output_text),provider:"OpenAI API",model,instructionVersion};
  }catch(error){
   if(error instanceof AppError)throw error;

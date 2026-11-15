@@ -196,6 +196,8 @@ async function handle(request: Request) {
               variation: row.batch_index + 1,
               hasPersona: !!input.personaId,
               isEdit: !!input.parentId,
+              // A reviewed fix carries its own wording to keep; its plan JSON is not user text to mine for quotes.
+              ...(fixPlan ? { substantial: { exactText: fixPlan.preserve.exactText, numbers: [], panels: null, orientation: input.settings.format === "short" ? "vertical" as const : "horizontal" as const } } : {}),
             });
             const prompt = imagePromptFrom(mediated.enriched, notes, realismContract);
             const mediator: MediatorRecord = { version: MEDIATOR_VERSION, provider: mediated.provider, model: mediated.model, rawPrompt, substantial: mediated.substantial, enriched: mediated.enriched, imagePrompt: prompt, attempts: mediated.attempts, principleFiles };
@@ -225,7 +227,7 @@ async function handle(request: Request) {
             await db
               .from("studio_creations")
               .update({
-                status: renderReturned || ambiguousProviderError(error)
+                status: renderReturned || (ambiguousProviderError(error) && !(error as { notRendered?: boolean })?.notRendered)
                   ? "reconciling"
                   : "failed",
               })
@@ -239,11 +241,15 @@ async function handle(request: Request) {
       .filter((o) => o.status === "fulfilled")
       .map((o) => o.value);
     const partial = creations.length < input.settings.batch;
-    if (!creations.length)
+    if (!creations.length) {
+      // If nothing reached the image model, say why instead of a generic render failure.
+      const first = outcomes.find((o) => o.status === "rejected") as PromiseRejectedResult | undefined;
+      if ((first?.reason as { notRendered?: boolean })?.notRendered) { dispatched = false; throw first!.reason; }
       throw new AppError(
         502,
         "The render did not finish. Check history before submitting a new batch.",
       );
+    }
     const result = { creation: creations[0], creations, partial, jobId };
     await updateJob(
       db,

@@ -56,6 +56,8 @@ export function verdicts(c: FeedCheck): Verdict[] {
 
 export async function checkImage(src: string, sample = 96): Promise<FeedCheck> {
   const img = new Image();
+  // Signed storage URLs are cross-origin; without this the canvas is tainted and every check is skipped.
+  if (/^https?:/.test(src) && new URL(src, location.href).origin !== location.origin) img.crossOrigin = "anonymous";
   img.decoding = "async";
   img.src = src;
   await img.decode();
