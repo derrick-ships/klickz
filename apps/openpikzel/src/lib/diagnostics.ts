@@ -11,7 +11,10 @@ export function canonical(value: unknown): string {
   if (value && typeof value === "object")
     return (
       "{" +
+      // Skip undefined like JSON.stringify does: a stored score drops those keys, so
+      // signing them as null made the proof fail after a save (e.g. no YouTube link).
       Object.keys(value)
+        .filter((k) => (value as Record<string, unknown>)[k] !== undefined)
         .sort()
         .map(
           (k) =>

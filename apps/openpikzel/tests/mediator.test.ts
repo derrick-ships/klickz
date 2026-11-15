@@ -97,7 +97,7 @@ describe("mediate", () => {
     expect(result.attempts).toBe(2);
     const first = create.fn.mock.calls[0][0];
     expect(first.instructions).toContain("=== 02-visual-rules-dos-donts.md ===");
-    const second = JSON.parse(create.fn.mock.calls[1][0].input[0].content[0].text);
+    const second = JSON.parse(create.fn.mock.calls[1][0].input[0].content[0].text.replace(/^Answer in JSON\. Data:\n/, ""));
     expect(second.previousAttemptProblems.join(" ")).toContain("BEFORE");
   });
 
@@ -110,5 +110,16 @@ describe("mediate", () => {
   it("needs a text provider key before anything is rendered", async () => {
     await expect(providerContext.run({}, () => mediate(input))).rejects.toThrow(/OpenAI or Google API key/);
     expect(create.fn).not.toHaveBeenCalled();
+  });
+});
+
+describe("extractSubstantial false positives (audit 15 Nov)", () => {
+  it("ignores JSON punctuation, 'sin texto:' and 'short text'", () => {
+    const plan = 'Execute this plan <reviewed-plan-data>{"title":"Petro PERDIÓ el control","operations":[{"instruction":"Keep readable short text"}],"preserve":{"exactText":["SIN / MAYORÍA"]}}</reviewed-plan-data>';
+    const s = extractSubstantial(plan, "long");
+    expect(s.exactText.every((t) => /[\p{L}\p{N}]/u.test(t))).toBe(true);
+    expect(s.orientation).toBe(null);
+    expect(extractSubstantial("Petro serio en el Congreso, sin texto: solo la cara y el fondo", "long").exactText).toEqual([]);
+    expect(extractSubstantial("Make it vertical for YouTube Shorts", "long").orientation).toBe("vertical");
   });
 });

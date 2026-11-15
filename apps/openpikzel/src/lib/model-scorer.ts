@@ -31,7 +31,7 @@ export async function modelScores(provider: VisionProvider, image: Buffer, previ
       const model = await modelFor(choice, "openai", store?.openai, process.env.OPENAI_TEXT_MODEL || "gpt-5.5");
       const r = await new OpenAI({ apiKey: providerKey("openai"), maxRetries: 0, timeout: 60000 }).responses.create({
         model, instructions: instructions(title), text: { format: { type: "json_object" } }, max_output_tokens: 800,
-        input: [{ role: "user", content: [{ type: "input_text", text: data }, ...[image, preview].map((b) => ({ type: "input_image" as const, image_url: "data:image/jpeg;base64," + b.toString("base64"), detail: "high" as const }))] }],
+        input: [{ role: "user", content: [{ type: "input_text", text: "Answer in JSON. Data:\n" + data }, ...[image, preview].map((b) => ({ type: "input_image" as const, image_url: "data:image/jpeg;base64," + b.toString("base64"), detail: "high" as const }))] }],
       });
       text = r.output_text;
     } else if (provider === "google") {

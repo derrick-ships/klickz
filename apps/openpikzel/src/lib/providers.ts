@@ -233,7 +233,7 @@ export async function observePackaging(
     }
   }
   if (provider === "google")
-    return observationSchema.parse(
+    return withReviewStatus(async () => observationSchema.parse(
       JSON.parse(
         await googleText(
           visionInstructions,
@@ -243,8 +243,9 @@ export async function observePackaging(
           await reviewerModel("google", process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite"),
         ),
       ),
-    );
+    ));
 
+  return withReviewStatus(async () => {
   const result = await client().responses.create(
     {
       model: await reviewerModel("openai", process.env.OPENAI_TEXT_MODEL || "gpt-5.5"),
@@ -256,7 +257,8 @@ export async function observePackaging(
           content: [
             {
               type: "input_text",
-              text: JSON.stringify({
+              // OpenAI JSON mode rejects input that never says "json" (instructions don't count).
+              text: "Answer in JSON. Data:\n" + JSON.stringify({
                 title,
                 videoBrief,
                 attachmentRoles: [
@@ -290,6 +292,18 @@ export async function observePackaging(
     { timeout: 45000, maxRetries: 0 },
   );
   return observationSchema.parse(JSON.parse(result.output_text));
+  });
+}
+/** Every reviewer failure carries a status so the score can say why (key, quota, request, timeout…). */
+async function withReviewStatus<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof AppError && (error as { reviewStatus?: unknown }).reviewStatus !== undefined) throw error;
+    const status = error && typeof error === "object" && "status" in error ? Number((error as { status: unknown }).status) : undefined;
+    const reason = status || (error instanceof SyntaxError ? "unreadable response" : error instanceof Error && /timeout|abort/i.test(error.name + error.message) ? "timed out" : "request failed");
+    throw Object.assign(new AppError(502, "Image review did not finish"), { reviewStatus: reason });
+  }
 }
 export async function evaluateThumbnail(
   image: Buffer,

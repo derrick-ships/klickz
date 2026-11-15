@@ -12,7 +12,7 @@ import { principles, principleFiles } from "./principles.generated";
 // from the thumbnail playbook (principles/*.md, Derrick's zip). Nothing outside that
 // text counts as a principle.
 
-export const MEDIATOR_VERSION = "mediator-2";
+export const MEDIATOR_VERSION = "mediator-3";
 
 /** Substantial details: things the user named explicitly. Kept identical. */
 export type Substantial = {
@@ -35,10 +35,15 @@ export function extractSubstantial(raw: string, format: "long" | "short"): Subst
   const exactText = new Set<string>();
   for (const m of raw.matchAll(QUOTE)) {
     const value = (m[1] ?? m[2] ?? m[3] ?? "").trim();
+    // Quoted text must contain a letter or digit ("," or ":[{" from pasted JSON is not wording).
+    if (!/[\p{L}\p{N}]/u.test(value)) continue;
     // A lone apostrophe-quoted fragment inside a sentence ("before & after' arm") is not text-on-image.
     if (value && !(m[2] && /\s/.test(value) && value.split(/\s+/).length > 6)) exactText.add(value);
   }
   for (const m of raw.matchAll(LABELED_TEXT)) {
+    // "sin texto: …" / "no text: …" means the opposite of words to put on the image.
+    const before = raw.slice(Math.max(0, m.index! - 6), m.index! + m[0].indexOf(":"));
+    if (/\b(sin|no|without)\s+(texto|text|palabras|words)/i.test(before)) continue;
     const value = m[1].trim().replace(/^["“'‘]|["”'’]$/g, "");
     if (value) exactText.add(value);
   }
@@ -50,7 +55,8 @@ export function extractSubstantial(raw: string, format: "long" | "short"): Subst
   if (panelWord) panels = Number(panelWord[1]) || words[panelWord[1]] || null;
   else if (/split[\s-]?screen|pantalla dividida|before\s*(?:&|and|y|\/)\s*after|antes\s*(?:y|\/|vs\.?)\s*despu[eé]s|side[\s-]by[\s-]side|lado a lado/.test(lower)) panels = 2;
   let orientation: Substantial["orientation"] = null;
-  if (/\b(vertical|9:16|short|shorts|reel|tiktok)\b/.test(lower)) orientation = "vertical";
+  // Only an explicit format request counts ("short text" is not a Shorts request).
+  if (/\b(vertical|9:16|youtube shorts?|para shorts?|for shorts?|reels?|tiktok)\b/.test(lower)) orientation = "vertical";
   else if (/\b(horizontal|16:9|landscape)\b/.test(lower)) orientation = "horizontal";
   void format;
   return { exactText: [...exactText], numbers, panels, orientation };
@@ -100,7 +106,7 @@ RULES
 1. The user's SUBSTANTIAL details are provided separately as JSON. Every exactText entry must appear verbatim (same spelling, accents, ¿¡, case only if the principles require ALL CAPS — then note it in substantialChanges) in imageText and inside quotes in prompt. Every number must appear unchanged. Respect panels and orientation when given.
 2. If the user gave no text on the image, decide it with the principles (playbook 00 rule 3, 04 text bank, 09 pairing: never repeat the title, 2-4 words, two lines), in the language of the request, and record it in decisions.
 3. If the user gave no panel count, decide it with the principles (one focal point; split-screen only as a deliberate exception, 02/10) and record it in decisions.
-4. Do not invent a real person's face. Only describe a real, named person when the user named them or a persona reference is attached; never caricature or imply a crime (05).
+4. Never depict a real, named person's face (politician, celebrity, the creator) unless personaAttached is true or the request is an edit of an existing image (editingAnExistingImage) that already shows them; in an edit, keep only the people already in the image and never add a new real face. Otherwise show the story through objects, places, documents, symbols or an anonymous silhouette, and record that in decisions (03 house template: the face comes from a real photo; 05 legal). Never caricature or imply a crime (05).
 5. The prompt must be self-contained and concrete: subject and expression, composition and thirds, text block with exact words in quotes and its placement, font style, colours with hex values when the principles give them, lighting, background, and what to leave out. Write it in English; keep image text in its original language.
 6. dos and donts: 4-16 each, short imperative lines, each with the source file name (e.g. "02-visual-rules-dos-donts"). They will be appended to the prompt verbatim, so only include rules that apply to this image.
 7. Never add generic filler such as "high quality, 4k, cinematic, masterpiece". Every line must be a concrete visual instruction.
@@ -178,7 +184,8 @@ async function callModel(context: unknown, provider: "openai" | "google", feedba
     model,
     store: false,
     instructions,
-    input: [{ role: "user", content: [{ type: "input_text", text: JSON.stringify(payload) }] }],
+    // OpenAI JSON mode rejects input that never says "json" (instructions don't count).
+    input: [{ role: "user", content: [{ type: "input_text", text: "Answer in JSON. Data:\n" + JSON.stringify(payload) }] }],
     text: { format: { type: "json_object" } },
     max_output_tokens: 6000,
   });
@@ -195,13 +202,15 @@ export async function mediate(input: {
   variation: number;
   hasPersona: boolean;
   isEdit: boolean;
+  /** When the substantial details are already known (a reviewed fix plan), use them instead of guessing from quotes. */
+  substantial?: Substantial;
 }): Promise<{ enriched: Enriched; substantial: Substantial; provider: string; model: string; attempts: number }> {
   const chosen = providerOfChoice(currentModelPreferences().mediator);
   const provider: "openai" | "google" | null =
     (chosen === "openai" || chosen === "google") && hasProvider(chosen) ? chosen
     : hasProvider("openai") ? "openai" : hasProvider("google") ? "google" : null;
   if (!provider) throw new AppError(403, "Connect an OpenAI or Google API key so OpenPikzels can prepare the image prompt.");
-  const substantial = extractSubstantial(input.rawPrompt, input.format);
+  const substantial = input.substantial ?? extractSubstantial(input.rawPrompt, input.format);
   const context = {
     rawRequest: input.rawPrompt,
     videoTitle: input.title || null,
@@ -222,7 +231,7 @@ export async function mediate(input: {
       if (error instanceof AppError) throw error;
       const status = error && typeof error === "object" && "status" in error ? Number((error as { status: unknown }).status) : 0;
       if (status === 401 || status === 403) throw new AppError(403, "Your " + (provider === "openai" ? "OpenAI" : "Google") + " key was rejected while preparing the image prompt. Check Connections.");
-      if (attempt === 3) throw new AppError(502, "OpenPikzels couldn't prepare the image prompt. Nothing was generated or charged for the image. Try again.");
+      if (attempt === 3) throw Object.assign(new AppError(502, "OpenPikzels couldn't prepare the image prompt. Nothing was generated or charged for the image. Try again."), { notRendered: true });
       feedback = ["The previous answer was not valid JSON for the required schema. Return only the JSON object."];
       continue;
     }
@@ -235,5 +244,5 @@ export async function mediate(input: {
     if (!problems.length) return { enriched: parsed.data, substantial, provider: result.provider, model: result.model, attempts: attempt };
     feedback = problems;
   }
-  throw new AppError(502, "OpenPikzels couldn't prepare an image prompt that keeps every detail you asked for. Nothing was generated. Try again, or put the exact words in quotes.");
+  throw Object.assign(new AppError(502, "OpenPikzels couldn't prepare an image prompt that keeps every detail you asked for. Nothing was generated. Try again, or put the exact words in quotes."), { notRendered: true });
 }
