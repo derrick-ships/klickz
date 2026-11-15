@@ -620,28 +620,42 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 .models-status { min-height: 1.5em; margin: 0; font-size: 13px; color: var(--color-placeholder); }
 @media (max-width: 480px) { .models-grid { grid-template-columns: 1fr; gap: var(--space-1); } .models-grid select { margin-bottom: var(--space-2); } }
 
-/* Score on the thumbnail (top-left), like the feed shows it. */
-.result-image, .chat-timeline article button, .delivery-tile { position: relative; }
+/* Score on the thumbnail (top-left), like the feed shows it: a light touch, never a dark blurred slab.
+   Ring 16px + number, about 22px tall, 6px inset, a 35% scrim, no blur. Capped to a fifth of the card. */
+.result-image, .chat-timeline article button, .delivery-tile, .thumb-frame { position: relative; }
 .score-badge {
-  position: absolute; z-index: 2; inset-block-start: 10px; inset-inline-start: 10px;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px 4px 5px; border-radius: 999px;
-  background: color-mix(in oklab, black 62%, transparent);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, white 12%, transparent);
-  color: #fff; font-size: 14px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums;
-  pointer-events: none;
+  position: absolute; z-index: 2; inset-block-start: 6px; inset-inline-start: 6px;
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 22px; min-width: 22px; padding: 0 5px 0 3px; border-radius: 999px; border: 0;
+  background: color-mix(in oklab, black 35%, transparent);
+  color: #fff; font: 650 11.5px/1 var(--font-body); font-variant-numeric: tabular-nums; letter-spacing: 0;
+  text-shadow: 0 1px 2px color-mix(in oklab, black 60%, transparent);
+  pointer-events: none; overflow: hidden; white-space: nowrap;
 }
-.score-badge svg { width: 22px; height: 22px; transform: rotate(-90deg); }
-.score-badge circle { fill: none; stroke-width: 3; }
-.score-badge-track { stroke: color-mix(in oklab, white 18%, transparent); }
+.score-badge[data-tone="pending"] { padding: 0 3px; }
+button.score-badge { pointer-events: auto; cursor: pointer; transition: background-color var(--duration) var(--ease-out); }
+/* The visible mark stays small; the touch target grows to 44px around it without covering more of the image visually. */
+button.score-badge::before { content: ""; position: absolute; inset: -11px -8px; }
+button.score-badge { overflow: visible; }
+@media (hover: hover) { button.score-badge:hover { background: color-mix(in oklab, black 55%, transparent); } }
+button.score-badge:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.score-badge svg { width: 16px; height: 16px; flex: none; transform: rotate(-90deg); }
+.score-badge circle { fill: none; stroke-width: 3.2; }
+.score-badge-track { stroke: color-mix(in oklab, white 22%, transparent); }
 .score-badge-arc { stroke-linecap: round; transition: stroke-dashoffset 600ms var(--ease-out-count); }
 .score-badge[data-tone="high"] .score-badge-arc { stroke: oklch(0.78 0.16 155); }
 .score-badge[data-tone="mid"] .score-badge-arc { stroke: oklch(0.82 0.15 80); }
 .score-badge[data-tone="low"] .score-badge-arc { stroke: var(--accent-400); }
 .score-badge[data-tone="none"] .score-badge-arc { stroke: transparent; }
-.score-badge[data-tone="pending"] .score-badge-arc { stroke: color-mix(in oklab, white 70%, transparent); animation: score-badge-spin 1s linear infinite; transform-origin: 12px 12px; }
+.score-badge[data-tone="pending"] .score-badge-arc { stroke: color-mix(in oklab, white 80%, transparent); animation: score-badge-spin 900ms linear infinite; transform-origin: 12px 12px; }
 @keyframes score-badge-spin { to { transform: rotate(360deg); } }
-.creation-card-image .score-badge, .chat-timeline .score-badge, .delivery-result[data-count]:not([data-count="1"]) .score-badge { inset-block-start: 6px; inset-inline-start: 6px; padding: 3px 8px 3px 4px; font-size: 12px; }
-.creation-card-image .score-badge svg, .chat-timeline .score-badge svg { width: 18px; height: 18px; }
-@media (prefers-reduced-motion: reduce) { .score-badge-arc { transition: none; } .score-badge[data-tone="pending"] .score-badge-arc { animation: none; } }
+/* Landing: the number pops in once when the score arrives. */
+.score-badge > span { animation: score-badge-land 220ms var(--ease-out) both; }
+@keyframes score-badge-land { from { opacity: 0; transform: translateY(2px); } }
+/* Small cards: tighter still, so the badge stays near a fifth of the card. */
+.creation-card-image, .delivery-tile, .chat-timeline article button, .thumb-frame { container-type: inline-size; }
+@container (max-width: 190px) { .score-badge { height: 20px; gap: 2px; padding: 0 4px 0 2px; font-size: 11px; } .score-badge svg { width: 14px; height: 14px; } }
+/* The canvas is big enough for a slightly larger mark. */
+.review-canvas .score-badge { inset-block-start: 10px; inset-inline-start: 10px; height: 26px; font-size: 14px; padding-inline-end: 8px; }
+.review-canvas .score-badge svg { width: 19px; height: 19px; }
+@media (prefers-reduced-motion: reduce) { .score-badge-arc { transition: none; } .score-badge[data-tone="pending"] .score-badge-arc { animation: none; stroke-dashoffset: 0; opacity: .6; } .score-badge > span { animation: none; } }

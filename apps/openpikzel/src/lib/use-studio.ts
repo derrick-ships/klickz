@@ -541,21 +541,22 @@ export function useStudio() {
         pendingFixJobs.current.delete(key);
         const child = result.creations?.[0];
         let scoreFailed = false;
+        let comparison: unknown;
         if (child && !child.score) {
           try {
-            await analyze(
+            comparison = ((await analyze(
               child,
               args.title ?? plan.plan!.title,
               "",
               args.includeVision ?? false,
               args.videoUrl ?? "",
               args.critiqueProvider,
-            );
+            )) as { comparison?: unknown } | null)?.comparison;
           } catch {
             scoreFailed = true;
           }
         }
-        return { ...plan, ...result, scoreFailed };
+        return { ...plan, ...result, scoreFailed, ...(comparison ? { comparison } : {}) };
       } catch (error) {
         if (!(error && typeof error === "object" && unknownOutcomes.has(error))) pendingFixJobs.current.delete(key);
         throw error;
@@ -750,6 +751,18 @@ export function useStudio() {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  /** The original pixels as stored (PNG), without the YouTube-ready JPG conversion. */
+  async function downloadOriginal(item: Creation) {
+    if (!item.image_path)
+      throw new Error("This draft has no image yet. Choose Generate before downloading.");
+    const source = await blob(item.image_path);
+    const url = URL.createObjectURL(source.type === "image/png" ? source : new Blob([source], { type: source.type || "image/png" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `openpikzel-${item.id}.${/jpe?g/.test(source.type) ? "jpg" : /webp/.test(source.type) ? "webp" : "png"}`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   async function login(email: string, password: string) {
     if (!db.current) throw new Error("Cloud sign-in is not available here yet. You can still save drafts in this browser.");
     const { error } = await db.current.auth.signInWithPassword({
@@ -794,6 +807,7 @@ export function useStudio() {
     remove,
     favorite,
     download,
+    downloadOriginal,
     login,
     logout,
     api,

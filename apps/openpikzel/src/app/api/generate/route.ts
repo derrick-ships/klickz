@@ -1,3 +1,4 @@
+import { youtubeJpeg } from "@/lib/youtube-jpeg";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { libraryStyle } from "@/lib/style-library";
@@ -17,6 +18,7 @@ import { personaIdentityContract } from "@/lib/instructions";
 import {
   digest,
   editorInstructions,
+  fixEditPrompt,
   validateFixPlan,
   type FixPlan,
 } from "@/lib/diagnostics";
@@ -32,6 +34,7 @@ async function handle(request: Request) {
   let jobId: string | undefined;
   let dispatched = false;
   let fixPlan: FixPlan | undefined;
+  let fixParentScore: number | null = null;
   try {
     context = await authenticated(request);
     const { db, user } = context;
@@ -90,7 +93,10 @@ async function handle(request: Request) {
             409,
             "A reviewed fix uses only its approved source and context.",
           );
-        notes.push(editorInstructions(fixPlan));
+        // A single-suggestion fix is an EDIT: the change and the keep list travel as the raw prompt,
+        // so the notes only carry the original-image role (no second copy of the plan).
+        if (!fixPlan.suggestion) notes.push(editorInstructions(fixPlan));
+        fixParentScore = typeof data.score?.overall === "number" ? data.score.overall : null;
       }
     }
     for (const [table, id, label] of [
@@ -175,7 +181,7 @@ async function handle(request: Request) {
       batch_index: i,
       request_id: i === 0 ? input.requestId : crypto.randomUUID(),
       status: "generating",
-      lineage:{origin:input.intent==="recompose"?"recomposed":input.mode==="edit"||input.mode==="fix"?"edited":"generated",nativeOutput:true,...(input.parentId?{sourceId:input.parentId,sourceDigest:digest(refs[0]),...(fixPlan?{fixPlanHash:fixPlan.hash,plan:fixPlan}:{})}:{})},
+      lineage:{origin:input.intent==="recompose"?"recomposed":input.mode==="edit"||input.mode==="fix"?"edited":"generated",nativeOutput:true,...(input.parentId?{sourceId:input.parentId,sourceDigest:digest(refs[0]),...(fixPlan?{fixPlanHash:fixPlan.hash,plan:fixPlan,...(fixPlan.suggestion?{fix:{suggestion:fixPlan.suggestion,keep:fixPlan.keep||[],keepText:fixPlan.preserve.exactText,parentScore:fixParentScore,history:fixPlan.history||[]}}:{})}:{})}:{})},
     }));
     const reservation = await db
       .from("studio_creations")
@@ -197,7 +203,8 @@ async function handle(request: Request) {
           try {
             // Never send the user's raw prompt to the image model: the mediator turns it (or the
             // reviewed fix plan) into an enriched prompt with explicit playbook do's and don'ts.
-            const rawPrompt = fixPlan ? editorInstructions(fixPlan) : input.prompt;
+            // A single-suggestion fix makes the mediator an editor of the original, not a new concept.
+            const rawPrompt = fixPlan ? (fixPlan.suggestion ? fixEditPrompt(fixPlan) : editorInstructions(fixPlan)) : input.prompt;
             const mediated = await mediate({
               rawPrompt,
               title: input.title,
@@ -226,6 +233,15 @@ async function handle(request: Request) {
               .from("studio-assets")
               .upload(path, image, { contentType: "image/png", upsert: false });
             if (upload.error) throw upload.error;
+            // A YouTube-ready copy next to the original: 16:9 (or 9:16) JPG under 2 MB.
+            // Best effort: the PNG is the saved result; a failed copy never fails the render.
+            try {
+              const jpg = await youtubeJpeg(image, input.settings.format === "short");
+              const jpgUpload = await db.storage.from("studio-assets").upload(`${user.id}/creations/${row.id}.jpg`, jpg, { contentType: "image/jpeg", upsert: false });
+              if (jpgUpload.error) console.error("[generate] jpg copy not saved", jpgUpload.error.message);
+            } catch (error) {
+              console.error("[generate] jpg copy failed", error instanceof Error ? error.message : error);
+            }
             const saved = await db
               .from("studio_creations")
               .update({ image_path: path, status: "ready" })

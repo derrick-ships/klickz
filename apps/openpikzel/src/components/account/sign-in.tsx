@@ -161,7 +161,7 @@ export function AccountSignIn({
           inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8}
           required disabled={busy} value={code} onChange={e => { setCode(e.target.value.replace(/[^0-9]/g, "")); setAuthError(false); }} />
       </label>}
-      <button className="primary-button" disabled={busy || (sending && remaining > 0)}>
+      <button type="submit" className="primary-button" disabled={busy || (sending && remaining > 0)}>
         {busy ? sending ? "Sending email…" : step === "code" ? "Verifying…" : "Signing in…"
           : sending ? remaining > 0 ? "Request another email shortly" : sendLabel
           : step === "code" ? "Verify code" : mode === "signup" ? "Create account" : "Sign in with password"}

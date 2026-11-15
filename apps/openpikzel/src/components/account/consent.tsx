@@ -96,14 +96,14 @@ export function Consent() {
           <p>Cloud sign-in is awaiting setup.</p>
         )}
         <div className="consent-actions">
-          <button
+          <button type="button"
             className="neutral-button"
             disabled={busy || !details}
             onClick={() => void decide("deny")}
           >
             Deny
           </button>
-          <button
+          <button type="button"
             className="primary-button"
             disabled={busy || !details || !session}
             onClick={() => void decide("allow")}

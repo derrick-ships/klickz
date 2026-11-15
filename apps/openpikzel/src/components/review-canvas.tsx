@@ -36,21 +36,21 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
   return <figure className="review-canvas" data-preview={feed?"feed":"full"} aria-busy={!failed&&!size}>
     {feed && <div className="feed-preview-controls">
       <div role="group" aria-label="YouTube preview placement">
-        <button className="neutral-button" aria-pressed={placement==="browse"} onClick={()=>morph(()=>setPlacement("browse"))}>Browse</button>
-        <button className="neutral-button" aria-pressed={placement==="suggested"} onClick={()=>morph(()=>setPlacement("suggested"))}>Suggested</button>
+        <button type="button" className="neutral-button" aria-pressed={placement==="browse"} onClick={()=>morph(()=>setPlacement("browse"))}>Browse</button>
+        <button type="button" className="neutral-button" aria-pressed={placement==="suggested"} onClick={()=>morph(()=>setPlacement("suggested"))}>Suggested</button>
       </div>
       <div role="group" aria-label="Feed theme">
-        <button className="neutral-button" aria-pressed={theme==="dark"} onClick={()=>morph(()=>setTheme("dark"))}>Dark</button>
-        <button className="neutral-button" aria-pressed={theme==="light"} onClick={()=>morph(()=>setTheme("light"))}>Light</button>
+        <button type="button" className="neutral-button" aria-pressed={theme==="dark"} onClick={()=>morph(()=>setTheme("dark"))}>Dark</button>
+        <button type="button" className="neutral-button" aria-pressed={theme==="light"} onClick={()=>morph(()=>setTheme("light"))}>Light</button>
       </div>
       <div role="group" aria-label="Thumbnail tests">
-        <button className="neutral-button" aria-pressed={monochrome} onClick={()=>morph(()=>setMonochrome(x=>!x))}>Black &amp; white</button>
-        <button className="neutral-button" aria-pressed={squint} onClick={()=>morph(()=>setSquint(x=>!x))}>Squint</button>
+        <button type="button" className="neutral-button" aria-pressed={monochrome} onClick={()=>morph(()=>setMonochrome(x=>!x))}>Black &amp; white</button>
+        <button type="button" className="neutral-button" aria-pressed={squint} onClick={()=>morph(()=>setSquint(x=>!x))}>Squint</button>
       </div>
     </div>}
     {failed ? <div className="review-preview-error" role="status">
       <ScanLine size={24} aria-hidden="true"/><p>This preview could not load.</p>
-      <button className="neutral-button" onClick={()=>{setFailed(false);void onRefresh();}}><RefreshCw size={14}/>Refresh preview</button>
+      <button type="button" className="neutral-button" onClick={()=>{setFailed(false);void onRefresh();}}><RefreshCw size={14}/>Refresh preview</button>
     </div> : feed ? <div className="youtube-preview" data-placement={placement} data-monochrome={monochrome} data-theme={theme} data-squint={squint}>
       <div className="youtube-preview-header"><Play size={18} fill="currentColor" aria-hidden="true"/><strong>YouTube</strong><span>Layout preview</span></div>
       <div className="youtube-preview-context" aria-hidden="true">{placement==="browse"?<><b>All</b><span>For you</span><span>Recently uploaded</span></>:<><b>Up next</b><span>Suggested videos</span></>}</div>

@@ -89,10 +89,10 @@ export function ImageInspector({src,title}:{src:string;title:string}){
  },[src]);
  return <figure className="image-inspector">
  <div className="image-inspector-controls" role="group" aria-label="Image inspection controls">
-  <button className="icon-button" aria-label="Zoom out" disabled={failed||percent<=100} onClick={()=>zoom(view.current.scale-1)}><Minus size={18}/></button>
+  <button type="button" className="icon-button" aria-label="Zoom out" disabled={failed||percent<=100} onClick={()=>zoom(view.current.scale-1)}><Minus size={18}/></button>
   <output aria-label="Image zoom" aria-live="polite">{percent}%</output>
-  <button className="icon-button" aria-label="Zoom in" disabled={failed||percent>=400} onClick={()=>zoom(view.current.scale+1)}><Plus size={18}/></button>
-  <button className="quiet-button" aria-label="Fit image" disabled={failed} onClick={()=>zoom(1)}><RotateCcw size={15}/>Fit</button>
+  <button type="button" className="icon-button" aria-label="Zoom in" disabled={failed||percent>=400} onClick={()=>zoom(view.current.scale+1)}><Plus size={18}/></button>
+  <button type="button" className="quiet-button" aria-label="Fit image" disabled={failed} onClick={()=>zoom(1)}><RotateCcw size={15}/>Fit</button>
  </div>
  <div ref={surface} className="image-inspector-surface" style={{aspectRatio:aspect}} role="group" aria-label="Zoomable thumbnail" aria-describedby={hint} tabIndex={0}
   onPointerDown={begin} onPointerMove={move} onPointerUp={e=>end(e)} onPointerCancel={e=>end(e,true)} onLostPointerCapture={e=>end(e,true)}

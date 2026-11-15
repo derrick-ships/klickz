@@ -85,13 +85,83 @@
 .model-no-results{padding:24px 8px;color:var(--color-muted);font-size:14px}
 @media(hover:hover) and (pointer:fine){.model-option:hover{background:var(--color-control-ground)}.model-trigger:hover{border-color:var(--color-line-strong)}}
 @media(max-width:400px){.model-option{padding:10px 6px;gap:9px}.model-option-copy strong{font-size:13px}.model-option-copy small{font-size:11px}.model-option .provider-logo-tile{flex-basis:40px;height:40px}.model-trigger{gap:5px;padding-inline:6px}}
-.style-library{display:grid;gap:14px}
-.style-library-filter{display:flex;flex-wrap:wrap;gap:8px}
-.style-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-.style-library-card{display:grid;gap:8px;padding:0;text-align:left;background:none;border:0;border-radius:12px;color:var(--color-ink)}
-.style-library-card img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:inset 0 0 0 1px var(--color-card-overlay)}
-.style-library-card span{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding-inline:2px}
-.style-library-card strong{font-size:14px;font-weight:600}
-.style-library-card small{font-size:12px;color:var(--color-placeholder);text-transform:capitalize}
+.style-library{display:grid;gap:14px;min-width:0;max-width:100%}
+.style-library-filter{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.style-library-filter .tool-chip{min-height:36px;white-space:nowrap}
+.style-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:12px;min-width:0}
+.style-library-card{display:grid;gap:6px;min-width:0;padding:0;text-align:left;background:none;border:0;border-radius:12px;color:var(--color-ink)}
+.style-library-card img{display:block;width:100%;max-width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:inset 0 0 0 1px var(--color-card-overlay)}
+.style-library-card span{display:grid;gap:2px;min-width:0;padding-inline:2px}
+.style-library-card strong{font-size:13px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.style-library-card small{font-size:12px;line-height:1.3;color:var(--color-placeholder);text-transform:capitalize;overflow-wrap:anywhere}
 .style-library-card:hover img{box-shadow:inset 0 0 0 1px var(--color-hover-edge)}
 .style-library-card:focus-visible{outline:2px solid var(--color-focus);outline-offset:3px}
+@media (max-width:600px){.style-library-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.style-library-filter .tool-chip{min-height:44px}}
+@media (max-width:339px){.style-library-grid{grid-template-columns:minmax(0,1fr)}}
+/* No sideways scroll anywhere in a dialog on phones. */
+dialog .dialog-shell{min-width:0;overflow-wrap:anywhere}
+dialog{overflow-x:hidden}
+.style-library-card img{box-sizing:border-box}
+/* ── Round 2 (Derrick's iPhone notes) ───────────────────────────────────────────── */
+/* The global button hover paints a fill; these two are overlays on an image and must stay see-through. */
+.delivery-tile .delivery-pick, .delivery-tile .delivery-pick:hover:not(:disabled) { background-color: transparent; }
+.thumb-frame button.score-badge:hover:not(:disabled), .delivery-tile button.score-badge:hover:not(:disabled), .result-image button.score-badge:hover:not(:disabled) { background-color: color-mix(in oklab, black 55%, transparent); }
+.thumb-frame { min-width: 0; }
+.chat-timeline .thumb-frame > button { padding: 0; width: 100%; min-height: 44px; background: var(--color-panel); border: 0; border-radius: 8px; overflow: hidden; }
+/* What's next under the selected result: compact pills, one primary. */
+.whats-next { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.next-pill, .ghost-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--color-chip-edge); background: linear-gradient(180deg, var(--surface-top), var(--color-control-ground)); color: var(--color-ink); font-size: 13px; font-weight: 550; white-space: nowrap; }
+.next-pill--primary { border-color: color-mix(in oklab, var(--accent-300) 30%, transparent); background: linear-gradient(180deg, var(--accent-600), var(--accent-700)); color: var(--color-accent-ink); }
+.next-pill--primary:hover:not(:disabled) { background: var(--accent-600); }
+.ghost-pill { background: transparent; border-color: var(--color-line); color: var(--color-muted); }
+.ghost-pill:hover:not(:disabled) { color: var(--color-ink); border-color: var(--color-hover-edge); }
+.fix-outcome { display: inline-flex; align-items: center; gap: 6px; margin: var(--space-3) 0 0; padding: 4px 10px; border-radius: 999px; background: var(--color-control-ground); border: 1px solid var(--color-line); color: var(--color-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fix-outcome[data-improved="true"] { color: oklch(0.86 0.13 155); border-color: color-mix(in oklab, oklch(0.78 0.16 155) 35%, transparent); }
+/* @mention list: anchored above the prompt so the phone keyboard never covers it. */
+.mention-list { position: absolute; z-index: 6; inset-inline: 8px; bottom: calc(100% + 6px); max-height: min(264px, 40svh); overflow-y: auto; margin: 0; padding: 4px; list-style: none; border: 1px solid var(--color-dialog-edge); border-radius: 12px; background: var(--color-modal-lit); box-shadow: 0 12px 32px var(--color-modal-shadow); animation: mention-in 160ms var(--ease-out) both; }
+@keyframes mention-in { from { opacity: 0; transform: translateY(4px); } }
+.mention-option { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 10px; border-radius: 8px; cursor: pointer; color: var(--color-ink); font-size: 14px; }
+.mention-option[aria-selected="true"] { background: var(--color-selected-fill); box-shadow: inset 0 0 0 1px var(--color-chip-edge); }
+.mention-option img, .mention-avatar { flex: none; width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--color-input); }
+.mention-avatar { display: grid; place-items: center; font-size: 12px; font-weight: 650; color: var(--color-muted); }
+.mention-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mention-current { margin-inline-start: auto; font-size: 11px; color: var(--color-placeholder); }
+/* Other running work: the same quiet line as generation. */
+.operation-progress { min-height: 0; padding: 10px 16px 12px 10px; }
+/* Pillar bars: 10 discrete ticks, coloured by the shared tone. */
+.pillar-segments[data-tone="high"] > i.filled { background: oklch(0.78 0.16 155); }
+.pillar-segments[data-tone="mid"] > i.filled { background: oklch(0.82 0.15 80); }
+.pillar-segments[data-tone="low"] > i.filled { background: var(--accent-400); }
+.pillar-ticks { display: flex; gap: 3px; margin-top: 8px; }
+.pillar-ticks > i { flex: 1; height: 5px; border-radius: 2px; background: var(--color-line-strong); }
+.pillar-ticks[data-tone="high"] > i.filled { background: oklch(0.78 0.16 155); }
+.pillar-ticks[data-tone="mid"] > i.filled { background: oklch(0.82 0.15 80); }
+.pillar-ticks[data-tone="low"] > i.filled { background: var(--accent-400); }
+@media (prefers-reduced-motion: reduce) { .mention-list { animation: none; } }
+@media (max-width: 600px) { .whats-next { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); } .next-pill { justify-content: center; padding: 0 8px; } }
+@media (max-width: 359px) { .whats-next { grid-template-columns: 1fr 1fr; } .next-pill--primary { grid-column: 1 / -1; } }
+.analysis-more summary { flex-wrap: wrap; row-gap: 6px; }
+.analysis-more summary > .pillar-segments { flex-basis: 100%; margin: 0 0 4px; }
+.analysis-more summary > strong { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+/* Persona photo guide: three rules with a drawn icon each, above the upload. */
+.persona-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin: 0 0 var(--space-4); padding: 0; list-style: none; }
+.persona-guide li { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-3); border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-control-ground); }
+.persona-guide-icon { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--color-input); color: var(--color-ink); }
+.persona-guide-icon b { position: absolute; inset-block-start: -6px; inset-inline-end: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent-600); color: var(--color-accent-ink); font-size: 11px; font-weight: 700; }
+.persona-guide strong { display: block; font-size: 13px; line-height: 1.35; }
+.persona-guide small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.45; color: var(--color-muted); }
+.profile-photo-grid--persona { grid-template-columns: repeat(auto-fill, 96px); gap: var(--space-3); }
+.profile-photo-grid--persona img { width: 96px; height: 96px; }
+.profile-photo-grid--persona figure button { width: 32px; height: 32px; right: 4px; bottom: auto; top: 4px; }
+.profile-photo-grid--persona figure button::before { content: ""; position: absolute; inset: -6px; }
+.profile-photo-grid figcaption { display: flex; gap: 4px; margin-top: 4px; max-width: 96px; font-size: 11px; line-height: 1.35; color: oklch(0.86 0.12 80); }
+.profile-photo-grid figcaption svg { flex: none; margin-top: 2px; }
+@media (max-width: 480px) { .persona-guide { grid-template-columns: 1fr; } .persona-guide li { grid-template-columns: 40px minmax(0, 1fr); align-items: center; padding: var(--space-2) var(--space-3); } }
+/* The phone rule gives every button 44px of height; the badge keeps its small mark and gets its 44px target from ::before. */
+button.score-badge, button.score-badge:active:not(:disabled) { min-height: 0; transform: none; }
+@media (max-width: 760px) { button.score-badge { min-height: 0; } .delivery-pick { min-height: 0; } }
+/* The sticky heading bleeds to the dialog edge by exactly the shell padding (24px desktop, 20px phone), never past it. */
+.dialog-shell > .dialog-heading { margin-inline: calc(-1 * var(--space-6)); padding-inline: var(--space-6); margin-top: calc(-1 * var(--space-6)); }
+@media (max-width: 760px) { .dialog-shell > .dialog-heading { margin-inline: -20px; padding-inline: 20px; margin-top: -20px; } }
+/* The strip styles every button in a card; the badge is an overlay, not a card button. */
+.chat-timeline article button.score-badge { position: absolute; width: auto; min-height: 0; padding: 0 5px 0 3px; border-radius: 999px; background: color-mix(in oklab, black 35%, transparent); overflow: visible; }

@@ -160,47 +160,76 @@
 /* Safari native menu metrics otherwise collapse this touch target. */
 .settings-row select { appearance: none; -webkit-appearance: none; min-height: 44px; height: 44px; padding: 8px 23px 8px 8px; border: 1px solid #636363; border-radius: 8px; background-color: #171717; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23ddd' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
 
-/* Branded activity keeps the workspace and delivered image in place. */
-.generation-delivery { margin: 20px auto 28px; max-width: 860px; border: 1px solid #414141; border-radius: 16px; overflow: hidden; background: #121212; }
-.delivery-placeholder { aspect-ratio: 16/9; position: relative; overflow: hidden; background: radial-gradient(ellipse at 20% 80% in oklab,color-mix(in oklab,var(--accent-900) 70%,transparent) 0,transparent 62%),#101010; }
-.delivery-placeholder.portrait { aspect-ratio: 9/16; max-height: 440px; }
-.delivery-light { position: absolute; inset: 0; background: linear-gradient(90deg,transparent,color-mix(in oklab, var(--accent-500) 8%, transparent) 65%,color-mix(in oklab, var(--accent-500) 35%, transparent) 96%,var(--accent-300) 100%); transform: translateX(-100%); animation: delivery-sweep 3400ms cubic-bezier(.2,.7,.25,1) infinite; }
-.delivery-brand { position: absolute; left: 24px; bottom: 24px; font-size: 17px; font-weight: 700; letter-spacing: -.04em; }
-.delivery-brand > span { color: var(--accent-500); margin-left: 3px; }
-.delivery-count { position: absolute; bottom: 20px; right: 24px; font-size: clamp(32px,7vw,56px); font-variant-numeric: tabular-nums; line-height: 1; }
-.delivery-count small { font-size: 14px; margin-left: 4px; color: #ccc; }
-.delivery-caption { padding: 20px 24px; }
-.delivery-caption strong { font-size: 17px; }
-.delivery-caption p,.delivery-caption small { color: #bcbcbc; line-height: 1.6; margin: 8px 0 0; }
-.delivery-caption p { font-size: 14px; }
-.delivery-caption small { font-size: 12px; }
-.delivery-compact { background: var(--color-accent-recess); border-radius: 12px; }
-/* OP-10: the generating placeholder fades out when the image lands instead of popping (skipped with reduced motion). */
-.delivery-placeholder.leaving { animation: delivery-exit 200ms var(--ease-out) both; pointer-events: none; }
-@keyframes delivery-exit { to { opacity: 0; } }
-/* Nothing on the page moves when the image lands: the delivered images take the slot the placeholder held, and the
-   placeholder dissolves over them in place (GenerationDelivery also holds the card at its waiting height). */
+/* The generation card: one quiet tile per requested image, each with its own light sweep; tiles fill in as images land. */
+.generation-delivery { margin: 20px auto 28px; max-width: 860px; border: 1px solid var(--color-panel-edge); border-radius: 16px; overflow: hidden; background: var(--color-composer-shade); }
+.delivery-compact { background: var(--color-composer-shade); }
 .delivery-slot { position: relative; }
+/* Shared by the waiting grid and the result grid, so the result lands exactly in the box the placeholder held. */
+.delivery-grid { --cols: 1; --tile-ratio: 16/9; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 3px; margin-inline: auto; padding: 3px; background: var(--color-composer-shade); }
+.delivery-grid.portrait { --tile-ratio: 9/16; max-width: min(100%, calc(440px * 9 / 16 * var(--cols))); }
+.delivery-grid[data-count="2"] { --cols: 2; }
+.delivery-grid:is([data-count="3"], [data-count="4"]) { --cols: 2; }
+.delivery-grid:not([data-count="1"], [data-count="2"], [data-count="3"], [data-count="4"]) { --cols: 4; }
+.delivery-grid.portrait:is([data-count="3"], [data-count="4"]) { --cols: 4; }
+.delivery-tile, .delivery-ghost { position: relative; min-width: 0; aspect-ratio: var(--tile-ratio); overflow: hidden; border-radius: 10px; background: var(--color-control-ground); }
+.delivery-grid[data-count="1"] > :is(.delivery-tile, .delivery-ghost) { border-radius: 12px; }
+.delivery-tile > img { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--color-composer-shade); }
+.delivery-ghost { background: radial-gradient(ellipse at 20% 85% in oklab, color-mix(in oklab, var(--accent-900) 55%, transparent) 0, transparent 65%), var(--color-control-ground); box-shadow: inset 0 0 0 1px var(--color-separator); }
+/* Each tile sweeps on its own beat: staggered 120ms, capped so a 16x wall never waits two seconds to start. */
+.delivery-light { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, color-mix(in oklab, var(--accent-500) 10%, transparent) 62%, color-mix(in oklab, var(--accent-400) 30%, transparent) 92%, transparent 100%); transform: translateX(-100%); animation: delivery-sweep 2600ms var(--ease-out) calc(min(var(--i, 0), 7) * 120ms) infinite both; pointer-events: none; }
+@keyframes delivery-sweep { 0% { transform: translateX(-100%); opacity: .5; } 65% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60%); opacity: 0; } }
+/* OP-10: the placeholder fades out when the images land instead of popping (skipped with reduced motion). */
+.delivery-placeholder.leaving { animation: delivery-exit 200ms var(--ease-out) both; pointer-events: none; }
 .delivery-placeholder.leaving { position: absolute; top: 0; left: 0; right: 0; z-index: 1; }
-.delivery-result { aspect-ratio: 16/9; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; background: #101010; }
-.delivery-result.portrait { aspect-ratio: 9/16; max-height: 440px; }
-.delivery-result[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.delivery-result[data-count="3"], .delivery-result[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
-.delivery-tile { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #101010; }
-.delivery-tile > img { display: block; width: 100%; height: 100%; object-fit: contain; }
-/* A delivered image whose bytes are still on the way says so once the placeholder has gone, never a blank tile (as the timeline
-   thumbnails do). Only then: an image that loaded under the fading placeholder is held hidden too, and must not flash the label. */
-.delivery-tile[data-load]::after, .delivery-slot:not(:has(> .delivery-placeholder)) .delivery-tile:has(> img.delivery-reveal-pending)::after { content: "Loading image…"; content: "Loading image…" / ""; position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-2); background: var(--color-panel); color: var(--color-muted); font-size: 12px; text-align: center; }
-.delivery-tile[data-load="failed"]::after { content: "Image didn’t load\A Open it below to refresh"; content: "Image didn’t load\A Open it below to refresh" / ""; white-space: pre-line; line-height: 1.4; }
+@keyframes delivery-exit { to { opacity: 0; } }
+/* A delivered image whose bytes are still on the way keeps sweeping (no words), never a blank tile; only once the placeholder
+   has gone, so an image that loaded under the fading placeholder never flashes it. */
+.delivery-tile[data-load]::after, .delivery-slot:not(:has(> .delivery-placeholder)) .delivery-tile:has(> img.delivery-reveal-pending)::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, color-mix(in oklab, var(--accent-500) 10%, transparent) 62%, color-mix(in oklab, var(--accent-400) 26%, transparent) 92%, transparent 100%), var(--color-control-ground); background-size: 200% 100%, auto; animation: delivery-wait 1600ms var(--ease-out) infinite; }
+@keyframes delivery-wait { from { background-position: 150% 0, 0 0; } to { background-position: -50% 0, 0 0; } }
+.delivery-tile[data-load="failed"]::after { content: "Didn’t load"; content: "Didn’t load" / ""; display: grid; place-items: center; color: var(--color-muted); font-size: 12px; background: var(--color-panel); animation: none; }
 .delivery-reveal-pending { opacity: 0; }
 .delivery-reveal { animation: delivery-reveal 450ms var(--ease-out-count) calc(var(--i, 0) * 70ms) both; will-change: filter, transform, opacity; }
 @keyframes delivery-reveal { from { filter: blur(12px); transform: scale(1.02); opacity: 0; } to { filter: blur(0); transform: scale(1); opacity: 1; } }
 @keyframes delivery-reveal-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .delivery-reveal { animation: delivery-reveal-fade 120ms linear both !important; animation-delay: 0ms !important; will-change: opacity; } }
+/* Tapping a delivered tile reviews it in place. The button covers the tile; the score badge sits above it. */
+.delivery-pick { position: absolute; inset: 0; z-index: 1; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; transition: box-shadow var(--duration) var(--ease-out); }
+@media (hover: hover) { .delivery-pick:hover { box-shadow: inset 0 0 0 1px var(--color-hover-edge); } }
+.delivery-pick:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--color-focus); }
+.delivery-tile[data-selected] .delivery-pick { box-shadow: inset 0 0 0 2px var(--accent-500), inset 0 0 0 4px color-mix(in oklab, black 45%, transparent); }
+.delivery-note { position: absolute; z-index: 2; inset-inline-start: 6px; inset-block-end: 6px; max-width: calc(100% - 12px); padding: 3px 7px; border-radius: 999px; background: color-mix(in oklab, black 55%, transparent); color: #fff; font-size: 11px; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.delivery-note[data-gain="up"] { color: oklch(0.86 0.13 155); }
+/* Honest progress: a hairline under the tiles, only when this account has a measured median. */
+.delivery-progress { height: 2px; margin: 0 3px; background: var(--color-separator); border-radius: 2px; overflow: hidden; }
+.delivery-progress > span { display: block; height: 100%; background: var(--accent-500); transform-origin: left; transition: transform 250ms linear; }
+.delivery-progress[data-done] > span { transition: transform 220ms var(--ease-out); }
+/* One short line under the grid. */
+.delivery-caption { display: flex; align-items: center; min-height: 56px; padding: 6px 14px 6px 8px; }
+.delivery-line { margin: 0 0 0 6px; color: var(--color-muted); font-size: 13px; line-height: 1.5; }
+/* Pik and the rotating verb. */
+.work-status { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--color-ink); font-size: 14px; }
+.work-pik { flex: none; width: 44px; height: 44px; display: grid; place-items: center; }
+.work-pik img { width: 44px; height: 44px; object-fit: contain; animation: pik-bob 1200ms ease-in-out infinite alternate; filter: drop-shadow(0 3px 4px color-mix(in oklab, black 50%, transparent)); }
+@keyframes pik-bob { from { transform: translateY(0); } to { transform: translateY(-2px); } }
+.work-verb { position: relative; min-width: 0; overflow: hidden; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
+.work-verb-word { display: inline-block; animation: verb-in 200ms cubic-bezier(.23, 1, .32, 1) both; }
+@keyframes verb-in { from { opacity: 0; transform: translateY(6px); } }
+.work-meta { flex: none; margin-inline-start: auto; color: var(--color-placeholder); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .delivery-light { animation: none; transform: none; background: linear-gradient(100deg, transparent, color-mix(in oklab, var(--accent-500) 8%, transparent)); }
+  .delivery-tile[data-load]::after, .delivery-slot:not(:has(> .delivery-placeholder)) .delivery-tile:has(> img.delivery-reveal-pending)::after { animation: none; }
+  .work-pik img, .work-verb-word { animation: none; }
+  .delivery-progress > span, .delivery-pick { transition: none; }
+}
+@media (max-width: 600px) {
+  .delivery-grid:not([data-count="1"], [data-count="2"], [data-count="3"], [data-count="4"]) { --cols: 2; }
+  /* 9–16 images on a phone: smaller tiles in a centred 2-column wall, so the card stays about a screen tall (no inner scroll). */
+  .delivery-grid:not(.portrait):not([data-count="1"], [data-count="2"], [data-count="3"], [data-count="4"], [data-count="5"], [data-count="6"], [data-count="7"], [data-count="8"]) { max-width: min(100%, calc(62svh * 2 * 16 / 9 / 8)); }
+  .delivery-tile, .delivery-ghost { border-radius: 8px; }
+}
 /* One status at a time: while the delivery card reports generating or analyzing, the generic progress card stays mounted but
    hidden, so it cannot vanish above the result when the work ends. */
-:has(> .generation-delivery:is([data-stage="generating"], [data-stage="analyzing"])) > .operation-progress { display: none; }
-@keyframes delivery-sweep { 0% { transform: translateX(-100%); opacity:.4; } 70% { transform: translateX(-5%); opacity:1; } 100% { transform: translateX(20%); opacity:0; } }
+:has(> .generation-delivery:is([data-stage="generating"], [data-stage="analyzing"], [data-stage="review-pending"])) > .operation-progress { display: none; }
 .prompt-enhancer { margin: 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .prompt-enhancer > small { flex: 1 1 180px; color: var(--color-muted); line-height: 1.5; font-size: 12px; }
 .prompt-enhancer section,.prompt-enhancer > p { flex-basis: 100%; }
@@ -228,8 +257,7 @@
 .automatic-review label { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
 .automatic-review input { width: 20px; height: 20px; accent-color: var(--accent-500); flex-shrink: 0; }
 .prompt-enhancer button,.creative-conversation button,.direction-undo button { min-height: 44px; }
-@media(max-width:420px){.delivery-caption{padding:16px}.delivery-brand{left:16px;bottom:16px}.delivery-count{right:16px;bottom:16px}.creative-conversation-body{padding:0 14px 14px}.creative-conversation summary span{display:block;margin:6px 0 0}}
-@media(prefers-reduced-motion:reduce){.delivery-light{animation:none;transform:none;background:linear-gradient(90deg,color-mix(in oklab, var(--accent-500) 3%, transparent),color-mix(in oklab, var(--accent-500) 13%, transparent))}}
+@media(max-width:420px){.creative-conversation-body{padding:0 14px 14px}.creative-conversation summary span{display:block;margin:6px 0 0}}
 
 .analysis-overlay .consent-actions { position: sticky; bottom: 0; z-index: 1; padding: 14px 0; background: #181818; border-top: 1px solid #414141; }
 .creative-conversation select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23ddd' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px; }
@@ -307,14 +335,4 @@
 ::view-transition-old(feed-preview), ::view-transition-new(feed-preview) { animation-duration: 220ms; animation-timing-function: cubic-bezier(.23,1,.32,1); }
 @media (prefers-reduced-motion: reduce) {
   .youtube-preview, .youtube-preview .youtube-preview-thumbnail { transition: none; }
-}
-/* 8× and 16× show as a 4-column wall that keeps each tile 16:9. */
-.delivery-result[data-count="5"], .delivery-result[data-count="6"], .delivery-result[data-count="7"], .delivery-result[data-count="8"],
-.delivery-result[data-count="9"], .delivery-result[data-count="10"], .delivery-result[data-count="11"], .delivery-result[data-count="12"],
-.delivery-result[data-count="13"], .delivery-result[data-count="14"], .delivery-result[data-count="15"], .delivery-result[data-count="16"] {
-  aspect-ratio: auto; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: none;
-}
-.delivery-result[data-count]:not([data-count="1"]):not([data-count="2"]):not([data-count="3"]):not([data-count="4"]) .delivery-tile { aspect-ratio: 16/9; }
-@media (max-width: 600px) {
-  .delivery-result[data-count]:not([data-count="1"]):not([data-count="2"]):not([data-count="3"]):not([data-count="4"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

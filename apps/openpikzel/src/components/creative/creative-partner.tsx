@@ -16,7 +16,7 @@ export function PromptEnhancer({prompt,title,mode,format,config,provider="openai
   {error&&<p role="alert">{error}</p>}
   {proposal&&<section aria-label="Prompt enhancement"><h3>Suggested direction</h3><p className="creative-prose">{proposal.prompt}</p><ul>{proposal.changes.map((change,i)=><li key={i}>{change}</li>)}</ul>
    {prompt!==proposal.before&&<p>Your draft changed. The suggestion is kept here; it will not replace your newer text.</p>}
-   <div className="creative-actions"><button className="neutral-button" disabled={disabled||prompt!==proposal.before} onClick={()=>{onApply(proposal.before,proposal.prompt);setProposal(null);}}>Apply enhancement</button><button className="neutral-button" onClick={()=>setProposal(null)}>Dismiss suggestion</button></div>
+   <div className="creative-actions"><button type="button" className="neutral-button" disabled={disabled||prompt!==proposal.before} onClick={()=>{onApply(proposal.before,proposal.prompt);setProposal(null);}}>Apply enhancement</button><button type="button" className="neutral-button" onClick={()=>setProposal(null)}>Dismiss suggestion</button></div>
   </section>}
  </div>;
 }
