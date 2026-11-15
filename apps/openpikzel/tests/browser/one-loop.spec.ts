@@ -20,3 +20,11 @@ test("Create asks for an optional video title so the auto-score is complete", as
   await page.getByRole("tab", { name: "Score", exact: true }).click();
   await expect(page.getByLabel("Video title", { exact: true })).toHaveValue("Revisé las cuentas de la Agencia Nacional de Tierras");
 });
+
+test("there is no creative chat: the only path is describe, create, score", async ({ page }) => {
+  await page.goto("/studio?mode=generate");
+  await expect(page.getByLabel("Describe your thumbnail", { exact: true })).toBeVisible();
+  await expect(page.getByText("Creative chat", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".creative-conversation")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Improve my description", exact: true })).toHaveCount(0);
+});

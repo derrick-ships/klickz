@@ -3,9 +3,8 @@ import {z} from "zod";
 import {providerKey,hasProvider} from "./provider-context";
 import {googleText} from "./google";
 import {AppError} from "./validation";
-import {defaultPromptModel,instructionVersion,promptEnhancementInstructions,conversationInstructions} from "./instructions";
+import {defaultPromptModel,instructionVersion,promptEnhancementInstructions} from "./instructions";
 export const enhancementSchema=z.object({prompt:z.string().min(8).max(2400),changes:z.array(z.string().max(240)).max(5)});
-export const chatReplySchema=z.object({reply:z.string().min(1).max(4000),proposal:z.object({kind:z.enum(["generate","edit","analyze"]),prompt:z.string().max(2400),title:z.string().max(100)}).nullable()});
 export async function structuredCreativeText(provider:"openai"|"google",instructions:string,context:unknown,modelChoice:"economy"|"standard"="economy",images:Buffer[]=[]){
  if(!hasProvider(provider))throw new AppError(403,"Connect your own "+(provider==="openai"?"OpenAI":"Google")+" API key in Connections.");
  const model=provider==="google"?process.env.GOOGLE_TEXT_MODEL||"gemini-3.5-flash-lite":modelChoice==="standard"?process.env.OPENAI_TEXT_MODEL||"gpt-5.5":process.env.OPENAI_PROMPT_MODEL||defaultPromptModel;
@@ -25,4 +24,3 @@ export async function enhancePrompt(input:{prompt:string;title:string;mode:strin
  const result=await structuredCreativeText(input.provider,promptEnhancementInstructions,selectedContext?{draft:input,selectedContext}:input);
  return {...result,value:enhancementSchema.parse(result.value)};
 }
-export {conversationInstructions} from "./instructions";

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 test("mode tabs support roving keyboard navigation and visible focus", async ({ page }) => {
   await page.goto("/?mode=generate");
-  await expect(page.getByLabel("Loading creative chat")).toHaveCount(0);
+  await expect(page.getByLabel("Describe your thumbnail", { exact: true })).toBeVisible();
   const prompt = page.getByRole("tab", { name: "Create", exact: true });
   await expect(prompt).toHaveAttribute("aria-selected", "true");
   await expect(prompt).toBeEnabled();
@@ -24,8 +24,7 @@ test("a mode tab chosen during load survives hydration", async ({ page }) => {
   const hold = new Promise<void>(r => { release = r; });
   await page.route("**/api/config", async route => {
     await hold;
-    const response = await route.fetch();
-    await route.fulfill({ response });
+    await route.continue();
   });
   await page.goto("/?mode=generate");
   const analyze = page.getByRole("tab", { name: "Score", exact: true });
@@ -34,7 +33,7 @@ test("a mode tab chosen during load survives hydration", async ({ page }) => {
   await analyze.click();
   await expect(analyze).toHaveAttribute("aria-selected", "true");
   release();
-  await expect(page.getByLabel("Loading creative chat")).toHaveCount(0);
+  await expect(page.getByLabel("Video title", { exact: true })).toBeEnabled();
   await expect(analyze).toHaveAttribute("aria-selected", "true");
 });
 test("refined studio fits narrow, tablet and wide layouts with keyboard dialogs", async ({ page }) => {

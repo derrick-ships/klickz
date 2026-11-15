@@ -97,6 +97,31 @@ vi.mock("../src/lib/providers", () => ({
 vi.mock("../src/lib/assets", () => ({
   ownedAsset: async () => Buffer.from("reference"),
 }));
+// The mediator is a model call; here it returns a deterministic enriched prompt that
+// quotes the request so the existing assertions about fix text still hold.
+vi.mock("../src/lib/mediator", async () => {
+  const actual = await vi.importActual<typeof import("../src/lib/mediator")>("../src/lib/mediator");
+  return {
+    ...actual,
+    mediate: vi.fn(async (input: { rawPrompt: string; format: "long" | "short" }) => ({
+      substantial: actual.extractSubstantial(input.rawPrompt, input.format),
+      provider: "Fixture mediator",
+      model: "fixture",
+      attempts: 1,
+      enriched: {
+        concept: "Fixture concept",
+        lever: "INTRIGA",
+        imageText: ["NO CUADRA"],
+        panels: 1,
+        prompt: "ENRICHED PROMPT. Brief: " + input.rawPrompt + ". One large face on the left third, two-line condensed text on the right, high contrast, rim light, documentary teal/orange background.",
+        dos: [{ rule: "One focal point", source: "02-visual-rules-dos-donts" }, { rule: "2-4 words", source: "00-README-cheat-sheet" }, { rule: "Text in negative space", source: "02-visual-rules-dos-donts" }, { rule: "High contrast", source: "02-visual-rules-dos-donts" }],
+        donts: [{ rule: "No date", source: "03-house-style-prompt-template" }, { rule: "No logo", source: "03-house-style-prompt-template" }, { rule: "No thin fonts", source: "02-visual-rules-dos-donts" }, { rule: "No repeated title", source: "01-principles" }],
+        substantialChanges: [],
+        decisions: ["Chose the on-image text."],
+      },
+    })),
+  };
+});
 import { POST } from "../src/app/api/generate/route";
 const id = "11111111-1111-4111-8111-111111111111";
 const request = (data: Record<string, unknown>) =>
@@ -251,3 +276,31 @@ it("carries the source conversation into an MCP-style edit without a new convers
 });
 
 it("deduplicates the source path before reference dispatch and records recomposition provenance",async()=>{mock.parent.id=id;const r=await POST(request({mode:"edit",intent:"recompose",parentId:id,referencePaths:[id+"/original.png"],settings:{...defaultSettings,format:"short",batch:1}}));expect(r.status).toBe(200);expect(mock.render.mock.calls[0][1]).toHaveLength(1);expect(mock.reservations[0].lineage).toMatchObject({origin:"recomposed",nativeOutput:true,sourceId:id});});
+
+
+it("never sends the user's raw prompt to the image model and stores the enriched prompt for inspection", async () => {
+  const { mediate } = await import("../src/lib/mediator");
+  const raw = "make a thumbnail about the land agency payments";
+  mock.render.mockReset().mockResolvedValue(Buffer.from("png"));
+  const r = await POST(request({ prompt: raw }));
+  expect(r.status).toBe(200);
+  expect(mediate).toHaveBeenCalled();
+  const sent = mock.render.mock.calls[0][0] as string;
+  expect(sent).not.toBe(raw);
+  expect(sent.startsWith("ENRICHED PROMPT.")).toBe(true);
+  expect(sent).toContain("DO:\n- One focal point");
+  expect(sent).toContain("DON'T:\n- No date");
+  const recorded = mock.updates.find((u) => (u.lineage as { mediator?: unknown } | undefined)?.mediator) as { lineage: { mediator: { rawPrompt: string; imagePrompt: string; principleFiles: string[] } } };
+  expect(recorded.lineage.mediator.rawPrompt).toBe(raw);
+  expect(recorded.lineage.mediator.imagePrompt).toBe(sent);
+  expect(recorded.lineage.mediator.principleFiles).toHaveLength(11);
+});
+
+it("does not render anything when the mediator fails", async () => {
+  const { mediate } = await import("../src/lib/mediator");
+  vi.mocked(mediate).mockRejectedValueOnce(new Error("mediator unavailable"));
+  mock.render.mockReset().mockResolvedValue(Buffer.from("png"));
+  const r = await POST(request({}));
+  expect(r.status).toBeGreaterThanOrEqual(400);
+  expect(mock.render).not.toHaveBeenCalled();
+});
