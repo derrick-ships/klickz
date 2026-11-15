@@ -115,9 +115,12 @@ export function enrichDiagnostic(
   promiseConflict = false,
 ): Evaluation {
   const warnings: string[] = [];
+  const promiseOnly = !title.trim() && /^INTENDED PROMISE/.test(context.videoBrief || "");
   if (!title.trim())
     warnings.push(
-      "Idea and Curiosity need a title to assess the image/title promise. No title was supplied or retrieved.",
+      promiseOnly
+        ? "No video title yet: Idea and Curiosity were judged against the thumbnail's intended promise. Add the title for the pair."
+        : "Idea and Curiosity need a title to assess the image/title promise. No title was supplied or retrieved.",
     );
   warnings.push(context.videoEvidence?.notice || "This assesses the visible thumbnail and stated title, not whether the video delivers on its promise. The video itself was not watched.");
   if (!vision)
@@ -143,7 +146,8 @@ export function enrichDiagnostic(
     }
     if (
       (p === "idea" || p === "curiosity") &&
-      !title.trim()
+      !title.trim() &&
+      !promiseOnly
     ) {
       dimensions[p].score = null;
       dimensions[p].missingReason =
@@ -304,7 +308,7 @@ export function compileFixPlan(
       kind: "blocked",
       reason: "Analyze the current source image first.",
     };
-  if (score.fixBlocked || !score.context?.title)
+  if (score.fixBlocked || !score.context || (!score.context.title && !/^INTENDED PROMISE/.test(score.context.videoBrief || "")))
     return {
       kind: "blocked",
       reason:

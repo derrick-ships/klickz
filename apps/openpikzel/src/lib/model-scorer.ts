@@ -17,7 +17,7 @@ const answersSchema = z.object({
 const instructions = (title: string) =>
   scoringInstructions +
   "\nScore each pillar on the 0-3 scale of its criteria (index of the best-matching criterion). Use null only when the pillar cannot be assessed" +
-  (title ? "." : " (idea and curiosity need a title; none was given).") +
+  (title ? "." : " (no title: judge idea and curiosity against the INTENDED PROMISE in videoBrief and the image itself; null only if there is no promise either).") +
   ' Return JSON only: {"answers":{"virality":{"score":0-3|null,"confidence":0-1},"clarity":…,"idea":…,"curiosity":…,"emotion":…}}.\nRUBRIC:\n' +
   JSON.stringify(thumbnailRubric);
 

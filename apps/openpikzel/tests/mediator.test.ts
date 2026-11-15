@@ -80,7 +80,7 @@ describe("imagePromptFrom", () => {
     expect(out).not.toContain(raw);
     expect(out).toContain("DO:\n- Keep one focal point per panel");
     expect(out).toContain("DON'T:\n- No thin or script fonts");
-    expect(out).toContain('TEXT ON THE IMAGE (spell exactly, one line each): "BEFORE" / "AFTER"');
+    expect(out).toContain('line 1: "BEFORE"; line 2: "AFTER"');
     expect(out).toContain("IDENTITY: reference images 1-2 show Guillo");
   });
 });
@@ -132,5 +132,15 @@ describe("variationAxis", () => {
     expect(new Set(combos).size).toBe(16);
     const placements = new Set(Array.from({ length: 4 }, (_, i) => variationAxis(i + 1, 4)!.placement));
     expect(placements.size).toBe(4);
+  });
+});
+
+describe("on-image text lines (15 Nov: black box behind a letter, slash drawn)", () => {
+  it("splits ' / ' into lines and never asks for boxes behind letters", () => {
+    expect(extractSubstantial('Text: "¿Y LA / BOINA?"', "long").exactText).toEqual(["¿Y LA", "BOINA?"]);
+    const p = imagePromptFrom({ concept: "", lever: "INTRIGA", imageText: ["¿Y LA / BOINA?"], panels: 1, prompt: "A beret on a podium.", dos: [], donts: [], decisions: [], substantialChanges: [] } as never, [], "");
+    expect(p).toContain('line 1: "¿Y LA"; line 2: "BOINA?"');
+    expect(p).toMatch(/no box, plate, band or rectangle behind any letter/);
+    for (let i = 1; i <= 16; i++) expect(variationAxis(i, 16)!.highlightWord).not.toMatch(/\bbox\b/);
   });
 });
