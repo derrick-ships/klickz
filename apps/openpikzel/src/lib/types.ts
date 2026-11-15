@@ -15,7 +15,8 @@ export type Settings = {
   quality: Quality;
   complexity: Complexity;
   format: Format;
-  batch: 1 | 2 | 4;
+  /** Images per click. 8 and 16 are sent as chunks of 4 (each request is capped at 4 provider calls). */
+  batch: 1 | 2 | 4 | 8 | 16;
 };
 export const defaultSettings: Settings = {
   model: "flare",

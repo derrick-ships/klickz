@@ -123,3 +123,14 @@ describe("extractSubstantial false positives (audit 15 Nov)", () => {
     expect(extractSubstantial("Make it vertical for YouTube Shorts", "long").orientation).toBe("vertical");
   });
 });
+
+import { variationAxis } from "../src/lib/mediator";
+describe("variationAxis", () => {
+  it("gives every image of a 16-batch a different combination and none for a single image", () => {
+    expect(variationAxis(1, 1)).toBeNull();
+    const combos = Array.from({ length: 16 }, (_, i) => JSON.stringify(variationAxis(i + 1, 16)));
+    expect(new Set(combos).size).toBe(16);
+    const placements = new Set(Array.from({ length: 4 }, (_, i) => variationAxis(i + 1, 4)!.placement));
+    expect(placements.size).toBe(4);
+  });
+});

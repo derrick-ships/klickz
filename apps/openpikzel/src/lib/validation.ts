@@ -25,6 +25,11 @@ export const generationSchema = z
     settings: settingsSchema.default({}),
     requestId: z.string().uuid(),
     fixPlanToken: z.string().max(32000).optional(),
+    /** Large batches (8, 16) arrive as chunks of 4; this keeps each image's variation number unique. */
+    variationOffset: z.number().int().min(0).max(15).default(0),
+    /** A pre-made style from the library (public/styles). */
+    libraryStyleId: z.string().max(60).nullable().optional(),
+    variationTotal: z.number().int().min(1).max(16).default(1),
   })
   .superRefine((v, ctx) => {
     if(v.intent==="recompose"&&(v.mode!=="edit"||!v.parentId||v.settings.batch!==1))ctx.addIssue({code:"custom",message:"Recomposition creates one new edit from an owned source.",path:["intent"]});
@@ -57,6 +62,7 @@ export const reviewSchema = z
     videoUrl: z.string().trim().max(500).default(""),
     audience: z.string().trim().max(200).default(""),
     includeVision: z.boolean().default(false),
+    rescore: z.boolean().default(false),
     critiqueProvider: visionProviderSchema,
     requestId: z
       .string()

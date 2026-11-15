@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { libraryStyle } from "@/lib/style-library";
 import {imageModel} from "@/lib/image-models";
 import {instructionVersion, realismContract} from "@/lib/instructions";
 import {mediate, imagePromptFrom, MEDIATOR_VERSION, type MediatorRecord} from "@/lib/mediator";
@@ -113,6 +116,14 @@ async function handle(request: Request) {
         `${label} guidance: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos; use style references for treatment and palette.${palette.length ? ` Measured style palette, most dominant first: ${palette.join(", ")}.` : ""}`,
       );
     }
+    // Library style: its example thumbnails guide treatment and palette; never the people or text in them.
+    const library = libraryStyle(input.libraryStyleId);
+    if (input.libraryStyleId && !library) throw new AppError(400, "That style isn't in the library.");
+    if (library && !input.styleId && !fixPlan) {
+      const start = refs.length;
+      for (const image of library.images.slice(0, 2)) refs.push(await readFile(join(process.cwd(), "public", image)));
+      notes.push(`Style "${library.name}" (${library.category}): reference images ${start + 1}-${refs.length} show the look to follow — lighting, palette, composition, typography treatment. Do not copy their people, logos or words. Look: ${library.description}`);
+    }
     const paths = [
       ...new Set(
         [input.referencePath, ...input.referencePaths].filter(
@@ -193,7 +204,8 @@ async function handle(request: Request) {
               format: input.settings.format,
               style: input.style,
               notes,
-              variation: row.batch_index + 1,
+              variation: input.variationOffset + row.batch_index + 1,
+              variationTotal: Math.max(input.variationTotal, input.settings.batch),
               hasPersona: !!input.personaId,
               isEdit: !!input.parentId,
               // A reviewed fix carries its own wording to keep; its plan JSON is not user text to mine for quotes.

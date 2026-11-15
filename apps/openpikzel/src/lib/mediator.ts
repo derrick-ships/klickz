@@ -111,6 +111,7 @@ RULES
 6. dos and donts: 4-16 each, short imperative lines, each with the source file name (e.g. "02-visual-rules-dos-donts"). They will be appended to the prompt verbatim, so only include rules that apply to this image.
 7. Never add generic filler such as "high quality, 4k, cinematic, masterpiece". Every line must be a concrete visual instruction.
 8. If the request conflicts with a principle and the request is substantial, the request wins (keep it) and you add the conflict to decisions.
+12. Variations. When variationTotal > 1 you are writing ONE image of a set; follow variationAxis exactly (placement, background colour family, emotion, framing, which word is highlighted) so this image is clearly different from its siblings at a glance. Every variant must still follow the principles and keep every substantial detail and the exact on-image text. Record the axis you applied in decisions.
 9. Universal vs house rules. The playbook separates universal principles (01 principles, 02 visual rules "Universal", 06 QA, 09 pairing) from the HOUSE look of the RunRun Político / Noticias BQ channel (00 rules 3 and 5, 03 house-style template, 04 Spanish text bank, the yellow-on-top/white-below colours, teal/orange gradient, red play button, red only on ¿?). Apply the house look ONLY when the request is Colombian political or news content, or when chosenStyle asks for it. Otherwise apply the universal principles and pick a palette and type treatment that fit the topic ("Fit the channel, not the theory", 01); record that choice in decisions.
 10. Text must label what it describes. When there are several panels and the text names them (BEFORE/AFTER, ANTES/DESPUÉS, DÍA 1/DÍA 800, REAL/FALSO), place each word on its own panel, never stacked together in one block over the split. Apart from that, keep the house rule of 2-4 words.
 11. The cover test (01): the image alone must explain the transformation, contrast or question in under a second at phone size. Describe the subject so the difference between panels is obvious (same person, same pose and framing, only the changed attribute differs).
@@ -120,6 +121,26 @@ Return JSON only:
 
 PRINCIPLES (the only principles):
 `;
+
+// In a batch, each image changes a different cosmetic axis so the set is actually different
+// (playbook 03: gradient and side alternate across variants). Substantial details never vary.
+const PLACEMENTS = ["subject on the left third, text on the right", "subject on the right third, text on the left", "subject centred and large, text above", "subject close-up filling one side, text stacked on the other"];
+const BACKGROUNDS = ["the palette the principles suggest for this topic", "a cooler background family (teal/blue)", "a warmer background family (orange/red)", "a dark, near-black background with one accent colour", "a light background with dark text"];
+const EMOTIONS = ["the most natural expression for the lever", "a stronger, more intense expression", "a quieter, more ambiguous expression that raises a question"];
+const FRAMINGS = ["tight close-up", "medium shot with context object", "wide shot that shows the setting"];
+export function variationAxis(variation: number, total: number) {
+  if (total <= 1) return null;
+  const i = variation - 1;
+  // Placement changes every image; background every image too (offset), so 4×5 = 20 unique pairs cover 16.
+  return {
+    placement: PLACEMENTS[i % PLACEMENTS.length],
+    background: BACKGROUNDS[(i + Math.floor(i / PLACEMENTS.length)) % BACKGROUNDS.length],
+    emotion: EMOTIONS[i % EMOTIONS.length],
+    framing: FRAMINGS[Math.floor(i / 2) % FRAMINGS.length],
+    // Each block of 4 highlights a different word, so no two of 16 images match on every axis.
+    highlightWord: `highlight word #${Math.floor(i / 4) + 1} of the on-image text (colour or box; if it has fewer words, wrap around), keeping every word identical`,
+  };
+}
 
 const FILLER = /\b(4k|8k|masterpiece|ultra[- ]?hd|best quality|high quality|trending on artstation|award[- ]winning)\b/i;
 
@@ -200,6 +221,8 @@ export async function mediate(input: {
   style: string;
   notes: string[];
   variation: number;
+  /** How many images this request belongs to (1-16), so each one is told to differ. */
+  variationTotal?: number;
   hasPersona: boolean;
   isEdit: boolean;
   /** When the substantial details are already known (a reviewed fix plan), use them instead of guessing from quotes. */
@@ -219,6 +242,8 @@ export async function mediate(input: {
     personaAttached: input.hasPersona,
     editingAnExistingImage: input.isEdit,
     variationNumber: input.variation,
+    variationTotal: input.variationTotal ?? 1,
+    variationAxis: variationAxis(input.variation, input.variationTotal ?? 1),
     substantial,
     referenceNotes: input.notes,
   };

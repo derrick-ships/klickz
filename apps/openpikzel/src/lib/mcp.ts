@@ -405,7 +405,7 @@ export async function createMcpServer(token: string) {
     quality: z.enum(["low", "medium", "high", "xhigh", "max"]).default("low"),
     complexity: z.enum(["low", "medium", "high"]).default("medium"),
     format: z.enum(["long", "short"]).default("long"),
-    batch: z.union([z.literal(1), z.literal(2), z.literal(4)]).default(1),
+    batch: z.union([z.literal(1), z.literal(2), z.literal(4), z.literal(8), z.literal(16)]).default(1).describe("Images to make (1-16). Each one varies placement, background, highlighted word and emotion within the playbook."),
     requestId: z.string().uuid(),
   };
   tool(
@@ -420,11 +420,17 @@ export async function createMcpServer(token: string) {
       if (style && rest.styleId) throw new AppError(400, "Use either style or styleId, not both.");
       if (persona) rest.personaId = await profileIdByName("persona", persona);
       if (style) rest.styleId = await profileIdByName("style", style);
-      return backend(generate, {
-        ...rest,
-        mode: "generate",
-        settings: { model, quality, complexity, format, batch },
-      });
+      if (batch <= 4)
+        return backend(generate, { ...rest, mode: "generate", settings: { model, quality, complexity, format, batch }, variationOffset: 0, variationTotal: batch });
+      // 8 and 16 run as requests of 4 (each request is capped at 4 provider calls).
+      const chunks = await Promise.allSettled(
+        Array.from({ length: batch / 4 }, (_, i) =>
+          backend(generate, { ...rest, requestId: i === 0 ? rest.requestId : crypto.randomUUID(), mode: "generate", settings: { model, quality, complexity, format, batch: 4 }, variationOffset: i * 4, variationTotal: batch }),
+        ),
+      );
+      const creations = chunks.flatMap((c) => (c.status === "fulfilled" ? ((c.value.creations as unknown[]) || []) : []));
+      if (!creations.length) throw (chunks[0] as PromiseRejectedResult).reason;
+      return { creation: creations[0], creations, partial: creations.length < batch };
     },
   );
   tool("list_analyses","Read saved analysis versions and their exact source/context/provider provenance without scoring, editing or replacing a title.",{creationId:z.string().uuid(),cursor:z.string().max(512).optional()},"studio:read",({creationId,cursor})=>analysisHistory(db,user.id,creationId,cursor));
