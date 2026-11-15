@@ -140,7 +140,7 @@ async function handle(request: Request) {
     for (const path of paths) await addReference(path);
     if (paths.length)
       notes.push(
-        "Additional image references guide composition and subject details. Create an original result.",
+        `Additional references (images ${refs.length - paths.length + 1}-${refs.length}) are attached. Copy any face, product or brand mark in them exactly. Do not invent a substitute logo. Create an original composition around those copied marks.`,
       );
     if (input.mode === "fix" && !fixPlan)
       throw new AppError(400, "Choose the reviewed source variant.");
@@ -215,6 +215,7 @@ async function handle(request: Request) {
               variationTotal: Math.max(input.variationTotal, input.settings.batch),
               hasPersona: !!input.personaId,
               isEdit: !!input.parentId,
+              referenceImages: refs,
               // A reviewed fix carries its own wording to keep; its plan JSON is not user text to mine for quotes.
               ...(fixPlan ? { substantial: { exactText: fixPlan.preserve.exactText, numbers: [], panels: null, orientation: input.settings.format === "short" ? "vertical" as const : "horizontal" as const } } : {}),
             });
