@@ -25,9 +25,15 @@ describe("latest aliases", () => {
 
 describe("saved preferences", () => {
   it("defaults safely and ignores junk", () => {
-    expect(readModelPreferences(null)).toEqual({ reviewer: "auto", scorer: "jev", mediator: "gpt-sol-latest", image: "flare" });
+    expect(readModelPreferences(null)).toEqual({ reviewer: "sonnet-latest", scorer: "jev", mediator: "gpt-sol-latest", image: "flare" });
     expect(readModelPreferences({ openpikzels_models: { scorer: "nope" } }).scorer).toBe("jev");
     expect(modelPreferencesSchema.parse({ reviewer: "sonnet-latest", scorer: "model" })).toMatchObject({ reviewer: "sonnet-latest", scorer: "model" });
+  });
+  it("reads a stored \"auto\" as the current defaults instead of the old providers", () => {
+    expect(readModelPreferences({ openpikzels_models: { reviewer: "auto", mediator: "auto" } })).toMatchObject({
+      reviewer: "sonnet-latest",
+      mediator: "gpt-sol-latest",
+    });
   });
   it("uses the chosen reviewer when its key is connected, otherwise the usual order", () => {
     expect(pickVisionProvider({ anthropic: "a", openai: "o" }, "openai")).toBe("openai");

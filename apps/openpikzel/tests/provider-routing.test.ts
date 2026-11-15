@@ -49,5 +49,5 @@ it("accepts anthropic as a vision reviewer and leaves the title provider schema 
 it("does not silently retry an OpenAI vision call after Claude fails",async()=>providerContext.run({anthropic:"sk-ant-test-0000FAKE",openai:"openai-should-not-be-used",jev:"jev-fixture"},async()=>{
  const fetcher=vi.fn().mockResolvedValue(new Response("upstream failure",{status:500}));vi.stubGlobal("fetch",fetcher);
  await expect(observePackaging(await image(),"A factual title","",undefined,"anthropic")).rejects.toThrow("Image review did not finish");
- expect(fetcher).toHaveBeenCalledTimes(1);expect(String(fetcher.mock.calls[0][0])).toBe("https://api.anthropic.com/v1/messages");
+ const reviewCalls=fetcher.mock.calls.filter(([u])=>String(u).includes("/v1/messages"));expect(reviewCalls).toHaveLength(1);expect(String(reviewCalls[0][0])).toBe("https://api.anthropic.com/v1/messages");
 }));

@@ -25,7 +25,12 @@ export function ModelsPanel({ api, connected }: { api: Api; connected: Connected
       if (!live) return;
       // A stored "auto" for the prompt writer is GPT Sol now; keep the state on the real value so
       // saving another field never writes "auto" back.
-      setModels({ ...r.models, mediator: r.models.mediator === "auto" ? "gpt-sol-latest" : r.models.mediator });
+      setModels({
+        ...r.models,
+        mediator: r.models.mediator === "auto" ? "gpt-sol-latest" : r.models.mediator,
+        // Same rule as the stored-preference reader: an "auto" reviewer is Claude Sonnet now.
+        reviewer: r.models.reviewer === "auto" ? "sonnet-latest" : r.models.reviewer,
+      });
       setResolved(r.resolved || {});
     }).catch(() => live && setStatus("Couldn’t load models."));
     return () => { live = false; };
@@ -53,7 +58,6 @@ export function ModelsPanel({ api, connected }: { api: Api; connected: Connected
       <div className="models-grid">
       <label htmlFor="model-reviewer">Reviewer</label>
         <select id="model-reviewer" value={models.reviewer} onChange={(e) => void save({ ...models, reviewer: e.target.value })}>
-          <option value="auto">Auto</option>
           {textChoices.map((c) => option(c.id, c.label, c.provider))}
         </select>
       <label htmlFor="model-scorer">Scorer</label>

@@ -302,6 +302,10 @@ test("nothing on the page moves when a generated thumbnail lands", async ({ page
     // Frame it the way a person watching it would: the placeholder centred, so the result heading may sit at the fold.
     await placeholder.evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior }));
     await page.waitForTimeout(200);
+    // The slot's own box, taken while it is on screen: the reveal can finish inside the first
+    // animation frame, so sampling alone sometimes catches no placeholder at all.
+    const slotBox = (await placeholder.boundingBox())!;
+    const slot = [slotBox.y, slotBox.x, slotBox.width, slotBox.height];
     await page.evaluate(() => { type F = { title: string; row: number | null; result: number | null; slot: number[] | null; tray: number[] | null };
       const w = window as unknown as { frames: F[]; sampling: boolean }; w.frames = []; w.sampling = true;
       const rect = (el: Element | null) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.top, r.left, r.width, r.height]; };
@@ -322,8 +326,9 @@ test("nothing on the page moves when a generated thumbnail lands", async ({ page
       expect(tops.length, label + " " + key).toBe(frames.length);
       expect(Math.max(...tops) - Math.min(...tops), `${label} ${key} tops ${[...new Set(tops)].join(",")}`).toBeLessThanOrEqual(2);
     }
-    const slot = frames.filter(f => f.slot).at(-1)!.slot!, trays = frames.filter(f => f.tray).map(f => f.tray!);
+    const trays = frames.filter(f => f.tray).map(f => f.tray!);
     expect(trays.length, label).toBeGreaterThan(10);
+    // Every frame of the reveal matches the box the placeholder occupied, so nothing shifted.
     for (const t of trays) for (let i = 0; i < 4; i++) expect(Math.abs(t[i] - slot[i]), label + " tray vs slot").toBeLessThanOrEqual(2);
     await page.unrouteAll({ behavior: "ignoreErrors" });
   }

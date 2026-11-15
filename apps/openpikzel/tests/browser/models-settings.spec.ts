@@ -19,6 +19,9 @@ test("Settings → Models saves each job's model and shows what 'latest' resolve
   const panel = page.locator("#models");
   await expect(panel.getByRole("heading", { name: "Models" })).toBeVisible();
   const reviewer = panel.getByLabel("Reviewer", { exact: true });
+  // The reviewer default is Claude Sonnet; a stored "auto" is shown (and saved) as Sonnet.
+  await expect(reviewer).toHaveValue("sonnet-latest");
+  await expect(reviewer.locator("option", { hasText: "Auto" })).toHaveCount(0);
   await expect(reviewer.locator("option", { hasText: "GPT Sol · gpt-6.1-sol" })).toHaveCount(1);
   await expect(reviewer.locator("option", { hasText: "Claude Opus · not connected" })).toHaveAttribute("disabled", "");
   await reviewer.selectOption("gpt-sol-latest");
