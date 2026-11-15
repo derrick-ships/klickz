@@ -15,7 +15,7 @@ it("loads the soul into the MCP agent guide and the image reviewer", () => {
   expect(agentGuide).toContain(sentinel);
   expect(soulVisionInstructions).toContain(sentinel);
   expect(soulVisionInstructions.indexOf(sentinel)).toBeLessThan(soulVisionInstructions.indexOf("Return JSON only"));
-  expect(instructionVersion).toBe("openpikzels-harness-1.3-soul-ta");
+  expect(instructionVersion).toBe("openpikzels-harness-1.4-flags");
 });
 it("keeps the channel house style opt-in and every section sourced", () => {
   expect(source).toMatch(/Opt-in channel profile[\s\S]*Apply ONLY when/);

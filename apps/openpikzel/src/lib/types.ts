@@ -52,6 +52,22 @@ export const pillars = [
   "emotion",
 ] as const;
 export type Pillar = (typeof pillars)[number];
+/** Fixed review-flag vocabulary per pillar (Pikzels-style booleans; only TRUE flags are stored). */
+export const pillarFlagVocabulary = {
+  clarity: ["tiny_text", "low_contrast_text", "competing_elements", "text_blocks_face_or_subject", "too_many_words"],
+  idea: ["depends_on_title", "cliche_or_generic", "text_repeats_title"],
+  curiosity: ["spoiler_present", "mixed_or_confusing_hook", "deceptive_bait_risk"],
+  emotion: ["no_readable_emotion", "mixed_signals", "text_obscures_expression"],
+  virality: ["fatigued_format", "platform_safety_risk"],
+} as const satisfies Record<Pillar, readonly string[]>;
+export const globalFlagVocabulary = ["real_person_without_reference", "invented_numbers", "logo_or_date_present"] as const;
+export type PillarFlag = (typeof pillarFlagVocabulary)[Pillar][number];
+export type GlobalFlag = (typeof globalFlagVocabulary)[number];
+export type ReviewFlag = PillarFlag | GlobalFlag;
+/** One previous One-Click Fix on this lineage and the overall score before/after it (after null = not scored yet). */
+export type FixHistoryEntry = { suggestion: string; before: number | null; after: number | null };
+/** Returned by /api/analyze when the analysed creation is the result of a fix. */
+export type ScoreComparison = { improved: boolean; before: number; after: number; bestId: string };
 export type Dimension = {
   score: number | null;
   missingReason?: string;
@@ -60,6 +76,10 @@ export type Dimension = {
   strength: string;
   weakness: string;
   fix: string;
+  /** TRUE flags only, from pillarFlagVocabulary[pillar]. Absent on older scores. */
+  flags?: PillarFlag[];
+  /** Up to three concrete edits for this pillar; fix === suggestions[0] when present. */
+  suggestions?: string[];
 };
 export type Evaluation = {
   source: "jev";
@@ -90,6 +110,24 @@ export type Evaluation = {
     tradeoff: string;
   }[];
   warnings?: string[];
+  /** Flags that are not tied to one pillar (only TRUE ones). */
+  globalFlags?: GlobalFlag[];
+  /** Every TRUE flag, flattened, for display. */
+  flags?: { pillar: Pillar | "global"; flag: ReviewFlag }[];
+  /** Fixed points subtracted from the mean for serious flags (only when the image review ran). */
+  penalties?: { flag: ReviewFlag; points: number }[];
+  /** round(mean of pillar scores) after pillar caps, before penalties. overall = clamp(this - sum(penalties)). */
+  meanBeforePenalties?: number | null;
+  /** The single One-Click Fix instruction: fixes only what is flagged and names what to keep (<=300 chars). */
+  suggestion?: string;
+  /** Things that work and must not change (face, its side, colours, the on-image text…). */
+  keep?: string[];
+  /** Exact on-image wording to keep verbatim (subset of what keep describes). */
+  keepText?: string[];
+  /** On-image text the reviewer read, if any. */
+  readableText?: string | null;
+  /** Previous fixes on this lineage that were shown to the reviewer. */
+  fixHistory?: FixHistoryEntry[];
   fixBlocked?: boolean;
   proof?: string;
   title: string;
@@ -119,7 +157,7 @@ export type Creation = {
   request_id?: string;
   batch_id?: string;
   batch_index?: number;
-  lineage?: { origin?:"generated"|"edited"|"recomposed"|"uploaded"|"layout";nativeOutput?:boolean;sourceId?: string; sourceDigest?: string; fixPlanHash?: string; mediator?: import("./mediator").MediatorRecord };
+  lineage?: { origin?:"generated"|"edited"|"recomposed"|"uploaded"|"layout";nativeOutput?:boolean;sourceId?: string; sourceDigest?: string; fixPlanHash?: string; mediator?: import("./mediator").MediatorRecord; plan?: unknown; fix?: { suggestion: string; keep: string[]; keepText?: string[]; parentScore: number | null; history?: FixHistoryEntry[] } };
   review?: { preference: string; order: string[]; decidedAt: string };
 };
 export type Config = {

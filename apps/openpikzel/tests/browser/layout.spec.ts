@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { openMoreOptions } from "./helpers/more-options";
+// Persona photos here are solid-colour fixtures: block the face model so the check reports "unavailable" (accepted).
+test.beforeEach(async({page})=>{await page.route(/cdn\.jsdelivr\.net|mediapipe-models/,r=>r.abort());});
 import sharp from "sharp";
 
 test("compact navigation protects the workbench and returns keyboard focus", async ({ page }) => {
@@ -80,7 +82,7 @@ test("long persona names remain readable in dialogs and bounded in the composer"
   await page.getByRole("button",{name:"Skip Tutorial",exact:true}).click();
   await page.getByRole("dialog").getByLabel("Name", { exact: true }).fill(name);
   await page.getByLabel("Profile reference photos").setInputFiles(await Promise.all(["#df1c2c","#2d599a","#56a58b"].map(async(color,i)=>({name:"layout-"+i+".png",mimeType:"image/png",buffer:await sharp({create:{width:64,height:64,channels:3,background:color}}).png().toBuffer()}))));
-  await page.getByLabel("I have permission to use these photos and this likeness.").check();
+  await page.getByLabel("I have permission to use this person’s face.").check();
   await page.getByRole("button", { name: "Create persona", exact: true }).click();
   await expect(page.getByRole("button", { name: "Change persona: "+name, exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pillars, type Evaluation } from "./types";
+import { pillars, pillarFlagVocabulary, globalFlagVocabulary, type Evaluation, type Pillar, type PillarFlag, type GlobalFlag } from "./types";
 export const settingsSchema = z.object({
   model: z
     .enum(["sunburst", "flare", "gemini-flash", "gemini-pro"])
@@ -86,37 +86,89 @@ export class AppError extends Error {
     super(message);
   }
 }
+/** Keep only known flags (unknown ones are dropped, not rejected) and de-duplicate. */
+const flagList = <T extends readonly [string, ...string[]]>(vocabulary: T) =>
+  z.preprocess(
+    (value) => (Array.isArray(value) ? [...new Set(value.filter((v) => typeof v === "string" && (vocabulary as readonly string[]).includes(v)))] : []),
+    z.array(z.enum(vocabulary)),
+  );
+const clip = (max: number) => z.preprocess((v) => (typeof v === "string" ? v.trim().slice(0, max) : v), z.string());
+const shortList = (max: number, itemMax: number) =>
+  z.preprocess(
+    (value) => (Array.isArray(value) ? value.filter((v) => typeof v === "string" && v.trim()).map((v: string) => v.trim().slice(0, itemMax)).slice(0, max) : []),
+    z.array(z.string()),
+  );
+const dimensionSchema = (p: Pillar) =>
+  z
+    .object({
+      observation: z.string().max(1500),
+      strength: z.string().max(1500),
+      weakness: z.string().max(1500),
+      fix: z.string().max(1500),
+      flags: flagList(pillarFlagVocabulary[p] as unknown as [string, ...string[]]).default([]),
+      suggestions: shortList(3, 600).default([]),
+    })
+    .transform((d) => ({ ...d, flags: d.flags as PillarFlag[], fix: d.suggestions[0] || d.fix }));
 export const observationSchema = z
   .object({
     summary: z.string().max(3000),
     promiseConflict: z.boolean().default(false),
     readableText: z.string().max(2000).nullable().default(null),
     dimensions: z.object(
-      Object.fromEntries(
-        pillars.map((p) => [
-          p,
-          z.object({
-            observation: z.string().max(1500),
-            strength: z.string().max(1500),
-            weakness: z.string().max(1500),
-            fix: z.string().max(1500),
-          }),
-        ]),
-      ) as Record<
-        (typeof pillars)[number],
-        z.ZodObject<{
-          observation: z.ZodString;
-          strength: z.ZodString;
-          weakness: z.ZodString;
-          fix: z.ZodString;
-        }>
-      >,
+      Object.fromEntries(pillars.map((p) => [p, dimensionSchema(p)])) as Record<Pillar, ReturnType<typeof dimensionSchema>>,
     ),
+    globalFlags: flagList(globalFlagVocabulary as unknown as [string, ...string[]]).default([]),
+    /** One edit instruction that fixes only what is flagged and names what to keep. */
+    suggestion: clip(300).default(""),
+    /** What works and must not change. */
+    keep: shortList(8, 160).default([]),
+    /** Exact on-image wording that must stay verbatim. */
+    keepText: shortList(4, 80).default([]),
   })
-  .strict();
+  .strict()
+  .transform((o) => ({ ...o, globalFlags: o.globalFlags as GlobalFlag[] }));
+export type Observations = z.infer<typeof observationSchema>;
+/** JSON Schema for OpenAI Structured Outputs (strict): every key required, no extras. */
+export const observationJsonSchema = (() => {
+  const str = { type: "string" };
+  const list = { type: "array", items: str };
+  const dimension = (p: Pillar) => ({
+    type: "object",
+    properties: {
+      observation: str,
+      strength: str,
+      weakness: str,
+      fix: str,
+      flags: { type: "array", items: { type: "string", enum: [...pillarFlagVocabulary[p]] } },
+      suggestions: list,
+    },
+    required: ["observation", "strength", "weakness", "fix", "flags", "suggestions"],
+    additionalProperties: false,
+  });
+  return {
+    type: "object",
+    properties: {
+      summary: str,
+      promiseConflict: { type: "boolean" },
+      readableText: { type: ["string", "null"] },
+      dimensions: {
+        type: "object",
+        properties: Object.fromEntries(pillars.map((p) => [p, dimension(p)])),
+        required: [...pillars],
+        additionalProperties: false,
+      },
+      globalFlags: { type: "array", items: { type: "string", enum: [...globalFlagVocabulary] } },
+      suggestion: str,
+      keep: list,
+      keepText: list,
+    },
+    required: ["summary", "promiseConflict", "readableText", "dimensions", "globalFlags", "suggestion", "keep", "keepText"],
+    additionalProperties: false,
+  };
+})();
 export function parseScores(
   payload: unknown,
-  observations?: z.infer<typeof observationSchema>,
+  observations?: Observations,
   title = "",
 ): Evaluation {
   const { answers } = z
@@ -146,6 +198,7 @@ export function parseScores(
         strength: observations?.dimensions[p].strength || "",
         weakness: observations?.dimensions[p].weakness || "",
         fix: observations?.dimensions[p].fix || "",
+        ...(observations ? { flags: observations.dimensions[p].flags, suggestions: observations.dimensions[p].suggestions } : {}),
       },
     ]),
   ) as Evaluation["dimensions"];
@@ -160,6 +213,15 @@ export function parseScores(
       (a, b) => (dimensions[a].score ?? 100) - (dimensions[b].score ?? 100),
     )[0],
     title,
+    ...(observations
+      ? {
+          globalFlags: observations.globalFlags,
+          readableText: observations.readableText,
+          ...(observations.suggestion ? { suggestion: observations.suggestion } : {}),
+          keep: observations.keep,
+          keepText: observations.keepText,
+        }
+      : {}),
     note: "AI assessment of this image and title. Not measured CTR or a guarantee of views.",
     created_at: new Date().toISOString(),
   };

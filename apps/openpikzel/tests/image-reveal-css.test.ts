@@ -19,7 +19,8 @@ describe("image reveal CSS", () => {
   it("a delivered image still loading is labelled only once the placeholder has gone", () => {
     // Independent check #27 at 214e6bf: the tile went blank while slow bytes were on the way. Behaviour is proven frame by frame in
     // tests/browser/image-reveal.spec.ts; this guards the gate that keeps an image held under the placeholder from flashing it.
-    expect(review).toContain('.delivery-slot:not(:has(> .delivery-placeholder)) .delivery-tile:has(> img.delivery-reveal-pending)::after { content: "Loading image…";');
+    // Round 2: the waiting tile keeps sweeping without words (Derrick: too much text while generating); the gate is unchanged.
+    expect(review).toContain('.delivery-slot:not(:has(> .delivery-placeholder)) .delivery-tile:has(> img.delivery-reveal-pending)::after { content: "";');
   });
   it("reduced motion is a 120 ms opacity fade only", () => {
     const reduced = review.match(/@media \(prefers-reduced-motion: reduce\) \{[^@]*\.image-reveal[^}]*\}/)![0];

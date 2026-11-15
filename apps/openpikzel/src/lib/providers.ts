@@ -11,13 +11,14 @@ import {
   type DiagnosticContext,
 } from "./diagnostics";
 import { googleImage, googleText } from "./google";
-import { observationSchema, parseScores, AppError } from "./validation";
+import { observationSchema, observationJsonSchema, parseScores, AppError } from "./validation";
 import {
   defaultSettings,
   pillars,
   type Settings,
   type Evaluation,
   type TextProvider,
+  type FixHistoryEntry,
 } from "./types";
 import {anthropicVisionModel, type VisionProvider} from "./vision-provider";
 import {currentModelPreferences, modelFor} from "./model-preferences";
@@ -164,9 +165,18 @@ export async function observePackaging(
   videoBrief = "",
   previewImage?: Buffer,
   provider: VisionProvider = "openai",
+  history: FixHistoryEntry[] = [],
 ) {
   providerKey(provider);
   const preview = await analysisImage(image);
+  // Earlier fixes on this lineage, so the next advice never undoes what worked.
+  const previousFixes = history.length
+    ? {
+        previousFixes: history,
+        previousFixesPolicy:
+          "Previous fixes and their score change are listed; never recommend undoing a fix whose score did not drop.",
+      }
+    : {};
   if (provider === "anthropic") {
     const images = [preview, ...(previewImage ? [previewImage] : [])];
     try {
@@ -198,6 +208,7 @@ export async function observePackaging(
                   text: JSON.stringify({
                     title,
                     videoBrief,
+                    ...previousFixes,
                     attachmentRoles: [
                       "original",
                       "actual small preview, maximum 200px wide",
@@ -237,7 +248,7 @@ export async function observePackaging(
       JSON.parse(
         await googleText(
           visionInstructions,
-          JSON.stringify({ title, videoBrief }),
+          JSON.stringify({ title, videoBrief, ...previousFixes }),
           [preview, ...(previewImage ? [previewImage] : [])],
           true,
           await reviewerModel("google", process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite"),
@@ -246,9 +257,12 @@ export async function observePackaging(
     ));
 
   return withReviewStatus(async () => {
+  const model = await reviewerModel("openai", process.env.OPENAI_TEXT_MODEL || "gpt-5.5");
   const result = await client().responses.create(
     {
-      model: await reviewerModel("openai", process.env.OPENAI_TEXT_MODEL || "gpt-5.5"),
+      model,
+      // Reasoning models (gpt-5.x and later) reject temperature; only older chat models take it.
+      ...(model.startsWith("gpt-4") ? { temperature: 0 } : {}),
       instructions:
         visionInstructions,
       input: [
@@ -257,10 +271,10 @@ export async function observePackaging(
           content: [
             {
               type: "input_text",
-              // OpenAI JSON mode rejects input that never says "json" (instructions don't count).
-              text: "Answer in JSON. Data:\n" + JSON.stringify({
+              text: "Data:\n" + JSON.stringify({
                 title,
                 videoBrief,
+                ...previousFixes,
                 attachmentRoles: [
                   "original",
                   "actual small preview, maximum 200px wide",
@@ -286,8 +300,9 @@ export async function observePackaging(
           ],
         },
       ],
-      text: { format: { type: "json_object" } },
-      max_output_tokens: 4000,
+      // Structured Outputs: the reply must match the review schema (flags from the fixed vocabulary).
+      text: { format: { type: "json_schema", name: "thumbnail_review", strict: true, schema: observationJsonSchema } },
+      max_output_tokens: 16000,
     },
     { timeout: 45000, maxRetries: 0 },
   );
@@ -431,11 +446,12 @@ export async function evaluateThumbnail(
       );
     answers = await response.json();
   }
+  const usedScorer = scorer === "model" && hasProviderKey(critiqueProvider) ? "model" : "jev";
   const diagnostic = enrichDiagnostic(
-    parseScores(answers, observations, title),
+    parseScores(answers, visionFinished ? observations : observationSchema.parse(withoutVision), title),
     image,
     title,
-    context,
+    { ...context, scorer: usedScorer },
     {
       width: smallMeta.width!,
       height: smallMeta.height!,

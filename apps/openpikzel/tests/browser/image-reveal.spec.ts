@@ -261,6 +261,9 @@ test("the delivered image takes the placeholder's slot and the card keeps its he
   const box = (sel: string) => page.evaluate(sel => { const r = document.querySelector(sel)!.getBoundingClientRect(); return [r.top, r.left, r.width, r.height]; }, sel);
   const near = (a: number[], b: number[]) => a.forEach((v, i) => expect(Math.abs(v - b[i])).toBeLessThanOrEqual(2));
   await stage("generating");
+  // Let the smooth scroll that centres the waiting card finish first (as the real-studio test below does); otherwise it is
+  // still running when the measurement starts and reads as movement that has nothing to do with the image landing.
+  await page.waitForTimeout(900);
   await page.evaluate(() => scrollTo(0, 120));
   const slot = await box(".delivery-placeholder"), after = await box("#after"), card = await box(".generation-delivery");
   expect(slot[3]).toBeGreaterThan(200);
@@ -474,7 +477,9 @@ test("a delivered image still loading says so once the placeholder has gone; one
       return n;
     }, shot);
   };
-  const loadingLabel = /Loading image/;
+  // Round 2: a waiting tile sweeps without words (content ""), so the "label" is the painted sweep overlay itself.
+  const loadingLabel = /^""$/;
+  const sweeping = () => tile.evaluate(el => { const a = getComputedStyle(el, "::after"); return a.content === '""' && a.display !== "none" && a.backgroundImage.includes("gradient"); });
 
   // 1. Slow bytes, full motion: blank never, label as soon as the placeholder has gone, then the reveal takes over.
   let release = await mount(false);
@@ -482,7 +487,7 @@ test("a delivered image still loading says so once the placeholder has gone; one
   await expect(placeholder).toHaveCount(0, { timeout: 2000 });
   await page.waitForTimeout(400);
   expect(await img.getAttribute("class")).toBe("delivery-reveal-pending");
-  expect(await textPixels(), "the waiting tile paints its label").toBeGreaterThan(20);
+  expect(await sweeping(), "the waiting tile paints its sweep").toBe(true);
   release();
   await expect(img).not.toHaveClass(/delivery-reveal/, { timeout: 3000 });
   expect(await textPixels(), "the image itself, red, has no light text pixels").toBe(0);
@@ -511,10 +516,10 @@ test("a delivered image still loading says so once the placeholder has gone; one
   await deliver("https://assets.test/missing.png");
   await expect(placeholder).toHaveCount(0, { timeout: 2000 });
   await page.waitForTimeout(300);
-  expect(await textPixels()).toBeGreaterThan(20);
+  expect(await sweeping()).toBe(true);
   release();
   await expect(tile).toHaveAttribute("data-load", "failed");
-  expect(await tile.evaluate(el => getComputedStyle(el, "::after").content)).toContain("Image didn’t load");
+  expect(await tile.evaluate(el => getComputedStyle(el, "::after").content)).toContain("Didn’t load");
   f = await frames();
   expect(f.some(x => loadingLabel.test(x.label ?? "")), "loading label before the failure").toBe(true);
   expect(f.every(x => x.cls !== "delivery-reveal"), "a failed image never animates").toBe(true);
@@ -524,7 +529,7 @@ test("a delivered image still loading says so once the placeholder has gone; one
   await deliver("https://assets.test/slow.png");
   await expect(placeholder).toHaveCount(0);
   await page.waitForTimeout(300);
-  expect(await textPixels()).toBeGreaterThan(20);
+  expect(await sweeping()).toBe(true);
   release();
   await expect(img).not.toHaveClass(/delivery-reveal/, { timeout: 3000 });
   f = await frames();

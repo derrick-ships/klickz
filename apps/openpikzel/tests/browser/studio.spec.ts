@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { openMoreOptions, openResultMore } from "./helpers/more-options";
+// Persona photos here are solid-colour fixtures: block the face model so the check reports "unavailable" (accepted).
+test.beforeEach(async({page})=>{await page.route(/cdn\.jsdelivr\.net|mediapipe-models/,r=>r.abort());});
 import sharp from "sharp";
 const photo = async () => ({
   name: "reference.png",
@@ -52,7 +54,7 @@ test("draft, quality, batch and persona collections survive reloads", async ({
   await page
     .getByLabel("Profile reference photos")
     .setInputFiles(await Promise.all(["#ff3b43","#485cdb","#52b78b"].map(async(color,i)=>({name:"persona-"+i+".png",mimeType:"image/png",buffer:await sharp({create:{width:800,height:450,channels:3,background:color}}).png().toBuffer()}))));
-  await page.getByLabel("I have permission to use these photos and this likeness.").check();
+  await page.getByLabel("I have permission to use this person’s face.").check();
   await page
     .getByRole("button", { name: "Create persona", exact: true })
     .click();

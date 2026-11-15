@@ -196,7 +196,7 @@ export function ConnectionsPage() {
         <>
           <section id="api" className="account-panel">
             <h2>Connect an API provider</h2>
-            {connectionRead === "failed" && <div role="status"><p>Connection status unavailable. Refresh to check.</p><button className="neutral-button" disabled={busy} onClick={() => void action(refresh)}>Refresh connections</button></div>}
+            {connectionRead === "failed" && <div role="status"><p>Connection status unavailable. Refresh to check.</p><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(refresh)}>Refresh connections</button></div>}
             <p>
               Start with the job you want to do: OpenAI or Google creates images
               and titles; Jev scores thumbnails. You only need the provider for
@@ -259,7 +259,7 @@ export function ConnectionsPage() {
                 />
               </label>
               <p id="provider-key-help">Your key is encrypted for your account and used on the server. Its full value is never shown again. Leave empty to keep current key; paste a new key to replace it.</p>
-              <button
+              <button type="submit"
                 className="primary-button"
                 disabled={busy || !config?.secureConnections}
               >
@@ -285,7 +285,7 @@ export function ConnectionsPage() {
                         : "Not connected"}
                     </strong>
                     {c && connectionRead === "succeeded" && (
-                      <button
+                      <button type="button"
                         className="neutral-button"
                         disabled={busy}
                         onClick={() =>
@@ -325,16 +325,16 @@ export function ConnectionsPage() {
             <p>Connect your own Higgsfield account through its secure sign-in page. Tokens stay encrypted. Generating through MCP uses your Higgsfield credits, including on Unlimited plans.</p>
             <p role="status">{!config?.higgsfield ? "Higgsfield connection is awaiting activation." : connectionRead === "loading" ? "Checking Higgsfield connection…" : connectionRead === "failed" ? "Higgsfield status unavailable." : higgsfield ? "Higgsfield is connected." : "Higgsfield is not connected."}</p>
             <div className="connection-actions">
-              <button className="primary-button" disabled={busy || connectionRead !== "succeeded" || !config?.secureConnections || !config?.higgsfield} onClick={() => void action(async () => {
+              <button type="button" className="primary-button" disabled={busy || connectionRead !== "succeeded" || !config?.secureConnections || !config?.higgsfield} onClick={() => void action(async () => {
                 const result = await api("/api/connections/higgsfield", "POST", { action: "start" });
                 location.assign(result.authorizationUrl);
               })}>{higgsfield ? "Reconnect Higgsfield" : "Connect Higgsfield"}</button>
               {higgsfield && connectionRead === "succeeded" && <>
-                <button className="neutral-button" disabled={busy} onClick={() => void action(async () => {
+                <button type="button" className="neutral-button" disabled={busy} onClick={() => void action(async () => {
                   const result = await api("/api/connections/higgsfield?check=true"); setHiggsfieldTools(result.tools.map((tool: { name: string }) => tool.name));
                   setNotice("Higgsfield connection checked. No generation was requested.");
                 })}>Check Higgsfield connection</button>
-                <button className="neutral-button" disabled={busy} onClick={() => void action(async () => {
+                <button type="button" className="neutral-button" disabled={busy} onClick={() => void action(async () => {
                   await api("/api/connections/higgsfield", "DELETE"); setHiggsfieldTools([]); await refresh();
                   setNotice("Higgsfield disconnected from OpenPikzels. You can also revoke access in Higgsfield settings.");
                 })}>Disconnect Higgsfield</button>
@@ -358,7 +358,7 @@ export function ConnectionsPage() {
             <code className="copy-url">
               {config?.mcpUrl || "MCP URL is loading…"}
             </code>
-            <button
+            <button type="button"
               className="neutral-button"
               onClick={() =>
                 void action(async () => {
@@ -383,7 +383,7 @@ export function ConnectionsPage() {
               aria-label="Agent instructions"
               value={copyInstructions}
             />
-            <button
+            <button type="button"
               className="neutral-button"
               onClick={() =>
                 void action(async () => {
@@ -410,7 +410,7 @@ export function ConnectionsPage() {
                     <strong>{g.client_name}</strong>
                     <p>{!g.revoked_at && localAgentLinked([g]) ? "Local agent linked" : g.scope.join(" · ")}</p>
                   </div>
-                  <button
+                  <button type="button"
                     className="neutral-button"
                     disabled={busy || !!g.revoked_at}
                     onClick={() =>
@@ -425,7 +425,7 @@ export function ConnectionsPage() {
                 </div>
               ))
             )}
-            <button
+            <button type="button"
               className="neutral-button"
               onClick={() => void db.auth.signOut({ scope: "local" })}
             >

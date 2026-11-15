@@ -1,3 +1,4 @@
+import { scoreTone } from "../lib/score-tone";
 import { App } from "@modelcontextprotocol/ext-apps";
 
 /* ---------- Types (defensive: every field optional) ---------- */
@@ -71,7 +72,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 }
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-const tone = (n: number | null) => (n == null ? "none" : n < 50 ? "low" : n < 70 ? "mid" : "high");
+const tone = (n: number | null) => scoreTone(n);
 const say = (msg: string) => (live.textContent = msg);
 const uuid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
