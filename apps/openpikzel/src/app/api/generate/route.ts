@@ -1,5 +1,7 @@
 import {imageModel} from "@/lib/image-models";
-import {generationInstructions, instructionVersion} from "@/lib/instructions";
+import {instructionVersion, realismContract} from "@/lib/instructions";
+import {mediate, imagePromptFrom, MEDIATOR_VERSION, type MediatorRecord} from "@/lib/mediator";
+import {principleFiles} from "@/lib/principles.generated";
 import {
   authenticated,
   failure,
@@ -182,9 +184,27 @@ async function handle(request: Request) {
         .map(async (row) => {
           let renderReturned = false;
           try {
-            const prompt = fixPlan
-              ? editorInstructions(fixPlan)
-              : generationInstructions({settings:input.settings,title:input.title,prompt:input.prompt,style:input.style,notes,variation:row.batch_index+1});
+            // Never send the user's raw prompt to the image model: the mediator turns it (or the
+            // reviewed fix plan) into an enriched prompt with explicit playbook do's and don'ts.
+            const rawPrompt = fixPlan ? editorInstructions(fixPlan) : input.prompt;
+            const mediated = await mediate({
+              rawPrompt,
+              title: input.title,
+              format: input.settings.format,
+              style: input.style,
+              notes,
+              variation: row.batch_index + 1,
+              hasPersona: !!input.personaId,
+              isEdit: !!input.parentId,
+            });
+            const prompt = imagePromptFrom(mediated.enriched, notes, realismContract);
+            const mediator: MediatorRecord = { version: MEDIATOR_VERSION, provider: mediated.provider, model: mediated.model, rawPrompt, substantial: mediated.substantial, enriched: mediated.enriched, imagePrompt: prompt, attempts: mediated.attempts, principleFiles };
+            const recorded = await db
+              .from("studio_creations")
+              .update({ lineage: { ...(batchRows[row.batch_index].lineage), mediator } })
+              .eq("id", row.id)
+              .eq("user_id", user.id);
+            if (recorded.error) throw recorded.error;
             const image = await renderThumbnail(prompt, refs, input.settings);
             renderReturned = true;
             const path = `${user.id}/creations/${row.id}.png`;

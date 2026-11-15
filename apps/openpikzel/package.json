@@ -19,7 +19,8 @@
     "verify:release": "npm run verify && npm run perf:lab && npm run perf:check && npm run perf:review && npm run perf:lighthouse",
     "perf:review": "playwright test tests/browser/review-performance.spec.ts --workers=1",
     "companion:test": "node --test local-companion/*.test.mjs",
-    "companion:build": "node scripts/build-companion-runtime.mjs && node scripts/companion-licenses.cjs && python3 scripts/build-companion.py"
+    "companion:build": "node scripts/build-companion-runtime.mjs && node scripts/companion-licenses.cjs && python3 scripts/build-companion.py",
+    "build:principles": "node scripts/build-principles.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.1.2",

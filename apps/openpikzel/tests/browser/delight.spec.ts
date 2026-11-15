@@ -362,7 +362,7 @@ test("a new image reveals blur-to-sharp on its real load event, and reduced moti
 });
 
 // Motion #1: disclosures settle in for pointer users; keyboard opens them instantly.
-test("More options and Creative chat unfold for pointer, instantly for keyboard", async ({ page }) => {
+test("More options unfolds for pointer, instantly for keyboard", async ({ page }) => {
   await page.goto("/studio?mode=generate");
   const more = page.locator("details.more-options:not(.request-readiness)").first();
   await more.locator("> summary").click();
@@ -370,8 +370,7 @@ test("More options and Creative chat unfold for pointer, instantly for keyboard"
   expect(await body.evaluate((el) => getComputedStyle(el).animationName)).toBe("control-unfold");
   expect(await body.evaluate((el) => getComputedStyle(el).animationDuration)).toBe("0.16s");
   await more.locator("> summary").click();
-  await page.locator(".creative-conversation > summary").press("Enter");
-  const chat = page.locator(".creative-conversation[open] > .creative-conversation-body");
-  await expect(chat).toBeVisible();
-  expect(await chat.evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
+  await more.locator("> summary").press("Enter");
+  await expect(body).toBeVisible();
+  expect(await body.evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
 });

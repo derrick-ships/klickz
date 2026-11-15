@@ -118,7 +118,7 @@ export type Creation = {
   request_id?: string;
   batch_id?: string;
   batch_index?: number;
-  lineage?: { origin?:"generated"|"edited"|"recomposed"|"uploaded"|"layout";nativeOutput?:boolean;sourceId?: string; sourceDigest?: string; fixPlanHash?: string };
+  lineage?: { origin?:"generated"|"edited"|"recomposed"|"uploaded"|"layout";nativeOutput?:boolean;sourceId?: string; sourceDigest?: string; fixPlanHash?: string; mediator?: import("./mediator").MediatorRecord };
   review?: { preference: string; order: string[]; decidedAt: string };
 };
 export type Config = {
