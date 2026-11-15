@@ -21,7 +21,13 @@ export function ModelsPanel({ api, connected }: { api: Api; connected: Connected
 
   useEffect(() => {
     let live = true;
-    api("/api/models").then((r) => { if (live) { setModels(r.models); setResolved(r.resolved || {}); } }).catch(() => live && setStatus("Couldn’t load models."));
+    api("/api/models").then((r) => {
+      if (!live) return;
+      // A stored "auto" for the prompt writer is GPT Sol now; keep the state on the real value so
+      // saving another field never writes "auto" back.
+      setModels({ ...r.models, mediator: r.models.mediator === "auto" ? "gpt-sol-latest" : r.models.mediator });
+      setResolved(r.resolved || {});
+    }).catch(() => live && setStatus("Couldn’t load models."));
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -57,7 +63,6 @@ export function ModelsPanel({ api, connected }: { api: Api; connected: Connected
         </select>
       <label htmlFor="model-mediator">Prompt writer</label>
         <select id="model-mediator" value={models.mediator} onChange={(e) => void save({ ...models, mediator: e.target.value })}>
-          <option value="auto">Auto</option>
           {textChoices.filter((c) => c.provider !== "anthropic").map((c) => option(c.id, c.label, c.provider))}
         </select>
       <label htmlFor="model-image">Image</label>

@@ -25,7 +25,7 @@ describe("latest aliases", () => {
 
 describe("saved preferences", () => {
   it("defaults safely and ignores junk", () => {
-    expect(readModelPreferences(null)).toEqual({ reviewer: "auto", scorer: "jev", mediator: "auto", image: "flare" });
+    expect(readModelPreferences(null)).toEqual({ reviewer: "auto", scorer: "jev", mediator: "gpt-sol-latest", image: "flare" });
     expect(readModelPreferences({ openpikzels_models: { scorer: "nope" } }).scorer).toBe("jev");
     expect(modelPreferencesSchema.parse({ reviewer: "sonnet-latest", scorer: "model" })).toMatchObject({ reviewer: "sonnet-latest", scorer: "model" });
   });

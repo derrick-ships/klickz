@@ -208,7 +208,7 @@ async function callModel(context: unknown, provider: "openai" | "google", feedba
     const images = (context as { referenceImages?: Buffer[] }).referenceImages ?? [];
     return { value: JSON.parse(await googleText(instructions, JSON.stringify({ ...(payload as object), referenceImages: undefined, referenceImageCount: images.length }), images, true, model)), model, provider: "Google API" };
   }
-  const model = await modelFor(choice, "openai", providerContext.getStore()?.openai, process.env.OPENAI_MEDIATOR_MODEL || process.env.OPENAI_TEXT_MODEL || "gpt-5.5");
+  const model = await modelFor(choice, "openai", providerContext.getStore()?.openai, process.env.OPENAI_MEDIATOR_MODEL || "gpt-6.1-sol");
   const api = new OpenAI({ apiKey: providerKey("openai"), maxRetries: 0, timeout: 120000 });
   const response = await api.responses.create({
     model,

@@ -24,7 +24,9 @@ test("Settings → Models saves each job's model and shows what 'latest' resolve
   await reviewer.selectOption("gpt-sol-latest");
   await panel.getByLabel("Scorer", { exact: true }).selectOption("model");
   await expect(panel.getByRole("status")).toHaveText("Saved");
-  expect(saves.at(-1)).toEqual({ reviewer: "gpt-sol-latest", scorer: "model", mediator: "auto", image: "flare" });
+  expect(saves.at(-1)).toEqual({ reviewer: "gpt-sol-latest", scorer: "model", mediator: "gpt-sol-latest", image: "flare" });
+  // A stored "auto" now shows GPT Sol: the prompt writer default is gpt-6.1-sol.
+  await expect(panel.getByLabel("Prompt writer", { exact: true })).toHaveValue("gpt-sol-latest");
   await expect(panel.getByLabel("Prompt writer", { exact: true }).locator("option", { hasText: "Claude" })).toHaveCount(0);
   for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 900 });
