@@ -27,7 +27,7 @@ export const thumbnailRubric: Record<string, { instructions: string; criteria: s
   },
   idea: {
     instructions:
-      "Does the thumbnail specifically communicate the promise in the supplied title?",
+      "Does the thumbnail specifically communicate the promise in the supplied title (or, when no title is given, the INTENDED PROMISE in videoBrief)?",
     criteria: [
       "Image conflicts with the title",
       "Generic topic with little connection to the promise",
@@ -37,7 +37,7 @@ export const thumbnailRubric: Record<string, { instructions: string; criteria: s
   },
   curiosity: {
     instructions:
-      "Does the image and title pair open a specific unanswered question? Assess the visible promise; do not assume the unseen video delivers it or infer deception without contradictory supplied evidence.",
+      "Does the image and title pair (or the image alone against its INTENDED PROMISE when no title is given) open a specific unanswered question? Assess the visible promise; do not assume the unseen video delivers it or infer deception without contradictory supplied evidence.",
     criteria: [
       "No clear question, or deceptive premise",
       "Generic mystery or vague hook",

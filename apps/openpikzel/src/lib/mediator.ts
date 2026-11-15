@@ -30,6 +30,9 @@ const QUOTE = /["“”«»]([^"“”«»]{1,80})["“”«»]|'([^'\n]{2,80})'
 const LABELED_TEXT = /(?:^|[\s,.;:(])(?:texto|text|words|palabras|que diga|que dice|says?|saying)\s*[:=]\s*([^\n.;]{1,80})/gi;
 const NUMBER = /(?:[$€£]\s?)?\d[\d.,:]*(?:\s?%|\s?(?:millones|millón|millions?|billones|mil|k|m)\b)?/gi;
 
+/** "¿Y LA / BOINA?" is two lines, not a slash to draw (playbook 03 writes line breaks as " / "). */
+const splitLines = (text: string) => text.split(/\s+\/\s+/).map((t) => t.trim()).filter(Boolean);
+
 /** Deterministic extraction of substantial details from the raw prompt. */
 export function extractSubstantial(raw: string, format: "long" | "short"): Substantial {
   const exactText = new Set<string>();
@@ -38,14 +41,14 @@ export function extractSubstantial(raw: string, format: "long" | "short"): Subst
     // Quoted text must contain a letter or digit ("," or ":[{" from pasted JSON is not wording).
     if (!/[\p{L}\p{N}]/u.test(value)) continue;
     // A lone apostrophe-quoted fragment inside a sentence ("before & after' arm") is not text-on-image.
-    if (value && !(m[2] && /\s/.test(value) && value.split(/\s+/).length > 6)) exactText.add(value);
+    if (value && !(m[2] && /\s/.test(value) && value.split(/\s+/).length > 6)) for (const line of splitLines(value)) exactText.add(line);
   }
   for (const m of raw.matchAll(LABELED_TEXT)) {
     // "sin texto: …" / "no text: …" means the opposite of words to put on the image.
     const before = raw.slice(Math.max(0, m.index! - 6), m.index! + m[0].indexOf(":"));
     if (/\b(sin|no|without)\s+(texto|text|palabras|words)/i.test(before)) continue;
     const value = m[1].trim().replace(/^["“'‘]|["”'’]$/g, "");
-    if (value) exactText.add(value);
+    if (value) for (const line of splitLines(value)) exactText.add(line);
   }
   const numbers = [...new Set([...raw.matchAll(NUMBER)].map((m) => m[0].trim()).filter((n) => /\d/.test(n)))];
   let panels: number | null = null;
@@ -138,7 +141,8 @@ export function variationAxis(variation: number, total: number) {
     emotion: EMOTIONS[i % EMOTIONS.length],
     framing: FRAMINGS[Math.floor(i / 2) % FRAMINGS.length],
     // Each block of 4 highlights a different word, so no two of 16 images match on every axis.
-    highlightWord: `highlight word #${Math.floor(i / 4) + 1} of the on-image text (colour or box; if it has fewer words, wrap around), keeping every word identical`,
+    // Colour only: "box" made the image model paint a dark plate behind single letters.
+    highlightWord: `give word #${Math.floor(i / 4) + 1} of the on-image text the accent colour (letters only; if it has fewer words, wrap around), keeping every word identical`,
   };
 }
 
@@ -178,7 +182,10 @@ export function imagePromptFrom(e: Enriched, notes: string[], realism: string) {
   const lines = [
     e.prompt.trim(),
     "",
-    e.imageText.length ? "TEXT ON THE IMAGE (spell exactly, one line each): " + e.imageText.map((t) => `"${t}"`).join(" / ") : "TEXT ON THE IMAGE: none.",
+    e.imageText.length
+      ? "TEXT ON THE IMAGE (spell exactly; each quoted item is its own line; never draw a slash between lines): " + e.imageText.flatMap(splitLines).map((t, i) => `line ${i + 1}: "${t}"`).join("; ") +
+        ". Lettering is bold condensed type with a dark outline and drop shadow directly on the image — no box, plate, band or rectangle behind any letter or word."
+      : "TEXT ON THE IMAGE: none.",
     `PANELS: ${e.panels}.`,
     "",
     "DO:",

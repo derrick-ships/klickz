@@ -35,7 +35,7 @@ async function handle(request: Request) {
     if (input.videoUrl) youtubeVideoId(input.videoUrl);
     let path = input.imagePath,
       id = input.creationId;
-    type Row = { id: string; image_path: string | null; score: Evaluation | null; parent_id?: string | null; mode?: string; lineage?: { fix?: { suggestion?: string; parentScore?: number | null } } | null };
+    type Row = { id: string; image_path: string | null; score: Evaluation | null; parent_id?: string | null; mode?: string; lineage?: { fix?: { suggestion?: string; parentScore?: number | null }; mediator?: { rawPrompt?: string; enriched?: { concept?: string; imageText?: string[] } } } | null };
     let row: Row | undefined;
     if (id) {
       const r = await db
@@ -100,10 +100,14 @@ async function handle(request: Request) {
     await updateJob(db, user.id, jobId, "running");
     const videoEvidence = input.videoUrl ? await readVideoEvidence(input.videoUrl, hasProvider("youtube") ? providerKey("youtube") : undefined) : undefined;
     const assessedTitle = input.title || videoEvidence?.title || "";
+    // No title? Judge Idea and Curiosity against what the thumbnail was made to promise (like
+    // Pikzels): the planned concept and on-image text, or the user's own request.
+    const planned = row?.lineage?.mediator;
+    const intendedPromise = !assessedTitle && planned ? [planned.enriched?.concept, planned.enriched?.imageText?.length ? `On-image text: ${planned.enriched.imageText.join(" / ")}` : "", planned.rawPrompt ? `Request: ${planned.rawPrompt.slice(0, 400)}` : ""].filter(Boolean).join("\n") : "";
     dispatched = true;
     const score = signDiagnostic(
       await evaluateThumbnail(image, assessedTitle, input.requestId, {
-        videoBrief: videoEvidence?.description || input.videoBrief,
+        videoBrief: videoEvidence?.description || input.videoBrief || (intendedPromise ? `INTENDED PROMISE (no video title yet; judge Idea and Curiosity against this and the image itself):\n${intendedPromise}` : ""),
         videoEvidence,
         audience: input.audience,
         includeVision: input.includeVision,
