@@ -41,7 +41,7 @@ export const modelPreferencesSchema = z.object({
   /** Who gives the five numbers. */
   scorer: z.enum(["jev", "model"]).default("jev"),
   /** Rewrites the prompt before every image. "auto" = OpenAI, else Google. */
-  mediator: z.string().max(40).default("auto"),
+  mediator: z.string().max(40).default("gpt-sol-latest"),
   /** Default image model for Create. */
   image: z.enum(imageGenerators).default("flare"),
 });
@@ -51,7 +51,10 @@ export const defaultModelPreferences: ModelPreferences = modelPreferencesSchema.
 export function readModelPreferences(metadata: unknown): ModelPreferences {
   const raw = (metadata as { openpikzels_models?: unknown } | null)?.openpikzels_models;
   const parsed = modelPreferencesSchema.safeParse(raw ?? {});
-  return parsed.success ? parsed.data : defaultModelPreferences;
+  if (!parsed.success) return defaultModelPreferences;
+  // "auto" used to mean gpt-5.5. The prompt writer default is now GPT Sol.
+  if (parsed.data.mediator === "auto") return { ...parsed.data, mediator: "gpt-sol-latest" };
+  return parsed.data;
 }
 
 export const aliasById = (id: string) => textAliases.find((a) => a.id === id);
