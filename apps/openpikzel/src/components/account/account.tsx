@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { ModelsPanel } from "./models-panel";
 import {
   createClient,
   type SupabaseClient,
@@ -318,6 +319,7 @@ export function ConnectionsPage() {
               Open studio
             </a>
           </section>
+          <ModelsPanel api={api} connected={{ openai: connections.some((c) => c.provider === "openai"), google: connections.some((c) => c.provider === "google"), anthropic: connections.some((c) => c.provider === "anthropic"), jev: connections.some((c) => c.provider === "jev") }} />
           <section className="account-panel">
             <h2>Higgsfield</h2>
             <p>Connect your own Higgsfield account through its secure sign-in page. Tokens stay encrypted. Generating through MCP uses your Higgsfield credits, including on Unlimited plans.</p>

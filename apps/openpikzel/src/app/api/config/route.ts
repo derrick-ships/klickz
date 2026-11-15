@@ -1,3 +1,4 @@
+import { defaultModelPreferences, readModelPreferences } from "@/lib/model-preferences";
 import {defaultPromptModel} from "@/lib/instructions";
 import { publicSupabaseConfig } from "@/lib/config";
 import { mcpResource } from "@/lib/crypto";
@@ -8,9 +9,11 @@ export async function GET(request: Request) {
     jev = false,
     google = false,
     anthropic = false;
+  let models = defaultModelPreferences;
   if (request.headers.get("authorization")) {
     try {
       const context = await authenticated(request);
+      models = readModelPreferences(context.user.user_metadata);
       const rows = await context.db
         .from("studio_provider_keys")
         .select("provider")
@@ -45,6 +48,7 @@ export async function GET(request: Request) {
       jev,
       google,
       anthropic,
+      models,
       secureConnections: /^[a-f0-9]{64}$/i.test(
         process.env.STUDIO_ENCRYPTION_KEY || "",
       ),

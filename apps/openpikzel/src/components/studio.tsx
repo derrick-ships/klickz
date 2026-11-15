@@ -324,6 +324,9 @@ export default function Studio() {
     addEventListener("keydown", listener);
     return () => removeEventListener("keydown", listener);
   }, [compactNavigation, sidebar]);
+  // Settings → Models picks the default image model; an explicit choice in a draft still wins.
+  const preferredImage=studio.config?.models?.image;
+  useEffect(()=>{if(preferredImage)setSettings(s=>s.model===defaultSettings.model&&preferredImage!==s.model?{...s,model:preferredImage}:s);},[preferredImage]);
   useEffect(() => {if(advanced)requestAnimationFrame(()=>document.querySelector<HTMLElement>(".generate-dock")?.scrollIntoView({block:"end",behavior:"instant"}));},[advanced]);
   useEffect(() => { setSaveReceipt(0); }, [draftFingerprint]);
   useEffect(() => {
@@ -384,7 +387,7 @@ export default function Studio() {
     const saved=localStorage.getItem("openpikzels.activeChat."+key),chat=studio.conversations.find(c=>c.id===saved),checkpoint=readDraftCheckpoint(localStorage,key);
     if(chat)activateChat(checkpoint?.chatId===chat.id&&checkpoint.savedAt>=(chat.draft.draftSavedAt||0)?{...chat,draft:checkpoint.draft}:chat,false,userPickedTool.current);
     else if(checkpoint&&!checkpoint.chatId){
-      const d=checkpoint.draft;setPrompt(d.prompt||"");setTitle(d.title||"");if(!userPickedTool.current)setTool(visibleTool(d.tool));setSettings({...defaultSettings,...d.settings});
+      const d=checkpoint.draft;setPrompt(d.prompt||"");setTitle(d.title||"");if(!userPickedTool.current)setTool(visibleTool(d.tool));setSettings({...defaultSettings,...(studio.config?.models?{model:studio.config.models.image}:{}),...d.settings});
       setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(typeof d.includeVision==="boolean"?d.includeVision:null);setTextProvider(d.textProvider||"openai");
     }
     const requested=new URL(location.href).searchParams.get("mode");
