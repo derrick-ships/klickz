@@ -116,6 +116,7 @@ RULES
 8. If the request conflicts with a principle and the request is substantial, the request wins (keep it) and you add the conflict to decisions.
 12. Variations. When variationTotal > 1 you are writing ONE image of a set; follow variationAxis exactly (placement, background colour family, emotion, framing, which word is highlighted) so this image is clearly different from its siblings at a glance. Every variant must still follow the principles and keep every substantial detail and the exact on-image text. Record the axis you applied in decisions.
 9. Universal vs house rules. The playbook separates universal principles (01 principles, 02 visual rules "Universal", 06 QA, 09 pairing) from ONE channel's house look (00 rules 3 and 5, 03 house-style template, 04 Spanish text bank: yellow-on-top/white-below text, teal/orange gradient, red play badge, red only on ¿?). That house look is a STYLE, not a rule: apply it ONLY when chosenStyle is "House: Political news" — never because of the topic. With any other chosenStyle, follow that style. With no chosenStyle, apply only the universal principles and pick a palette and type treatment that fit the topic ("Fit the channel, not the theory", 01); record that choice in decisions.
+13. Reference images. When reference images are attached you can see them, in the same order as referenceNotes. A persona photo is the person who must appear: describe that exact face (shape, eyes, glasses, hairline, facial hair, skin tone, age) so the image model cannot swap in a look-alike. A brand, logo or product photo the user attached is a mark to COPY, not to redraw from memory and not a logo to forbid: name which reference image holds it, say "reproduce that mark exactly, do not invent a substitute", and do not put "no logo" in donts for a mark the user asked to show. "No logo" in the playbook means do not ADD a channel logo, date or watermark the user did not ask for.
 10. Text must label what it describes. When there are several panels and the text names them (BEFORE/AFTER, ANTES/DESPUÉS, DÍA 1/DÍA 800, REAL/FALSO), place each word on its own panel, never stacked together in one block over the split. Apart from that, keep the house rule of 2-4 words.
 11. The cover test (01): the image alone must explain the transformation, contrast or question in under a second at phone size. Describe the subject so the difference between panels is obvious (same person, same pose and framing, only the changed attribute differs).
 
@@ -193,7 +194,7 @@ export function imagePromptFrom(e: Enriched, notes: string[], realism: string) {
     "DON'T:",
     ...e.donts.map((d) => `- ${d.rule}`),
   ];
-  if (notes.length) lines.push("", "REFERENCES AND IDENTITY:", ...notes.map((n) => `- ${n}`));
+  if (notes.length) lines.push("", "REFERENCES AND IDENTITY (images are attached in this order; copy faces and brand marks from them, never redraw a logo from memory):", ...notes.map((n) => `- ${n}`));
   lines.push("", realism);
   return lines.join("\n");
 }
@@ -204,7 +205,8 @@ async function callModel(context: unknown, provider: "openai" | "google", feedba
   const choice = currentModelPreferences().mediator;
   if (provider === "google") {
     const model = await modelFor(choice, "google", providerContext.getStore()?.google, process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite");
-    return { value: JSON.parse(await googleText(instructions, JSON.stringify(payload), [], true, model)), model, provider: "Google API" };
+    const images = (context as { referenceImages?: Buffer[] }).referenceImages ?? [];
+    return { value: JSON.parse(await googleText(instructions, JSON.stringify({ ...(payload as object), referenceImages: undefined, referenceImageCount: images.length }), images, true, model)), model, provider: "Google API" };
   }
   const model = await modelFor(choice, "openai", providerContext.getStore()?.openai, process.env.OPENAI_MEDIATOR_MODEL || process.env.OPENAI_TEXT_MODEL || "gpt-5.5");
   const api = new OpenAI({ apiKey: providerKey("openai"), maxRetries: 0, timeout: 120000 });
@@ -213,7 +215,10 @@ async function callModel(context: unknown, provider: "openai" | "google", feedba
     store: false,
     instructions,
     // OpenAI JSON mode rejects input that never says "json" (instructions don't count).
-    input: [{ role: "user", content: [{ type: "input_text", text: "Answer in JSON. Data:\n" + JSON.stringify(payload) }] }],
+    input: [{ role: "user", content: [
+      { type: "input_text", text: "Answer in JSON. Data:\n" + JSON.stringify({ ...(payload as object), referenceImages: undefined, referenceImageCount: ((context as { referenceImages?: Buffer[] }).referenceImages ?? []).length }) },
+      ...((context as { referenceImages?: Buffer[] }).referenceImages ?? []).map((b) => ({ type: "input_image" as const, image_url: "data:image/jpeg;base64," + b.toString("base64"), detail: "low" as const })),
+    ] }],
     text: { format: { type: "json_object" } },
     max_output_tokens: 6000,
   });
@@ -234,6 +239,8 @@ export async function mediate(input: {
   isEdit: boolean;
   /** When the substantial details are already known (a reviewed fix plan), use them instead of guessing from quotes. */
   substantial?: Substantial;
+  /** The same reference images the image model will receive, so the prompt describes what is actually attached. */
+  referenceImages?: Buffer[];
 }): Promise<{ enriched: Enriched; substantial: Substantial; provider: string; model: string; attempts: number }> {
   const chosen = providerOfChoice(currentModelPreferences().mediator);
   const provider: "openai" | "google" | null =
@@ -253,6 +260,8 @@ export async function mediate(input: {
     variationAxis: variationAxis(input.variation, input.variationTotal ?? 1),
     substantial,
     referenceNotes: input.notes,
+    referenceImages: input.referenceImages ?? [],
+    referenceImageCount: input.referenceImages?.length ?? 0,
   };
   let feedback: string[] = [];
   for (let attempt = 1; attempt <= 3; attempt++) {

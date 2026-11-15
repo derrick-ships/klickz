@@ -144,3 +144,19 @@ describe("on-image text lines (15 Nov: black box behind a letter, slash drawn)",
     for (let i = 1; i <= 16; i++) expect(variationAxis(i, 16)!.highlightWord).not.toMatch(/\bbox\b/);
   });
 });
+
+describe("mediator sees the attached references", () => {
+  it("sends reference images with the request so logos and faces are not guessed", async () => {
+    create.fn.mockReset();
+    create.fn.mockResolvedValueOnce({ output_text: JSON.stringify(enriched()) });
+    const photo = Buffer.from("not-a-real-image");
+    const seen = { rawPrompt: 'Split-screen, text "BEFORE" and "AFTER"', title: "", format: "long" as const, style: "Auto", notes: [], variation: 1, hasPersona: false, isEdit: false, referenceImages: [photo] };
+    await providerContext.run({ openai: "sk-test" }, () => mediate(seen));
+    const content = create.fn.mock.calls[0][0].input[0].content;
+    expect(content.some((part: { type: string }) => part.type === "input_image")).toBe(true);
+    const data = JSON.parse(content[0].text.replace(/^Answer in JSON\. Data:\n/, ""));
+    expect(data.referenceImageCount).toBe(1);
+    expect(data.referenceImages).toBeUndefined();
+    expect(create.fn.mock.calls[0][0].instructions).toMatch(/mark to COPY/);
+  });
+});
