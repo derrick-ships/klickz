@@ -1,12 +1,16 @@
+import {providerOfChoice} from "./model-choice";
 import {pickVisionProvider,type VisionProvider} from "./vision-provider";
 import type {DeliveryState} from "./generation-delivery";
 import type {Evaluation} from "./types";
 
 export type ScorePlan={review:boolean;includeVision:boolean;critiqueProvider:VisionProvider|null};
 
-export function scorePlan(keys:{jev?:boolean;anthropic?:boolean;openai?:boolean;google?:boolean}|null|undefined):ScorePlan{
- if(!keys?.jev)return {review:false,includeVision:false,critiqueProvider:null};
- const critiqueProvider=pickVisionProvider(keys);
+export function scorePlan(keys:{jev?:boolean;anthropic?:boolean;openai?:boolean;google?:boolean;models?:{reviewer?:string;scorer?:string}}|null|undefined):ScorePlan{
+ const preferred=providerOfChoice(keys?.models?.reviewer||"auto");
+ const critiqueProvider=keys?pickVisionProvider(keys,preferred):null;
+ // Scoring needs Jev, unless Settings → Models says the reviewer model scores too.
+ const canScore=keys?.models?.scorer==="model"?!!critiqueProvider:!!keys?.jev;
+ if(!canScore)return {review:false,includeVision:false,critiqueProvider:null};
  return {review:true,includeVision:!!critiqueProvider,critiqueProvider};
 }
 

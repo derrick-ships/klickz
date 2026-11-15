@@ -2,12 +2,12 @@ import { test, expect } from "@playwright/test";
 import { widgetHtml } from "../../src/lib/widget.generated";
 
 // Drives the real widget through the MCP Apps postMessage bridge, as ChatGPT would.
-test("MCP analysis card renders a tool result, asks ChatGPT to iterate, and fixes with OpenPikzels", async ({ page }) => {
+test("MCP analysis card renders a tool result, copies the prompt, and runs One-Click Fix", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByLabel("Describe your thumbnail", { exact: true })).toBeEnabled();
   await page.evaluate((html) => {
     const w = window as any;
-    w.hostLog = { calls: [] as string[], messages: [] as string[], context: [] as string[] };
+    w.hostLog = { calls: [] as string[], context: [] as string[] };
     const dims = { virality: 58, clarity: 81, idea: 55, curiosity: 44, emotion: 72 } as Record<string, number>;
     const score = (overall: number) => ({
       overall,
@@ -35,7 +35,6 @@ test("MCP analysis card renders a tool result, asks ChatGPT to iterate, and fixe
       if (m.id === undefined) return;
       let result: any = {};
       if (m.method === "ui/initialize") result = { protocolVersion: m.params.protocolVersion, hostInfo: { name: "Test host", version: "1" }, hostCapabilities: { serverTools: {} }, hostContext: { theme: "dark" } };
-      else if (m.method === "ui/message") w.hostLog.messages.push(m.params.content[0].text);
       else if (m.method === "ui/update-model-context") w.hostLog.context.push(m.params.content?.[0]?.text || "");
       else if (m.method === "tools/call") {
         w.hostLog.calls.push(m.params.name + ":" + JSON.stringify(m.params.arguments));
@@ -54,15 +53,23 @@ test("MCP analysis card renders a tool result, asks ChatGPT to iterate, and fixe
 
   const widget = page.frameLocator("#mcp-test");
   await expect(widget.getByRole("img", { name: "Overall score 62 out of 100" })).toBeVisible();
-  await expect(widget.getByText("What's holding it back")).toBeVisible();
-  await expect(widget.getByText("curiosity weakness").first()).toBeVisible();
-  await expect(widget.getByText("Improved prompt to iterate")).toBeVisible();
+  await expect(widget.getByText("Fix first")).toBeVisible();
+  for (const gone of ["Improved prompt to iterate", "Visual rubric", "Image review"]) {
+    await expect(widget.getByText(gone)).toHaveCount(0);
+  }
   await expect.poll(() => page.evaluate(() => (window as any).hostLog.context.join("\n"))).toContain("62");
 
-  await widget.getByRole("button", { name: "Generate improved version in ChatGPT" }).click();
-  await expect.poll(() => page.evaluate(() => (window as any).hostLog.messages[0] || "")).toContain("curiosity fix");
+  // Clipboard may be denied inside the test iframe; either outcome is acceptable.
+  await widget.getByRole("button", { name: "Copy improved prompt" }).click();
+  await expect
+    .poll(async () => {
+      const live = (await widget.locator("#live").textContent()) || "";
+      const titles = await widget.locator("button.icon").evaluateAll((els) => els.map((e) => e.getAttribute("title")));
+      return live === "Copied" || titles.includes("Press ⌘C");
+    })
+    .toBe(true);
 
-  await widget.getByRole("button", { name: /Fix it with OpenPikzels/ }).click();
+  await widget.getByRole("button", { name: "One-Click Fix" }).click();
   await expect(widget.getByRole("img", { name: "Overall score 74 out of 100" })).toBeVisible();
   const calls: string[] = await page.evaluate(() => (window as any).hostLog.calls);
   expect(calls[0]).toMatch(/^one_click_fix:.*"planToken":"plan-token".*"rescore":true/);

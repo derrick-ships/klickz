@@ -457,7 +457,7 @@ export function useStudio() {
       throw new Error(
         "Scoring is not enabled in this workspace. Your saved images remain available to review and download.",
       );
-    if (!config?.jev) throw new Error("Connect your Jev API key in Connections, then analyze this thumbnail again.");
+    if (config?.models?.scorer !== "model" && !config?.jev) throw new Error("Connect your Jev API key in Connections, then analyze this thumbnail again.");
     if(includeVision&&!(critiqueProvider&&config?.[critiqueProvider]))throw new Error(missingVisionKeyMessage(critiqueProvider));
     const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl, critiqueProvider };
     const fingerprint = JSON.stringify(intent);

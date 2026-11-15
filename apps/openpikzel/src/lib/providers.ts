@@ -2,7 +2,7 @@ import {thumbnailRubric as rubric, soulVisionInstructions as visionInstructions,
 import OpenAI, { toFile } from "openai";
 import { imageModel } from "./image-models";
 import sharp from "sharp";
-import { providerKey } from "./provider-context";
+import { providerKey, providerContext, hasProviderKey } from "./provider-context";
 import {
   actualPreview,
   diagnosticDefaults,
@@ -20,6 +20,13 @@ import {
   type TextProvider,
 } from "./types";
 import {anthropicVisionModel, type VisionProvider} from "./vision-provider";
+import {currentModelPreferences, modelFor} from "./model-preferences";
+import {modelScores} from "./model-scorer";
+/** The user's chosen reviewer model when it belongs to this provider, else the provider default. */
+async function reviewerModel(provider: VisionProvider, fallback: string) {
+  const store = providerContext.getStore();
+  return modelFor(currentModelPreferences().reviewer, provider, store?.[provider], fallback);
+}
 const client = () =>
   new OpenAI({
     apiKey: providerKey("openai"),
@@ -171,7 +178,7 @@ export async function observePackaging(
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          model: anthropicVisionModel(),
+          model: await reviewerModel("anthropic", anthropicVisionModel()),
           max_tokens: 16000,
           system: visionInstructions,
           messages: [
@@ -233,13 +240,14 @@ export async function observePackaging(
           JSON.stringify({ title, videoBrief }),
           [preview, ...(previewImage ? [previewImage] : [])],
           true,
+          await reviewerModel("google", process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite"),
         ),
       ),
     );
 
   const result = await client().responses.create(
     {
-      model: process.env.OPENAI_TEXT_MODEL || "gpt-5.5",
+      model: await reviewerModel("openai", process.env.OPENAI_TEXT_MODEL || "gpt-5.5"),
       instructions:
         visionInstructions,
       input: [
@@ -358,51 +366,59 @@ export async function evaluateThumbnail(
     })
     .jpeg()
     .toBuffer();
-  const response = await fetch("https://api.typesafe.ai/v1/systemone", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${providerKey("jev")}`,
-      "Content-Type": "application/json",
-      "TypeSafe-Danger-Zone-Images": "true",
-      "Idempotency-Key": requestId,
-    },
-    body: JSON.stringify({
-      model: process.env.JEV_MODEL || "jev-latest",
-      state: {
-        thumbnail: asset,
-        title,
-        videoBrief: context.videoBrief,
-        actualPreview: previewAsset,
-        visualGuidance: visionFinished ? observations.dimensions : undefined,
-        previewContentWidth: smallMeta.width,
-        context:
-          scoringInstructions,
+  // Scorer chosen in Settings → Models: Jev (default) or the reviewer model with the same rubric.
+  const scorer = currentModelPreferences().scorer;
+  let answers: unknown;
+  if (scorer === "model" && hasProviderKey(critiqueProvider)) {
+    answers = await modelScores(critiqueProvider, prepared, small, title, context.videoBrief, visionFinished ? observations.dimensions : undefined);
+  } else {
+    const response = await fetch("https://api.typesafe.ai/v1/systemone", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${providerKey("jev")}`,
+        "Content-Type": "application/json",
+        "TypeSafe-Danger-Zone-Images": "true",
+        "Idempotency-Key": requestId,
       },
-      assets: {
-        [previewAsset]: {
-          type: "image",
-          format: "jpg",
-          data_base64: previewCanvas.toString("base64"),
+      body: JSON.stringify({
+        model: process.env.JEV_MODEL || "jev-latest",
+        state: {
+          thumbnail: asset,
+          title,
+          videoBrief: context.videoBrief,
+          actualPreview: previewAsset,
+          visualGuidance: visionFinished ? observations.dimensions : undefined,
+          previewContentWidth: smallMeta.width,
+          context:
+            scoringInstructions,
         },
-        [asset]: {
-          type: "image",
-          format: "jpg",
-          data_base64: prepared.toString("base64"),
+        assets: {
+          [previewAsset]: {
+            type: "image",
+            format: "jpg",
+            data_base64: previewCanvas.toString("base64"),
+          },
+          [asset]: {
+            type: "image",
+            format: "jpg",
+            data_base64: prepared.toString("base64"),
+          },
         },
-      },
-      questions: Object.fromEntries(
-        pillars.map((p) => [p, { type: "score", ...rubric[p] }]),
-      ),
-    }),
-    signal: AbortSignal.timeout(60000),
-  });
-  if (!response.ok)
-    throw new (await import("./validation")).AppError(
-      response.status,
-      "Jev could not complete this request. Check your API access and quota.",
-    );
+        questions: Object.fromEntries(
+          pillars.map((p) => [p, { type: "score", ...rubric[p] }]),
+        ),
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!response.ok)
+      throw new (await import("./validation")).AppError(
+        response.status,
+        "Jev could not complete this request. Check your API access and quota.",
+      );
+    answers = await response.json();
+  }
   const diagnostic = enrichDiagnostic(
-    parseScores(await response.json(), observations, title),
+    parseScores(answers, observations, title),
     image,
     title,
     context,
@@ -418,7 +434,7 @@ export async function evaluateThumbnail(
   if(withVision && !visionFinished){
     diagnostic.warnings = [...(diagnostic.warnings||[]).filter(warning=>!warning.includes("Numeric Jev rubrics only")),"Image review did not finish",...visionErrors];
   }
-  diagnostic.contributors = [{provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(visionFinished ? [{provider:visionProvider === "anthropic" ? "Anthropic API" : visionProvider === "openai" ? "OpenAI API" : "Google API",model:visionProvider === "anthropic" ? anthropicVisionModel() : visionProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
+  diagnostic.contributors = [scorer === "model" && hasProviderKey(critiqueProvider) ? {provider:critiqueProvider === "anthropic" ? "Anthropic API" : critiqueProvider === "openai" ? "OpenAI API" : "Google API",model:"reviewer model",role:"scoring"} : {provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(visionFinished ? [{provider:visionProvider === "anthropic" ? "Anthropic API" : visionProvider === "openai" ? "OpenAI API" : "Google API",model:visionProvider === "anthropic" ? anthropicVisionModel() : visionProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
   return diagnostic;
 }
 // Legacy name is retained only for callers that explicitly supply a real image.

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { modelPreferenceContext, readModelPreferences } from "./model-preferences";
 import { NextResponse } from "next/server";
 import { AppError } from "./validation";
 import { publicSupabaseConfig } from "./config";
@@ -63,7 +64,8 @@ export async function withUserProviders(
     )
       throw new AppError(403, "Your agent lacks permission for this action.");
     const keys = await userKeys(context.db, context.user.id);
-    return await providerContext.run(keys, work);
+    const models = readModelPreferences(context.user.user_metadata);
+    return await providerContext.run(keys, () => modelPreferenceContext.run(models, work));
   } catch (e) {
     return failure(e);
   }

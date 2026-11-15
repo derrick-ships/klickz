@@ -1,3 +1,4 @@
+import { currentModelPreferences } from "@/lib/model-preferences";
 import {
   authenticated,
   failure,
@@ -21,9 +22,12 @@ async function handle(request: Request) {
   try {
     context = await authenticated(request);
     const { db, user } = context;
-    requireAI("jev");
     seal({ check: true }, "diagnostic-proof"); // Verify signing configuration before any paid dispatch.
     const input = reviewSchema.parse(await request.json());
+    // Jev scores unless the user chose the reviewer model as scorer in Settings → Models.
+    const modelScorer = currentModelPreferences().scorer === "model";
+    if (modelScorer) requireAI(input.critiqueProvider);
+    else requireAI("jev");
     if (input.includeVision) requireAI(input.critiqueProvider);
     if (input.videoUrl) youtubeVideoId(input.videoUrl);
     let path = input.imagePath,

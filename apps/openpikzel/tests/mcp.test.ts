@@ -407,8 +407,10 @@ describe("real Streamable HTTP MCP transport and Apps resources", () => {
     ).json();
     const content = r.result.contents[0];
     expect(content.mimeType).toBe("text/html;profile=mcp-app");
-    expect(content.text).toContain("What's holding it back");
-    expect(content.text).toContain("Improved prompt to iterate");
+    expect(content.text).toContain("Fix first");
+    expect(content.text).toContain("One-Click Fix");
+    expect(content.text).not.toContain("Improved prompt to iterate");
+    expect(content.text).not.toContain("Visual rubric");
     expect(content.text).not.toContain("Resize to vertical");
     expect(content.text).toContain("ui/initialize");
     expect(content._meta.ui.csp.connectDomains).toEqual([]);

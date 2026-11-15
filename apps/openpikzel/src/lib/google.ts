@@ -40,9 +40,10 @@ export async function googleText(
   prompt: string,
   images: Buffer[] = [],
   json = false,
+  model = process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",
 ) {
   const parts = await generate(
-    process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",
+    model,
     [
       {
         text:

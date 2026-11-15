@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
-import { providerKey, hasProvider } from "./provider-context";
+import { providerKey, hasProvider, providerContext } from "./provider-context";
+import { currentModelPreferences, modelFor, providerOfChoice } from "./model-preferences";
 import { googleText } from "./google";
 import { AppError } from "./validation";
 import { principles, principleFiles } from "./principles.generated";
@@ -166,11 +167,12 @@ export function imagePromptFrom(e: Enriched, notes: string[], realism: string) {
 async function callModel(context: unknown, provider: "openai" | "google", feedback: string[]): Promise<{ value: unknown; model: string; provider: string }> {
   const instructions = mediatorInstructions + principles;
   const payload = feedback.length ? { ...(context as object), previousAttemptProblems: feedback } : context;
+  const choice = currentModelPreferences().mediator;
   if (provider === "google") {
-    const model = process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite";
-    return { value: JSON.parse(await googleText(instructions, JSON.stringify(payload), [], true)), model, provider: "Google API" };
+    const model = await modelFor(choice, "google", providerContext.getStore()?.google, process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite");
+    return { value: JSON.parse(await googleText(instructions, JSON.stringify(payload), [], true, model)), model, provider: "Google API" };
   }
-  const model = process.env.OPENAI_MEDIATOR_MODEL || process.env.OPENAI_TEXT_MODEL || "gpt-5.5";
+  const model = await modelFor(choice, "openai", providerContext.getStore()?.openai, process.env.OPENAI_MEDIATOR_MODEL || process.env.OPENAI_TEXT_MODEL || "gpt-5.5");
   const api = new OpenAI({ apiKey: providerKey("openai"), maxRetries: 0, timeout: 120000 });
   const response = await api.responses.create({
     model,
@@ -194,7 +196,10 @@ export async function mediate(input: {
   hasPersona: boolean;
   isEdit: boolean;
 }): Promise<{ enriched: Enriched; substantial: Substantial; provider: string; model: string; attempts: number }> {
-  const provider: "openai" | "google" | null = hasProvider("openai") ? "openai" : hasProvider("google") ? "google" : null;
+  const chosen = providerOfChoice(currentModelPreferences().mediator);
+  const provider: "openai" | "google" | null =
+    (chosen === "openai" || chosen === "google") && hasProvider(chosen) ? chosen
+    : hasProvider("openai") ? "openai" : hasProvider("google") ? "google" : null;
   if (!provider) throw new AppError(403, "Connect an OpenAI or Google API key so OpenPikzels can prepare the image prompt.");
   const substantial = extractSubstantial(input.rawPrompt, input.format);
   const context = {

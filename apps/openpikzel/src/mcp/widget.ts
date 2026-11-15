@@ -114,7 +114,7 @@ function weakest(s: Evaluation): [Pillar, string, Dimension] | null {
 }
 
 /* ---------- States ---------- */
-function renderLoading(msg = "Scoring your thumbnail…") {
+function renderLoading(msg = "Scoring…") {
   const card = el("article", "card skeleton");
   card.setAttribute("aria-busy", "true");
   const head = el("div", "head", undefined, card);
@@ -194,6 +194,21 @@ function ring(parent: Element, s: Evaluation, v: View) {
   }
 }
 
+/* ---------- Icons ---------- */
+const ICONS = {
+  clipboard:
+    '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+};
+function icon(name: keyof typeof ICONS): SVGSVGElement {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  for (const [k, val] of Object.entries({ viewBox: "0 0 24 24", width: "20", height: "20", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }))
+    svg.setAttribute(k, val);
+  svg.innerHTML = ICONS[name]; // static, trusted markup
+  return svg;
+}
+
 /* ---------- Main card ---------- */
 function render(v: View) {
   current = v;
@@ -203,43 +218,30 @@ function render(v: View) {
   const card = el("article", "card");
   card.setAttribute("aria-label", "Thumbnail analysis");
 
-  // 1. Header
+  // Header
   const head = el("div", "head", undefined, card);
   brand(head);
   const scoreBox = el("div", "score-box", undefined, head);
   ring(scoreBox, s, v);
 
-  // 2. Image
+  // Image
   if (v.previewUrl) media(card, v.previewUrl, title || "Thumbnail");
 
-  // 3. Title
-  if (scoreTitle) {
-    const t = el("p", "title-line", undefined, card);
-    el("span", "muted", "Title: ", t);
-    el("span", "title-text", scoreTitle, t);
-  } else {
-    el("p", "notice", "No title — Idea and Curiosity can't be scored. Send the exact video title.", card);
-  }
-  if (v.before != null && v.after != null) {
-    el("p", "muted small", `Before ${Math.round(v.before)} → after ${Math.round(v.after)}`, card);
-  }
+  // Title
+  if (scoreTitle) el("p", "title-line muted small", scoreTitle, card);
+  else el("p", "muted small", "Add the video title to score Idea and Curiosity.", card);
 
-  // 4. Holding back
+  // Fix first
   const w = weakest(s);
-  if (w) {
+  if (w && str(w[2].fix)) {
     const hb = el("section", "holding " + tone(num(w[2].score)), undefined, card);
     const top = el("div", "holding-top", undefined, hb);
-    el("h2", "eyebrow", "What's holding it back", top);
+    el("h2", "eyebrow", "Fix first", top);
     el("span", "pill", `${w[1]} ${num(w[2].score) ?? "—"}`, top);
-    if (str(w[2].weakness)) el("p", "holding-weak", str(w[2].weakness), hb);
-    if (str(w[2].fix)) {
-      const f = el("p", "holding-fix", undefined, hb);
-      el("strong", undefined, "Fix: ", f);
-      f.append(document.createTextNode(str(w[2].fix)));
-    }
+    el("p", "holding-fix", str(w[2].fix), hb);
   }
 
-  // 5. Pillars
+  // Pillars
   const list = el("section", "pillars", undefined, card);
   list.setAttribute("aria-label", "Scores by pillar");
   for (const [key, label] of PILLARS) {
@@ -249,7 +251,7 @@ function render(v: View) {
     const sum = el("summary", undefined, undefined, det);
     el("span", "p-name", label, sum);
     if (n == null) {
-      el("span", "p-na", "Not assessed", sum);
+      el("span", "p-na", "Not scored", sum);
     } else {
       const bar = el("span", "bar " + tone(n), undefined, sum);
       bar.setAttribute("aria-hidden", "true");
@@ -259,88 +261,75 @@ function render(v: View) {
     }
     el("span", "chev", undefined, sum).setAttribute("aria-hidden", "true");
     const body = el("div", "p-body", undefined, det);
-    if (n == null) el("p", "muted", str(d.missingReason) || "Not enough information to score this pillar.", body);
-    const rows: [string, string][] = [
-      ["What we see", str(d.observation)],
-      ["Working for you", str(d.strength)],
-      ["Holding it back", str(d.weakness)],
-      ["Fix", str(d.fix)],
-    ];
-    for (const [k, val] of rows) {
+    if (n == null) el("p", "muted", str(d.missingReason) || "Not enough information.", body);
+    for (const [k, val] of [["Problem:", str(d.weakness)], ["Fix:", str(d.fix)]] as const) {
       if (!val) continue;
-      el("h3", "p-k", k, body);
-      el("p", "p-v", val, body);
+      const p = el("p", "p-v", undefined, body);
+      el("strong", undefined, k + " ", p);
+      p.append(document.createTextNode(val));
     }
   }
 
-  // 6. Improved prompt
+  // Actions
   const fix = v.fix || {};
   const prompt = str(fix.prompt);
-  if (prompt) {
-    const sec = el("section", "prompt", undefined, card);
-    el("h2", "eyebrow", "Improved prompt to iterate", sec);
-    el("p", "muted small", "Paste it into ChatGPT with the original image, or let OpenPikzels apply it.", sec);
-    const pre = el("pre", "prompt-text", prompt, sec);
-    pre.tabIndex = 0;
-    pre.setAttribute("aria-label", "Improved prompt");
-    const copy = el("button", "btn ghost", "Copy prompt", sec);
-    copy.type = "button";
-    copy.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(prompt);
-        copy.textContent = "Copied";
-        say("Prompt copied");
-      } catch {
-        const range = document.createRange();
-        range.selectNodeContents(pre);
-        const sel = getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-        copy.textContent = "Press ⌘C to copy";
-        say("Prompt selected. Press Command C to copy.");
-      }
-      setTimeout(() => (copy.textContent = "Copy prompt"), 2500);
-    };
-  }
-
-  // 7. Actions
-  const actions = el("section", "actions", undefined, card);
-  const id = v.creationId || "unknown";
-  if (prompt) {
-    const b = el("button", "btn primary", "Generate improved version in ChatGPT", actions);
-    b.type = "button";
-    b.onclick = () =>
-      send(
-        `Use ChatGPT image generation to edit the OpenPikzels thumbnail shown above (creation ${id}). Apply exactly this prompt:\n\n${prompt}\n\nThen upload the result to OpenPikzels with upload_reference and score it with analyze_thumbnail using the same title "${title}", and show me the before/after scores.`,
-        b,
-      );
-  }
   const kind = str(fix.kind);
-  if (kind === "blocked" || kind === "noop") {
-    if (str(fix.reason)) el("p", "muted small", str(fix.reason), actions);
-  } else if (str(fix.token)) {
-    const b = el("button", "btn secondary", fixing ? "Fixing… this takes about a minute" : "Fix it with OpenPikzels (uses image credits)", actions);
-    b.type = "button";
-    b.disabled = fixing;
-    b.onclick = () => void runFix(str(fix.token), b);
+  const blocked = kind === "blocked" || kind === "noop";
+  const token = blocked ? "" : str(fix.token);
+  if (blocked && str(fix.reason)) el("p", "muted small", str(fix.reason), card);
+  if (token || prompt) {
+    const actions = el("section", "actions", undefined, card);
+    if (token) {
+      const b = el("button", "btn primary", fixing ? "Fixing…" : "One-Click Fix", actions);
+      b.type = "button";
+      b.disabled = fixing;
+      b.onclick = () => void runFix(token, b);
+    }
+    if (prompt) copyButton(actions, prompt);
   }
-  if (!scoreTitle) {
-    const b = el("button", "btn secondary", "Add the title", actions);
-    b.type = "button";
-    b.onclick = () =>
-      send(`I'll give you the exact video title. Re-score this thumbnail (creation ${id}) with analyze_thumbnail once I send it.`, b);
-  }
-  if (!actions.childElementCount) actions.remove();
   el("p", "err", undefined, card).id = "action-error";
-
-  // 9. Footer
-  const foot = el("footer", "foot", undefined, card);
-  el("span", undefined, "Visual rubric — not a click prediction.", foot);
-  if (v.reviewer) el("span", undefined, "Image review: " + v.reviewer, foot);
 
   root.replaceChildren(card);
   say(num(s.overall) == null ? "Analysis ready" : `Analysis ready: ${Math.round(num(s.overall)!)} out of 100`);
   pushContext(v);
+}
+
+function copyButton(parent: Element, prompt: string) {
+  const LABEL = "Copy improved prompt";
+  const b = el("button", "btn icon", undefined, parent);
+  b.type = "button";
+  b.setAttribute("aria-label", LABEL);
+  b.title = LABEL;
+  b.append(icon("clipboard"));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  b.onclick = async () => {
+    clearTimeout(timer);
+    try {
+      await navigator.clipboard.writeText(prompt);
+      b.replaceChildren(icon("check"));
+      say("Copied");
+      timer = setTimeout(() => b.replaceChildren(icon("clipboard")), 1500);
+    } catch {
+      let ta = document.getElementById("prompt-fallback") as HTMLTextAreaElement | null;
+      if (!ta) {
+        ta = el("textarea", undefined, undefined, document.body);
+        ta.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;border:0;padding:0";
+        ta.id = "prompt-fallback";
+        ta.readOnly = true;
+        ta.setAttribute("aria-label", "Improved prompt");
+      }
+      ta.value = prompt;
+      ta.focus();
+      ta.select();
+      b.setAttribute("aria-label", "Press ⌘C");
+      b.title = "Press ⌘C";
+      say("Selected. Press ⌘C.");
+      timer = setTimeout(() => {
+        b.setAttribute("aria-label", LABEL);
+        b.title = LABEL;
+      }, 4000);
+    }
+  };
 }
 
 /* ---------- Host interactions ---------- */
@@ -350,41 +339,29 @@ function setError(msg: string) {
   say(msg);
 }
 
-async function send(text: string, btn: HTMLButtonElement) {
-  btn.disabled = true;
-  try {
-    await app.sendMessage({ role: "user", content: [{ type: "text", text }] });
-    say("Sent to ChatGPT");
-  } catch {
-    setError("Couldn't send that to ChatGPT. Copy the prompt and paste it instead.");
-  } finally {
-    setTimeout(() => (btn.disabled = false), 1500);
-  }
-}
-
 async function runFix(token: string, btn: HTMLButtonElement) {
   if (fixing) return;
   fixing = true;
   fixRequest ??= { requestId: uuid(), rescoreRequestId: uuid() };
   btn.disabled = true;
-  btn.textContent = "Fixing… this takes about a minute";
-  say("Fixing… this takes about a minute");
+  btn.textContent = "Fixing…";
+  say("Fixing…");
   try {
     const res: any = await app.callServerTool({
       name: "one_click_fix",
       arguments: { planToken: token, rescore: true, ...fixRequest },
     });
     fixing = false;
-    if (res?.isError) throw new Error(textOf(res) || "The fix failed.");
+    if (res?.isError) throw new Error(textOf(res) || "Fix failed.");
     fixRequest = null;
     const v = normalize(res?.structuredContent);
-    if (v?.score) render({ ...v, previewUrl: v.previewUrl || current?.previewUrl, reviewer: v.reviewer || current?.reviewer });
-    else renderMessage("Fix started", textOf(res) || "Your improved thumbnail is being generated. Ask ChatGPT to score it when it's ready.", v);
+    if (v?.score) render({ ...v, previewUrl: v.previewUrl || current?.previewUrl });
+    else renderMessage("Fix started", "Ask ChatGPT to score it when ready.", v);
   } catch (e) {
     fixing = false;
     btn.disabled = false;
-    btn.textContent = "Retry fix with OpenPikzels";
-    setError((e as Error)?.message || "The fix failed. You can retry safely.");
+    btn.textContent = "Retry fix";
+    setError((e as Error)?.message || "Fix failed. Retry is safe.");
   }
 }
 
@@ -406,7 +383,7 @@ function pushContext(v: View) {
     `Overall: ${num(s.overall) ?? "not available"}${v.delta != null ? ` (delta ${v.delta > 0 ? "+" : ""}${v.delta} vs ${v.before})` : ""}`,
     ...PILLARS.map(([k, l]) => `- ${l}: ${num(s.dimensions?.[k]?.score) ?? "not assessed"}`),
   ];
-  if (w) lines.push(`Holding it back: ${w[1]} — ${str(w[2].weakness)} Fix: ${str(w[2].fix)}`);
+  if (w) lines.push(`Fix first: ${w[1]} — ${str(w[2].weakness)} Fix: ${str(w[2].fix)}`);
   if (str(v.fix?.prompt)) lines.push("Improved prompt:\n```\n" + str(v.fix?.prompt) + "\n```");
   lines.push(`One-click fix token available: ${str(v.fix?.token) ? "yes" : "no"}${v.fix?.kind ? ` (kind: ${v.fix.kind})` : ""}`);
   try {
@@ -421,10 +398,10 @@ function handleResult(sc: unknown, isError?: boolean, fallbackText = "") {
   if (!isError && v?.score && typeof v.score === "object") return render(v);
   const anySc = sc as any;
   if (!isError && anySc?.jobId && anySc?.creation)
-    return renderMessage("Fix started", "Your improved thumbnail is being generated. Ask ChatGPT to score it when it's ready.", v);
+    return renderMessage("Fix started", "Ask ChatGPT to score it when ready.", v);
   renderMessage(
-    isError ? "We couldn't analyze this thumbnail" : "No score yet",
-    fallbackText || v?.next || "Try again, or ask ChatGPT to run analyze_thumbnail with the image and the exact video title.",
+    isError ? "Couldn't score this thumbnail" : "No score yet",
+    fallbackText || v?.next || "Try again with the image and title.",
     v,
   );
 }
@@ -441,8 +418,8 @@ if (fixture) {
   handleResult(fixture);
 } else {
   applyTheme();
-  renderLoading("Waiting for your thumbnail…");
-  app.ontoolinput = () => renderLoading("Scoring your thumbnail…");
+  renderLoading();
+  app.ontoolinput = () => renderLoading();
   app.ontoolresult = (params: any) => handleResult(params?.structuredContent, !!params?.isError, textOf(params));
   app.onhostcontextchanged = (ctx: any) => {
     if (ctx?.theme) applyTheme(ctx.theme);
@@ -456,5 +433,5 @@ if (fixture) {
         /* ignore */
       }
     })
-    .catch(() => renderMessage("Couldn't connect", "Reload the conversation to try again."));
+    .catch(() => renderMessage("Couldn't connect", "Reload to try again."));
 }

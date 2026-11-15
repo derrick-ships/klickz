@@ -136,6 +136,7 @@ export type Config = {
   codexDevice?: boolean;
   textModels?: {openai:string;google:string};
   scoreModel?: string;
+  models?: import("./model-preferences").ModelPreferences;
   mcpUrl?: string;
   supabaseUrl: string;
   supabaseKey: string;
