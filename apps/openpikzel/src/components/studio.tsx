@@ -1425,7 +1425,6 @@ export default function Studio() {
               </button>
             </div>
           )}
-          {studio.cloud&&<div className="activity-summary"><button type="button" className="neutral-button" onClick={()=>void showJobs()}>API activity</button><span role="status">{activity.active?activity.active+" active API request"+(activity.active===1?"":"s")+(activity.paused?" · status refresh paused":""):activity.loading?"Checking saved API activity…":activity.error?"Activity status unavailable; refresh to check.":"Saved API activity available"}</span></div>}
           {tab === "studio" ? (
             <>
               {hasReviewImage && resultPanel}

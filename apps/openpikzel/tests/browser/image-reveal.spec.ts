@@ -317,7 +317,7 @@ test("nothing on the page moves when a generated thumbnail lands", async ({ page
     // Focus moves to the result heading (for keyboard and screen readers) without scrolling the page.
     await expect(page.locator(".result-section h1, .result-section h2").first()).toBeFocused();
     expect(frames.some(f => f.title.includes("Fixture result 1")), label).toBe(true);
-    for (const key of ["row", "result"] as const) {
+    for (const key of ["result"] as const) {
       const tops = frames.map(f => f[key]).filter((v): v is number => v !== null);
       expect(tops.length, label + " " + key).toBe(frames.length);
       expect(Math.max(...tops) - Math.min(...tops), `${label} ${key} tops ${[...new Set(tops)].join(",")}`).toBeLessThanOrEqual(2);

@@ -35,12 +35,12 @@ async function handle(request: Request) {
     if (input.videoUrl) youtubeVideoId(input.videoUrl);
     let path = input.imagePath,
       id = input.creationId;
-    type Row = { id: string; image_path: string | null; score: Evaluation | null; parent_id?: string | null; mode?: string; lineage?: { fix?: { suggestion?: string; parentScore?: number | null }; mediator?: { rawPrompt?: string; enriched?: { concept?: string; imageText?: string[] } } } | null };
+    type Row = { style?: string | null; id: string; image_path: string | null; score: Evaluation | null; parent_id?: string | null; mode?: string; lineage?: { fix?: { suggestion?: string; parentScore?: number | null }; mediator?: { rawPrompt?: string; enriched?: { concept?: string; imageText?: string[] } } } | null };
     let row: Row | undefined;
     if (id) {
       const r = await db
         .from("studio_creations")
-        .select("id,image_path,score,parent_id,mode,lineage")
+        .select("id,image_path,score,parent_id,mode,lineage,style")
         .eq("id", id)
         .eq("user_id", user.id)
         .single();
@@ -107,7 +107,7 @@ async function handle(request: Request) {
     dispatched = true;
     const score = signDiagnostic(
       await evaluateThumbnail(image, assessedTitle, input.requestId, {
-        videoBrief: videoEvidence?.description || input.videoBrief || (intendedPromise ? `INTENDED PROMISE (no video title yet; judge Idea and Curiosity against this and the image itself):\n${intendedPromise}` : ""),
+        videoBrief: [videoEvidence?.description || input.videoBrief || (intendedPromise ? `INTENDED PROMISE (no video title yet; judge Idea and Curiosity against this and the image itself):\n${intendedPromise}` : ""), row?.style && row.style !== "Auto" ? `Chosen style: ${row.style}` : ""].filter(Boolean).join("\n"),
         videoEvidence,
         audience: input.audience,
         includeVision: input.includeVision,
