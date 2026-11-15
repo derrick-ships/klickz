@@ -90,7 +90,12 @@ it("validates a Claude reply against the same schema (unknown flags dropped)", a
   providerContext.run({ anthropic: "sk-ant-fixture" }, async () => {
     const raw = review();
     (raw.dimensions as any).idea.flags = ["text_repeats_title", "bogus"];
-    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(raw) }] })));
+    // The reviewer alias first resolves against the model list, so each call needs its own Response.
+    const fetcher = vi.fn().mockImplementation(async (url: unknown) =>
+      String(url).includes("/v1/models")
+        ? new Response(JSON.stringify({ data: [{ id: "claude-sonnet-5-5" }] }))
+        : new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(raw) }] })),
+    );
     vi.stubGlobal("fetch", fetcher);
     const image = await sharp({ create: { width: 640, height: 360, channels: 3, background: "#123456" } }).png().toBuffer();
     const result = await observePackaging(image, "T", "", undefined, "anthropic");

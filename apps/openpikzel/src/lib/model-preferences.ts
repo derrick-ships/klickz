@@ -36,8 +36,8 @@ export const scorers = [
 export const imageGenerators = ["flare", "sunburst", "gemini-flash", "gemini-pro"] as const;
 
 export const modelPreferencesSchema = z.object({
-  /** Looks at the image and writes the fix. "auto" = first connected of Claude, OpenAI, Google. */
-  reviewer: z.string().max(40).default("auto"),
+  /** Looks at the image and writes the fix. Default: Claude Sonnet (latest, Sonnet 5.5 today). */
+  reviewer: z.string().max(40).default("sonnet-latest"),
   /** Who gives the five numbers. */
   scorer: z.enum(["jev", "model"]).default("jev"),
   /** Rewrites the prompt before every image. "auto" = OpenAI, else Google. */
@@ -52,9 +52,11 @@ export function readModelPreferences(metadata: unknown): ModelPreferences {
   const raw = (metadata as { openpikzels_models?: unknown } | null)?.openpikzels_models;
   const parsed = modelPreferencesSchema.safeParse(raw ?? {});
   if (!parsed.success) return defaultModelPreferences;
-  // "auto" used to mean gpt-5.5. The prompt writer default is now GPT Sol.
-  if (parsed.data.mediator === "auto") return { ...parsed.data, mediator: "gpt-sol-latest" };
-  return parsed.data;
+  // "auto" used to mean gpt-5.5 for the prompt writer and "first connected provider" for the
+  // reviewer. Those two jobs now default to GPT Sol and Claude Sonnet respectively.
+  const mediator = parsed.data.mediator === "auto" ? "gpt-sol-latest" : parsed.data.mediator;
+  const reviewer = parsed.data.reviewer === "auto" ? "sonnet-latest" : parsed.data.reviewer;
+  return { ...parsed.data, mediator, reviewer };
 }
 
 export const aliasById = (id: string) => textAliases.find((a) => a.id === id);

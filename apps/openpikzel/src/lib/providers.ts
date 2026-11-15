@@ -1,4 +1,5 @@
 import {thumbnailRubric as rubric, soulVisionInstructions as visionInstructions, scoringInstructions, instructionVersion} from "./instructions";
+import { jevScoreCriteria, jevFlagQuestions, flagQuestionId, jevScorePolicy, readJevFlags } from "./jev-questions";
 import OpenAI, { toFile } from "openai";
 import { imageModel } from "./image-models";
 import sharp from "sharp";
@@ -25,6 +26,9 @@ import {currentModelPreferences, modelFor} from "./model-preferences";
 import {modelScores} from "./model-scorer";
 /** The user's chosen reviewer model when it belongs to this provider, else the provider default. */
 async function reviewerModel(provider: VisionProvider, fallback: string) {
+  // An explicit deployment override wins for every reviewer choice, including a pinned alias.
+  const override = provider === "anthropic" ? process.env.ANTHROPIC_VISION_MODEL : undefined;
+  if (override) return override;
   const store = providerContext.getStore();
   return modelFor(currentModelPreferences().reviewer, provider, store?.[provider], fallback);
 }
@@ -418,8 +422,6 @@ export async function evaluateThumbnail(
           actualPreview: previewAsset,
           visualGuidance: visionFinished ? observations.dimensions : undefined,
           previewContentWidth: smallMeta.width,
-          context:
-            scoringInstructions,
         },
         assets: {
           [previewAsset]: {
@@ -433,9 +435,25 @@ export async function evaluateThumbnail(
             data_base64: prepared.toString("base64"),
           },
         },
-        questions: Object.fromEntries(
-          pillars.map((p) => [p, { type: "score", ...rubric[p] }]),
-        ),
+        // One narrow judgment per question, all of them in this one request (Jev evaluates them in
+        // parallel). Pillars are Scores with concrete levels + examples; each review flag is its own
+        // Noul with an explicit true/false description, so the code reads probabilities, not prose.
+        questions: {
+          ...Object.fromEntries(
+            pillars.map((p) => [
+              p,
+              {
+                type: "score" as const,
+                instructions:
+                  `${rubric[p].instructions} Score the thumbnail in \`thumbnail\`; for phone-size readability use \`actualPreview\`. ${jevScorePolicy}`,
+                criteria: jevScoreCriteria[p],
+              },
+            ]),
+          ),
+          ...Object.fromEntries(
+            jevFlagQuestions.map((q) => [flagQuestionId(q.flag), q.question]),
+          ),
+        },
       }),
       signal: AbortSignal.timeout(60000),
     });
@@ -445,6 +463,16 @@ export async function evaluateThumbnail(
         "Jev could not complete this request. Check your API access and quota.",
       );
     answers = await response.json();
+    // Jev answered every review flag as its own Noul. Its flags join the reviewer's, because both
+    // saw the image; the code owns the thresholds and the penalties either way.
+    const jev = readJevFlags(answers);
+    if (visionFinished) {
+      for (const p of pillars) {
+        const merged = [...new Set([...(observations.dimensions[p].flags || []), ...(jev.pillars[p] || [])])];
+        (observations.dimensions[p] as { flags?: string[] }).flags = merged;
+      }
+      (observations as { globalFlags?: string[] }).globalFlags = [...new Set([...(observations.globalFlags || []), ...jev.globalFlags])];
+    }
   }
   const usedScorer = scorer === "model" && hasProviderKey(critiqueProvider) ? "model" : "jev";
   const diagnostic = enrichDiagnostic(

@@ -143,7 +143,15 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
         expect(url).toBe("https://api.typesafe.ai/v1/systemone");
         expect(request.headers["TypeSafe-Danger-Zone-Images"]).toBe("true");
         const body = JSON.parse(request.body);
-        expect(Object.keys(body.questions)).toEqual(pillars);
+        // Five pillar Scores plus one Noul per review flag, all in one request.
+        expect(Object.keys(body.questions).filter((k) => pillars.includes(k as never))).toEqual(pillars);
+        expect(Object.keys(body.questions).length).toBeGreaterThan(pillars.length);
+        expect(body.questions.virality.type).toBe("score");
+        expect(body.questions.virality.criteria[0].what).toMatch(/generic/i);
+        const flagQuestion = body.questions.flag_text_repeats_title;
+        expect(flagQuestion.type).toBe("noul");
+        expect(flagQuestion.criteria.true).toMatch(/duplicate or restate/i);
+        expect(body.state.context).toBeUndefined();
         expect(body.state.title).toBe("A real video title");
         expect(body.state.visualGuidance.clarity.observation).toBe("A clear focal subject");
         expect(score.contributors?.map(c=>c.provider)).toEqual(["Jev","OpenAI API"]);
@@ -282,6 +290,8 @@ const visionObservations = {
 };
 const anthropicResponse = (value: unknown) =>
   response({ content: [{ type: "text", text: JSON.stringify(value) }] });
+/** A reviewer alias resolves against the provider's model list first; answer that call too. */
+const modelList = (ids: string[]) => response({ data: ids.map((id) => ({ id })) });
 const captureLogs = () => {
   const logs: string[] = [];
   const spies = (["log", "info", "warn", "error", "debug"] as const).map((name) =>
@@ -300,13 +310,10 @@ it("sends a Claude Messages request from the user key, with an image block and n
       try {
         const fetcher = vi
           .fn()
-          .mockResolvedValueOnce(anthropicResponse(visionObservations))
-          .mockResolvedValueOnce(
-            response({
-              answers: Object.fromEntries(
-                pillars.map((p) => [p, { score: 1.5, confidence: 0.6 }]),
-              ),
-            }),
+          .mockImplementation(async (url: unknown) =>
+            String(url).includes("/v1/models") ? modelList(["claude-sonnet-5-5", "claude-opus-5-5"])
+            : String(url).includes("anthropic.com") ? anthropicResponse(visionObservations)
+            : response({ answers: Object.fromEntries(pillars.map((p) => [p, { score: 1.5, confidence: 0.6 }])) }),
           );
         vi.stubGlobal("fetch", fetcher);
         const score = await evaluateThumbnail(
@@ -320,12 +327,13 @@ it("sends a Claude Messages request from the user key, with an image block and n
             critiqueProvider: "anthropic",
           },
         );
-        const [url, request] = fetcher.mock.calls[0];
+        const [url, request] = fetcher.mock.calls.find(([u]) => String(u).includes("/v1/messages"))!;
         expect(url).toBe("https://api.anthropic.com/v1/messages");
         expect(request.headers["x-api-key"]).toBe(fixtureAnthropicKey);
         expect(request.headers["anthropic-version"]).toBeDefined();
         const body = JSON.parse(request.body);
-        expect(body.model).toBe(ANTHROPIC_VISION_MODEL);
+        // The reviewer default is Claude Sonnet (sonnet-latest), not Opus.
+        expect(body.model).toBe("claude-sonnet-5-5");
         expect(body.max_tokens).toBe(16000);
         expect(
           body.messages[0].content.some(
@@ -334,9 +342,8 @@ it("sends a Claude Messages request from the user key, with an image block and n
           ),
         ).toBe(true);
         expect(score.contributors?.map((c) => c.provider)).toEqual(["Jev", "Anthropic API"]);
-        expect(score.contributors?.find((c) => c.role === "image-review")?.model).toBe(
-          ANTHROPIC_VISION_MODEL,
-        );
+        // The default reviewer is Sonnet, resolved against the account's own model list.
+        expect(body.model).toBe("claude-sonnet-5-5");
         expect(JSON.stringify(score)).not.toContain(fixtureAnthropicKey);
         expect(logs.join("\n")).not.toContain(fixtureAnthropicKey);
         expect(
@@ -355,10 +362,14 @@ it("sends a Claude Messages request from the user key, with an image block and n
 it("uses ANTHROPIC_VISION_MODEL when set, otherwise the official Opus constant", async () =>
   providerContext.run({ anthropic: fixtureAnthropicKey }, async () => {
     vi.stubEnv("ANTHROPIC_VISION_MODEL", "claude-opus-test-override");
-    const fetcher = vi.fn().mockResolvedValue(anthropicResponse(visionObservations));
+    const fetcher = vi.fn().mockImplementation(async (url: unknown) =>
+      String(url).includes("/v1/models") ? modelList(["claude-sonnet-5-5"]) : anthropicResponse(visionObservations),
+    );
     vi.stubGlobal("fetch", fetcher);
     await observePackaging(await sample(), "A real video title", "", undefined, "anthropic");
-    expect(JSON.parse(fetcher.mock.calls[0][1].body).model).toBe("claude-opus-test-override");
+    // An explicit deployment override still wins over the Settings alias.
+    const call = fetcher.mock.calls.find(([u]) => String(u).includes("/v1/messages"))!;
+    expect(JSON.parse(call[1].body).model).toBe("claude-opus-test-override");
   }));
 
 it("returns a generic AppError when Claude fails and does not call another vision provider", async () =>
