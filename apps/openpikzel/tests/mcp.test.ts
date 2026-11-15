@@ -395,15 +395,21 @@ describe("real Streamable HTTP MCP transport and Apps resources", () => {
     expect(
       tools.result.tools.find((t: any) => t.name === "score_thumbnail")._meta.ui
         .resourceUri,
-    ).toBe("ui://openpikzels/studio.html");
+    ).toBe("ui://openpikzels/analysis.html");
+    // The analysis card only renders for tools that return a score.
+    const meta = (n: string) => tools.result.tools.find((t: any) => t.name === n)?._meta?.ui?.resourceUri;
+    for (const n of ["analyze_thumbnail", "score_thumbnail", "one_click_fix", "get_creation"]) expect(meta(n)).toBe("ui://openpikzels/analysis.html");
+    for (const n of ["list_creations", "list_profiles", "generate_thumbnail", "resize_thumbnail", "get_workspace"]) expect(meta(n)).toBeUndefined();
   });
   it("serves bundled HTML with an MCP Apps bridge and no external script dependency", async () => {
     const r = await (
-      await call("resources/read", { uri: "ui://openpikzels/studio.html" })
+      await call("resources/read", { uri: "ui://openpikzels/analysis.html" })
     ).json();
     const content = r.result.contents[0];
     expect(content.mimeType).toBe("text/html;profile=mcp-app");
-    expect(content.text).toContain("Fix prompt for ChatGPT");
+    expect(content.text).toContain("What's holding it back");
+    expect(content.text).toContain("Improved prompt to iterate");
+    expect(content.text).not.toContain("Resize to vertical");
     expect(content.text).toContain("ui/initialize");
     expect(content._meta.ui.csp.connectDomains).toEqual([]);
     expect(content.text).not.toMatch(/<script[^>]+src=/);

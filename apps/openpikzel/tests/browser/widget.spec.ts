@@ -1,131 +1,74 @@
 import { test, expect } from "@playwright/test";
 import { widgetHtml } from "../../src/lib/widget.generated";
-test("MCP Apps iframe bridge shows creations, scores and clears hidden selection", async ({
-  page,
-}) => {
+
+// Drives the real widget through the MCP Apps postMessage bridge, as ChatGPT would.
+test("MCP analysis card renders a tool result, asks ChatGPT to iterate, and fixes with OpenPikzels", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByLabel("Describe your thumbnail", { exact: true })).toBeEnabled();
   await page.evaluate((html) => {
-    const calls: string[] = [];
-    (window as any).widgetCalls = calls;
-    const score = {
-      overall: 70,
-      dimensions: Object.fromEntries(
-        ["virality", "clarity", "idea", "curiosity", "emotion"].map((p) => [
-          p,
-          {
-            score: 70,
-            observation: "One visible focal subject.",
-            fix: "Simplify competing background details.",
-          },
-        ]),
-      ),
+    const w = window as any;
+    w.hostLog = { calls: [] as string[], messages: [] as string[], context: [] as string[] };
+    const dims = { virality: 58, clarity: 81, idea: 55, curiosity: 44, emotion: 72 } as Record<string, number>;
+    const score = (overall: number) => ({
+      overall,
+      priority: "curiosity",
+      title: "Petro dejó perder los Panamericanos",
+      dimensions: Object.fromEntries(Object.entries(dims).map(([p, s]) => [p, { score: s, observation: `${p} observation`, strength: `${p} strength`, weakness: `${p} weakness`, fix: `${p} fix` }])),
+    });
+    const analysis = {
+      creationId: "11111111-1111-4111-8111-111111111111",
+      score: score(62),
+      reviewer: "Claude",
+      fix: { kind: "ready", token: "plan-token", prompt: "Edit the attached thumbnail.\n1. curiosity (44/100): curiosity fix" },
+      previewUrl: null,
     };
+    let frame: HTMLIFrameElement;
+    const send = (msg: unknown) => frame.contentWindow!.postMessage(msg, "*");
     window.addEventListener("message", (event) => {
       const m = event.data;
       if (!m || m.jsonrpc !== "2.0") return;
-      if (m.method === "ui/notifications/size-changed") {
-        const frame = document.querySelector("#mcp-test") as HTMLIFrameElement;
-        if (frame)
-          frame.style.height = Math.max(1000, m.params.height + 30) + "px";
+      if (m.method === "ui/notifications/size-changed") { frame.style.height = Math.max(900, m.params.height + 30) + "px"; return; }
+      if (m.method === "ui/notifications/initialized") {
+        send({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { content: [{ type: "text", text: "scored" }], structuredContent: analysis } });
         return;
       }
       if (m.id === undefined) return;
-      let result: any;
-      if (m.method === "ui/initialize")
-        result = {
-          protocolVersion: m.params.protocolVersion,
-          hostInfo: { name: "Test MCP host", version: "1" },
-          hostCapabilities: { serverTools: {} },
-          hostContext: { theme: "dark" },
-        };
+      let result: any = {};
+      if (m.method === "ui/initialize") result = { protocolVersion: m.params.protocolVersion, hostInfo: { name: "Test host", version: "1" }, hostCapabilities: { serverTools: {} }, hostContext: { theme: "dark" } };
+      else if (m.method === "ui/message") w.hostLog.messages.push(m.params.content[0].text);
+      else if (m.method === "ui/update-model-context") w.hostLog.context.push(m.params.content?.[0]?.text || "");
       else if (m.method === "tools/call") {
-        calls.push(m.params.name);
-        const c = {
-          id: "11111111-1111-4111-8111-111111111111",
-          title: "I spent 30 days offline",
-          status: "ready",
-          score,
-        };
-        let data: any = {};
-        if (m.params.name === "list_creations") data = { creations: [c] };
-        if (m.params.name === "get_creation") data = { creation: c };
-        if (m.params.name === "list_profiles")
-          data = {
-            profiles: [
-              {
-                id: "22222222-2222-4222-8222-222222222222",
-                name: "Creator reference",
-              },
-            ],
-            kind: "persona",
-          };
-        if (m.params.name === "get_profile")
-          data = { profile: { name: "Creator reference" }, pictures: [] };
-        if (m.params.name === "get_fix_prompt")
-          data = {
-            prompt: "Edit the original thumbnail. Simplify background details.",
-          };
-        if (m.params.name === "create_fix_plan")
-          data = {
-            kind: "blocked",
-            reason:
-              "Add factual context and vision critique before an API fix.",
-          };
-        result = {
-          content: [{ type: "text", text: JSON.stringify(data) }],
-          structuredContent: data,
-        };
-      } else result = {};
-      (event.source as Window)?.postMessage(
-        { jsonrpc: "2.0", id: m.id, result },
-        "*",
-      );
+        w.hostLog.calls.push(m.params.name + ":" + JSON.stringify(m.params.arguments));
+        const data = { ...analysis, before: 62, after: 74, delta: 12, score: score(74), creation: { id: "22222222-2222-4222-8222-222222222222", title: "Petro dejó perder los Panamericanos" } };
+        result = { content: [{ type: "text", text: "fixed" }], structuredContent: data };
+      }
+      send({ jsonrpc: "2.0", id: m.id, result });
     });
     document.body.replaceChildren();
-    const iframe = document.createElement("iframe");
-    iframe.id = "mcp-test";
-    iframe.style.cssText = "width:100%;height:1500px;border:0";
-    iframe.srcdoc = html;
-    document.body.append(iframe);
+    frame = document.createElement("iframe");
+    frame.id = "mcp-test";
+    frame.style.cssText = "width:100%;height:1500px;border:0";
+    frame.srcdoc = html;
+    document.body.append(frame);
   }, widgetHtml);
+
   const widget = page.frameLocator("#mcp-test");
-  await expect(widget.getByRole("status")).toContainText("Connected.");
-  await widget.getByRole("button", { name: "My creations" }).click();
-  await widget
-    .getByRole("button", { name: "I spent 30 days offline ready" })
-    .click();
-  await expect(
-    widget.getByRole("heading", { name: "Pixel score · 70/100" }),
-  ).toBeVisible();
-  await widget.getByRole("button", { name: "Fix prompt for ChatGPT" }).click();
-  await expect(widget.getByLabel("Copyable improvement prompt")).toHaveValue(
-    /Simplify/,
-  );
-  await widget
-    .getByRole("button", { name: "Fix with my API", exact: true })
-    .click();
-  await expect(widget.getByRole("status")).toHaveText(
-    "Add factual context and vision critique before an API fix.",
-  );
-  await page.screenshot({
-    path: "evidence/openpikzels-mcp-widget.png",
-    fullPage: true,
-  });
-  await widget.getByRole("button", { name: "Personas", exact: true }).click();
-  await widget.getByRole("button", { name: "Resize to vertical" }).click();
-  await expect(widget.getByRole("status")).toHaveText(
-    "Choose a thumbnail first.",
-  );
-  expect(await page.evaluate(() => (window as any).widgetCalls)).not.toContain(
-    "resize_thumbnail",
-  );
+  await expect(widget.getByRole("img", { name: "Overall score 62 out of 100" })).toBeVisible();
+  await expect(widget.getByText("What's holding it back")).toBeVisible();
+  await expect(widget.getByText("curiosity weakness").first()).toBeVisible();
+  await expect(widget.getByText("Improved prompt to iterate")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).hostLog.context.join("\n"))).toContain("62");
+
+  await widget.getByRole("button", { name: "Generate improved version in ChatGPT" }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).hostLog.messages[0] || "")).toContain("curiosity fix");
+
+  await widget.getByRole("button", { name: /Fix it with OpenPikzels/ }).click();
+  await expect(widget.getByRole("img", { name: "Overall score 74 out of 100" })).toBeVisible();
+  const calls: string[] = await page.evaluate(() => (window as any).hostLog.calls);
+  expect(calls[0]).toMatch(/^one_click_fix:.*"planToken":"plan-token".*"rescore":true/);
+  await page.screenshot({ path: "evidence/openpikzels-mcp-widget.png", fullPage: true });
+
   await page.setViewportSize({ width: 390, height: 844 });
-  expect(
-    await widget.locator("body").evaluate((e) => e.scrollWidth),
-  ).toBeLessThanOrEqual(390);
-  await page.screenshot({
-    path: "evidence/openpikzels-mcp-widget-mobile.png",
-    fullPage: true,
-  });
+  expect(await widget.locator("body").evaluate((e) => e.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: "evidence/openpikzels-mcp-widget-mobile.png", fullPage: true });
 });
