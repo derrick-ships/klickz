@@ -114,8 +114,8 @@ test('private style rename rejects short names, cancel writes nothing, public pr
  await page.getByRole('button',{name:'Save name',exact:true}).click();
  await expect(row(page,'Neon Diner Night')).toHaveCount(1);
  expect((await readLocal(page,'styles')).find(s=>s.id==='s-neon')).toEqual({...before.find(s=>s.id==='s-neon'),name:'Neon Diner Night'});
- await page.getByRole('button',{name:'Public',exact:true}).click();
- await expect(page.locator('.public-styles > button').first()).toBeVisible();
+ await page.getByRole('button',{name:'Library',exact:true}).click();
+ await expect(page.locator('.style-library-card').first()).toBeVisible();
  await expect(page.getByRole('button',{name:/^Rename /})).toHaveCount(0);
 });
 

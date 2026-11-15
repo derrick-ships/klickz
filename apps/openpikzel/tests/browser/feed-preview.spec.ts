@@ -16,7 +16,7 @@ test("Browse and Suggested simulate YouTube placements and grayscale is preview-
   for(const placement of ["Browse","Suggested"]){
    await page.getByRole("button",{name:placement,exact:true}).click();
    await expect(preview).toHaveAttribute("data-placement",placement.toLowerCase());
-   await expect(page.getByRole("button",{name:placement,exact:true})).toHaveCSS("background-color","rgb(53, 24, 29)");
+   await expect(page.getByRole("button",{name:placement,exact:true})).toHaveAttribute("aria-pressed","true");
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
    await expect.poll(()=>preview.locator(".youtube-preview-thumbnail").evaluate(el=>getComputedStyle(el).filter)).toBe("grayscale(1)");
    await preview.scrollIntoViewIfNeeded();await page.screenshot({path:"evidence/feed-"+placement.toLowerCase()+"-"+width+".png"});

@@ -1,3 +1,4 @@
+import type { Evaluation } from "@/lib/types";
 import { currentModelPreferences } from "@/lib/model-preferences";
 import {
   authenticated,
@@ -35,13 +36,18 @@ async function handle(request: Request) {
     if (id) {
       const r = await db
         .from("studio_creations")
-        .select("image_path")
+        .select("image_path,score")
         .eq("id", id)
         .eq("user_id", user.id)
         .single();
       if (r.error || !r.data?.image_path)
         throw new AppError(404, "Choose an uploaded or generated thumbnail.");
       path = r.data.image_path;
+      // Same image, same title, same video and a full review already on file: return it. A score
+      // shouldn't wander between identical runs, and an unchanged thumbnail shouldn't cost again.
+      const saved = r.data.score as Evaluation | null;
+      const sameRun = saved && !input.rescore && saved.title === (input.title || saved.title) && (saved.videoEvidence?.url || "") === (input.videoUrl || "") && (!input.includeVision || saved.vision) && saved.overall !== null;
+      if (sameRun) return Response.json({ score: saved, creationId: id, jobId: input.requestId, reused: true });
     }
     if (!path) throw new AppError(400, "Choose a thumbnail.");
     const image = await ownedAsset(db, user.id, path),

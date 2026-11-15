@@ -3,8 +3,9 @@ import {useEffect,useLayoutEffect,useState,useRef,type CSSProperties} from "reac
 import {scanCounter} from "@/lib/analysis-display";
 import type {DeliveryState} from "@/lib/generation-delivery";
 import {deliveryCopy} from "@/lib/score-on-generate";
+import {ScoreBadge} from "@/components/creative/score-badge";
 /** A delivered image as the card shows it in the slot the placeholder held. `src` is missing until its signed URL exists. */
-export type DeliveredImage={id:string;src?:string;alt:string};
+export type DeliveredImage={id:string;src?:string;alt:string;score?:import("@/lib/types").Evaluation|null;scoring?:boolean};
 // Delivered images that already revealed in this slot: a remount or a refreshed URL shows them still (never a replay).
 const revealed=new Set<string>();
 // `hold`: the placeholder is still fading over this slot. A loaded image waits, hidden, until it has gone, so the reveal
@@ -19,6 +20,7 @@ function DeliveredTile({image,index,hold}:{image:DeliveredImage;index:number;hol
  useLayoutEffect(()=>{if(ref.current?.complete&&ref.current.src)settle(ref.current);},[image.src,hold]);
  if(!image.src)return <div className="delivery-tile" data-load="loading"/>;
  return <div className="delivery-tile" data-load={phase==="failed"?"failed":undefined}>
+  {phase!=="pending"&&<ScoreBadge score={image.score} pending={!image.score&&image.scoring}/>}
   <img key={image.src} ref={ref} src={image.src} alt={image.alt} className={phase==="pending"?"delivery-reveal-pending":phase==="running"?"delivery-reveal":undefined}
    style={phase==="running"?{"--i":index} as CSSProperties:undefined}
    onLoad={event=>settle(event.currentTarget)} onError={event=>{if(event.currentTarget===ref.current)setPhase("failed");}}
@@ -51,7 +53,7 @@ export function GenerationDelivery({state,portrait,images=[]}:{state:DeliverySta
  const {label,detail}=deliveryCopy(state,elapsed);
  return <section ref={region} className={"generation-delivery "+(!active?"delivery-compact":"")} aria-label="Thumbnail delivery" data-stage={state.stage}>
   {(generating||leaving||tray)&&<div className="delivery-slot">
-   {tray&&<div className={"delivery-result "+(portrait?"portrait":"")} data-count={Math.min(images.length,4)}>{images.slice(0,4).map((image,index)=><DeliveredTile key={image.id} image={image} index={index} hold={leaving}/>)}</div>}
+   {tray&&<div className={"delivery-result "+(portrait?"portrait":"")} data-count={Math.min(images.length,16)}>{images.slice(0,16).map((image,index)=><DeliveredTile key={image.id} image={image} index={index} hold={leaving}/>)}</div>}
    {(generating||leaving)&&<div ref={placeholder} className={"delivery-placeholder "+(portrait?"portrait":"")+(leaving?" leaving":"")} aria-hidden={leaving||undefined} onAnimationEnd={event=>{if(event.animationName==="delivery-exit")setLeaving(false);}}><div className="delivery-light" aria-hidden="true"/><span className="delivery-brand">OpenPikzels<span>✦</span></span><span className="delivery-count" aria-hidden="true">{counter}<small>/100</small></span></div>}
   </div>}
   <div className="delivery-caption"><strong role="status">{label}</strong><p>{detail}</p>

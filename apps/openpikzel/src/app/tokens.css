@@ -15,18 +15,27 @@
   --color-panel-inset: #ffffff0b;
   --color-chip-light: #ffffff09;
   --color-shortcut-fill: #ffffff05;
-  --color-accent-edge: #fb6572;
-  --color-input-focus-edge: #eb53614d;
-  --color-progress-accent: #e14a58;
-  --color-generate-outline: #df535e70;
-  --color-accent-aura: #df1c2c29;
-  --color-generate-shadow: #df1c2c26;
-  --color-accent-lit: #d92436;
+  /* Accent ramp: one hue (OKLCH h≈25), chroma at ~92% of sRGB max per step. Every red below is a step of it. */
+  --accent-950: #300204;
+  --accent-900: #4d060a;
+  --accent-800: #740e14;
+  --accent-700: #a71921;
+  --accent-600: #c9202a;
+  --accent-500: #e82732;
+  --accent-400: #f85c59;
+  --accent-300: #fa8e86;
+  --color-accent-edge: var(--accent-400);
+  --color-input-focus-edge: color-mix(in oklab, var(--accent-400) 32%, transparent);
+  --color-progress-accent: var(--accent-500);
+  --color-generate-outline: color-mix(in oklab, var(--accent-300) 28%, transparent);
+  --color-accent-aura: color-mix(in oklab, var(--accent-500) 22%, transparent);
+  --color-generate-shadow: color-mix(in oklab, var(--accent-500) 30%, transparent);
+  --color-accent-lit: var(--accent-600);
   --color-control-muted: #c6c6ca;
-  --color-accent-shade: #ba1426;
+  --color-accent-shade: var(--accent-700);
   --color-placeholder: #a2a2aa;
-  --color-accent-recess: #780a2259;
-  --color-generate-divider: #6c0a1899;
+  --color-accent-recess: color-mix(in oklab, var(--accent-800) 35%, transparent);
+  --color-generate-divider: color-mix(in oklab, var(--accent-800) 60%, transparent);
   --color-hover-edge: #69696d;
   --color-select-edge: #68686b;
   --color-dialog-edge: #515154;
@@ -74,15 +83,15 @@
   --color-ink: #f4f4f4;
   --color-muted: #b3b3b3;
   --color-dim: #999999;
-  --color-accent: #df1c2c;
-  --color-accent-hover: #c91928;
-  --color-accent-soft: #34191b;
+  --color-accent: var(--accent-600);
+  --color-accent-hover: color-mix(in oklab, var(--accent-600), var(--accent-700));
+  --color-accent-soft: color-mix(in oklab, var(--accent-900) 45%, var(--color-ground));
   --color-accent-ink: #fff9f9;
   --color-danger: #ff9297;
   --color-success: #b2d9b9;
   --color-overlay: #00000099;
   --color-shadow: #00000059;
-  --color-focus: #ff868d;
+  --color-focus: var(--accent-300);
   --font-body:
     "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;

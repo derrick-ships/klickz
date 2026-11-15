@@ -1,15 +1,18 @@
 "use client";
+import type React from "react";
 import { useEffect, useState } from "react";
 import { checkImage, verdicts, type FeedCheck } from "@/lib/feed-check";
 import { RefreshCw, ScanLine, MoreVertical, Play, Check, AlertTriangle } from "lucide-react";
 import { RevealImage } from "@/components/creative/image-reveal";
 import type { Arrival } from "@/lib/image-reveal";
 
-export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId, arrival, uploaded }: {
+export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId, arrival, uploaded, badge }: {
   src: string; title: string; feed: boolean; portrait: boolean;
   onRefresh: () => Promise<unknown>;
   // OP-10: which creation this is and whether it arrived this session (see createArrivals).
   creationId: string; arrival: Arrival | null; uploaded: boolean;
+  /** Score shown on the image (hidden in the feed preview, which simulates YouTube). */
+  badge?: React.ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
@@ -24,6 +27,7 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
   const morph=(update:()=>void)=>{const d=document as Document&{startViewTransition?:(cb:()=>void)=>unknown};if(d.startViewTransition&&!matchMedia("(prefers-reduced-motion: reduce)").matches)d.startViewTransition(update);else update();};
   const image = <div className={`result-image ${feed ? "phone-preview" : ""} ${portrait ? "portrait" : ""}`}>
     {!size && <span className="review-preview-loading" role="status">Loading image…</span>}
+    {!feed && size && badge}
     <RevealImage key={src} surface="canvas" creationId={creationId} arrival={arrival} uploaded={uploaded} src={src} alt={title}
       width={size?.width ?? (portrait ? 720 : 1280)} height={size?.height ?? (portrait ? 1280 : 720)}
       onLoad={event=>setSize({width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight})}

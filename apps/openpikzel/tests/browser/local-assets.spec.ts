@@ -8,10 +8,10 @@ async function upload(page:any){
  await page.getByLabel('Upload thumbnail references').setInputFiles('public/brand/signal.webp');
  await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();
 }
-test('local uploaded images survive reload and export as real PNG files',async({page})=>{
+test('local uploaded images survive reload and download as YouTube-ready JPEG under 2 MB',async({page})=>{
  await upload(page);await page.reload();await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();
  const downloading=page.waitForEvent('download');await page.getByRole('button',{name: "Download image",exact:true}).click();const download=await downloading;const bytes=await readFile((await download.path())!);const metadata=await sharp(bytes).metadata();
- expect(metadata.format).toBe('png');expect(metadata.width).toBeGreaterThan(100);expect(metadata.height).toBeGreaterThan(100);
+ expect(metadata.format).toBe('jpeg');expect(bytes.length).toBeLessThan(2*1024*1024);expect(metadata.width).toBeGreaterThan(100);expect(metadata.height).toBeGreaterThan(100);
  const storage=await page.evaluate(()=>new Promise<any>((resolve,reject)=>{const r=indexedDB.open('derrick-thumbnail-studio');r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,tx=db.transaction('assets'),q=tx.objectStore('assets').getAll();q.onsuccess=()=>resolve(q.result.map(a=>({bytes:a.bytes instanceof ArrayBuffer,hasBlob:a.blob instanceof Blob,mime:a.mime})));tx.oncomplete=()=>db.close();};}));
  expect(storage.length).toBeGreaterThan(0);expect(storage.every((a:any)=>a.bytes&&!a.hasBlob&&a.mime==='image/png')).toBe(true);
 });
@@ -20,5 +20,5 @@ test('existing Blob asset records remain readable without migration',async({page
  await upload(page);
  await page.evaluate(()=>new Promise<void>((resolve,reject)=>{const r=indexedDB.open('derrick-thumbnail-studio');r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,tx=db.transaction('assets','readwrite'),store=tx.objectStore('assets'),q=store.getAll();q.onsuccess=()=>{for(const a of q.result)store.put({id:a.id,blob:new Blob([a.bytes],{type:a.mime})});};tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);};}));
  await page.reload();await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();
- const downloading=page.waitForEvent('download');await page.getByRole('button',{name: "Download image",exact:true}).click();const bytes=await readFile((await(await downloading).path())!);expect((await sharp(bytes).metadata()).format).toBe('png');
+ const downloading=page.waitForEvent('download');await page.getByRole('button',{name: "Download image",exact:true}).click();const bytes=await readFile((await(await downloading).path())!);expect((await sharp(bytes).metadata()).format).toBe('jpeg');
 });

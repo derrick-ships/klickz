@@ -55,7 +55,7 @@ import {
 } from "lucide-react";
 import type { FixPlan } from "@/lib/diagnostics";
 import {AccountSignIn} from "@/components/account/sign-in";
-import {publicStyles} from "@/lib/workspaces";
+import {libraryStyle, styleLibrary} from "@/lib/style-library";
 import { PixelConfirmation } from "@/components/pixel-confirmation";
 import { imageModel } from "@/lib/image-models";
 import { AnalysisScanner } from "@/components/creative/analysis-scanner";
@@ -63,6 +63,7 @@ import { ScoreAnnouncer, ScoreNumber, useScoreArrival, useScoreReveal } from "@/
 import { revealKey } from "@/lib/score-count";
 import { recomposePrompt, type ScanPhase } from "@/lib/analysis-display";
 import { ReviewCanvas } from "@/components/review-canvas";
+import { ScoreBadge } from "@/components/creative/score-badge";
 import { needsImageReview } from "@/lib/score-on-generate";
 import { MediatorDetails } from "@/components/creative/mediator-details";
 import { RevealImage, setRevealOwner } from "@/components/creative/image-reveal";
@@ -176,6 +177,7 @@ export default function Studio() {
     [password, setPassword] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [creativeDraft,setCreativeDraft]=useState<CreativeDraft>({}),[delivery,setDelivery]=useState<DeliveryState|null>(null),[reviewStatuses,setReviewStatuses]=useState<Record<string,ReviewStatus>>({});
+  const videoUrlOwner=useRef<string|null>(null);
   const deliveryAttempt=useRef(0),selectedIdRef=useRef<string|null>(null),scoreIntent=useRef<Record<string,{title:string;includeVision:boolean;videoUrl:string;critiqueProvider:ReturnType<typeof scorePlan>["critiqueProvider"]}>>({}),oneClickInFlight=useRef<Promise<unknown>|null>(null);selectedIdRef.current=selection;
   const [analysisScan, setAnalysisScan] = useState<{id:number;src:string;phase:ScanPhase;reviewer:string}|null>(null);
   const scanAttempt = useRef(0);
@@ -225,7 +227,7 @@ export default function Studio() {
   const newestBatch = Math.max(0, ...studio.creations.map((c) => arrivals.arrival(c.id)?.batch ?? 0));
   const deliveredImages = newestBatch ? studio.creations.filter((c) => arrivals.arrival(c.id)?.batch === newestBatch)
     .sort((a, b) => arrivals.arrival(a.id)!.index - arrivals.arrival(b.id)!.index)
-    .map((c) => ({ id: c.id, src: (c.image_path && studio.images[c.image_path]) || undefined, alt: c.title })) : [];
+    .map((c) => ({ id: c.id, src: (c.image_path && studio.images[c.image_path]) || undefined, alt: c.title, score: c.score, scoring: reviewStatuses[c.id] === "pending" })) : [];
   const selected = studio.creations.find((c) => c.id === selection) || null;
   const fixReview = (selection && fixReviews[selection]) || null;
   function setFixReview(value: (typeof fixReviews)[string] | null, id = selection) {
@@ -241,6 +243,7 @@ export default function Studio() {
   const editSource = selected?.image_path ? selected : studio.creations.find(c=>c.id===(selected?.parent_id || parentId) && !!c.image_path) || null,
     persona = studio.personas.find((p) => p.id === personaId),
     styleProfile = studio.styles.find((s) => s.id === styleId),
+    libraryChoice = preset.startsWith("library:") ? libraryStyle(preset.slice(8)) : null,
     score =
       selected?.score && [2, 3].includes(selected.score.version)
         ? selected.score
@@ -499,6 +502,8 @@ export default function Studio() {
       await studio.load();
     });
   }
+  // A YouTube link describes one thumbnail: forget it when a different thumbnail is selected.
+  useEffect(() => { if (videoUrl && videoUrlOwner.current && selection && selection !== videoUrlOwner.current) { setVideoUrl(""); videoUrlOwner.current = null; } }, [selection, videoUrl]);
   async function importLink(link: string = url) {
     const source = link.trim();
     if (!source) return;
@@ -518,6 +523,7 @@ export default function Studio() {
           (title.trim() || videoTitle || "Imported thumbnail"),
           (await ensureChat()).id,
         );
+        if (isYouTube && tool === "analyze") videoUrlOwner.current = item.id;
         setSelection(item.id);
         setComposerOpen(true);
       }
@@ -534,7 +540,8 @@ export default function Studio() {
       prompt: text.trim(),
       title,
       mode,
-      style: styleProfile?.name || preset,
+      style: styleProfile?.name || libraryChoice?.name || preset,
+      libraryStyleId: !styleProfile && libraryChoice ? libraryChoice.id : null,
       personaId: personaId || null,
       styleId: styleId || null,
       parentId:
@@ -548,11 +555,23 @@ export default function Studio() {
     };
   }
 
+  // 8× and 16× run as parallel requests of up to 4 images; each knows its place in the set so the
+  // mediator varies placement, background, emphasis and emotion across all of them.
+  async function generateInChunks(input:any){
+    const total=Number(input.settings?.batch)||1;
+    if(total<=4)return studio.generate({...input,variationOffset:0,variationTotal:total});
+    const chunks=Array.from({length:Math.ceil(total/4)},(_,i)=>({...input,settings:{...input.settings,batch:Math.min(4,total-i*4)},variationOffset:i*4,variationTotal:total,requestId:crypto.randomUUID()}));
+    const results=await Promise.allSettled(chunks.map(chunk=>studio.generateChunk(chunk)));
+    const creations=results.flatMap(r=>r.status==="fulfilled"?r.value.creations:[]);
+    if(!creations.length){const first=results.find(r=>r.status==="rejected") as PromiseRejectedResult|undefined;throw first?.reason??new Error("The batch did not finish.");}
+    await studio.load();
+    return {creations,partial:creations.length<total};
+  }
   async function createReviewed(input:any,onImages:(result:{creations:Creation[];partial:boolean})=>void|Promise<void>){
     const plan=scorePlan(studio.config),owner=studio.user,epoch=workspaceEpoch.current,id=++deliveryAttempt.current;
     setReviewStatuses({});
     return deliverImages({
-      generate:()=>studio.generate(input),current:()=>ownerUI.current===owner&&workspaceEpoch.current===epoch,
+      generate:()=>generateInChunks(input),current:()=>ownerUI.current===owner&&workspaceEpoch.current===epoch,
       onImages,onStage:(stage,reviewed,total)=>setDelivery({id,stage,reviewed,total,message:""}),
       ...(plan.review?{review:(item:Creation)=>{const intent={title:input.title||"",includeVision:plan.includeVision,videoUrl,critiqueProvider:plan.critiqueProvider};scoreIntent.current[item.id]=intent;return studio.analyze(item,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined);},onReview:(itemId,status)=>setReviewStatuses(current=>({...current,[itemId]:status})),holdMs:45_000}:{}),
     });
@@ -903,6 +922,8 @@ export default function Studio() {
                               <option value={1}>1×</option>
                               <option value={2}>2×</option>
                               <option value={4}>4×</option>
+                              <option value={8}>8×</option>
+                              <option value={16}>16×</option>
                             </select>
                           </label>
                         )}
@@ -965,7 +986,7 @@ export default function Studio() {
                   <div className="review-layout"><div className="review-media">
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
-                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.title || selected.title} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} uploaded={selected.lineage?.origin === "uploaded"} />
+                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.title || selected.title} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"}/>} uploaded={selected.lineage?.origin === "uploaded"} />
                       <div className="result-actions">
                         <button
                           className="primary-button download-button"
@@ -1598,6 +1619,7 @@ export default function Studio() {
                             </div>
                           ))}
                           {persona && <div className="selection-chip-group"><button className="selection-chip" onClick={()=>openProfiles("personas")} aria-label={"Change persona: "+persona.name}>{studio.images[persona.refs[0]]&&<img src={studio.images[persona.refs[0]]} alt=""/>}<span className="selection-name">{persona.name}</span></button><button className="selection-remove" aria-label={"Remove persona: "+persona.name} onClick={()=>{setPersonaId("");document.querySelector<HTMLButtonElement>('.composer-tool-group button')?.focus();}}><X size={14}/></button></div>}
+                          {!styleProfile && libraryChoice && <div className="selection-chip-group"><button className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+libraryChoice.name}><img src={libraryChoice.images[0]} alt=""/><span className="selection-name">{libraryChoice.name}</span></button><button className="selection-remove" aria-label={"Remove style: "+libraryChoice.name} onClick={()=>setPreset("Auto")}><X size={11}/></button></div>}
                           {styleProfile && <div className="selection-chip-group"><button className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+styleProfile.name}><Palette size={13}/><span className="selection-name">{styleProfile.name}</span></button><button className="selection-remove" aria-label={"Remove style: "+styleProfile.name} onClick={()=>{setStyleId("");document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[1]?.focus();}}><X size={14}/></button></div>}
                         </div>
                         {tool === "generate" && (
@@ -1685,7 +1707,7 @@ export default function Studio() {
                         )}
                         <details className="more-options" open={advanced} onToggle={e=>setAdvanced((e.currentTarget as HTMLDetailsElement).open)}><summary>More options</summary>
                           <div className="more-options-body">
-                            <section className="option-group" aria-label="Look"><h3>Look</h3><div className="public-style-chips" role="group" aria-label="Quick styles">{publicStyles.map(style=><button type="button" className="tool-chip" key={style.name} aria-label={style.name+" style"} aria-pressed={!styleId&&preset===style.name} onClick={()=>{setPreset(style.name);setStyleId("");}}>{style.name}</button>)}</div></section>
+                            <section className="option-group" aria-label="Look"><h3>Look</h3><div className="public-style-chips" role="group" aria-label="Style library">{styleLibrary.map(style=><button type="button" className="tool-chip" key={style.id} aria-label={style.name+" style"} aria-pressed={!styleId&&preset==="library:"+style.id} onClick={()=>{setPreset(preset==="library:"+style.id?"Auto":"library:"+style.id);setStyleId("");}}>{style.name}</button>)}</div></section>
                             
                             {!["recreate","edit","analyze"].includes(tool)&&<section className="option-group" aria-label="More image sources"><h3>More image sources</h3><div className="composer-tool-group" role="group" aria-label="More image sources">
                           <button
@@ -2233,7 +2255,7 @@ export default function Studio() {
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <RevealImage surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} alt={item.title} />
+            <><RevealImage surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} alt={item.title} /><ScoreBadge score={item.score}/></>
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />

@@ -440,6 +440,15 @@ export function useStudio() {
     pendingRequest.current = null;
     return result as { creations: Creation[]; partial: boolean };
   }
+  /** One chunk of a large batch: its own request id, no shared retry fingerprint. */
+  async function generateChunk(input: Record<string, unknown>) {
+    const epoch = ownerEpoch.current;
+    requireLive();
+    const result = await api("/api/generate", input);
+    if (epoch !== ownerEpoch.current) throw new Error("Your account changed. Check the original account for the result.");
+    if (result.creations?.[0]) await rememberCreation(result.creations[0]);
+    return result as { creations: Creation[]; partial: boolean };
+  }
   async function analyze(
     item: Creation,
     title: string,
@@ -715,13 +724,29 @@ export function useStudio() {
     await load();
     ensureCurrentOwner();
   }
+  /** YouTube's mobile upload limit is 2 MB: export 1280×720 (or 720×1280) JPEG, lowering quality until it fits. */
+  async function youtubeReady(source: Blob, portrait: boolean) {
+    const bitmap = await createImageBitmap(source);
+    const [w, h] = portrait ? [720, 1280] : [1280, 720];
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d")!;
+    const scale = Math.max(w / bitmap.width, h / bitmap.height);
+    ctx.drawImage(bitmap, (w - bitmap.width * scale) / 2, (h - bitmap.height * scale) / 2, bitmap.width * scale, bitmap.height * scale);
+    bitmap.close();
+    for (const quality of [0.92, 0.86, 0.8, 0.72, 0.64]) {
+      const out = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", quality));
+      if (out && out.size < 2 * 1024 * 1024) return out;
+    }
+    throw new Error("This image couldn't be made smaller than 2 MB.");
+  }
   async function download(item: Creation) {
     if (!item.image_path)
       throw new Error("This draft has no image yet. Choose Generate before downloading.");
-    const url = URL.createObjectURL(await blob(item.image_path));
+    const url = URL.createObjectURL(await youtubeReady(await blob(item.image_path), item.settings?.format === "short"));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `openpikzel-${item.id}.png`;
+    link.download = `openpikzel-${item.id}.jpg`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -759,6 +784,7 @@ export function useStudio() {
     saveDraft,
     saveUploaded,
     generate,
+    generateChunk,
     analyze,
     oneClickFix,
     saveProfile,
