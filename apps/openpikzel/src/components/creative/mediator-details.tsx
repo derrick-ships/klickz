@@ -16,8 +16,8 @@ export function MediatorDetails({ record }: { record: MediatorRecord }) {
         <dt>Text on the image</dt><dd>{e.imageText.length ? e.imageText.map((t) => `“${t}”`).join(" / ") : "None"}</dd>
         <dt>Panels</dt><dd>{e.panels}</dd>
         {e.decisions.length > 0 && <><dt>Decided for you</dt><dd><ul>{e.decisions.map((d) => <li key={d}>{d}</li>)}</ul></dd></>}
-        <dt>Do</dt><dd><ul>{e.dos.map((d) => <li key={d.rule}>{d.rule} <small>({d.source})</small></li>)}</ul></dd>
-        <dt>Don’t</dt><dd><ul>{e.donts.map((d) => <li key={d.rule}>{d.rule} <small>({d.source})</small></li>)}</ul></dd>
+        <dt>Do</dt><dd><ul>{e.dos.map((d) => <li key={d.rule}>{d.rule}</li>)}</ul></dd>
+        <dt>Don’t</dt><dd><ul>{e.donts.map((d) => <li key={d.rule}>{d.rule}</li>)}</ul></dd>
       </dl>
       <details className="mediator-sent">
         <summary>Exact prompt sent to the image model</summary>

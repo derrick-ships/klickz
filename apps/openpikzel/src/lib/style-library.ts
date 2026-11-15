@@ -5,6 +5,14 @@ export type LibraryStyle = { id: string; name: string; category: "documentary" |
 export const styleCategories = ["documentary", "review", "entertainment", "education"] as const;
 export const styleLibrary: LibraryStyle[] = [
  {
+  "id": "house-political-news",
+  "name": "House: Political news",
+  "category": "documentary",
+  "description": "Documentary look with a teal-to-orange gradient and strong vignette, the real photo of the subject cut out and rim-lit on one side, two lines of ALL CAPS condensed text (yellow on top, white below) on the opposite side, red only on ¿ ?, a red play badge top-left, one faint context object, no date, no logo, no extra text.",
+  "images": ["/styles/house-political-news-1.webp"],
+  "source": null
+ },
+ {
   "id": "captured",
   "name": "Captured",
   "category": "documentary",
