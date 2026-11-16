@@ -58,11 +58,14 @@ describe("original evidence-based diagnostic and fix compiler", () => {
       preview,
       true,
     );
-    expect(partial.overall).toBeNull();
+    // Approved 16 Nov: no title still gets a full score (Idea/Curiosity judged from the image alone).
+    expect(partial.overall).toBe(0);
     expect(partial.dimensions.clarity.score).toBe(0);
-    expect(partial.dimensions.idea.score).toBeNull();
-    expect(partial.dimensions.curiosity.missingReason).toBeTruthy();
-    expect(partial.fixBlocked).toBe(true);
+    expect(partial.dimensions.idea.score).toBe(0);
+    const missing = enrichDiagnostic(parseScores({ answers: { virality: { score: 1, confidence: 1 } } }), image, "", { ...context, videoBrief: "" }, preview, true);
+    expect(missing.overall).toBeNull();
+    expect(missing.dimensions.idea.missingReason).toBeTruthy();
+    expect(missing.fixBlocked).toBe(true);
   });
   it("creates an actual small derivative without stretching the source", async () => {
     const b = await sharp({

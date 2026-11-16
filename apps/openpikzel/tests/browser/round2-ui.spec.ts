@@ -193,3 +193,33 @@ for (const width of [320, 390]) {
     await page.screenshot({ path: `evidence/round2-styles-${width}.png` });
   });
 }
+
+
+test("a generated image always ends with a score: a failed score retries with a fresh request, a fallback score says who scored", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const fixture = await setup(page, { generateDelayMs: 200 });
+  const ids: string[] = [];
+  await page.route("**/api/analyze", async r => {
+    const input = r.request().postDataJSON(); ids.push(input.requestId);
+    if (ids.length === 1) return r.fulfill({ status: 502, json: { error: "No scorer could score this thumbnail. Jev returned an error (529).", jobState: "failed" } });
+    const item = fixture.creations.find(c => c.id === input.creationId);
+    const s = { ...score(73, input.title), scoring: { route: [{ scorer: "jev", outcome: "failed", reason: "Jev returned an error (529)." }, { scorer: "openai", outcome: "scored" }], model: "gpt-6-luna" },
+      contributors: [{ provider: "OpenAI Decisions API", model: "gpt-6-luna", role: "scoring" }] };
+    if (item) item.score = s;
+    return r.fulfill({ json: { score: s, creationId: input.creationId } });
+  });
+  await page.goto("/");
+  await openComposer(page);
+  await page.locator("#thumbnail-prompt").fill("A factual fixture thumbnail with one clear subject");
+  await page.getByRole("button", { name: "Create thumbnail", exact: true }).click();
+  const retry = page.getByRole("button", { name: "Retry score", exact: true });
+  await expect(retry).toBeVisible({ timeout: 15000 });
+  await retry.click();
+  await expect.poll(() => ids.length).toBe(2);
+  expect(ids[1]).not.toBe(ids[0]);
+  await expect(page.getByText("Scored by OpenAI · Jev didn’t answer").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Score did not finish" })).toHaveCount(0);
+  await expect(page.getByText("Some scores didn’t finish.")).toHaveCount(0);
+  await page.getByRole("complementary", { name: "Scoring inspector" }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "evidence/score-fallback-1440.png" });
+});

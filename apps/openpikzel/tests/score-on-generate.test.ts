@@ -18,8 +18,9 @@ describe("scorePlan",()=>{
   expect(scorePlan({jev:true,google:true})).toEqual({review:true,includeVision:true,critiqueProvider:"google"});
   expect(scorePlan({jev:true})).toEqual({review:true,includeVision:false,critiqueProvider:null});
  });
- it("does not review when Jev is missing, even if a vision key is present",()=>{
-  expect(scorePlan({jev:false,anthropic:true})).toEqual({review:false,includeVision:false,critiqueProvider:null});
+ it("scores without Jev when another scorer key is connected, and only skips with no key at all",()=>{
+  expect(scorePlan({jev:false,anthropic:true})).toEqual({review:true,includeVision:true,critiqueProvider:"anthropic"});
+  expect(scorePlan({jev:false})).toEqual({review:false,includeVision:false,critiqueProvider:null});
   expect(scorePlan(null)).toEqual({review:false,includeVision:false,critiqueProvider:null});
  });
 });
