@@ -17,6 +17,8 @@ export const generationSchema = z
     intent: z.enum(["create","recompose"]).default("create"),
     conversationId: z.string().uuid().nullable().optional(),
     personaId: z.string().uuid().nullable().optional(),
+    /** Up to three personas in one thumbnail (the composer's @mentions). personaId is the older single form. */
+    personaIds: z.array(z.string().uuid()).max(3).default([]),
     styleId: z.string().uuid().nullable().optional(),
     style: z.string().max(120).default("Auto"),
     parentId: z.string().uuid().nullable().optional(),

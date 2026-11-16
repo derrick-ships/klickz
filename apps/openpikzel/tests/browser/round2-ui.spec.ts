@@ -22,6 +22,7 @@ async function setup(page: Page, opts: { generateDelayMs?: number; scores?: numb
   const chats: any[] = [{ id: chat, user_id: A, title: "Fixture chat", draft: { prompt: "A factual fixture thumbnail with one clear subject", settings }, created_at: now, updated_at: now }];
   const creations: any[] = [{ id: startId, user_id: A, conversation_id: chat, title: "Fixture start", prompt: "A factual fixture thumbnail with one clear subject", mode: "generate", style: "Auto", persona_id: null, parent_id: null, image_path: A + "/start.png", status: "ready", favorite: false, settings, created_at: now, score: score(62) }];
   const personas: any[] = [{ id: personaId, user_id: A, name: "Derrick", notes: "", refs: [A + "/persona.png"], created_at: now }, { id: "44444444-4444-4444-8444-444444444445", user_id: A, name: "Dana", notes: "", refs: [A + "/persona2.png"], created_at: now }];
+  const deleted: { table: string; ids: string[] }[] = [], removedFiles: string[] = [];
   const pngs = await Promise.all(colors.map(c => sharp({ create: { width: 1280, height: 720, channels: 3, background: c } }).png().toBuffer()));
   const scores = opts.scores ?? [71, 58, 84, 66];
   await page.route("**/*", r => (new URL(r.request().url()).hostname === "127.0.0.1" || /^(blob|data):/.test(r.request().url())) ? r.continue() : r.abort());
@@ -33,17 +34,20 @@ async function setup(page: Page, opts: { generateDelayMs?: number; scores?: numb
     const req = route.request(), url = new URL(req.url()), headers = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS" };
     if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
     if (url.pathname.includes("/auth/")) return route.fulfill({ json: session(A).user, headers });
+    if (url.pathname.includes("/storage/") && req.method() === "DELETE") { removedFiles.push(...(req.postDataJSON()?.prefixes || [])); return route.fulfill({ json: [], headers }); }
     if (url.pathname.includes("/storage/") && req.method() === "POST") { const paths = req.postDataJSON().paths || []; return route.fulfill({ json: paths.map((p: string) => ({ path: p, signedURL: "/object/sign/studio-assets/" + p + "?token=fixture" })), headers }); }
     if (url.pathname.includes("/storage/")) { const n = Number(url.pathname.match(/image-(\d+)\.png/)?.[1] ?? 4); return route.fulfill({ body: pngs[n % pngs.length], contentType: "image/png", headers }); }
     const table = url.pathname.split("/").pop(), data = table === "studio_conversations" ? chats : table === "studio_creations" ? creations : table === "studio_personas" ? personas : [];
     if (req.method() === "POST" && table === "studio_conversations") { const row = req.postDataJSON(); const i = chats.findIndex(c => c.id === row.id); if (i < 0) chats.push(row); else chats[i] = row; return route.fulfill({ status: 201, body: "", headers }); }
+    if (req.method() === "DELETE" && (table === "studio_creations" || table === "studio_conversations")) { const list = table === "studio_creations" ? creations : chats; const ids = (url.searchParams.get("id") || "").replace(/^(eq|in)\./, "").replace(/[()]/g, "").split(","); for (let i = list.length - 1; i >= 0; i--) if (ids.includes(list[i].id)) list.splice(i, 1); deleted.push({ table, ids }); return route.fulfill({ status: 204, body: "", headers }); }
     if (req.method() !== "GET") return route.fulfill({ status: 201, body: "", headers });
     const rows = data.filter((v: any) => !url.searchParams.has("id") || url.searchParams.get("id") === "eq." + v.id);
     return route.fulfill({ json: req.headers().accept?.includes("vnd.pgrst.object") ? rows[0] || null : rows, headers });
   });
   let made = 0;
+  const generated: any[] = [];
   await page.route("**/api/generate", async r => {
-    const input = r.request().postDataJSON(), batch = Number(input.settings?.batch || 1);
+    const input = r.request().postDataJSON(); generated.push(input); const batch = Number(input.settings?.batch || 1);
     await new Promise(res => setTimeout(res, opts.generateDelayMs ?? 1500));
     const base = Date.parse(now) + 60_000;
     const items = Array.from({ length: batch }, () => { const n = made++; return { id: "9999999" + n + "-9999-4999-8999-" + String(n).padStart(12, "9"), user_id: A, conversation_id: chat, title: "Result " + (n + 1), prompt: input.prompt, mode: "generate", style: "Auto", persona_id: input.personaId, parent_id: null, image_path: A + "/image-" + n + ".png", status: "ready", favorite: false, settings: { ...settings, batch }, created_at: new Date(base + n * 1000).toISOString(), score: null }; });
@@ -56,7 +60,7 @@ async function setup(page: Page, opts: { generateDelayMs?: number; scores?: numb
     const s = score(scores[n % scores.length], input.title); if (item) item.score = s;
     return r.fulfill({ json: { score: s, creationId: input.creationId } });
   });
-  return { creations, chats };
+  return { creations, chats, deleted, removedFiles, generated };
 }
 
 async function openComposer(page: Page) {
@@ -168,6 +172,70 @@ test("@ opens persona suggestions; arrows and Enter pick one and select it", asy
   await expect(prompt).toHaveValue("Shocked face of @Derrick ");
   await expect(list).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Change persona: Derrick" })).toBeVisible();
+});
+
+test("several personas can be mentioned; each mention shows in the accent colour and goes to Create", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const fixture = await setup(page, { generateDelayMs: 200 });
+  await page.goto("/");
+  await openComposer(page);
+  const prompt = page.locator("#thumbnail-prompt");
+  await prompt.fill("");
+  await prompt.pressSequentially("@Der");
+  await prompt.press("Enter");
+  await prompt.pressSequentially("and @Da");
+  await prompt.press("Enter");
+  await prompt.pressSequentially("in a podcast");
+  await expect(prompt).toHaveValue("@Derrick and @Dana in a podcast");
+  await expect(page.getByRole("button", { name: "Change persona: Derrick", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change persona: Dana", exact: true })).toBeVisible();
+  const marks = page.locator(".prompt-mirror .prompt-mention");
+  await expect(marks).toHaveText(["@Derrick", "@Dana"]);
+  const [markColor, accent, textColor] = await page.evaluate(() => [getComputedStyle(document.querySelector(".prompt-mirror .prompt-mention")!).color, getComputedStyle(document.documentElement).getPropertyValue("--accent-400").trim(), getComputedStyle(document.querySelector("#thumbnail-prompt")!).webkitTextFillColor]);
+  expect(markColor).toBe("rgb(248, 92, 89)");
+  expect(accent).toBe("#f85c59");
+  expect(textColor).toBe("rgba(0, 0, 0, 0)");
+  // The mirror lines up with the textarea so the coloured words sit exactly under the caret.
+  const [box, mirror] = await Promise.all([prompt.boundingBox(), page.locator(".prompt-mirror").boundingBox()]);
+  expect(Math.abs(box!.x - mirror!.x)).toBeLessThan(1); expect(Math.abs(box!.y - mirror!.y)).toBeLessThan(1); expect(Math.abs(box!.width - mirror!.width)).toBeLessThan(1);
+  await page.screenshot({ path: "evidence/mentions-multi-1440.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(marks).toHaveText(["@Derrick", "@Dana"]);
+  const [phoneBox, phoneMirror] = await Promise.all([prompt.boundingBox(), page.locator(".prompt-mirror").boundingBox()]);
+  expect(Math.abs(phoneBox!.width - phoneMirror!.width)).toBeLessThan(1);
+  await prompt.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "evidence/mentions-multi-390.png" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole("button", { name: "Create thumbnail", exact: true }).click();
+  await expect.poll(() => fixture.generated.length).toBeGreaterThan(0);
+  expect(fixture.generated[0].personaIds).toEqual(["44444444-4444-4444-8444-444444444444", "44444444-4444-4444-8444-444444444445"]);
+  // Removing a persona chip drops it and its mention colour.
+  await openComposer(page);
+  await page.getByRole("button", { name: "Remove persona: Dana", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Change persona: Dana", exact: true })).toHaveCount(0);
+  await expect(prompt).toHaveValue("@Derrick and Dana in a podcast");
+  await expect(page.locator(".prompt-mirror .prompt-mention")).toHaveText(["@Derrick"]);
+});
+
+test("deleting a chat removes its thumbnails, their files and the chat after a confirmation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const fixture = await setup(page);
+  await page.goto("/");
+  await expect(page.locator(".review-summary")).toContainText("Fixture start");
+  await page.getByRole("button", { name: "Delete chat: Fixture chat", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete this chat?" });
+  await expect(dialog).toContainText("its 1 thumbnail will be deleted");
+  await page.screenshot({ path: "evidence/chat-delete-dialog-1440.png" });
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(fixture.deleted).toHaveLength(0);
+  await page.getByRole("button", { name: "Delete chat: Fixture chat", exact: true }).click();
+  await page.getByRole("dialog", { name: "Delete this chat?" }).getByRole("button", { name: "Delete chat", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Open chat: Fixture chat" })).toHaveCount(0);
+  expect(fixture.deleted.map(d => d.table)).toEqual(["studio_creations", "studio_conversations"]);
+  expect(fixture.deleted[0].ids).toContain("55555555-5555-4555-8555-555555555555");
+  await expect.poll(() => fixture.removedFiles.slice().sort()).toEqual([A + "/start.png"]);
+  await expect(page.locator(".review-summary")).toHaveCount(0);
 });
 
 for (const width of [320, 390]) {

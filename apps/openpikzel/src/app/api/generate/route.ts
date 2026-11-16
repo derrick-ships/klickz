@@ -84,6 +84,7 @@ async function handle(request: Request) {
           );
         if (
           input.personaId ||
+          input.personaIds.length ||
           input.styleId ||
           input.referencePath ||
           input.referencePaths.length ||
@@ -99,27 +100,28 @@ async function handle(request: Request) {
         fixParentScore = typeof data.score?.overall === "number" ? data.score.overall : null;
       }
     }
-    for (const [table, id, label] of [
-      ["studio_personas", input.personaId, "Persona"],
-      ["studio_styles", input.styleId, "Style"],
-    ] as const) {
-      if (!id) continue;
-      const { data, error } = await db
-        .from(table)
-        .select("*")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .single();
-      if (error || !data) throw new AppError(404, `${label} not found.`);
-      // Persona photos go first and as many as the model allows (up to 4): the model weighs early references most.
+    // Personas: the single personaId (older clients, MCP) plus the composer's @mentions, deduplicated, at most 3.
+    const personaIds = [...new Set([input.personaId, ...input.personaIds].filter((v): v is string => !!v))];
+    if (personaIds.length > 3) throw new AppError(400, "Mention at most three personas in one thumbnail.");
+    // Persona photos go first: the model weighs early references most. One persona sends up to 4 photos;
+    // several share the budget (2 each) so every face is represented and the model's reference cap holds.
+    const photosPerPersona = personaIds.length > 1 ? 2 : 4;
+    for (const id of personaIds) {
+      const { data, error } = await db.from("studio_personas").select("*").eq("id", id).eq("user_id", user.id).single();
+      if (error || !data) throw new AppError(404, "Persona not found.");
       const startIndex = refs.length;
-      for (const path of data.refs.slice(0, label === "Persona" ? 4 : 3))
-        await addReference(path);
-      if (label === "Persona" && refs.length > startIndex)
-        notes.push(personaIdentityContract(data.name || "the person", startIndex + 1, refs.length));
+      for (const path of data.refs.slice(0, photosPerPersona)) await addReference(path);
+      if (refs.length > startIndex)
+        notes.push(personaIdentityContract(data.name || "the person", startIndex + 1, refs.length, personaIds.length));
+      notes.push(`Persona guidance for ${data.name || "this person"}: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos.`);
+    }
+    if (input.styleId) {
+      const { data, error } = await db.from("studio_styles").select("*").eq("id", input.styleId).eq("user_id", user.id).single();
+      if (error || !data) throw new AppError(404, "Style not found.");
+      for (const path of data.refs.slice(0, 3)) await addReference(path);
       const palette = Array.isArray(data.source?.palette) ? data.source.palette.filter((c: unknown) => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)) : [];
       notes.push(
-        `${label} guidance: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos; use style references for treatment and palette.${palette.length ? ` Measured style palette, most dominant first: ${palette.join(", ")}.` : ""}`,
+        `Style guidance: ${data.identity_brief || ""} ${data.notes}. Use style references for treatment and palette.${palette.length ? ` Measured style palette, most dominant first: ${palette.join(", ")}.` : ""}`,
       );
     }
     // Library style: its example thumbnails guide treatment and palette; never the people or text in them.
@@ -171,7 +173,7 @@ async function handle(request: Request) {
       prompt: input.prompt,
       mode: input.mode,
       style: input.style,
-      persona_id: input.personaId || null,
+      persona_id: personaIds[0] || null,
       style_id: input.styleId || null,
       parent_id: input.parentId || null,
       reference_path: paths[0] || null,
@@ -181,7 +183,7 @@ async function handle(request: Request) {
       batch_index: i,
       request_id: i === 0 ? input.requestId : crypto.randomUUID(),
       status: "generating",
-      lineage:{origin:input.intent==="recompose"?"recomposed":input.mode==="edit"||input.mode==="fix"?"edited":"generated",nativeOutput:true,...(input.parentId?{sourceId:input.parentId,sourceDigest:digest(refs[0]),...(fixPlan?{fixPlanHash:fixPlan.hash,plan:fixPlan,...(fixPlan.suggestion?{fix:{suggestion:fixPlan.suggestion,keep:fixPlan.keep||[],keepText:fixPlan.preserve.exactText,parentScore:fixParentScore,history:fixPlan.history||[]}}:{})}:{})}:{})},
+      lineage:{...(personaIds.length>1?{personaIds}:{}),origin:input.intent==="recompose"?"recomposed":input.mode==="edit"||input.mode==="fix"?"edited":"generated",nativeOutput:true,...(input.parentId?{sourceId:input.parentId,sourceDigest:digest(refs[0]),...(fixPlan?{fixPlanHash:fixPlan.hash,plan:fixPlan,...(fixPlan.suggestion?{fix:{suggestion:fixPlan.suggestion,keep:fixPlan.keep||[],keepText:fixPlan.preserve.exactText,parentScore:fixParentScore,history:fixPlan.history||[]}}:{})}:{})}:{})},
     }));
     const reservation = await db
       .from("studio_creations")
@@ -213,7 +215,7 @@ async function handle(request: Request) {
               notes,
               variation: input.variationOffset + row.batch_index + 1,
               variationTotal: Math.max(input.variationTotal, input.settings.batch),
-              hasPersona: !!input.personaId,
+              hasPersona: personaIds.length > 0,
               isEdit: !!input.parentId,
               referenceImages: refs,
               // A reviewed fix carries its own wording to keep; its plan JSON is not user text to mine for quotes.

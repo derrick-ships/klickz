@@ -16,6 +16,7 @@ import {
 import type { VisionProvider } from "./vision-provider";
 import { missingVisionKeyMessage } from "./score-on-generate";
 import { forgetPendingRequest, rememberPendingRequest } from "./pending-requests";
+import { chatDeletionPlan } from "./chat-delete";
 import { canScore } from "./scorers";
 type Asset = { id: string; blob: Blob };
 type Collection = "creations" | "personas" | "styles" | "conversations";
@@ -729,6 +730,42 @@ export function useStudio() {
     await load();
     ensureCurrentOwner();
   }
+  /**
+   * Delete a chat for good: its thumbnails, their stored image files (PNG and the YouTube JPG copy),
+   * reference uploads only this chat used, and the chat itself. Files still used by another chat,
+   * a persona or a style are kept. Rows go first so nothing in the app points at a missing file;
+   * if file cleanup then fails, the error says so and nothing is retried automatically.
+   */
+  async function deleteConversation(chatId: string) {
+    const epoch = ownerEpoch.current; ensureCurrentOwner();
+    const plan = chatDeletionPlan(chatId, creations, [...personas.flatMap((p) => p.refs), ...styles.flatMap((s) => s.refs)]);
+    if (cloud) {
+      if (plan.creationIds.length) {
+        const rows = await db.current!.from("studio_creations").delete().eq("user_id", user).in("id", plan.creationIds);
+        if (rows.error) throw new Error("This chat's thumbnails could not be deleted. Nothing was removed; try again.");
+      }
+      const chat = await db.current!.from("studio_conversations").delete().eq("user_id", user).eq("id", chatId);
+      if (chat.error) throw new Error("The chat could not be deleted. Its thumbnails were removed; try deleting the chat again.");
+      let filesLeft = 0;
+      for (let i = 0; i < plan.paths.length; i += 100) {
+        const removed = await db.current!.storage.from("studio-assets").remove(plan.paths.slice(i, i + 100));
+        if (removed.error) filesLeft += plan.paths.slice(i, i + 100).length;
+      }
+      if (epoch !== ownerEpoch.current) throw new Error("Your account changed.");
+      setConversations((items) => items.filter((c) => c.id !== chatId));
+      await load();
+      ensureCurrentOwner();
+      if (filesLeft) throw new Error("The chat was deleted, but " + filesLeft + " image file" + (filesLeft === 1 ? "" : "s") + " could not be removed from storage. Try again later.");
+      return plan;
+    }
+    for (const id of plan.creationIds) await localDelete("creations", id);
+    await localDelete("conversations", chatId);
+    for (const path of plan.paths) await localDelete("assets", path);
+    setConversations((items) => items.filter((c) => c.id !== chatId));
+    await load();
+    ensureCurrentOwner();
+    return plan;
+  }
   async function favorite(item: Creation) {
     await put("creations", { ...item, favorite: !item.favorite });
     await load();
@@ -785,7 +822,7 @@ export function useStudio() {
     await db.current?.auth.signOut({ scope: "local" });
   }
   return {
-    conversations,skipPersonaTutorial,saveConversation,createConversation,saveTutorialPreference,feedback,importYouTube,
+    conversations,skipPersonaTutorial,saveConversation,createConversation,deleteConversation,saveTutorialPreference,feedback,importYouTube,
     config,
     authClient:db.current,
     user,
