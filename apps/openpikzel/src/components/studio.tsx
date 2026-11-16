@@ -7,6 +7,7 @@ import {ProviderChoice} from "@/components/creative/provider-choice";
 import { generationReadiness } from "@/lib/generation-readiness";
 import { pickVisionProvider } from "@/lib/vision-provider";
 import { critiqueProviderFromScore, reviewerName, scorePlan, scoreStatusCopy, scoreStatusFromEvaluation } from "@/lib/score-on-generate";
+import { canScore } from "@/lib/scorers";
 import { GEMINI_FIX_NOTICE } from "@/lib/fix-plan-notice";
 import { compareScore } from "@/lib/score-compare";
 import { promptValidationError } from "@/lib/prompt-validation";
@@ -631,9 +632,15 @@ export default function Studio() {
     if(!selected)return;
     const plan=scorePlan(studio.config);
     const intent=scoreIntent.current[selected.id]||{title,includeVision:plan.includeVision,videoUrl,critiqueProvider:plan.critiqueProvider};
-    await studio.run("Retrying score",async()=>{
-      await studio.analyze(selected,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined);
+    const id=selected.id;
+    setReviewStatuses(current=>({...current,[id]:"pending"}));
+    const ok=await studio.run("Retrying score",async()=>{
+      const result=await studio.analyze(selected,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined);
+      noteComparison(id,result);return true;
     });
+    setReviewStatuses(current=>({...current,[id]:ok?"scored":"failed"}));
+    // Once every image in the batch has a score, the delivery line stops saying some didn't finish.
+    if(ok)setDelivery(current=>current&&current.stage==="review-pending"&&studio.creations.filter(c=>deliveryPlan.landed.includes(c.id)).every(c=>c.id===id||!!c.score)?{...current,stage:"ready",reviewed:current.total}:current);
   }
 
   async function submit() {
@@ -948,7 +955,7 @@ export default function Studio() {
     });
   }
   const hasReviewImage = !!(selected?.image_path && studio.images[selected.image_path]);
-  const scoreView = score ? scoreStatusFromEvaluation(score) : !studio.config?.jev ? {kind:"no-jev" as const} : selected && reviewStatuses[selected.id]==="pending" ? {kind:"pending" as const} : selected && reviewStatuses[selected.id]==="failed" ? {kind:"failed" as const} : {kind:"idle" as const};
+  const scoreView = score ? scoreStatusFromEvaluation(score) : !canScore(studio.config) ? {kind:"no-jev" as const} : selected && reviewStatuses[selected.id]==="pending" ? {kind:"pending" as const} : selected && reviewStatuses[selected.id]==="failed" ? {kind:"failed" as const} : {kind:"idle" as const};
   const scoreCopy = scoreStatusCopy(scoreView);
   const showComposer = !hasReviewImage || composerOpen;
   const workspaceReady = !studio.loading && hydratedWorkspace === (studio.user || "local");
@@ -1197,7 +1204,7 @@ export default function Studio() {
                             )}
                             {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p><button type="button" className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
+                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<p className="score-fallback">{scoreView.fallback}</p>}<button type="button" className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
                         </div>
                         <div>
                         <button type="button"
@@ -1282,7 +1289,7 @@ export default function Studio() {
                         </p>
                       ))}
                       <p className="score-disclaimer">
-                        {score.note} Jev visual scoring is experimental.
+                        {score.note}
                       </p>
                     </aside>
                   ) : hasReviewImage ? (
@@ -1638,7 +1645,7 @@ export default function Studio() {
                         <input id="analysis-video-url" type="url" maxLength={500} value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
                         <p>Reads the video’s public title and description with your YouTube key. It does not watch the video.</p>
                         {providerControls}
-                        <p className="analysis-provider-note">{analysisReviewer ? "Jev scoring + "+analysisReviewer+" image review. Uses two provider requests." : "Jev scoring. Connect a Claude, OpenAI, or Google API key for image-specific guidance."}</p>
+                        <p className="analysis-provider-note">{analysisReviewer ? "Score + "+analysisReviewer+" image review." : "Score only. Connect Claude, OpenAI or Google for image-specific advice."}</p>
                         <p>Anything the evidence can’t support is marked “Not assessed”; no scores are invented.</p>
                         </details>
                         {analysisScan && <AnalysisScanner key={analysisScan.id} src={analysisScan.src} phase={analysisScan.phase} reviewer={analysisScan.reviewer}/>}

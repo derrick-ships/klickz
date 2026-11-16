@@ -13,3 +13,16 @@ afterEach(()=>vi.unstubAllEnvs());
 it("stores an assessed title in the versioned result without replacing the user's chosen title",async()=>{const r=await POST(request());expect(r.status).toBe(200);const result=await r.json();expect(result.score.title).toBe("Assessed scenario title");expect(state.creation.title).toBe("Keep the chosen title");expect(state.updates).toHaveLength(1);expect(state.updates[0]).not.toHaveProperty("title");expect(state.jobs.get(id).result.score.title).toBe("Assessed scenario title");expect(state.evaluate.mock.calls[0][3].critiqueProvider).toBe("google");});
 it("replays a saved analysis after mutable creation metadata changes without another scoring call",async()=>{const first=await POST(request()),saved=await first.json();state.creation.title="A later user title";const replay=await POST(request());expect(replay.status).toBe(200);expect(await replay.json()).toEqual(saved);expect(state.evaluate).toHaveBeenCalledTimes(1);expect(state.creation.title).toBe("A later user title");});
 it("blocks the unavailable selected reviewer before scoring instead of using another connected key",async()=>{const r=await POST(request({critiqueProvider:"openai"}));expect(r.status).toBe(403);expect(state.evaluate).not.toHaveBeenCalled();expect(state.jobs.size).toBe(0);});
+it("a score that every scorer refused ends as failed and says so, so Retry may run it again",async()=>{
+ state.evaluate.mockReset().mockRejectedValue(Object.assign(new (await import("../src/lib/validation")).AppError(502,"No scorer could score this thumbnail. Jev returned an error (529)."),{scorerAttempts:[{scorer:"jev",reason:"x"}]}));
+ const r=await POST(request({requestId:"33333333-3333-4333-8333-333333333333"}));
+ expect(r.status).toBe(502);const body=await r.json();
+ expect(body.jobState).toBe("failed");
+ expect(state.jobs.get("33333333-3333-4333-8333-333333333333").state).toBe("failed");
+});
+it("a lost connection to a scorer stays uncertain (reconciling) and keeps the same request",async()=>{
+ state.evaluate.mockReset().mockRejectedValue(new Error("socket hang up"));
+ const r=await POST(request({requestId:"44444444-4444-4444-8444-444444444444"}));
+ expect((await r.json()).jobState).toBeUndefined();
+ expect(state.jobs.get("44444444-4444-4444-8444-444444444444").state).toBe("reconciling");
+});

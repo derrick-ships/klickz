@@ -41,6 +41,7 @@ describe("saved preferences", () => {
   });
   it("scores without Jev when the reviewer model is the scorer", () => {
     expect(scorePlan({ jev: false, openai: true, models: { reviewer: "gpt-sol-latest", scorer: "model" } })).toEqual({ review: true, includeVision: true, critiqueProvider: "openai" });
-    expect(scorePlan({ jev: false, openai: true }).review).toBe(false);
+    // Approved 16 Nov: any connected scorer key scores; Jev is only the first choice.
+    expect(scorePlan({ jev: false, openai: true }).review).toBe(true);
   });
 });

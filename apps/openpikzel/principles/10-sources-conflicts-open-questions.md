@@ -15,6 +15,8 @@
 | Red | Universal principles allow red/yellow | House: red only on ¿ ? | House rule |
 | Numbers | Vendors: numbers help | Title guidelines: no digits unless the number is the hook | Same in the thumbnail: only if the number IS the story (e.g. $ of a contract) |
 | Two people | "Don't use multiple competing faces" | Contrast stories (Char vs Petro) invite a split-screen | One face per variant; split-screen only as a deliberate test |
+| Main colours | 11: avoid red, white and black as main colours | House look: white second text line, red ¿ ?, black outline, red play badge | Derrick's file 11 wins: the house look's red, white and black stay small accents (text, outline, badge); backgrounds and large areas use the teal/orange pair |
+| Hook placement | 11: hook top-left, proof bottom-right (Z-scan) | House template: subject on one third, text opposite | File 11 wins: put the hook top-left, proof bottom-right, within the house layout |
 
 ## Open questions (not yet tested on Noticias BQ)
 - Do questions with ¿? get more clicks than declarative verdicts (OBRAS, NO ODIO)? Measure in Test & Compare.

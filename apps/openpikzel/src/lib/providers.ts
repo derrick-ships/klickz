@@ -1,5 +1,5 @@
-import {thumbnailRubric as rubric, soulVisionInstructions as visionInstructions, scoringInstructions, instructionVersion} from "./instructions";
-import { jevScoreCriteria, jevFlagQuestions, flagQuestionId, jevScorePolicy, readJevFlags } from "./jev-questions";
+import {thumbnailRubric as rubric, soulVisionInstructions as visionInstructions, instructionVersion} from "./instructions";
+import { readJevFlags } from "./jev-questions";
 import OpenAI, { toFile } from "openai";
 import { imageModel } from "./image-models";
 import sharp from "sharp";
@@ -20,10 +20,16 @@ import {
   type Evaluation,
   type TextProvider,
   type FixHistoryEntry,
+  type Pillar,
+  type ReviewFlag,
 } from "./types";
 import {anthropicVisionModel, type VisionProvider} from "./vision-provider";
 import {currentModelPreferences, modelFor} from "./model-preferences";
 import {modelScores} from "./model-scorer";
+import {jevScore, openaiDecisionScore, INJECTION_QUESTION_ID, type DecisionAnswers, type ScoreState} from "./decision-scorers";
+import {scorerOrder, scorerLabel, scorerProviderName, type ScorerId} from "./scorers";
+import {keepFlag, wordFlag, type FlagContext} from "./flag-policy";
+import {pickVisionProvider} from "./vision-provider";
 /** The user's chosen reviewer model when it belongs to this provider, else the provider default. */
 async function reviewerModel(provider: VisionProvider, fallback: string) {
   // An explicit deployment override wins for every reviewer choice, including a pinned alias.
@@ -324,176 +330,141 @@ async function withReviewStatus<T>(run: () => Promise<T>): Promise<T> {
     throw Object.assign(new AppError(502, "Image review did not finish"), { reviewStatus: reason });
   }
 }
+/** Why a scorer didn't answer, in a few plain words (never the provider's own text, which may hold secrets). */
+function scorerFailure(scorer: ScorerId, status: unknown) {
+  const name = scorerLabel(scorer);
+  return status === 401 || status === 403 ? name + " rejected the API key."
+    : status === 404 ? name + " doesn't offer this model to your key."
+    : status === 429 ? name + " is rate-limiting or out of balance."
+    : status === "timed out" ? name + " took too long to answer."
+    : status === "unreadable response" ? name + " returned an answer that couldn't be read."
+    : typeof status === "number" ? name + " returned an error (" + status + ")."
+    : name + " didn't answer.";
+}
+export type ScoringContext = DiagnosticContext & {
+  /** The thumbnail's planned concept and on-image text, used for Idea/Curiosity when there is no title. */
+  intendedPromise?: string;
+  /** The style the thumbnail was made with ("House: Political news" keeps its badge from counting as a logo). */
+  style?: string;
+  /** Who and what is allowed in the image (persona, references, uploaded by the creator). */
+  peopleAuthorized?: boolean;
+  marksAuthorized?: boolean;
+};
 export async function evaluateThumbnail(
   image: Buffer,
   title: string,
   requestId: string,
-  context: DiagnosticContext = diagnosticDefaults,
+  context: ScoringContext = diagnosticDefaults,
 ) {
   const prepared = await analysisImage(image);
   const small = await actualPreview(image),
     smallMeta = await sharp(small).metadata();
   const critiqueProvider = context.critiqueProvider || "openai";
-  if(context.includeVision) providerKey(critiqueProvider);
-  const withVision = context.includeVision;
+  if (context.includeVision) providerKey(critiqueProvider);
+  const keys = providerContext.getStore() || {};
+  const order = scorerOrder(currentModelPreferences().scorer, context.includeVision ? critiqueProvider : pickVisionProvider(keys), {
+    jev: !!keys.jev, openai: !!keys.openai, anthropic: !!keys.anthropic, google: !!keys.google,
+  });
+  if (!order.length) throw new AppError(403, "Connect Jev, OpenAI, Claude or Google in Connections to score thumbnails.");
   const withoutVision = {
-          summary:
-            "Jev scored the supplied image and title. These rubric-based prompts are suggestions; no separate vision critique was requested.",
-          dimensions: Object.fromEntries(
-            pillars.map((p) => [
-              p,
-              {
-                observation:
-                  "Jev assessed the supplied image against the " +
-                  p +
-                  " rubric.",
-                strength:
-                  "Review the pillar score alongside the actual thumbnail.",
-                weakness:
-                  "A numeric rubric alone does not identify a specific visible flaw.",
-                fix:
-                  rubric[p].instructions +
-                  " Aim for: " +
-                  rubric[p].criteria[3] +
-                  ". Preserve the truthful video promise.",
-              },
-            ]),
-          ),
-        };
-  let visionFinished = false;
-  let observations = observationSchema.parse(withoutVision);
-  const visionProvider: VisionProvider = critiqueProvider;
-  const visionErrors: string[] = [];
-  if (withVision) {
-    // Only the reviewer the user chose is called; never a silent second provider.
+    summary: "Scored without an image review. These rubric-based prompts are suggestions.",
+    dimensions: Object.fromEntries(pillars.map((p) => [p, {
+      observation: "The " + p + " rubric was scored from the supplied image.",
+      strength: "Review the pillar score alongside the actual thumbnail.",
+      weakness: "A numeric rubric alone does not identify a specific visible flaw.",
+      fix: rubric[p].instructions + " Aim for: " + rubric[p].criteria[3] + ". Preserve the truthful video promise.",
+    }])),
+  };
+  const state: ScoreState = {
+    title: title.trim() || null,
+    intendedPromise: !title.trim() && context.intendedPromise?.trim() ? context.intendedPromise.trim().slice(0, 600) : null,
+    videoFacts: context.videoBrief?.trim() ? context.videoBrief.trim().slice(0, 2400) : null,
+    previewWidth: smallMeta.width || 200,
+  };
+  // The image review (written advice) and the numbers run side by side. The review stays on the one
+  // provider the user chose; only the numbers fall back to another connected scorer.
+  const review = context.includeVision
+    ? observePackaging(prepared, title, [state.videoFacts, state.intendedPromise ? "Intended promise (no title yet): " + state.intendedPromise : ""].filter(Boolean).join("\n"), small, critiqueProvider, context.fixHistory || [])
+        .then((o) => ({ ok: true as const, value: observationSchema.parse(o) }), (error) => ({ ok: false as const, error }))
+    : Promise.resolve(null);
+  const attempts: { scorer: ScorerId; reason: string }[] = [];
+  let answered: { scorer: ScorerId; reply: DecisionAnswers } | null = null;
+  for (const scorer of order) {
     try {
-      observations = observationSchema.parse(
-        await observePackaging(prepared, title, context.videoBrief, small, critiqueProvider),
-      );
-      visionFinished = true;
+      const reply = scorer === "jev" ? await jevScore(providerKey("jev"), state, prepared, small, requestId)
+        : scorer === "openai" ? await openaiDecisionScore(providerKey("openai"), state, prepared, small)
+        : await modelScores(scorer, prepared, small, state);
+      // A reply with no readable pillar counts as a failed attempt, not a score.
+      parseScores(reply);
+      answered = { scorer, reply };
+      break;
     } catch (error) {
-      const status = (error as { reviewStatus?: unknown })?.reviewStatus;
-      const label = critiqueProvider === "anthropic" ? "Claude" : critiqueProvider === "openai" ? "OpenAI" : "Google";
-      visionErrors.push(
-        status === 401 || status === 403 ? label + " rejected the API key. Reconnect it in Connections."
-        : status === 404 ? label + " doesn't offer the image-review model to this key."
-        : status === 429 ? label + " is rate-limiting or out of balance. Try again later or add credit."
-        : status === 400 ? label + " refused the request (the image may be too large or not allowed)."
-        : status === "timed out" ? label + " took too long to answer."
-        : typeof status === "number" ? label + " returned an error (" + status + ")."
-        : label + " didn't return a usable review.",
-      );
-    }
-  } else {
-    observations = observationSchema.parse(withoutVision);
-  }
-  const asset = crypto.randomUUID(),
-    previewAsset = crypto.randomUUID();
-  const previewCanvas = await sharp(small)
-    .extend({
-      top: 0,
-      bottom: Math.max(0, 280 - (smallMeta.height || 0)),
-      left: 0,
-      right: Math.max(0, 280 - (smallMeta.width || 0)),
-      background: "#101010",
-    })
-    .jpeg()
-    .toBuffer();
-  // Scorer chosen in Settings → Models: Jev (default) or the reviewer model with the same rubric.
-  const scorer = currentModelPreferences().scorer;
-  let answers: unknown;
-  if (scorer === "model" && hasProviderKey(critiqueProvider)) {
-    answers = await modelScores(critiqueProvider, prepared, small, title, context.videoBrief, visionFinished ? observations.dimensions : undefined);
-  } else {
-    const response = await fetch("https://api.typesafe.ai/v1/systemone", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${providerKey("jev")}`,
-        "Content-Type": "application/json",
-        "TypeSafe-Danger-Zone-Images": "true",
-        "Idempotency-Key": requestId,
-      },
-      body: JSON.stringify({
-        model: process.env.JEV_MODEL || "jev-latest",
-        state: {
-          thumbnail: asset,
-          title,
-          videoBrief: context.videoBrief,
-          actualPreview: previewAsset,
-          visualGuidance: visionFinished ? observations.dimensions : undefined,
-          previewContentWidth: smallMeta.width,
-        },
-        assets: {
-          [previewAsset]: {
-            type: "image",
-            format: "jpg",
-            data_base64: previewCanvas.toString("base64"),
-          },
-          [asset]: {
-            type: "image",
-            format: "jpg",
-            data_base64: prepared.toString("base64"),
-          },
-        },
-        // One narrow judgment per question, all of them in this one request (Jev evaluates them in
-        // parallel). Pillars are Scores with concrete levels + examples; each review flag is its own
-        // Noul with an explicit true/false description, so the code reads probabilities, not prose.
-        questions: {
-          ...Object.fromEntries(
-            pillars.map((p) => [
-              p,
-              {
-                type: "score" as const,
-                instructions:
-                  `${rubric[p].instructions} Score the thumbnail in \`thumbnail\`; for phone-size readability use \`actualPreview\`. ${jevScorePolicy}`,
-                criteria: jevScoreCriteria[p],
-              },
-            ]),
-          ),
-          ...Object.fromEntries(
-            jevFlagQuestions.map((q) => [flagQuestionId(q.flag), q.question]),
-          ),
-        },
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-    if (!response.ok)
-      throw new (await import("./validation")).AppError(
-        response.status,
-        "Jev could not complete this request. Check your API access and quota.",
-      );
-    answers = await response.json();
-    // Jev answered every review flag as its own Noul. Its flags join the reviewer's, because both
-    // saw the image; the code owns the thresholds and the penalties either way.
-    const jev = readJevFlags(answers);
-    if (visionFinished) {
-      for (const p of pillars) {
-        const merged = [...new Set([...(observations.dimensions[p].flags || []), ...(jev.pillars[p] || [])])];
-        (observations.dimensions[p] as { flags?: string[] }).flags = merged;
-      }
-      (observations as { globalFlags?: string[] }).globalFlags = [...new Set([...(observations.globalFlags || []), ...jev.globalFlags])];
+      attempts.push({ scorer, reason: scorerFailure(scorer, (error as { scorerStatus?: unknown })?.scorerStatus ?? (error as { status?: unknown })?.status) });
     }
   }
-  const usedScorer = scorer === "model" && hasProviderKey(critiqueProvider) ? "model" : "jev";
+  const reviewed = await review;
+  if (!answered) throw Object.assign(new AppError(502, "No scorer could score this thumbnail. " + attempts.map((a) => a.reason).join(" ")), { scorerAttempts: attempts });
+  const visionFinished = !!reviewed?.ok;
+  let observations = visionFinished ? reviewed!.value : observationSchema.parse(withoutVision);
+  // Flags: the decision model's yes/no answers count whether or not the review finished. Code drops the ones
+  // that can't apply here and counts the on-image words itself.
+  const decided = readJevFlags(answered.reply.answers);
+  const policy: FlagContext = {
+    hasTitle: !!state.title,
+    hasFacts: !!(state.title || state.videoFacts || state.intendedPromise),
+    peopleAuthorized: !!context.peopleAuthorized,
+    marksAuthorized: !!context.marksAuthorized || context.style === "House: Political news",
+    reviewed: visionFinished,
+    readableText: visionFinished ? observations.readableText : null,
+  };
+  const pillarFlags = Object.fromEntries(pillars.map((p) => {
+    const merged = [...new Set([...(visionFinished ? observations.dimensions[p].flags || [] : []), ...(decided.pillars[p] || [])])]
+      .filter((f) => keepFlag(f, policy));
+    if (p === "clarity" && wordFlag(policy) && !merged.includes("too_many_words")) merged.push("too_many_words");
+    return [p, merged];
+  })) as Record<Pillar, ReviewFlag[]>;
+  const globalFlags = [...new Set([...(visionFinished ? observations.globalFlags || [] : []), ...decided.globalFlags])].filter((f) => keepFlag(f, policy)) as typeof observations.globalFlags;
+  observations = { ...observations, globalFlags, dimensions: Object.fromEntries(pillars.map((p) => [p, { ...observations.dimensions[p], flags: pillarFlags[p] }])) as typeof observations.dimensions };
+  const anyFlag = pillars.some((p) => pillarFlags[p].length) || globalFlags.length > 0;
   const diagnostic = enrichDiagnostic(
-    parseScores(answers, visionFinished ? observations : observationSchema.parse(withoutVision), title),
+    parseScores(answered.reply, observations, title),
     image,
     title,
-    { ...context, scorer: usedScorer },
-    {
-      width: smallMeta.width!,
-      height: smallMeta.height!,
-      digest: digest(small),
-    },
+    { ...context, scorer: answered.scorer === "jev" ? "jev" : "model" },
+    { width: smallMeta.width!, height: smallMeta.height!, digest: digest(small) },
     visionFinished,
     observations.promiseConflict,
+    { flagsDecided: anyFlag || visionFinished, imageOnly: !state.title && !state.intendedPromise },
   );
   diagnostic.instructionVersion = instructionVersion;
-  if(withVision && !visionFinished){
-    diagnostic.warnings = [...(diagnostic.warnings||[]).filter(warning=>!warning.includes("Numeric Jev rubrics only")),"Image review did not finish",...visionErrors];
+  diagnostic.scoring = {
+    route: [...attempts.map((a) => ({ scorer: a.scorer, outcome: "failed" as const, reason: a.reason })), { scorer: answered.scorer, outcome: "scored" as const }],
+    model: answered.reply.model,
+    flagProbabilities: decided.probabilities,
+    ...(answered.reply.answers[INJECTION_QUESTION_ID]?.type === "noul" ? { injection: (answered.reply.answers[INJECTION_QUESTION_ID] as { noul: number }).noul } : {}),
+  };
+  if (context.includeVision && !visionFinished) {
+    const status = (reviewed && !reviewed.ok ? (reviewed.error as { reviewStatus?: unknown })?.reviewStatus : undefined);
+    diagnostic.warnings = [...(diagnostic.warnings || []).filter((w) => !w.includes("Numeric rubrics only")), "Image review did not finish", reviewFailure(critiqueProvider, status)];
   }
-  diagnostic.contributors = [scorer === "model" && hasProviderKey(critiqueProvider) ? {provider:critiqueProvider === "anthropic" ? "Anthropic API" : critiqueProvider === "openai" ? "OpenAI API" : "Google API",model:"reviewer model",role:"scoring"} : {provider:"Jev",model:process.env.JEV_MODEL || "jev-latest",role:"scoring"}, ...(visionFinished ? [{provider:visionProvider === "anthropic" ? "Anthropic API" : visionProvider === "openai" ? "OpenAI API" : "Google API",model:visionProvider === "anthropic" ? anthropicVisionModel() : visionProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",role:"image-review" as const}] : [])];
+  diagnostic.contributors = [
+    { provider: scorerProviderName(answered.scorer), model: answered.reply.model, role: "scoring" },
+    ...(visionFinished ? [{ provider: critiqueProvider === "anthropic" ? "Anthropic API" : critiqueProvider === "openai" ? "OpenAI API" : "Google API", model: critiqueProvider === "anthropic" ? anthropicVisionModel() : critiqueProvider === "openai" ? process.env.OPENAI_TEXT_MODEL || "gpt-5.5" : process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite", role: "image-review" as const }] : []),
+  ];
+  // One line per score so the route, model and flag probabilities can be reviewed and thresholds retuned.
+  // No image, title or key is logged.
+  console.info(JSON.stringify({ event: "openpikzels.score", requestId, route: diagnostic.scoring.route.map((r) => r.scorer + ":" + r.outcome), model: answered.reply.model, overall: diagnostic.overall, flags: diagnostic.flags?.map((f) => f.flag), reviewed: visionFinished }));
   return diagnostic;
+}
+function reviewFailure(provider: VisionProvider, status: unknown) {
+  const label = provider === "anthropic" ? "Claude" : provider === "openai" ? "OpenAI" : "Google";
+  return status === 401 || status === 403 ? label + " rejected the API key. Reconnect it in Connections."
+    : status === 404 ? label + " doesn't offer the image-review model to this key."
+    : status === 429 ? label + " is rate-limiting or out of balance. Try again later or add credit."
+    : status === 400 ? label + " refused the request (the image may be too large or not allowed)."
+    : status === "timed out" ? label + " took too long to answer."
+    : typeof status === "number" ? label + " returned an error (" + status + ")."
+    : label + " didn't return a usable review.";
 }
 // Legacy name is retained only for callers that explicitly supply a real image.
 export async function evaluateConcept(state: unknown, requestId: string) {

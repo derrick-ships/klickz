@@ -168,22 +168,31 @@ export const observationJsonSchema = (() => {
     additionalProperties: false,
   };
 })();
+/** One pillar's Score answer as Jev documents it; extra fields are ignored. */
+const pillarAnswerSchema = z.object({
+  score: z.number().min(0).max(3).nullable(),
+  confidence: z.number().min(0).max(1).default(0),
+  probabilities: z.record(z.number().min(0).max(1)).optional(),
+});
+/**
+ * Read the five pillar Score answers from a Jev (or reviewer-model) reply. The same reply also carries one
+ * Noul per review flag and may carry other answers; only the pillars are read here (flags: readJevFlags),
+ * and a missing or malformed pillar becomes "not assessed" instead of failing the whole score.
+ */
 export function parseScores(
   payload: unknown,
   observations?: Observations,
   title = "",
 ): Evaluation {
-  const { answers } = z
-    .object({
-      answers: z.record(
-        z.object({
-          score: z.number().min(0).max(3).nullable(),
-          confidence: z.number().min(0).max(1),
-        }),
-      ),
-    })
-    .parse(payload);
-
+  const record = (payload && typeof payload === "object" ? payload : {}) as { answers?: unknown; model?: unknown };
+  const raw = (record.answers && typeof record.answers === "object" ? record.answers : {}) as Record<string, unknown>;
+  const answers: Partial<Record<Pillar, z.infer<typeof pillarAnswerSchema>>> = {};
+  for (const p of pillars) {
+    const parsed = pillarAnswerSchema.safeParse(raw[p]);
+    if (parsed.success) answers[p] = parsed.data;
+  }
+  if (!pillars.some((p) => typeof answers[p]?.score === "number"))
+    throw Object.assign(new AppError(502, "The scorer returned no usable pillar scores."), { scorerStatus: "unreadable response" });
   const dimensions = Object.fromEntries(
     pillars.map((p) => [
       p,
@@ -196,6 +205,7 @@ export function parseScores(
           ? { missingReason: "Provider did not assess this pillar." }
           : {}),
         confidence: answers[p]?.confidence || 0,
+        ...(answers[p]?.probabilities ? { probabilities: answers[p]!.probabilities } : {}),
         observation: observations?.dimensions[p].observation || "",
         strength: observations?.dimensions[p].strength || "",
         weakness: observations?.dimensions[p].weakness || "",
@@ -224,6 +234,7 @@ export function parseScores(
           keepText: observations.keepText,
         }
       : {}),
+    ...(typeof record.model === "string" ? { jev: { model: record.model.slice(0, 80) } } : {}),
     note: "AI assessment of this image and title. Not measured CTR or a guarantee of views.",
     created_at: new Date().toISOString(),
   };

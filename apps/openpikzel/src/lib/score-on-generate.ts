@@ -2,15 +2,15 @@ import {providerOfChoice} from "./model-choice";
 import {pickVisionProvider,type VisionProvider} from "./vision-provider";
 import type {DeliveryState} from "./generation-delivery";
 import type {Evaluation} from "./types";
+import {canScore} from "./scorers";
 
 export type ScorePlan={review:boolean;includeVision:boolean;critiqueProvider:VisionProvider|null};
 
 export function scorePlan(keys:{jev?:boolean;anthropic?:boolean;openai?:boolean;google?:boolean;models?:{reviewer?:string;scorer?:string}}|null|undefined):ScorePlan{
  const preferred=providerOfChoice(keys?.models?.reviewer||"auto");
  const critiqueProvider=keys?pickVisionProvider(keys,preferred):null;
- // Scoring needs Jev, unless Settings → Models says the reviewer model scores too.
- const canScore=keys?.models?.scorer==="model"?!!critiqueProvider:!!keys?.jev;
- if(!canScore)return {review:false,includeVision:false,critiqueProvider:null};
+ // Any connected scorer key gives the numbers: Jev, OpenAI (Decisions), Claude or Google.
+ if(!canScore(keys))return {review:false,includeVision:false,critiqueProvider:null};
  return {review:true,includeVision:!!critiqueProvider,critiqueProvider};
 }
 
@@ -28,7 +28,7 @@ export type ScoreView=
  | {kind:"pending"}
  | {kind:"failed"}
  | {kind:"idle"}
- | {kind:"scored";reviewer:"Claude"|"OpenAI"|"Google"|null;visionFailed?:boolean};
+ | {kind:"scored";reviewer:"Claude"|"OpenAI"|"Google"|null;visionFailed?:boolean;fallback?:string};
 
 
 export function critiqueProviderFromScore(score?:Pick<Evaluation,"contributors">|null):VisionProvider|undefined{
@@ -36,12 +36,21 @@ export function critiqueProviderFromScore(score?:Pick<Evaluation,"contributors">
  return provider==="Anthropic API"?"anthropic":provider==="OpenAI API"?"openai":provider==="Google API"?"google":undefined;
 }
 
-export function scoreStatusFromEvaluation(score:Pick<Evaluation,"vision"|"warnings"|"contributors">):ScoreView{
- if(score.warnings?.includes("Image review did not finish"))return {kind:"scored",reviewer:null,visionFailed:true};
- if(!score.vision)return {kind:"scored",reviewer:null};
+/** "Scored by Claude · Jev didn't answer" when a fallback gave the numbers; null when the first choice did. */
+export function fallbackNote(score:Pick<Evaluation,"scoring">|null|undefined){
+ const route=score?.scoring?.route;if(!route?.length)return null;
+ const failed=route.filter(r=>r.outcome==="failed"),used=route.find(r=>r.outcome==="scored");
+ if(!failed.length||!used)return null;
+ const name=(s:string)=>s==="jev"?"Jev":s==="anthropic"?"Claude":s==="openai"?"OpenAI":"Google";
+ return "Scored by "+name(used.scorer)+" · "+name(failed[0].scorer)+" didn’t answer";
+}
+export function scoreStatusFromEvaluation(score:Pick<Evaluation,"vision"|"warnings"|"contributors"|"scoring">):ScoreView{
+ const fallback=fallbackNote(score)||undefined;
+ if(score.warnings?.includes("Image review did not finish"))return {kind:"scored",reviewer:null,visionFailed:true,fallback};
+ if(!score.vision)return {kind:"scored",reviewer:null,fallback};
  const provider=score.contributors?.find(item=>item.role==="image-review")?.provider;
  const reviewer=provider==="Anthropic API"?"Claude":provider==="OpenAI API"?"OpenAI":provider==="Google API"?"Google":null;
- return {kind:"scored",reviewer};
+ return {kind:"scored",reviewer,fallback};
 }
 
 export function scoreStatusCopy(status:ScoreView):{title:string;action?:"connect"|"retry"|"analyze"}{

@@ -80,6 +80,8 @@ export type Dimension = {
   flags?: PillarFlag[];
   /** Up to three concrete edits for this pillar; fix === suggestions[0] when present. */
   suggestions?: string[];
+  /** The scorer's probability for each level ("0".."3"), as returned. Kept to review and retune thresholds. */
+  probabilities?: Record<string, number>;
 };
 export type Evaluation = {
   source: "jev";
@@ -95,6 +97,16 @@ export type Evaluation = {
   preview?: { width: number; height: number; digest: string };
   vision?: boolean;
   contributors?: { provider: string; model: string; role: "scoring" | "image-review" }[];
+  /** The exact model id Jev reported for this score (e.g. "jev-1.14.0"). */
+  jev?: { model: string };
+  /** Which scorers were tried, in order, and which one gave the numbers; kept to review fallbacks and thresholds. */
+  scoring?: {
+    route: { scorer: "jev" | "openai" | "anthropic" | "google"; outcome: "scored" | "failed"; reason?: string }[];
+    model: string;
+    flagProbabilities?: Partial<Record<ReviewFlag, number>>;
+    /** Probability that the title, facts or image text try to instruct the scorer (recorded for review only). */
+    injection?: number;
+  };
   videoEvidence?: { url: string; kind: "youtube-description" | "unavailable"; notice: string };
   evidence?: {
     id: string;
@@ -129,6 +141,8 @@ export type Evaluation = {
   /** Previous fixes on this lineage that were shown to the reviewer. */
   fixHistory?: FixHistoryEntry[];
   fixBlocked?: boolean;
+  /** No title or intended promise: Idea and Curiosity were judged from the image alone. */
+  imageOnly?: boolean;
   proof?: string;
   title: string;
   note: string;

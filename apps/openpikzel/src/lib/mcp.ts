@@ -411,7 +411,7 @@ export async function createMcpServer(token: string) {
   };
   tool(
     "generate_thumbnail",
-    "Create a new thumbnail from a description (with an optional saved persona or style) using your own image-provider credits. It is scored automatically when Jev is connected; use one_click_fix to improve it. Preserve requestId across an uncertain retry; check history first.",
+    "Create a new thumbnail from a description (with an optional saved persona or style) using your own image-provider credits. It is scored automatically when a scoring key (Jev, OpenAI, Claude or Google) is connected; use one_click_fix to improve it. Preserve requestId across an uncertain retry; check history first.",
     generationInput,
     "studio:ai",
     async (args) => {
@@ -442,7 +442,7 @@ export async function createMcpServer(token: string) {
   tool("list_analyses","Read saved analysis versions and their exact source/context/provider provenance without scoring, editing or replacing a title.",{creationId:z.string().uuid(),cursor:z.string().max(512).optional()},"studio:read",({creationId,cursor})=>analysisHistory(db,user.id,creationId,cursor));
   tool(
     "score_thumbnail",
-    "Score a real thumbnail + title across virality, clarity, idea, curiosity and emotion using your Jev credits. Images created in ChatGPT are supported via upload_reference. This is a rubric, not predicted CTR.",
+    "Score a real thumbnail + title across virality, clarity, idea, curiosity and emotion using your Jev credits, falling back to OpenAI Decisions, Claude or Google when Jev isn't connected or doesn't answer. Images created in ChatGPT are supported via upload_reference. This is a rubric, not predicted CTR.",
     {
       creationId: z.string().uuid().optional(),
       imagePath: z.string().max(400).optional(),

@@ -17,6 +17,7 @@ import type { VisionProvider } from "./vision-provider";
 import { missingVisionKeyMessage } from "./score-on-generate";
 import { forgetPendingRequest, rememberPendingRequest } from "./pending-requests";
 import { chatDeletionPlan } from "./chat-delete";
+import { canScore } from "./scorers";
 type Asset = { id: string; blob: Blob };
 type Collection = "creations" | "personas" | "styles" | "conversations";
 export function useStudio() {
@@ -42,7 +43,8 @@ export function useStudio() {
   const pendingAnalysis = useRef(new Map<string, string>());
   const pendingFix = useRef(new Map<string, Promise<unknown>>());
   const pendingFixJobs = useRef(new Map<string, {requestId:string;fixPlanToken:string;plan:{title:string;sourceId:string;settings:Settings};notice?:string}>());
-  const unknownOutcomes = new WeakSet<object>();
+  const unknownOutcomes = useRef(new WeakSet<object>()).current;
+  const definiteFailures = useRef(new WeakSet<object>()).current;
   const cloud = !!user && !!db.current,
     live = cloud && !!config?.ai && (!!config?.openai || !!config?.google);
   const load = useCallback(async () => {
@@ -246,6 +248,7 @@ export function useStudio() {
     if (!res.ok) {
       const error = new Error(result.error || "The request did not finish. Check My creations before retrying.");
       if (res.status === 502 || res.status === 503 || res.status === 504) unknownOutcomes.add(error);
+      if (result.jobState === "failed") definiteFailures.add(error);
       throw error;
     }
     return result;
@@ -467,15 +470,21 @@ export function useStudio() {
       throw new Error(
         "Scoring is not enabled in this workspace. Your saved images remain available to review and download.",
       );
-    if (config?.models?.scorer !== "model" && !config?.jev) throw new Error("Connect your Jev API key in Connections, then analyze this thumbnail again.");
+    if (!canScore(config)) throw new Error("Connect Jev, OpenAI, Claude or Google in Connections, then score this thumbnail again.");
     if(includeVision&&!(critiqueProvider&&config?.[critiqueProvider]))throw new Error(missingVisionKeyMessage(critiqueProvider));
     const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl, critiqueProvider };
     const fingerprint = JSON.stringify(intent);
     const requestId = rememberPendingRequest(pendingAnalysis.current, item.id, fingerprint);
-    const result = await api("/api/analyze", {
-      ...intent,
-      requestId,
-    });
+    let result;
+    try {
+      result = await api("/api/analyze", { ...intent, requestId });
+    } catch (error) {
+      // The server answered that the score failed (every scorer refused, or our own save failed after
+      // they answered). Nothing uncertain is pending, so the next "Retry score" sends a fresh request.
+      // A lost connection keeps the same id, so a score that did finish is replayed, never paid twice.
+      if (error instanceof Error && definiteFailures.has(error)) forgetPendingRequest(pendingAnalysis.current, item.id, fingerprint);
+      throw error;
+    }
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Check the original account for the result.");
     await load();
     ensureCurrentOwner();

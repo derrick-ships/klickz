@@ -12,6 +12,7 @@ import { defaultSettings, pillars, type Evaluation } from "../src/lib/types";
 import { AppError } from "../src/lib/validation";
 import { ANTHROPIC_VISION_MODEL } from "../src/lib/vision-provider";
 import sharp from "sharp";
+import { jevReply } from "./fixtures/jev-reply";
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -117,16 +118,12 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
             ]),
           ),
         };
-        const fetcher = vi
-          .fn()
-          .mockResolvedValueOnce(textResponse(observations))
-          .mockResolvedValueOnce(
-            response({
-              answers: Object.fromEntries(
-                pillars.map((p) => [p, { score: 1.5, confidence: 0.6 }]),
-              ),
-            }),
-          );
+        // The image review and the score run side by side; answer each by URL. Jev replies in its documented shape.
+        const fetcher = vi.fn(async (url: unknown) =>
+          String(url).includes("typesafe.ai")
+            ? response(jevReply({ scores: Object.fromEntries(pillars.map((p) => [p, 1.5])) }))
+            : textResponse(observations),
+        );
         vi.stubGlobal("fetch", fetcher);
         const score = await evaluateThumbnail(
           await sample(),
@@ -139,7 +136,7 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
           },
         );
         expect(score.overall).toBe(50);
-        const [url, request] = fetcher.mock.calls[1];
+        const [url, request] = fetcher.mock.calls.find((call) => String(call[0]).includes("typesafe.ai"))! as unknown as [string, { headers: Record<string, string>; body: string }];
         expect(url).toBe("https://api.typesafe.ai/v1/systemone");
         expect(request.headers["TypeSafe-Danger-Zone-Images"]).toBe("true");
         const body = JSON.parse(request.body);
@@ -152,12 +149,18 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
         expect(flagQuestion.type).toBe("noul");
         expect(flagQuestion.criteria.true).toMatch(/duplicate or restate/i);
         expect(body.state.context).toBeUndefined();
-        expect(body.state.title).toBe("A real video title");
-        expect(body.state.visualGuidance.clarity.observation).toBe("A clear focal subject");
+        // Trimmed state: the title and facts only; the reviewer's prose is not sent to the scorer.
+        expect(body.state.videoTitle).toBe("A real video title");
+        expect(body.state.videoFacts).toBe("The video shows a real experiment");
+        expect(body.state.visualGuidance).toBeUndefined();
+        expect(Object.keys(body.state).sort()).toEqual(["phonePreview", "thumbnail", "videoFacts", "videoTitle"]);
+        expect(score.jev?.model).toBe("jev-1.14.0");
+        expect(score.scoring?.route).toEqual([{ scorer: "jev", outcome: "scored" }]);
         expect(score.contributors?.map(c=>c.provider)).toEqual(["Jev","OpenAI API"]);
         expect(
           body.assets[body.state.thumbnail].data_base64.length,
         ).toBeGreaterThan(100);
+        expect(body.questions.virality.criteria).toHaveLength(4);
         expect(score.dimensions.clarity.fix).toBe("Shorten the text");
       },
     ));
@@ -497,13 +500,10 @@ it("returns a Jev score with Image review did not finish when vision fails", asy
     async () => {
       const fetcher = vi
         .fn()
-        .mockResolvedValueOnce(new Response("upstream failure", { status: 500 }))
-        .mockResolvedValueOnce(
-          response({
-            answers: Object.fromEntries(
-              pillars.map((p) => [p, { score: 1.5, confidence: 0.6 }]),
-            ),
-          }),
+        .mockImplementation(async (url: unknown) =>
+          String(url).includes("typesafe.ai")
+            ? response(jevReply({ scores: Object.fromEntries(pillars.map((p) => [p, 1.5])) }))
+            : new Response("upstream failure", { status: 500 }),
         );
       vi.stubGlobal("fetch", fetcher);
       const score = await evaluateThumbnail(
@@ -521,8 +521,7 @@ it("returns a Jev score with Image review did not finish when vision fails", asy
       expect(score.warnings).toContain("Image review did not finish");
       expect(score.vision).toBe(false);
       expect(score.contributors?.map((c) => c.role)).toEqual(["scoring"]);
-      expect(String(fetcher.mock.calls[0][0])).toBe("https://api.anthropic.com/v1/messages");
-      expect(String(fetcher.mock.calls[1][0])).toBe("https://api.typesafe.ai/v1/systemone");
+      expect(fetcher.mock.calls.map(([u]) => String(u)).sort()).toEqual(["https://api.anthropic.com/v1/messages", "https://api.typesafe.ai/v1/systemone"]);
       expect(fetcher).toHaveBeenCalledTimes(2);
       expect(
         fetcher.mock.calls.every(

@@ -11,7 +11,7 @@ const enriched = (over: Partial<Enriched> = {}): Enriched => ({
   lever: "DESEO",
   imageText: ["BEFORE", "AFTER"],
   panels: 2,
-  prompt: "Horizontal 16:9 split-screen YouTube thumbnail. Left panel labelled \"BEFORE\": a woman in a grey tank top in a gym, pinching soft upper arm, worried expression. Right panel labelled \"AFTER\": the same woman flexing a toned bicep, proud smile. Bold condensed white sans text with thick black outline in negative space. Yellow #FFD700 accent. High contrast, rim light on both faces, background softly blurred.",
+  prompt: "Horizontal 16:9 split-screen YouTube thumbnail. Left panel labelled \"BEFORE\": a woman in a grey tank top in a gym, pinching soft upper arm, worried expression. Right panel labelled \"AFTER\": the same woman flexing a toned bicep, proud smile. Bold condensed white sans text with thick black outline in negative space. Yellow #FFD700 accent. High contrast, rim light on both faces, background softly blurred. Hook top-left: the worried BEFORE face; proof bottom-right: the toned AFTER arm. Teal (#0F7C8C) and amber (#E8A33D) background, no red, white or black backgrounds.",
   dos: [
     { rule: "Keep one focal point per panel", source: "02-visual-rules-dos-donts" },
     { rule: "Use bold condensed sans text, 2-4 words", source: "00-README-cheat-sheet" },
@@ -25,13 +25,13 @@ const enriched = (over: Partial<Enriched> = {}): Enriched => ({
     { rule: "Do not repeat the title on the image", source: "01-principles" },
   ],
   substantialChanges: [],
-  decisions: ["Chose BEFORE/AFTER as on-image text because the user gave none."],
+  decisions: ["Chose BEFORE/AFTER as on-image text because the user gave none.", "Twist: the same woman, weeks apart; most intense colour (#E8A33D) on AFTER."],
   ...over,
 });
 
 describe("principles", () => {
-  it("bundles all eleven playbook files verbatim", () => {
-    expect(principleFiles).toHaveLength(11);
+  it("bundles all twelve playbook files verbatim", () => {
+    expect(principleFiles).toHaveLength(12);
     expect(principles).toContain("The thumbnail never repeats the title");
     expect(principles).toContain("=== 05-legal-and-accuracy.md ===");
   });
@@ -141,7 +141,7 @@ describe("on-image text lines (15 Nov: black box behind a letter, slash drawn)",
     const p = imagePromptFrom({ concept: "", lever: "INTRIGA", imageText: ["¿Y LA / BOINA?"], panels: 1, prompt: "A beret on a podium.", dos: [], donts: [], decisions: [], substantialChanges: [] } as never, [], "");
     expect(p).toContain('line 1: "¿Y LA"; line 2: "BOINA?"');
     expect(p).toMatch(/no box, plate, band or rectangle behind any letter/);
-    for (let i = 1; i <= 16; i++) expect(variationAxis(i, 16)!.highlightWord).not.toMatch(/\bbox\b/);
+    for (let i = 1; i <= 16; i++) expect(variationAxis(i, 16)!.twistColour).toMatch(/never a box/);
   });
 });
 
@@ -158,5 +158,30 @@ describe("mediator sees the attached references", () => {
     expect(data.referenceImageCount).toBe(1);
     expect(data.referenceImages).toBeUndefined();
     expect(create.fn.mock.calls[0][0].instructions).toMatch(/mark to COPY/);
+  });
+});
+
+describe("Derrick's rules (file 11, 16 Nov)", () => {
+  it("ships file 11 to the mediator and tells it the rules beat the house look", () => {
+    expect(principleFiles).toContain("11-derricks-twelve-lines.md");
+    expect(principles).toContain("put the hook top left and the proof bottom right");
+    expect(principles).toContain("Avoid red, white and black as the main colours");
+    expect(principles).toContain("triangle of shadow beside the nose");
+  });
+  it("rejects a prompt with no Z-scan placement, no named twist, or a red/white/black background", () => {
+    const noZ = verifyEnriched(extractSubstantial("A thumbnail", "long"), enriched({ prompt: enriched().prompt.replace(/Hook top-left[^.]*\./, "") }));
+    expect(noZ.join(" ")).toMatch(/Z-scan/);
+    const noTwist = verifyEnriched(extractSubstantial("A thumbnail", "long"), enriched({ decisions: ["Chose the text."] }));
+    expect(noTwist.join(" ")).toMatch(/Twist/);
+    for (const bad of ["on a solid black background", "against a white background", "a red background with text", "background of pure white"]) {
+      const out = verifyEnriched(extractSubstantial("A thumbnail", "long"), enriched({ prompt: enriched().prompt + " Place the subject " + bad + "." }));
+      expect(out.join(" ")).toMatch(/Main colours/);
+    }
+    // Red, white or black as small accents (text, outline) is fine.
+    const accents = verifyEnriched(extractSubstantial("A thumbnail", "long"), enriched({ prompt: enriched().prompt + " White text with a thick black outline." }));
+    expect(accents).toEqual([]);
+  });
+  it("no batch variant asks for a red, white or black background", () => {
+    for (let i = 1; i <= 16; i++) expect(variationAxis(i, 16)!.background).not.toMatch(/\b(red|white|black|near-black|light background)\b/);
   });
 });

@@ -113,26 +113,25 @@ export function enrichDiagnostic(
   preview: { width: number; height: number; digest: string },
   vision: boolean,
   promiseConflict = false,
+  options: {
+    /** A decision model judged the review flags (yes/no answers), so they count even without the image review. */
+    flagsDecided?: boolean;
+    /** No title and no intended promise: Idea and Curiosity were judged from the image alone. */
+    imageOnly?: boolean;
+  } = {},
 ): Evaluation {
   const warnings: string[] = [];
-  const promiseOnly = !title.trim() && /^INTENDED PROMISE/.test(context.videoBrief || "");
-  if (!title.trim())
-    warnings.push(
-      promiseOnly
-        ? "No video title yet: Idea and Curiosity were judged against the thumbnail's intended promise. Add the title for the pair."
-        : "Idea and Curiosity need a title to assess the image/title promise. No title was supplied or retrieved.",
-    );
   warnings.push(context.videoEvidence?.notice || "This assesses the visible thumbnail and stated title, not whether the video delivers on its promise. The video itself was not watched.");
   if (!vision)
     warnings.push(
-      "Numeric Jev rubrics only. Image-specific edit plans require optional vision critique.",
+      "Numeric rubrics only. Image-specific edit plans require the image review.",
     );
   if (promiseConflict)
     warnings.push(
       "The image may contradict the factual video brief. Resolve this before applying an automatic fix.",
     );
   const dimensions = { ...score.dimensions };
-  const allFlags: { pillar: Pillar | "global"; flag: ReviewFlag }[] = vision
+  const allFlags: { pillar: Pillar | "global"; flag: ReviewFlag }[] = vision || options.flagsDecided
     ? [
         ...pillars.flatMap((p) => (score.dimensions[p]?.flags || []).map((flag) => ({ pillar: p, flag }) as const)),
         ...(score.globalFlags || []).map((flag) => ({ pillar: "global" as const, flag })),
@@ -143,15 +142,6 @@ export function enrichDiagnostic(
     for (const { flag } of allFlags) {
       const cap = flagCaps[flag]?.[p];
       if (cap !== undefined && dimensions[p].score !== null && dimensions[p].score! > cap) dimensions[p].score = cap;
-    }
-    if (
-      (p === "idea" || p === "curiosity") &&
-      !title.trim() &&
-      !promiseOnly
-    ) {
-      dimensions[p].score = null;
-      dimensions[p].missingReason =
-        "No video title is available to assess the thumbnail/title pair. The video contents cannot be inferred from its thumbnail.";
     }
     if (dimensions[p].score === null && !dimensions[p].missingReason)
       dimensions[p].missingReason =
@@ -254,6 +244,7 @@ export function enrichDiagnostic(
     evidence,
     issues,
     warnings,
+    ...(options.imageOnly ? { imageOnly: true } : {}),
     fixBlocked: partial || !vision || promiseConflict,
     priority: (suggestion && worstFlaggedPillar(dimensions)) || issues[0]?.pillar || score.priority,
   };
@@ -308,7 +299,7 @@ export function compileFixPlan(
       kind: "blocked",
       reason: "Analyze the current source image first.",
     };
-  if (score.fixBlocked || !score.context || (!score.context.title && !/^INTENDED PROMISE/.test(score.context.videoBrief || "")))
+  if (score.fixBlocked || !score.context)
     return {
       kind: "blocked",
       reason:

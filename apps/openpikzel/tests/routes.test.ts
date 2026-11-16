@@ -113,11 +113,11 @@ vi.mock("../src/lib/mediator", async () => {
         lever: "INTRIGA",
         imageText: ["NO CUADRA"],
         panels: 1,
-        prompt: "ENRICHED PROMPT. Brief: " + input.rawPrompt + ". One large face on the left third, two-line condensed text on the right, high contrast, rim light, documentary teal/orange background.",
+        prompt: "ENRICHED PROMPT. Brief: " + input.rawPrompt + ". Hook top-left: the face; proof bottom-right: the document. One large face on the left third, two-line condensed text on the right, high contrast, rim light, documentary teal/orange background.",
         dos: [{ rule: "One focal point", source: "02-visual-rules-dos-donts" }, { rule: "2-4 words", source: "00-README-cheat-sheet" }, { rule: "Text in negative space", source: "02-visual-rules-dos-donts" }, { rule: "High contrast", source: "02-visual-rules-dos-donts" }],
         donts: [{ rule: "No date", source: "03-house-style-prompt-template" }, { rule: "No logo", source: "03-house-style-prompt-template" }, { rule: "No thin fonts", source: "02-visual-rules-dos-donts" }, { rule: "No repeated title", source: "01-principles" }],
         substantialChanges: [],
-        decisions: ["Chose the on-image text."],
+        decisions: ["Chose the on-image text.", "Twist: what the title doesn't say; most intense colour on it."],
       },
     })),
   };
@@ -293,7 +293,7 @@ it("never sends the user's raw prompt to the image model and stores the enriched
   const recorded = mock.updates.find((u) => (u.lineage as { mediator?: unknown } | undefined)?.mediator) as { lineage: { mediator: { rawPrompt: string; imagePrompt: string; principleFiles: string[] } } };
   expect(recorded.lineage.mediator.rawPrompt).toBe(raw);
   expect(recorded.lineage.mediator.imagePrompt).toBe(sent);
-  expect(recorded.lineage.mediator.principleFiles).toHaveLength(11);
+  expect(recorded.lineage.mediator.principleFiles).toHaveLength(12);
 });
 
 it("does not render anything when the mediator fails", async () => {
