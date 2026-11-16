@@ -1,20 +1,20 @@
 "use client";
 import {useEffect,useId,useRef,useState,type MouseEvent as ReactMouseEvent} from 'react';
-import {Search,MessageSquare,Pencil,Check,ChevronLeft,ChevronRight} from 'lucide-react';
+import {Search,MessageSquare,Pencil,Check,ChevronLeft,ChevronRight,Trash2} from 'lucide-react';
 import {groupChats,searchChats,type Conversation} from '@/lib/workspaces';
 import type {Creation} from '@/lib/types';
 import {staggerPositions,type Arrival} from '@/lib/image-reveal';
 import {RevealImage} from '@/components/creative/image-reveal';
 import {ScoreBadge} from '@/components/creative/score-badge';
-export function ChatHistory({chats,creations,active,busy,onOpen}:{chats:Conversation[];creations:Creation[];active:string|null;busy:boolean;onOpen:(chat:Conversation)=>void}){
+export function ChatHistory({chats,creations,active,busy,onOpen,onDelete}:{chats:Conversation[];creations:Creation[];active:string|null;busy:boolean;onOpen:(chat:Conversation)=>void;onDelete?:(chat:Conversation)=>void}){
  const [query,setQuery]=useState('');
  return <div className="chat-history"><label className="chat-search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search your chats" placeholder="Search your chats"/></label>
- {groupChats(searchChats(chats,creations,query)).map(group=><section key={group.label}><h3>{group.label}</h3>{group.items.map(chat=><button type="button" key={chat.id} disabled={busy} className={'chat-row '+(active===chat.id?'selected':'')} onClick={()=>onOpen(chat)} aria-label={"Open chat: "+chat.title} aria-current={active===chat.id?'true':undefined}><MessageSquare size={15}/><span>{chat.title}</span></button>)}</section>)}
+ {groupChats(searchChats(chats,creations,query)).map(group=><section key={group.label}><h3>{group.label}</h3>{group.items.map(chat=><div key={chat.id} className={'chat-row-wrap '+(active===chat.id?'selected':'')}><button type="button" disabled={busy} className={'chat-row '+(active===chat.id?'selected':'')} onClick={()=>onOpen(chat)} aria-label={"Open chat: "+chat.title} aria-current={active===chat.id?'true':undefined}><MessageSquare size={15}/><span>{chat.title}</span></button>{onDelete&&<button type="button" className="chat-row-delete" disabled={busy} aria-label={"Delete chat: "+chat.title} title="Delete chat" onClick={()=>onDelete(chat)}><Trash2 size={14}/></button>}</div>)}</section>)}
  {!chats.length&&<p className="history-empty">Start a chat to keep your prompts and thumbnails together.</p>}{query&&!searchChats(chats,creations,query).length&&<p>No matching chats.</p>}</div>;
 }
-export function ChatTitle({title,onSave,busy}:{title:string;onSave:(name:string)=>Promise<void>;busy:boolean}){
+export function ChatTitle({title,onSave,onDelete,busy}:{title:string;onSave:(name:string)=>Promise<void>;onDelete?:()=>void;busy:boolean}){
  const [editing,setEditing]=useState(false),[name,setName]=useState(title),[error,setError]=useState('');
- return <div className="chat-title">{editing?<form onSubmit={async e=>{e.preventDefault();if(!name.trim())return;try{await onSave(name.trim().slice(0,100));setEditing(false);}catch{setError('The name could not save. Try again.');}}}><input autoFocus aria-label="Chat name" maxLength={100} value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();setEditing(false);}}}/><button type="submit" className="icon-button" aria-label="Save chat name"><Check size={17}/></button></form>:<><span>{title}</span><button type="button" disabled={busy} className="icon-button" aria-label="Rename chat" onClick={()=>{setName(title);setEditing(true);}}><Pencil size={14}/></button></>}{error&&<p role="alert">{error}</p>}</div>;
+ return <div className="chat-title">{editing?<form onSubmit={async e=>{e.preventDefault();if(!name.trim())return;try{await onSave(name.trim().slice(0,100));setEditing(false);}catch{setError('The name could not save. Try again.');}}}><input autoFocus aria-label="Chat name" maxLength={100} value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();setEditing(false);}}}/><button type="submit" className="icon-button" aria-label="Save chat name"><Check size={17}/></button></form>:<><span>{title}</span><button type="button" disabled={busy} className="icon-button" aria-label="Rename chat" onClick={()=>{setName(title);setEditing(true);}}><Pencil size={14}/></button>{onDelete&&<button type="button" disabled={busy} className="icon-button" aria-label="Delete chat" onClick={onDelete}><Trash2 size={14}/></button>}</>}{error&&<p role="alert">{error}</p>}</div>;
 }
 export function ChatTimeline({items,images,active,onChoose,onOpenScore,arrivalOf=()=>null}:{items:Creation[];images:Record<string,string>;active:string|null;onChoose:(c:Creation)=>void;onOpenScore?:(c:Creation)=>void;arrivalOf?:(id:string)=>Arrival|null}){
  const viewport=useRef<HTMLDivElement>(null),id=useId(),[edges,setEdges]=useState({start:true,end:true});

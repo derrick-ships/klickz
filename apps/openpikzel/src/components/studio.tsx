@@ -78,7 +78,7 @@ const ProfileManager=dynamic(()=>import("@/components/creative/profiles").then(m
 const ComparisonSlider=dynamic(()=>import("@/components/creative/comparison").then(m=>m.ComparisonSlider),{loading:()=> <p role="status">Opening…</p>});
 const FeedbackForm=dynamic(()=>import("@/components/creative/feedback").then(m=>m.FeedbackForm),{loading:()=> <p role="status">Opening…</p>});
 import {OperationProgress} from "@/components/creative/progress";
-import {usePersonaMentions} from "@/components/creative/mention-list";
+import {usePersonaMentions,MentionMirror,MAX_PERSONAS,unmention} from "@/components/creative/mention-list";
 import {ChatHistory,ChatTitle,ChatTimeline} from "@/components/creative/chat";
 import { readDraftCheckpoint, writeDraftCheckpoint } from "@/lib/draft-checkpoint";
 import type {Conversation,WorkspaceDraft} from "@/lib/workspaces";
@@ -111,6 +111,7 @@ type Dialog =
   | "compare"
   | "jobs"
   | "login"
+  | "delete-chat"
   | null;
 const modes = [
   { id: "generate", label: "Create", icon: ImagePlus },
@@ -119,6 +120,8 @@ const modes = [
 // OpenPikzels does one loop: create a thumbnail, score it, fix it. Older links and drafts
 // that point at the retired Edit/Remix/Titles modes open Create instead.
 const visibleTool = (value: string | null | undefined): Tool => (value === "analyze" ? "analyze" : "generate");
+// Drafts saved before multi-persona mentions carry a single personaId.
+const draftPersonas = (d: { personaIds?: string[]; personaId?: string }) => (d.personaIds?.length ? d.personaIds : d.personaId ? [d.personaId] : []).slice(0, 3);
 const names: Record<Pillar, string> = {
   virality: "Virality",
   clarity: "Clarity",
@@ -144,13 +147,14 @@ export default function Studio() {
   const workspaceEpoch=useRef(0);
   const chatCreation=useRef<{owner:string|null;epoch:number;promise:Promise<Conversation>}|null>(null);
   const [pendingResult,setPendingResult]=useState<string|null>(null);
+  const [chatToDelete,setChatToDelete]=useState<Conversation|null>(null);
   const hydratedOwner=useRef(""),chatIdRef=useRef<string|null>(null),ownerUI=useRef(studio.user),userPickedTool=useRef(false);ownerUI.current=studio.user;chatIdRef.current=activeChatId;
   const [tool, setTool] = useState<Tool>("generate"),
     [settings, setSettings] = useState<Settings>(defaultSettings),
     [prompt, setPrompt] = useState(""),
     [title, setTitle] = useState(""),
     [refs, setRefs] = useState<string[]>([]),
-    [personaId, setPersonaId] = useState(""),
+    [personaIds, setPersonaIds] = useState<string[]>([]),
     [styleId, setStyleId] = useState(""),
     [preset, setPreset] = useState("Auto"),
     [selection, setSelection] = useState<string | null>(null),
@@ -222,7 +226,7 @@ export default function Studio() {
     dialogTriggerRef = useRef<HTMLElement | null>(null),
     reviewHeadingRef = useRef<HTMLHeadingElement>(null),
     draftFingerprintRef = useRef("");
-  const draftFingerprint = JSON.stringify({ prompt, title, tool, personaId, styleId, preset, refs, settings, parentId });
+  const draftFingerprint = JSON.stringify({ prompt, title, tool, personaIds, styleId, preset, refs, settings, parentId });
   draftFingerprintRef.current = draftFingerprint;
   // OP-10: creations that arrive this session (after this account's library loaded) may reveal once; a batch shares one arrival.
   const arrivalsRef = useRef<ReturnType<typeof createArrivals> | null>(null);
@@ -259,16 +263,17 @@ export default function Studio() {
     });
   }
   const editSource = selected?.image_path ? selected : studio.creations.find(c=>c.id===(selected?.parent_id || parentId) && !!c.image_path) || null,
-    persona = studio.personas.find((p) => p.id === personaId),
+    chosenPersonas = personaIds.map((id) => studio.personas.find((p) => p.id === id)).filter((p): p is Persona => !!p),
     styleProfile = studio.styles.find((s) => s.id === styleId),
     libraryChoice = preset.startsWith("library:") ? libraryStyle(preset.slice(8)) : null,
     score =
       selected?.score && [2, 3].includes(selected.score.version)
         ? selected.score
         : null;
-  // @mentions: "@Name" in the prompt picks that persona (the server also resolves personas by name).
-  const mentions = usePersonaMentions({ value: prompt, setValue: setPrompt, personas: studio.personas, images: studio.images, selectedId: personaId, textarea: promptRef,
-    onSelect: (id) => { setPersonaId(id); void selectProfile("persona", id).catch((e) => studio.setError(e.message)); } });
+  // @mentions: each "@Name" in the prompt adds that persona (up to three), shown in the accent colour.
+  const mentions = usePersonaMentions({ value: prompt, setValue: setPrompt, personas: studio.personas, images: studio.images, selectedIds: personaIds, textarea: promptRef,
+    onChange: (ids) => { setPersonaIds(ids); void ensureChat().catch((e) => studio.setError(e.message)); },
+    onLimit: () => studio.setError("Mention at most " + MAX_PERSONAS + " personas in one thumbnail.") });
   const previousScoreRaw =
     selected?.mode === "fix" && selected.parent_id
       ? studio.creations.find((c) => c.id === selected.parent_id)?.score ?? null
@@ -321,7 +326,7 @@ export default function Studio() {
     setSelection(null);
     setRefs([]);
     setParentId(null);
-    setPersonaId("");
+    setPersonaIds([]);
     setStyleId("");
   }, [studio.user]);
   useEffect(() => {
@@ -371,7 +376,7 @@ export default function Studio() {
     workspaceEpoch.current++;
     const d=chat.draft;chatIdRef.current=chat.id;setActiveChatId(chat.id);localStorage.setItem("openpikzels.activeChat."+(studio.user||"local"),chat.id);
     setPrompt(d.prompt||"");setTitle(d.title||"");if(!preserveTool)setTool(modes.some(m=>m.id===d.tool)?d.tool as Tool:"generate");
-    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDelivery(null);setTitleAction(d.titleAction||"image");setIncludeVision(typeof d.includeVision==="boolean"?d.includeVision:null);setTextProvider(d.textProvider||"openai");
+    setSettings({...defaultSettings,...d.settings,batch:1});setRefs(d.refs||[]);setPersonaIds(draftPersonas(d));setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDelivery(null);setTitleAction(d.titleAction||"image");setIncludeVision(typeof d.includeVision==="boolean"?d.includeVision:null);setTextProvider(d.textProvider||"openai");
     const latest=studio.creations.find(c=>c.conversation_id===chat.id&&c.id===d.selection)||studio.creations.find(c=>c.conversation_id===chat.id);
     setSelection(latest?.id||null);setParentId(latest?.image_path?latest.id:latest?.parent_id||d.parentId||null);setComposerOpen(!latest?.image_path);setTab("studio");setTitles([]);setChatSaveState("");
     if(compactNavigation){setSidebar(false);if(focus)requestAnimationFrame(()=>mainRef.current?.focus());}
@@ -395,15 +400,29 @@ export default function Studio() {
     chatCreation.current={owner,epoch,promise};
     try{return await promise;}finally{if(chatCreation.current?.promise===promise)chatCreation.current=null;}
   }
-  async function selectProfile(kind:"persona"|"style",id:string){const owner=studio.user,startingChat=chatIdRef.current,chat=await ensureChat();await studio.saveConversation({...chat,draft:{...chatDraft,...(kind==="persona"?{personaId:id}:{styleId:id})},updated_at:new Date().toISOString()},"draft");if(ownerUI.current===owner&&(chatIdRef.current===chat.id||chatIdRef.current===startingChat)){if(kind==="persona")setPersonaId(id);else setStyleId(id);}}
+  async function selectProfile(kind:"persona"|"style",id:string){const owner=studio.user,startingChat=chatIdRef.current,chat=await ensureChat();
+    // A persona picked in the dialog joins the ones already chosen (up to three); a style replaces the current one.
+    const nextPersonas=kind==="persona"?(personaIds.includes(id)?personaIds:[...personaIds,id].slice(-MAX_PERSONAS)):personaIds;
+    await studio.saveConversation({...chat,draft:{...chatDraft,...(kind==="persona"?{personaIds:nextPersonas,personaId:nextPersonas[0]}:{styleId:id})},updated_at:new Date().toISOString()},"draft");if(ownerUI.current===owner&&(chatIdRef.current===chat.id||chatIdRef.current===startingChat)){if(kind==="persona")setPersonaIds(nextPersonas);else setStyleId(id);}}
   async function flushDraft(){
     const owner=studio.user,draft={...chatDraftRef.current,draftSavedAt:Date.now()};
-    const meaningful=!!(draft.creativeDraft?.draft?.trim()||draft.creativeDraft?.messages?.length||draft.prompt?.trim()||draft.title?.trim()||(draft.videoBrief?.trim()||draft.videoUrl?.trim())||draft.refs?.length||draft.personaId||draft.styleId||draft.selection);
+    const meaningful=!!(draft.creativeDraft?.draft?.trim()||draft.creativeDraft?.messages?.length||draft.prompt?.trim()||draft.title?.trim()||(draft.videoBrief?.trim()||draft.videoUrl?.trim())||draft.refs?.length||draft.personaIds?.length||draft.personaId||draft.styleId||draft.selection);
     if(!activeChat&&!meaningful)return;
     const chat=activeChat||await ensureChat();
     if(ownerUI.current===owner)await studio.saveConversation({...chat,draft,updated_at:new Date().toISOString()},"draft");
   }
   async function openChat(chat:Conversation){if(busy||chat.id===chatIdRef.current)return;await studio.run("Opening chat",async()=>{const owner=studio.user;await flushDraft();if(ownerUI.current===owner)activateChat(chat);});}
+  function askDeleteChat(chat:Conversation){if(busy)return;setChatToDelete(chat);setDialog("delete-chat");}
+  async function deleteChat(chat:Conversation){
+    setDialog(null);setChatToDelete(null);
+    await studio.run("Deleting chat",async()=>{
+      const wasActive=chatIdRef.current===chat.id;
+      // Stop autosave from recreating the chat while it is being deleted.
+      if(wasActive){workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);localStorage.removeItem("openpikzels.activeChat."+(studio.user||"local"));}
+      try{await studio.deleteConversation(chat.id);}
+      finally{if(wasActive){startNew();setPersonaIds([]);setStyleId("");setPreset("Auto");setDelivery(null);}}
+    });
+  }
   async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();const chat=await studio.createConversation();activateChat(chat);startNew();});}
   useEffect(()=>{workspaceEpoch.current++;userPickedTool.current=false;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setReviewStatuses({});setIncludeVision(null);setTextProvider("openai");setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReviews({});setDialog(null);setChatSaveState("");},[studio.user]);
   useEffect(()=>{
@@ -412,20 +431,20 @@ export default function Studio() {
     if(chat)activateChat(checkpoint?.chatId===chat.id&&checkpoint.savedAt>=(chat.draft.draftSavedAt||0)?{...chat,draft:checkpoint.draft}:chat,false,userPickedTool.current);
     else if(checkpoint&&!checkpoint.chatId){
       const d=checkpoint.draft;setPrompt(d.prompt||"");setTitle(d.title||"");if(!userPickedTool.current)setTool(visibleTool(d.tool));setSettings({...defaultSettings,...(studio.config?.models?{model:studio.config.models.image}:{}),...d.settings});
-      setRefs(d.refs||[]);setPersonaId(d.personaId||"");setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(typeof d.includeVision==="boolean"?d.includeVision:null);setTextProvider(d.textProvider||"openai");
+      setRefs(d.refs||[]);setPersonaIds(draftPersonas(d));setStyleId(d.styleId||"");setPreset(d.preset||"Auto");setVideoBrief(d.videoBrief||"");setVideoUrl(d.videoUrl||"");setCreativeDraft(d.creativeDraft||{});setDelivery(null);setParentId(d.parentId||null);setTitleAction(d.titleAction||"image");setIncludeVision(typeof d.includeVision==="boolean"?d.includeVision:null);setTextProvider(d.textProvider||"openai");
     }
     const requested=new URL(location.href).searchParams.get("mode");
     if(!userPickedTool.current&&requested)setTool(visibleTool(requested));
     setHydratedWorkspace(key);
   },[studio.loading,studio.user,studio.conversations]);
-  const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaId,styleId,preset,videoBrief,videoUrl,selection,parentId,titleAction,includeVision:visionChoice??undefined,textProvider,creativeDraft};
+  const chatDraft:WorkspaceDraft={prompt,title,tool,settings,refs,personaIds,personaId:personaIds[0],styleId,preset,videoBrief,videoUrl,selection,parentId,titleAction,includeVision:visionChoice??undefined,textProvider,creativeDraft};
   const chatDraftRef=useRef(chatDraft);chatDraftRef.current=chatDraft;
   const chatDraftJSON=JSON.stringify(chatDraft);
   useEffect(()=>{
     const owner=studio.user,key=owner||"local";
     if(studio.loading||hydratedWorkspace!==key)return;
     const draft={...JSON.parse(chatDraftJSON),draftSavedAt:Date.now()} as WorkspaceDraft;
-    const meaningful=!!(draft.prompt?.trim()||draft.title?.trim()||(draft.videoBrief?.trim()||draft.videoUrl?.trim())||draft.refs?.length||draft.personaId||draft.styleId||draft.selection||draft.preset!=="Auto"||JSON.stringify(draft.settings)!==JSON.stringify(defaultSettings));
+    const meaningful=!!(draft.prompt?.trim()||draft.title?.trim()||(draft.videoBrief?.trim()||draft.videoUrl?.trim())||draft.refs?.length||draft.personaIds?.length||draft.personaId||draft.styleId||draft.selection||draft.preset!=="Auto"||JSON.stringify(draft.settings)!==JSON.stringify(defaultSettings));
     if(!activeChatId&&!meaningful)return;
     const checkpointSaved=writeDraftCheckpoint(localStorage,key,{chatId:activeChatId,draft});
     setChatSaveState(checkpointSaved?"Saved on this device · syncing…":"Saving draft…");
@@ -460,7 +479,7 @@ export default function Studio() {
       if((item.conversation_id||null)!==activeChatId){
        const chat=studio.conversations.find(c=>c.id===item.conversation_id);
        if(chat)activateChat(chat,false);
-       else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaId("");setStyleId("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setDelivery(null);setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
+       else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaIds([]);setStyleId("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setDelivery(null);setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
       }
       setParentId(item.image_path?item.id:item.parent_id);
       setComposerOpen(false);setSaveReceipt(0);setSelection(item.id);
@@ -484,7 +503,7 @@ export default function Studio() {
       item.reference_paths ||
         [item.reference_path].filter((p): p is string => !!p),
     );
-    setPersonaId(item.persona_id || "");
+    setPersonaIds(item.lineage?.personaIds?.length ? item.lineage.personaIds.slice(0, MAX_PERSONAS) : item.persona_id ? [item.persona_id] : []);
     setStyleId(item.style_id || "");
     setPreset(item.style);
   }
@@ -563,7 +582,8 @@ export default function Studio() {
       mode,
       style: styleProfile?.name || libraryChoice?.name || preset,
       libraryStyleId: !styleProfile && libraryChoice ? libraryChoice.id : null,
-      personaId: personaId || null,
+      personaId: null,
+      personaIds,
       styleId: styleId || null,
       parentId:
         mode === "edit" || mode === "fix"
@@ -704,7 +724,7 @@ export default function Studio() {
         title,
         mode: input.mode,
         style: input.style,
-        personaId,
+        personaId: personaIds[0] || "",
         styleId,
         referencePaths: refs,
         settings,
@@ -1342,7 +1362,7 @@ export default function Studio() {
           </button>
         </div>
         <div className="history-list">
-          <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}}/>
+          <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>
           {studio.creations.some(c=>!c.conversation_id)&&<p className="legacy-history-label">Recent creations</p>}
           {studio.creations.filter(c=>!c.conversation_id).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.images[item.image_path]} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
@@ -1409,7 +1429,7 @@ export default function Studio() {
               <a href="/connect">Create an account and connect your keys</a>
             </p>
           )}
-          {activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
+          {activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
           {studio.error && (
@@ -1641,7 +1661,8 @@ export default function Studio() {
                           </label>
                           <span>{prompt.length}/2400</span>
                         </div>
-                        <div className={"prompt-field"+(showExamples?" prompt-field--examples":"")}>
+                        <div className={"prompt-field"+(showExamples?" prompt-field--examples":"")+(tool!=="title"&&chosenPersonas.length&&prompt.includes("@")?" prompt-field--mentions":"")}>
+                        {tool!=="title"&&chosenPersonas.length>0&&prompt.includes("@")&&<MentionMirror textarea={promptRef} value={prompt} names={chosenPersonas.map(p=>p.name)}/>}
                         <textarea
                           id="thumbnail-prompt"
                           ref={promptRef}
@@ -1690,7 +1711,7 @@ export default function Studio() {
                               </button>
                             </div>
                           ))}
-                          {persona && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("personas")} aria-label={"Change persona: "+persona.name}>{studio.images[persona.refs[0]]&&<img src={studio.images[persona.refs[0]]} alt=""/>}<span className="selection-name">{persona.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove persona: "+persona.name} onClick={()=>{setPersonaId("");document.querySelector<HTMLButtonElement>('.composer-tool-group button')?.focus();}}><X size={14}/></button></div>}
+                          {chosenPersonas.map(p => <div key={p.id} className="selection-chip-group selection-chip-group--persona"><button type="button" className="selection-chip" onClick={()=>openProfiles("personas")} aria-label={"Change persona: "+p.name}>{studio.images[p.refs[0]]&&<img src={studio.images[p.refs[0]]} alt=""/>}<span className="selection-name">{p.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove persona: "+p.name} onClick={()=>{setPersonaIds(ids=>ids.filter(id=>id!==p.id));setPrompt(text=>unmention(text,p.name));document.querySelector<HTMLButtonElement>('.composer-tool-group button')?.focus();}}><X size={14}/></button></div>)}
                           {!styleProfile && libraryChoice && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+libraryChoice.name}><img src={libraryChoice.images[0]} alt=""/><span className="selection-name">{libraryChoice.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+libraryChoice.name} onClick={()=>setPreset("Auto")}><X size={11}/></button></div>}
                           {styleProfile && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+styleProfile.name}><Palette size={13}/><span className="selection-name">{styleProfile.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+styleProfile.name} onClick={()=>{setStyleId("");document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[1]?.focus();}}><X size={14}/></button></div>}
                         </div>
@@ -2059,7 +2080,7 @@ export default function Studio() {
         <div className="dialog-shell">
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
-              {dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Analysis history":dialog==="analysis"?"Thumbnail Analysis":dialog==="beforeafter"?"Compare Your Thumbnail":dialog==="feedback"?"Leave Your Feedback":dialog === "personas"
+              {dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Analysis history":dialog==="analysis"?"Thumbnail Analysis":dialog==="beforeafter"?"Compare Your Thumbnail":dialog==="feedback"?"Leave Your Feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
                 ? profileDialogTitle || "Your personas"
                 : dialog === "styles"
                   ? profileDialogTitle || "Your styles"
@@ -2084,7 +2105,7 @@ export default function Studio() {
             </button>
           </div>
           {dialog==="models"&&<ModelPicker model={settings.model} onChoose={value=>{changeSettings("model",value);setDialog(null);}}/>}
-          {(dialog==="personas"||dialog==="styles")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedId={dialog==="personas"?personaId:styleId} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
+          {(dialog==="personas"||dialog==="styles")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedIds={dialog==="personas"?personaIds:styleId?[styleId]:[]} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis-history"&&selected&&<AnalysisHistory key={selected.id+studio.user} creationId={selected.id} read={studio.read}/>}
           {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
@@ -2300,6 +2321,11 @@ export default function Studio() {
               </p>
             </>
           )}
+          {dialog==="delete-chat"&&chatToDelete&&(()=>{const count=studio.creations.filter(c=>c.conversation_id===chatToDelete.id&&c.image_path).length;return <section className="delete-chat">
+            <p><strong>{chatToDelete.title}</strong> and {count===0?"its draft":count===1?"its 1 thumbnail":"its "+count+" thumbnails"} will be deleted, including the image files saved in your account. This can’t be undone.</p>
+            <p className="dialog-footnote">Personas, styles and images used in another chat are kept.</p>
+            <div className="consent-actions"><button type="button" className="quiet-button" onClick={()=>{setDialog(null);setChatToDelete(null);}}>Cancel</button><button type="button" className="danger-button" autoFocus onClick={()=>void deleteChat(chatToDelete)}>Delete chat</button></div>
+          </section>;})()}
           {dialog === "login" && (studio.authClient?<AccountSignIn db={studio.authClient} onSignedIn={()=>location.assign("/connect#api")}/>:<p>Sign in is unavailable here. Your draft stays on this device. <a href="/connect#api">Open sign-in and connections</a></p>)}
           {studio.error && (
             <p className="dialog-error" role="status">

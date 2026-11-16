@@ -397,6 +397,7 @@ export async function createMcpServer(token: string) {
     personaId: z.string().uuid().optional(),
     styleId: z.string().uuid().optional(),
     persona: z.string().max(80).optional().describe("Saved persona name, e.g. the name the user typed after @. Resolved to your own persona."),
+    personas: z.array(z.string().max(80)).max(3).optional().describe("Up to three saved persona names for a thumbnail with several people. Resolved to your own personas."),
     style: z.string().max(80).optional().describe("Saved private style name. Resolved to your own style."),
     referencePaths: z.array(z.string().max(400)).max(6).default([]),
     model: z
@@ -415,8 +416,13 @@ export async function createMcpServer(token: string) {
     "studio:ai",
     async (args) => {
       await allowed("studio:write");
-      const { model, quality, complexity, format, batch, persona, style, ...rest } = args;
+      const { model, quality, complexity, format, batch, persona, personas, style, ...rest } = args;
       if (persona && rest.personaId) throw new AppError(400, "Use either persona or personaId, not both.");
+      if (personas?.length) {
+        const ids = await Promise.all((personas as string[]).map((name) => profileIdByName("persona", name)));
+        rest.personaIds = [...new Set(ids)];
+        if (rest.personaIds.length + (persona || rest.personaId ? 1 : 0) > 3) throw new AppError(400, "Use at most three personas in one thumbnail.");
+      }
       if (style && rest.styleId) throw new AppError(400, "Use either style or styleId, not both.");
       if (persona) rest.personaId = await profileIdByName("persona", persona);
       if (style) rest.styleId = await profileIdByName("style", style);

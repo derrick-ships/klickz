@@ -304,3 +304,24 @@ it("does not render anything when the mediator fails", async () => {
   expect(r.status).toBeGreaterThanOrEqual(400);
   expect(mock.render).not.toHaveBeenCalled();
 });
+
+it("puts every mentioned persona's photos first, two each, with one identity block per person", async () => {
+  mock.render.mockReset().mockResolvedValue(Buffer.from("png"));
+  const a = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", b = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
+  let n = 0;
+  Object.defineProperty(mock, "parent", { configurable: true, get: () => { n++; return { id: "p" + n, name: "Persona " + n, notes: "", refs: [1, 2, 3].map((i) => id + "/p" + n + "-" + i + ".png") }; }, set: (v) => { Object.defineProperty(mock, "parent", { value: v, writable: true, configurable: true, enumerable: true }); } });
+  const r = await POST(request({ personaIds: [a, b] }));
+  expect(r.status).toBe(200);
+  const [prompt, refs] = mock.render.mock.calls[0] as [string, Buffer[]];
+  expect(refs.length).toBeLessThanOrEqual(4);
+  expect(prompt.match(/IDENTITY \(highest priority\)/g)).toHaveLength(2);
+  expect(prompt).toContain("2 named people");
+  expect(mock.reservations[0]).toMatchObject({ persona_id: a, lineage: { personaIds: [a, b] } });
+});
+
+it("rejects more than three personas", async () => {
+  const ids = ["1", "2", "3", "4"].map((n) => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa" + n);
+  const r = await POST(request({ personaIds: ids }));
+  expect(r.status).toBe(400);
+  expect(mock.render).not.toHaveBeenCalled();
+});

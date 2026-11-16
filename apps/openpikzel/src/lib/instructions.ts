@@ -90,8 +90,11 @@ COLOR: true-to-life tonal relationships, smooth highlight-to-shadow transitions,
 AVOID: plastic or porcelain skin, airbrushing, CGI-like surfaces, melted or duplicated anatomy, inconsistent scale, floating objects, impossible reflections, excessive sharpening, and medium-breaking detail.`;
 
 /** Identity rule for a saved persona whose photos are attached as references [first..last] (1-based). */
-export function personaIdentityContract(name: string, first: number, last: number) {
+export function personaIdentityContract(name: string, first: number, last: number, people = 1) {
   const range = first === last ? `reference image ${first}` : `reference images ${first}-${last}`;
+  const continuity = people > 1
+    ? `This thumbnail shows ${people} named people, each with their own IDENTITY block; keep every face distinct and never blend two of them. Do not introduce any other person.`
+    : "Do not introduce a different person.";
   return `IDENTITY (highest priority): ${range} show ${name}, the real person who must appear. Reproduce this exact person: same face shape, eyes, nose, mouth, jaw, hairline and hair, skin tone, facial hair, glasses and age. Do not beautify, slim, de-age, idealize or swap in a look-alike. Change only expression, pose, framing and lighting as the request needs.
-AUTHORIZED REFERENCE CONTINUITY: Do not introduce a different person. If another attached reference is a brand mark, product or logo the request asks to show, copy that mark exactly from that image; do not redraw it from memory and do not substitute a similar logo. Do not add a channel logo, date or watermark the user did not ask for. Preserve the same visual DNA across variants while allowing natural photographic differences; exact cross-generator duplication is not guaranteed.`;
+AUTHORIZED REFERENCE CONTINUITY: ${continuity} If another attached reference is a brand mark, product or logo the request asks to show, copy that mark exactly from that image; do not redraw it from memory and do not substitute a similar logo. Do not add a channel logo, date or watermark the user did not ask for. Preserve the same visual DNA across variants while allowing natural photographic differences; exact cross-generator duplication is not guaranteed.`;
 }

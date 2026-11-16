@@ -165,3 +165,23 @@ button.score-badge, button.score-badge:active:not(:disabled) { min-height: 0; tr
 @media (max-width: 760px) { .dialog-shell > .dialog-heading { margin-inline: -20px; padding-inline: 20px; margin-top: -20px; } }
 /* The strip styles every button in a card; the badge is an overlay, not a card button. */
 .chat-timeline article button.score-badge { position: absolute; width: auto; min-height: 0; padding: 0 5px 0 3px; border-radius: 999px; background: color-mix(in oklab, black 35%, transparent); overflow: visible; }
+
+/* @mentions in the accent colour. The textarea's own text goes transparent and a mirror with the same box,
+   font and wrapping paints the words underneath; the caret and selection stay the textarea's own. */
+.prompt-field--mentions #thumbnail-prompt { color: transparent; -webkit-text-fill-color: transparent; caret-color: var(--color-ink); position: relative; z-index: 1; background: transparent; }
+.prompt-field--mentions #thumbnail-prompt::selection { color: transparent; -webkit-text-fill-color: transparent; }
+.prompt-mirror { position: absolute; top: 0; left: 0; z-index: 0; overflow: hidden; pointer-events: none; box-sizing: border-box; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; color: var(--color-ink); tab-size: 8; }
+.prompt-mention { color: var(--accent-400); font-weight: inherit; }
+.selection-chip-group--persona { border-color: color-mix(in oklab, var(--accent-400) 45%, var(--color-line)); }
+.selection-chip-group--persona .selection-name { color: var(--accent-300); }
+
+/* Delete a chat: a trash button beside each row, shown on hover/focus (always on touch screens). */
+.chat-row-wrap { position: relative; display: flex; align-items: center; }
+.chat-row-wrap .chat-row { padding-inline-end: 44px; }
+.chat-row-delete { position: absolute; inset-inline-end: 0; top: 50%; translate: 0 -50%; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; color: var(--color-muted); background: transparent; opacity: 0; transition: opacity var(--duration-surface) ease, color var(--duration-surface) ease; }
+.chat-row-wrap:hover .chat-row-delete, .chat-row-wrap.selected .chat-row-delete, .chat-row-delete:focus-visible { opacity: 1; }
+.chat-row-delete:hover, .chat-row-delete:focus-visible { color: var(--color-danger); }
+@media (hover: none) { .chat-row-delete { opacity: 1; } }
+.delete-chat p { line-height: 1.6; overflow-wrap: anywhere; }
+.danger-button { min-height: 48px; padding: 10px 18px; border-radius: 999px; font-weight: 600; color: #fff; background: var(--accent-700); border: 1px solid var(--accent-600); }
+.danger-button:hover { background: var(--accent-600); }
