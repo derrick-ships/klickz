@@ -6,6 +6,7 @@ import {suggestTitles,observePackaging,prepareIdentity,evaluateThumbnail} from "
 import {ideaSchema,reviewSchema} from "../src/lib/validation";
 import {generationReadiness} from "../src/lib/generation-readiness";
 import {defaultSettings,pillars} from "../src/lib/types";
+import {jevReply} from "./fixtures/jev-reply";
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
 const image=()=>sharp({create:{width:640,height:360,channels:3,background:"red"}}).png().toBuffer();
 const observations={summary:"Visible subject",dimensions:Object.fromEntries(pillars.map(p=>[p,{observation:"Visible subject",strength:"Clear focal point",weakness:"Competing text",fix:"Reduce competing text"}]))};
@@ -21,11 +22,11 @@ it("requires the selected provider even when another key is connected",async()=>
 }));
 it("honors explicit Google choice with both keys and records the actual image reviewer",async()=>providerContext.run({openai:"fixture",google:"fixture",jev:"fixture"},async()=>{
  const titles=["One","Two","Three","Four","Five"],calls:unknown[][]=[];
- const fetcher=vi.fn(async(...args:unknown[])=>{calls.push(args);return String(args[0]).includes("typesafe.ai")?new Response(JSON.stringify({answers:Object.fromEntries(pillars.map(p=>[p,{score:2,confidence:.8}]))})):google(calls.length===1?{titles}:calls.length===2?"Reference-guided style":observations);});vi.stubGlobal("fetch",fetcher);
+ const fetcher=vi.fn(async(...args:unknown[])=>{calls.push(args);return String(args[0]).includes("typesafe.ai")?new Response(JSON.stringify(jevReply())):google(calls.length===1?{titles}:calls.length===2?"Reference-guided style":observations);});vi.stubGlobal("fetch",fetcher);
  expect(await suggestTitles("A factual video idea","Viewers","google")).toEqual(titles);
  expect(await prepareIdentity([await image()],"Label","style","google")).toContain("Reference-guided");
  const score=await evaluateThumbnail(await image(),"A title","request",{videoBrief:"",audience:"",includeVision:true,critiqueProvider:"google"});
- expect(calls).toHaveLength(4);expect(calls.slice(0,3).every(c=>String(c[0]).includes("generativelanguage.googleapis.com"))).toBe(true);
+ expect(calls).toHaveLength(4);expect(calls.filter(c=>String(c[0]).includes("generativelanguage.googleapis.com"))).toHaveLength(3);
  expect(score.contributors?.map(c=>c.provider)).toEqual(["Jev","Google API"]);
 }));
 it("validates provider choice and defaults older requests to OpenAI without fallback",()=>{

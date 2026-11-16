@@ -1,3 +1,4 @@
+import {canScore} from "./scorers";
 import {imageCostCents,imageCostCopy,imageCostShort,imageOutputEstimate} from "./provider-cost";
 import type {Config,Settings,TextProvider} from "./types";
 import {imageModel} from "./image-models";
@@ -6,9 +7,10 @@ export function generationReadiness(input:{config:Config|null;cloud:boolean;load
  const {config,cloud,loading,tool,titleIdeas,settings}=input,model=imageModel(settings.model);
  const selectedText=input.textProvider||"openai", textProvider=selectedText==="openai"?"OpenAI":"Google", textConnected=!!config?.[selectedText];
  const operation=tool==="analyze"?"analysis":titleIdeas?"titles":"image";
- const provider=operation==="analysis"?"Jev":operation==="titles"?textProvider:model.providerName;
+ const scorer=config?.jev?"Jev":config?.openai?"OpenAI":config?.anthropic?"Claude":config?.google?"Google":"Jev";
+ const provider=operation==="analysis"?scorer:operation==="titles"?textProvider:model.providerName;
  const visionProvider=pickVisionProvider(config||{});
- const connected=operation==="analysis"?config?.jev:operation==="titles"?textConnected:config?.[model.provider];
+ const connected=operation==="analysis"?canScore(config):operation==="titles"?textConnected:config?.[model.provider];
  const connectionCheckFailed=config?.connectionStatus==="failed";
  let readiness=loading?"Checking your workspace…":connectionCheckFailed?"Connection status could not load. Open Connections to refresh before using AI.":!cloud?"Sign in and connect your own API key.":!config?.ai?"AI is not enabled in this workspace.":!connected?"Connect your "+provider+" API key in Connections.":operation==="analysis"&&input.includeVision&&!visionProvider?"Connect a Claude, OpenAI, or Google API key for the extra image review.":operation==="analysis"&&!input.hasSource?"Choose a thumbnail to analyze.":tool==="edit"&&!input.hasSource&&!input.hasReferences?"Choose an image to edit.":tool==="recreate"&&!input.hasReferences?"Add a reference thumbnail to recreate.":tool==="title"&&!titleIdeas&&!input.title.trim()&&!input.prompt.trim()?"Add a video title or direction before generating.":operation!=="analysis"&&(titleIdeas?(input.prompt||input.title).trim().length<8:tool!=="title"&&input.prompt.trim().length<8)?"Describe what you want to create or change (8 characters minimum).":"Connection saved. Model access and balance are checked when you run.";
  const identity=operation==="image"?provider+" · "+model.name:operation==="titles"?provider+" · "+((textProvider==="Google"?config?.textModels?.google:config?.textModels?.openai)||"configured text model"): "Jev · "+(config?.scoreModel||"configured scoring model")+(input.includeVision?" + "+(visionProvider==="anthropic"?"Claude":visionProvider==="google"?"Google":visionProvider==="openai"?"OpenAI":"Claude, OpenAI or Google")+" image review":"");

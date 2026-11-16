@@ -27,20 +27,21 @@ async function handle(request: Request) {
     const { db, user } = context;
     seal({ check: true }, "diagnostic-proof"); // Verify signing configuration before any paid dispatch.
     const input = reviewSchema.parse(await request.json());
-    // Jev scores unless the user chose the reviewer model as scorer in Settings → Models.
+    // Any connected scorer can give the numbers (Jev, OpenAI Decisions, Claude, Google), tried in order.
     const modelScorer = currentModelPreferences().scorer === "model";
-    if (modelScorer) requireAI(input.critiqueProvider);
-    else requireAI("jev");
+    if (!(["jev", "openai", "anthropic", "google"] as const).some((p) => hasProvider(p)))
+      throw new AppError(403, "Connect Jev, OpenAI, Claude or Google in Connections to score thumbnails.");
+    requireAI(hasProvider("jev") ? "jev" : (["openai", "anthropic", "google"] as const).find((p) => hasProvider(p))!);
     if (input.includeVision) requireAI(input.critiqueProvider);
     if (input.videoUrl) youtubeVideoId(input.videoUrl);
     let path = input.imagePath,
       id = input.creationId;
-    type Row = { style?: string | null; id: string; image_path: string | null; score: Evaluation | null; parent_id?: string | null; mode?: string; lineage?: { fix?: { suggestion?: string; parentScore?: number | null }; mediator?: { rawPrompt?: string; enriched?: { concept?: string; imageText?: string[] } } } | null };
+    type Row = { style?: string | null; persona_id?: string | null; reference_paths?: string[] | null; id: string; image_path: string | null; score: Evaluation | null; parent_id?: string | null; mode?: string; lineage?: { fix?: { suggestion?: string; parentScore?: number | null }; mediator?: { rawPrompt?: string; enriched?: { concept?: string; imageText?: string[] } } } | null };
     let row: Row | undefined;
     if (id) {
       const r = await db
         .from("studio_creations")
-        .select("id,image_path,score,parent_id,mode,lineage,style")
+        .select("id,image_path,score,parent_id,mode,lineage,style,persona_id,reference_paths")
         .eq("id", id)
         .eq("user_id", user.id)
         .single();
@@ -87,13 +88,14 @@ async function handle(request: Request) {
         return Response.json({ score: saved, creationId: id, jobId: input.requestId, reused: true, ...(comparison ? { comparison } : {}) });
       }
     }
+    // Budget: one image review plus up to three scorers (each fallback is one more paid call).
     const reserved = await reserveJob(
         db,
         user.id,
         input.requestId,
         "analyze",
         { ...input, sourceDigest: digest(image) },
-        input.includeVision ? 2 : 1,
+        input.includeVision ? 4 : 3,
       );
     if (reserved.replay) return Response.json(reserved.replay);
     jobId = input.requestId;
@@ -104,18 +106,33 @@ async function handle(request: Request) {
     // Pikzels): the planned concept and on-image text, or the user's own request.
     const planned = row?.lineage?.mediator;
     const intendedPromise = !assessedTitle && planned ? [planned.enriched?.concept, planned.enriched?.imageText?.length ? `On-image text: ${planned.enriched.imageText.join(" / ")}` : "", planned.rawPrompt ? `Request: ${planned.rawPrompt.slice(0, 400)}` : ""].filter(Boolean).join("\n") : "";
+    const uploaded = !row || row.lineage === null || (row.lineage as { origin?: string } | undefined)?.origin === "uploaded";
     dispatched = true;
-    const score = signDiagnostic(
-      await evaluateThumbnail(image, assessedTitle, input.requestId, {
-        videoBrief: [videoEvidence?.description || input.videoBrief || (intendedPromise ? `INTENDED PROMISE (no video title yet; judge Idea and Curiosity against this and the image itself):\n${intendedPromise}` : ""), row?.style && row.style !== "Auto" ? `Chosen style: ${row.style}` : ""].filter(Boolean).join("\n"),
+    let evaluated: Evaluation;
+    try {
+      evaluated = await evaluateThumbnail(image, assessedTitle, input.requestId, {
+        videoBrief: videoEvidence?.description || input.videoBrief,
+        intendedPromise,
+        style: row?.style && row.style !== "Auto" ? row.style : undefined,
+        // A creator's own uploaded thumbnail, a chosen persona or attached references authorize the people
+        // and marks in the image; only an unasked-for real face or logo is flagged.
+        peopleAuthorized: uploaded || !!row?.persona_id || !!row?.reference_paths?.length,
+        marksAuthorized: uploaded || !!row?.reference_paths?.length,
         videoEvidence,
         audience: input.audience,
         includeVision: input.includeVision,
         critiqueProvider: input.critiqueProvider,
         fixHistory,
         cacheKey: { title: input.title, videoBrief: input.videoBrief, videoUrl: input.videoUrl },
-      }),
-    );
+      });
+    } catch (error) {
+      // Every scorer answered with an error: nothing was scored, so this request may be tried again.
+      if ((error as { scorerAttempts?: unknown }).scorerAttempts) dispatched = false;
+      throw error;
+    }
+    // From here on the providers have answered; a failure below is ours and the request can be retried.
+    dispatched = false;
+    const score = signDiagnostic(evaluated);
     if (id) {
       const saved = await db
         .from("studio_creations")
@@ -147,14 +164,16 @@ async function handle(request: Request) {
     await updateJob(db, user.id, jobId, "succeeded", result);
     return Response.json(result);
   } catch (e) {
+    const state = dispatched && ambiguousProviderError(e) ? "reconciling" : "failed";
     if (context && jobId)
-      await updateJob(
-        context.db,
-        context.user.id,
-        jobId,
-        dispatched && ambiguousProviderError(e) ? "reconciling" : "failed",
-      ).catch(() => {});
-    return failure(e);
+      await updateJob(context.db, context.user.id, jobId, state).catch(() => {});
+    const response = failure(e);
+    // "failed" tells the studio nothing uncertain is pending, so its Retry may use a fresh request.
+    if (jobId && state === "failed") {
+      const body = await response.json();
+      return Response.json({ ...body, jobState: "failed" }, { status: response.status });
+    }
+    return response;
   }
 }
 export const POST = (request: Request) =>
