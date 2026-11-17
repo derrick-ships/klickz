@@ -127,7 +127,7 @@ vi.mock("../src/lib/oauth/core", async () => {
                 };
               },
               then: (resolve: any) => {
-                if (table === "studio_personas" || table === "studio_styles") return Promise.resolve({ data: state.profiles.filter(p => p.table === table && p.user_id === filters.user_id).slice(start, end + 1), error: null }).then(resolve);
+                if (table === "studio_personas" || table === "studio_styles" || table === "studio_elements") return Promise.resolve({ data: state.profiles.filter(p => p.table === table && p.user_id === filters.user_id).slice(start, end + 1), error: null }).then(resolve);
                 if (table === "studio_upload_urls") {
                   let rows = state.uploads.filter(
                     (u) =>
@@ -1039,6 +1039,15 @@ describe("analyze → fix loop and profiles by name", () => {
     const foreign = await invoke("generate_thumbnail", { prompt: "A clear studio portrait", persona: "Other", requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee5" });
     expect(foreign.isError).toBe(true);
     expect(state.generateCalls).toHaveLength(1);
+  });
+  it("lists typed elements and resolves owned element names for generation",async()=>{
+    state.scope=["studio:read","studio:write","studio:ai"];
+    state.profiles=[{table:"studio_elements",user_id:uid,id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",name:"Acme",kind:"logo",created_at:"2026-11-10T00:00:00Z"},{table:"studio_elements",user_id:"22222222-2222-4222-8222-222222222222",id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",name:"Foreign",kind:"prop"}];
+    expect((await invoke("list_profiles",{kind:"element"})).isError).not.toBe(true);
+    expect((await invoke("generate_thumbnail",{prompt:"A clear logo on a sign",elements:["Acme"],requestId:"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4"})).isError).not.toBe(true);
+    expect(state.generateCalls.at(-1).elementIds).toEqual(["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1"]);
+    expect((await invoke("generate_thumbnail",{prompt:"A clear logo on a sign",elements:["Foreign"],requestId:"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee5"})).isError).toBe(true);
+    const tools=(await (await call("tools/list",{})).json()).result.tools;expect(tools.find((t:any)=>t.name==="save_profile").inputSchema.properties.elementKind.enum).toEqual(["prop","logo","place","clothing"]);
   });
   it("lists study_style for saving a style from a YouTube link", async () => {
     const tools = await (await call("tools/list", {})).json();

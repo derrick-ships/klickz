@@ -7,7 +7,7 @@ const schema=z.object({
   prompt:z.string().max(2400).optional(),title:z.string().max(100).optional(),
   tool:z.enum(["generate","recreate","analyze","edit","title"]).optional(),
   settings:settingsSchema.optional(),refs:z.array(z.string().max(400)).max(6).optional(),
-  personaId:z.string().optional(),personaIds:z.array(z.string().max(80)).max(3).optional(),styleId:z.string().optional(),preset:z.string().max(120).optional(),
+  elementIds:z.array(z.string().max(80)).max(3).optional(),personaId:z.string().optional(),personaIds:z.array(z.string().max(80)).max(3).optional(),styleId:z.string().optional(),preset:z.string().max(120).optional(),
   videoBrief:z.string().max(2400).optional(),selection:z.string().nullable().optional(),
   parentId:z.string().nullable().optional(),titleAction:z.enum(["image","ideas"]).optional(),
   textProvider:z.enum(["openai","google"]).optional(),includeVision:z.boolean().optional(),videoUrl:z.string().max(500).optional(),autoReview:z.boolean().optional(),draftSavedAt:z.number().optional(),manualTitle:z.boolean().optional(),

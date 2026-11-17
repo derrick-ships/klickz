@@ -579,7 +579,7 @@ describe("profile unique names migration", () => {
       .sort();
     const uniqueNames = files.filter((s) => s.endsWith("_profile_unique_names.sql"));
     expect(uniqueNames).toEqual(["20261110130000_profile_unique_names.sql"]);
-    for (const file of files.filter((s) => s !== uniqueNames[0]))
+    for (const file of files.filter((s) => s < uniqueNames[0]))
       await local.exec(readFileSync("supabase/migrations/" + file, "utf8"));
     const aliceRef = `${alice}/references/a.png`,
       bobRef = `${bob}/references/a.png`;
@@ -699,4 +699,26 @@ describe("profile name normalization parity", () => {
       await expect(local.query("insert into studio_personas values ($1,$2,$3,now())", ["2", "u", "idea"])).resolves.toBeDefined();
     } finally { await local.close(); }
   });
+});
+
+
+describe("saved elements ownership and constraints",()=>{
+ it("isolates own elements and rejects invalid kinds, references and duplicate names",async()=>{
+  await asUser(alice);
+  await db.exec(`insert into studio_elements(user_id,name,kind,refs) values('${alice}','Acme','logo',array['${alice}/references/logo.png'])`);
+  expect((await db.query("select * from studio_elements")).rows).toHaveLength(1);
+  for(const sql of [
+   `insert into studio_elements(user_id,name,kind,refs) values('${alice}',' acme ','prop',array['${alice}/a.png'])`,
+   `insert into studio_elements(user_id,name,kind,refs) values('${alice}','Bad kind','person',array['${alice}/a.png'])`,
+   `insert into studio_elements(user_id,name,kind,refs) values('${alice}','Foreign','logo',array['${bob}/a.png'])`,
+   `insert into studio_elements(user_id,name,kind,refs) values('${alice}','Empty','prop',array[]::text[])`,
+   `insert into studio_elements(user_id,name,kind,refs) values('${alice}','Four','prop',array['${alice}/1','${alice}/2','${alice}/3','${alice}/4'])`,
+   `update studio_elements set user_id='${bob}'`,
+  ])await expect(db.exec(sql)).rejects.toThrow();
+  await asUser(bob);expect((await db.query("select * from studio_elements")).rows).toHaveLength(0);
+  await db.exec("delete from studio_elements");
+  await expect(db.exec(`insert into studio_elements(user_id,name,kind,refs) values('${alice}','Other','place',array['${alice}/a.png'])`)).rejects.toThrow();
+  await asUser(alice);expect((await db.query("select * from studio_elements")).rows).toHaveLength(1);
+ });
+ it("denies anonymous element reads",async()=>{await db.exec('reset role;set role anon');await expect(db.query('select * from studio_elements')).rejects.toThrow();await db.exec('reset role');});
 });

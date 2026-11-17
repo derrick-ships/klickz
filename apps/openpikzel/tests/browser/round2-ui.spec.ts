@@ -183,8 +183,10 @@ test("several personas can be mentioned; each mention shows in the accent colour
   await prompt.fill("");
   await prompt.pressSequentially("@Der");
   await prompt.press("Enter");
+  await expect.poll(()=>prompt.evaluate(el=>(el as HTMLTextAreaElement).selectionStart)).toBe(9);
   await prompt.pressSequentially("and @Da");
   await prompt.press("Enter");
+  await expect.poll(()=>prompt.evaluate(el=>(el as HTMLTextAreaElement).selectionStart)).toBe(19);
   await prompt.pressSequentially("in a podcast");
   await expect(prompt).toHaveValue("@Derrick and @Dana in a podcast");
   await expect(page.getByRole("button", { name: "Change persona: Derrick", exact: true })).toBeVisible();

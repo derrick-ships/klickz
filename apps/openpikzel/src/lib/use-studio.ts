@@ -1,4 +1,5 @@
 "use client";
+import {unusedElementImages,type Element,type ElementKind} from "./elements";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {type Conversation} from "./workspaces";
@@ -19,13 +20,14 @@ import { forgetPendingRequest, rememberPendingRequest } from "./pending-requests
 import { chatDeletionPlan } from "./chat-delete";
 import { canScore } from "./scorers";
 type Asset = { id: string; blob: Blob };
-type Collection = "creations" | "personas" | "styles" | "conversations";
+type Collection = "creations" | "personas" | "styles" | "elements" | "conversations";
 export function useStudio() {
   const [config, setConfig] = useState<Config | null>(null),
     [user, setUser] = useState<string | null>(null),
     [creations, setCreations] = useState<Creation[]>([]),
     [personas, setPersonas] = useState<Persona[]>([]),
     [styles, setStyles] = useState<Style[]>([]),
+    [elements, setElements] = useState<Element[]>([]),
     [images, setImages] = useState<Record<string, string>>({}),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
@@ -52,7 +54,7 @@ export function useStudio() {
     const current = ++version.current;
     if (db.current && user) {
       const rows = await Promise.all(
-        ["creations", "personas", "styles", "conversations"].map((x) =>
+        ["creations", "personas", "styles", "conversations", "elements"].map((x) =>
           db
             .current!.from("studio_" + x)
             .select("*")
@@ -60,7 +62,9 @@ export function useStudio() {
         ),
       );
       if (current !== version.current || userRef.current!==user) return;
-      if (rows.some((r) => r.error))
+      // Elements are newer than the rest of the library: if their table isn't there yet, the studio still
+      // loads, just without elements. Any other failure stops the load as before.
+      if (rows.slice(0, 4).some((r) => r.error))
         throw new Error(
           "Your cloud library could not load. Refresh the page; if it still fails, contact the workspace owner.",
         );
@@ -68,6 +72,7 @@ export function useStudio() {
       setPersonas(rows[1].data as Persona[]);
       setStyles(rows[2].data as Style[]);
       setConversations(rows[3].data as Conversation[]);
+      setElements((rows[4].error ? [] : rows[4].data || []) as Element[]);
       const pref=await db.current.from("studio_preferences").select("skip_persona_tutorial").eq("user_id",user).maybeSingle();if(current!==version.current||userRef.current!==user)return;setSkipPersonaTutorial(pref.data?.skip_persona_tutorial===true);
       const paths = [
         ...new Set(
@@ -78,6 +83,7 @@ export function useStudio() {
             ]),
             ...rows[1].data!.flatMap((x) => x.refs),
             ...rows[2].data!.flatMap((x) => x.refs),
+            ...rows[4].data!.flatMap((x) => x.refs),
           ].filter(Boolean),
         ),
       ];
@@ -108,6 +114,8 @@ export function useStudio() {
       setCreations(c.sort((a, b) => b.created_at.localeCompare(a.created_at)));
       setPersonas(personasNext);
       setStyles(stylesNext);
+      const elementsNext=await localProfileTransaction<Element>("element",{repair:true}) as Element[];
+      if(current!==version.current||userRef.current!==user)return;setElements(elementsNext);
       setConversations(chats);setSkipPersonaTutorial(preferences.find(p=>p.id==="local")?.skip_persona_tutorial===true);
       urls.current.forEach(URL.revokeObjectURL);
       const entries = a.map((x) => {
@@ -140,7 +148,7 @@ export function useStudio() {
               version.current++;
               setCreations([]);
               setPersonas([]);
-              setStyles([]);
+              setStyles([]);setElements([]);
               setImages({});
               setUser(next);
             }
@@ -276,7 +284,7 @@ export function useStudio() {
       );
   }
   function ensureCurrentOwner(){if(userRef.current!==user)throw new Error("Your account changed. Check the original account for the result.");}
-  async function put(kind: Collection, item: Creation | Persona | Style | Conversation) {
+  async function put(kind: Collection, item: Creation | Persona | Style | Element | Conversation) {
     ensureCurrentOwner();
     if (cloud) {
       const { error } = await db
@@ -580,8 +588,9 @@ export function useStudio() {
       pendingFix.current.delete(key);
     }
   }
-  async function saveProfile(kind:"persona"|"style",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]}){
+  async function saveProfile(kind:"persona"|"style"|"element",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]},elementKind?:ElementKind){
     const epoch=ownerEpoch.current;
+    if(kind==="element"&&!elementKind)throw new Error("Choose an element kind.");
     if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
     if(files.length<(kind==="persona"?2:1)||files.length>3)throw new Error(kind==="persona"?"Upload 2 or 3 photos of this persona.":"Use 1 to 3 style references.");
     if(kind==="persona"&&!permission)throw new Error("Confirm you have permission to use these photos and this likeness.");
@@ -590,14 +599,14 @@ export function useStudio() {
     const refs:string[]=[];let dispatched=false;
     try{
       for(const file of files){if(epoch!==ownerEpoch.current)throw new Error("Your account changed. Start again in this workspace.");refs.push(await upload(file));}
-      if(name.trim().length>80||notes.length>800)throw new Error("Use a name up to 80 characters and guidance up to 800 characters.");const input={kind,name:name.trim(),notes,refs,permission,source};let item:Persona;
+      if(name.trim().length>80||notes.length>800)throw new Error("Use a name up to 80 characters and guidance up to 800 characters.");const input={kind,name:name.trim(),notes,refs,permission,source,elementKind};let item:Persona;
       if(cloud){dispatched=true;item=(await api("/api/profiles",input)).profile;}
-      else{item={id:crypto.randomUUID(),name:input.name,notes:input.notes,refs,created_at:new Date().toISOString(),profile_status:"draft",...(source?{source}: {})};await localCreateProfile(kind,item);}
+      else{item={id:crypto.randomUUID(),name:input.name,notes:input.notes,refs,created_at:new Date().toISOString(),profile_status:"draft",...(source?{source}: {}),...(kind==="element"?{kind:elementKind!}:{})};await localCreateProfile(kind,item);}
       if(epoch!==ownerEpoch.current)throw new Error("Your account changed. The profile remains in its original account.");
       await load();return item;
     }catch(error){if(!dispatched){if(cloud&&refs.length)await db.current!.storage.from("studio-assets").remove(refs);else for(const id of refs)await localDelete("assets",id);}throw error;}
   }
-  async function renameProfile(kind:"persona"|"style",id:string,name:string){
+  async function renameProfile(kind:"persona"|"style"|"element",id:string,name:string){
     const epoch=ownerEpoch.current;
     if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
     if(name.trim().length>80)throw new Error("Use a name up to 80 characters.");
@@ -645,7 +654,7 @@ export function useStudio() {
   async function createConversation(){const now=new Date().toISOString();return saveConversation({id:crypto.randomUUID(),title:"New chat",draft:{},created_at:now,updated_at:now});}
   async function saveTutorialPreference(skip:boolean){const epoch=ownerEpoch.current;if(cloud){const result=await db.current!.from("studio_preferences").upsert({user_id:user,skip_persona_tutorial:skip,updated_at:new Date().toISOString()});if(result.error)throw new Error("Could not save this preference.");}else await localPut("preferences",{id:"local",skip_persona_tutorial:skip});if(epoch===ownerEpoch.current)setSkipPersonaTutorial(skip);}
   async function feedback(creationId:string,body:string){if(body.trim().length<3||body.length>2000)throw new Error("Write between 3 and 2,000 characters.");const item={id:crypto.randomUUID(),creation_id:creationId,body:body.trim(),created_at:new Date().toISOString()};if(cloud){const result=await db.current!.from("studio_feedback").insert({...item,user_id:user});if(result.error)throw new Error("Feedback could not be saved. Your text remains here.");}else await localPut("feedback",item);}
-  async function prepare(kind: "persona" | "style", id: string, provider: TextProvider = "openai") {
+  async function prepare(kind: "persona" | "style" | "element", id: string, provider: TextProvider = "openai") {
     requireLive();
     if(!config?.[provider])throw new Error("Connect your selected "+(provider==="openai"?"OpenAI":"Google")+" API key to prepare this profile.");
     const result = await api("/api/persona/prepare", { id, kind, provider });
@@ -720,6 +729,13 @@ export function useStudio() {
     return copy;
   }
   async function remove(kind: Collection, id: string) {
+    ensureCurrentOwner();
+    let unused:string[]=[];
+    if(kind==="elements"){
+      const refs=elements.find(e=>e.id===id)?.refs||[];
+      const used=new Set([...personas.flatMap(p=>p.refs),...styles.flatMap(p=>p.refs),...elements.filter(e=>e.id!==id).flatMap(e=>e.refs),...creations.flatMap(c=>[c.image_path,c.reference_path,...(c.reference_paths||[]),...(c.lineage?.elementReferencePaths||[])])]);
+      unused=unusedElementImages(refs,[...used]);
+    }
     if (cloud) {
       const { error } = await db
         .current!.from("studio_" + kind)
@@ -727,6 +743,7 @@ export function useStudio() {
         .eq("id", id);
       if (error) throw new Error("Could not delete this item. Refresh your library to check whether it is still there.");
     } else await localDelete(kind, id);
+    if(unused.length){if(cloud){const result=await db.current!.storage.from("studio-assets").remove(unused);if(result.error)throw new Error("Element deleted, but its unused images could not be removed.");}else for(const path of unused)await localDelete("assets",path);}
     await load();
     ensureCurrentOwner();
   }
@@ -738,7 +755,7 @@ export function useStudio() {
    */
   async function deleteConversation(chatId: string) {
     const epoch = ownerEpoch.current; ensureCurrentOwner();
-    const plan = chatDeletionPlan(chatId, creations, [...personas.flatMap((p) => p.refs), ...styles.flatMap((s) => s.refs)]);
+    const plan = chatDeletionPlan(chatId, creations, [...personas.flatMap((p) => p.refs), ...styles.flatMap((s) => s.refs), ...elements.flatMap(e=>e.refs),...creations.filter(c=>c.conversation_id!==chatId).flatMap(c=>c.lineage?.elementReferencePaths||[])]);
     if (cloud) {
       if (plan.creationIds.length) {
         const rows = await db.current!.from("studio_creations").delete().eq("user_id", user).in("id", plan.creationIds);
@@ -846,6 +863,7 @@ export function useStudio() {
     generateChunk,
     analyze,
     oneClickFix,
+    elements,
     saveProfile,
     renameProfile,
     prepare,

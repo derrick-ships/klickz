@@ -1,3 +1,4 @@
+import {elementKinds,elementDefinitions,profileTable} from "@/lib/elements";
 import {providerCapabilities} from "./capabilities";
 import {analysisHistory} from "./analysis-history";
 import {POST as creativeText} from "@/app/api/creative/route";
@@ -73,7 +74,7 @@ export async function createMcpServer(token: string) {
   // within the caller's own rows only, using the same unique-name rules as the app.
   async function profileIdByName(kind: ProfileKind, raw: string) {
     const name = raw.trim().replace(/^@/, "");
-    const rows = await db.from(kind === "persona" ? "studio_personas" : "studio_styles").select("id,name,created_at").eq("user_id", user.id);
+    const rows = await db.from(profileTable(kind)).select("id,name,created_at").eq("user_id", user.id);
     if (rows.error) throw rows.error;
     const resolved = resolveProfileName(rows.data || [], name, kind);
     if (resolved.status !== 200) throw new AppError(resolved.status, resolved.error);
@@ -257,11 +258,11 @@ export async function createMcpServer(token: string) {
   tool(
     "list_profiles",
     "List your saved persona/character or style profiles.",
-    { kind: z.enum(["persona", "style"]).default("persona") },
+    { kind: z.enum(["persona", "style", "element"]).default("persona") },
     "studio:read",
     async ({ kind }) => {
       const r = await db
-        .from(kind === "persona" ? "studio_personas" : "studio_styles")
+        .from(profileTable(kind))
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -275,12 +276,12 @@ export async function createMcpServer(token: string) {
     "Get persona/character reference pictures or a style with expiring private image links.",
     {
       id: z.string().uuid(),
-      kind: z.enum(["persona", "style"]).default("persona"),
+      kind: z.enum(["persona", "style", "element"]).default("persona"),
     },
     "studio:read",
     async ({ id, kind }) => {
       const r = await db
-        .from(kind === "persona" ? "studio_personas" : "studio_styles")
+        .from(profileTable(kind))
         .select("*")
         .eq("id", id)
         .eq("user_id", user.id)
@@ -309,11 +310,11 @@ export async function createMcpServer(token: string) {
       if ((!personas.length && style === undefined) || personas.some((name) => !name.trim()) || (style !== undefined && !style.trim()) || new Set(personas.map(profileNameKey)).size !== personas.length) throw new AppError(400, "Choose distinct non-empty profile names.");
       const selections: Array<{ kind: ProfileKind; name: string }> = personas.map((name) => ({ kind: "persona", name }));
       if (style !== undefined) selections.push({ kind: "style", name: style });
-      const rows: Record<ProfileKind, any[]> = { persona: [], style: [] };
-      for (const kind of ["persona", "style"] as const) {
+      const rows: Record<ProfileKind, any[]> = { persona: [], style: [], element: [] };
+      for (const kind of ["persona", "style", "element"] as const) {
         if (!selections.some((item) => item.kind === kind)) continue;
         for (let offset = 0; ; offset += 1000) {
-          const result = await db.from(kind === "persona" ? "studio_personas" : "studio_styles").select("*").eq("user_id", user.id).order("id").range(offset, offset + 999);
+          const result = await db.from(profileTable(kind)).select("*").eq("user_id", user.id).order("id").range(offset, offset + 999);
           if (result.error) throw result.error;
           rows[kind].push(...(result.data || []));
           if (!result.data || result.data.length < 1000) break;
@@ -379,19 +380,20 @@ export async function createMcpServer(token: string) {
     "save_profile",
     "Create a reference-guided persona/character or style from your uploaded private image paths.",
     {
-      kind: z.enum(["persona", "style"]),
+      kind: z.enum(["persona", "style", "element"]),
       name: z.string().trim().min(3).max(80),
       notes: z.string().max(800).default(""),
+      elementKind: z.enum(elementKinds).optional().describe(Object.entries(elementDefinitions).map(([k,v])=>k+": "+v.description).join(" ")),
       references: z.array(z.string().max(400)).min(1).max(3),
       permission: z.boolean().default(false),
     },
     "studio:write",
-    ({kind,name,notes,references,permission})=>backend(saveProfileRoute,{kind,name,notes,refs:references,permission}),
+    ({kind,name,notes,references,permission,elementKind})=>backend(saveProfileRoute,{kind,name,notes,refs:references,permission,elementKind}),
   );
   tool(
     "prepare_profile",
     "Analyze profile references to save a consistent identity/style brief. Uses your connected OpenAI or Google credits.",
-    { id: z.string().uuid(), kind: z.enum(["persona", "style"]), provider: z.enum(["openai","google"]).default("openai") },
+    { id: z.string().uuid(), kind: z.enum(["persona", "style", "element"]), provider: z.enum(["openai","google"]).default("openai") },
     "studio:ai",
     async (args) => {
       await allowed("studio:write");
@@ -406,6 +408,7 @@ export async function createMcpServer(token: string) {
     personaId: z.string().uuid().optional(),
     styleId: z.string().uuid().optional(),
     persona: z.string().max(80).optional().describe("Saved persona name, e.g. the name the user typed after @. Resolved to your own persona."),
+    elements:z.array(z.string().max(80)).max(3).optional().describe("Saved element names (props, logos, places or clothing), resolved to your own elements."),
     personas: z.array(z.string().max(80)).max(3).optional().describe("Up to three saved persona names for a thumbnail with several people. Resolved to your own personas."),
     style: z.string().max(80).optional().describe("Saved private style name. Resolved to your own style."),
     referencePaths: z.array(z.string().max(400)).max(6).default([]),
@@ -425,7 +428,8 @@ export async function createMcpServer(token: string) {
     "studio:ai",
     async (args) => {
       await allowed("studio:write");
-      const { model, quality, complexity, format, batch, persona, personas, style, ...rest } = args;
+      const { model, quality, complexity, format, batch, persona, personas, elements, style, ...rest } = args;
+      if(elements?.length)rest.elementIds=await Promise.all((elements as string[]).map(name=>profileIdByName("element",name)));
       if (persona && rest.personaId) throw new AppError(400, "Use either persona or personaId, not both.");
       if (personas?.length) {
         const ids = await Promise.all((personas as string[]).map((name) => profileIdByName("persona", name)));

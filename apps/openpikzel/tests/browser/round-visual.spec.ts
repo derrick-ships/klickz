@@ -1,6 +1,5 @@
 import { test, expect } from "@playwright/test";
 import { reviewFixture } from "./helpers/review-fixture";
-import { openMoreOptions } from "./helpers/more-options";
 
 test("the score sits on the thumbnail, batch goes to 16x, and the style library is browsable", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -17,9 +16,10 @@ test("the score sits on the thumbnail, batch goes to 16x, and the style library 
 
   const show = page.getByRole("button", { name: /Show prompt and settings/ });
   if (await show.isVisible().catch(() => false)) await show.click();
-  await openMoreOptions(page);
-  const chip = page.getByRole("button", { name: "Chiaroscuro style", exact: true });
+  // The style library lives in the Style dialog (16 Nov: removed from More options).
+  await page.getByRole("button", { name: "Style", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Library", exact: true }).click();
+  const chip = page.getByRole("dialog").getByRole("button", { name: /Chiaroscuro/ }).first();
   await chip.click();
-  await expect(chip).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".selection-chip", { hasText: "Chiaroscuro" })).toBeVisible();
 });

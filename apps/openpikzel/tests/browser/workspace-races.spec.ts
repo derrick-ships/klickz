@@ -41,6 +41,10 @@ async function setup(page:Page){
 
  return {settings,chats,creations};
 }
+for(const width of [1440,390])test('unscored image scores directly above the fold at '+width,async({page})=>{
+ const f=await setup(page);await page.setViewportSize({width,height:width===390?844:900});let calls=0;await page.route('**/api/analyze',r=>{calls++;expect(r.request().postDataJSON().creationId).toBe(f.creations[0].id);return r.fulfill({status:502,json:{error:'Explicit fixture response'}});});await page.goto('/');
+ const action=page.getByRole('button',{name:'Score thumbnail',exact:true});await expect(action).toHaveClass(/primary-button/);const box=(await action.boundingBox())!;expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(page.viewportSize()!.height);await page.screenshot({path:'evidence/score-first-'+width+'.png'});await action.click();await expect.poll(()=>calls).toBe(1);await expect(page.locator('.error-banner')).toContainText('Explicit fixture response');
+});
 test('busy generation cannot switch chats through library navigation',async({page})=>{
  const f=await setup(page);let release!:()=>void,entered!:()=>void;const waiting=new Promise<void>(r=>entered=r),hold=new Promise<void>(r=>release=r);
  await page.route('**/api/generate',async route=>{entered();await hold;const result={...f.creations[0],id:'66666666-6666-4666-8666-666666666666',title:'Completed in account A',created_at:new Date().toISOString()};f.creations.unshift(result);await route.fulfill({json:{creations:[result],partial:false}});});
@@ -171,7 +175,7 @@ test('analysis scanner waits for a saved result and includes explicitly requeste
    warnings:["The video itself was not watched."],dimensions:Object.fromEntries(["virality","clarity","idea","curiosity","emotion"].map(p=>[p,{score:67,confidence:.7,observation:"Fixture image evidence",strength:"One subject",weakness:"Small text",fix:"Simplify text"}]))};
   f.creations[0].score=score;await route.fulfill({json:{score,creationId:f.creations[0].id}});
  });
- await page.goto('/');await openResultMore(page);await page.getByRole('button',{name:'Score it',exact:true}).click();
+ await page.goto('/');await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();await page.getByRole('tab',{name:'Score',exact:true}).click();
  await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
  await openMoreOptions(page);await page.getByLabel('YouTube video link (optional)',{exact:true}).fill('https://youtu.be/abcdefghijk');await page.getByLabel('Review the image itself for specific advice (one extra AI request)',{exact:true}).check();
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
@@ -192,7 +196,7 @@ test('analysis scanner waits for a saved result and includes explicitly requeste
 test('failed analysis never shows completion and retries keep the same request identity',async({page})=>{
  await setup(page);const ids:string[]=[];
  await page.route('**/api/analyze',r=>{ids.push(r.request().postDataJSON().requestId);return r.fulfill({status:502,json:{error:"Fixture analysis could not finish"}});});
- await page.goto('/');await openResultMore(page);await page.getByRole('button',{name:'Score it',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('Actual video title');
+ await page.goto('/');await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();await page.getByRole('tab',{name:'Score',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('Actual video title');
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  const scanner=page.getByRole('region',{name:'Thumbnail analysis activity'});
  await expect(scanner).toHaveAttribute('data-phase','failed');await expect(scanner).toContainText('check saved results before retrying');
@@ -211,7 +215,7 @@ test('a fresh analysis counts up once in its dialog, then the score panel shows 
    dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:67,confidence:.7,observation:'Fixture',strength:'Fixture',weakness:'Fixture',fix:'Fixture'}]))};
   f.creations[0].score=score;await route.fulfill({json:{score,creationId:f.creations[0].id}});
  });
- await page.goto('/');await openResultMore(page);await page.getByRole('button',{name:'Score it',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
+ await page.goto('/');await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();await page.getByRole('tab',{name:'Score',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual studio rebuild');
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  await expect(page.getByRole('region',{name:'Thumbnail analysis activity'})).toHaveAttribute('data-phase','running');
  await expect(page.locator('.score-count')).toHaveCount(0);
@@ -270,7 +274,7 @@ test('analysis retry reuses the job after a successful response but failed libra
    dimensions:Object.fromEntries(['virality','clarity','idea','curiosity','emotion'].map(p=>[p,{score:60,confidence:.5,observation:'Fixture',strength:'Fixture',weakness:'Fixture',fix:'Fixture'}]))};
   f.creations[0].score=score;return r.fulfill({json:{score,creationId:f.creations[0].id}});
  });
- await page.goto('/');await openResultMore(page);await page.getByRole('button',{name:'Score it',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual title');
+ await page.goto('/');await expect(page.getByRole('region',{name:'Thumbnail review studio'})).toBeVisible();await page.getByRole('tab',{name:'Score',exact:true}).click();await page.getByLabel('Video title',{exact:true}).fill('A factual title');
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();
  await expect(page.locator('.analysis-scanner')).toHaveAttribute('data-phase','failed');
  await page.getByRole('button',{name:'Analyze thumbnail',exact:true}).click();

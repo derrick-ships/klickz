@@ -171,7 +171,7 @@ export type Creation = {
   request_id?: string;
   batch_id?: string;
   batch_index?: number;
-  lineage?: { personaIds?: string[]; origin?:"generated"|"edited"|"recomposed"|"uploaded"|"layout";nativeOutput?:boolean;sourceId?: string; sourceDigest?: string; fixPlanHash?: string; mediator?: import("./mediator").MediatorRecord; plan?: unknown; fix?: { suggestion: string; keep: string[]; keepText?: string[]; parentScore: number | null; history?: FixHistoryEntry[] } };
+  lineage?: { elementIds?: string[]; elementReferencePaths?: string[]; personaIds?: string[]; origin?:"generated"|"edited"|"recomposed"|"uploaded"|"layout";nativeOutput?:boolean;sourceId?: string; sourceDigest?: string; fixPlanHash?: string; mediator?: import("./mediator").MediatorRecord; plan?: unknown; fix?: { suggestion: string; keep: string[]; keepText?: string[]; parentScore: number | null; history?: FixHistoryEntry[] } };
   review?: { preference: string; order: string[]; decidedAt: string };
 };
 export type Config = {

@@ -481,7 +481,7 @@ export async function evaluateConcept(state: unknown, requestId: string) {
 export async function prepareIdentity(
   images: Buffer[],
   name: string,
-  kind: "persona" | "style",
+  kind: "persona" | "style" | "element",
   provider: TextProvider = "openai",
 ) {
   providerKey(provider);
@@ -491,6 +491,7 @@ export async function prepareIdentity(
       await googleText(
         kind === "persona"
           ? "Write a concise reference-guided identity brief preserving visible distinguishing appearance. Do not identify a person, infer sensitive attributes or claim fine-tuning."
+          : kind === "element" ? "Describe the referenced element faithfully so an image model can reproduce its shape, exact design, colours, print and recognisable details. Follow the element kind and placement in the label; do not describe a person or a visual style."
           : "Write a reusable visual style brief for palette, lighting, hierarchy and text treatment.",
         name,
         prepared,
@@ -502,6 +503,7 @@ export async function prepareIdentity(
     instructions:
       kind === "persona"
         ? "Write a concise reference-guided identity brief for image generation. Describe visible stable appearance, distinguishing visual cues, and details to preserve across poses. Do not infer sensitive attributes, identify a real person, or claim fine-tuning. Use the provided label only."
+        : kind === "element" ? "Describe the referenced element faithfully so an image model can reproduce its shape, exact design, colours, print and recognisable details. Follow the element kind and placement in the label; do not describe a person or a visual style."
         : "Write a concise reusable image style brief: color palette, lighting, framing, visual hierarchy and text treatment. Do not copy logos or exact images.",
     input: [
       {

@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode, type RefObject } from "react";
-import type { Persona } from "@/lib/types";
+import { useEffect, useLayoutEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+type Mentionable = {id:string;name:string;refs:string[];kind?:"persona"|"element"};
 
 /** At most this many personas appear in one thumbnail (the server enforces the same cap). */
 export const MAX_PERSONAS = 3;
@@ -47,28 +47,32 @@ export function unmention(value: string, name: string) {
  * Textbox + listbox pattern: aria-autocomplete="list", aria-controls and aria-activedescendant on the textarea.
  */
 export function usePersonaMentions({ value, setValue, personas, images, selectedIds, onChange: onSelectionChange, onLimit, textarea }: {
-  value: string; setValue: (next: string) => void; personas: Persona[]; images: Record<string, string>;
+  value: string; setValue: (next: string) => void; personas: Mentionable[]; images: Record<string, string>;
   selectedIds: string[]; onChange: (ids: string[]) => void; onLimit?: () => void; textarea: RefObject<HTMLTextAreaElement | null>;
 }) {
+  const pendingCaret=useRef<number|null>(null);
+  useLayoutEffect(()=>{if(pendingCaret.current!==null){const at=pendingCaret.current;pendingCaret.current=null;textarea.current?.focus();textarea.current?.setSelectionRange(at,at);}},[value,textarea]);
   const lastPointer = useRef<string | null>(null), listId = useId(), [token, setToken] = useState<{ start: number; query: string } | null>(null), [active, setActive] = useState(0);
   const q = token?.query.toLowerCase() ?? "";
   const matches = token ? personas.filter(p => p.name.toLowerCase().startsWith(q)).concat(personas.filter(p => !p.name.toLowerCase().startsWith(q) && p.name.toLowerCase().includes(q))).slice(0, 6) : [];
   const open = !!token && personas.length > 0 && matches.length > 0;
   const index = Math.min(active, Math.max(0, matches.length - 1));
   const sync = (el: HTMLTextAreaElement) => { const next = tokenAt(el.value, el.selectionStart ?? el.value.length); setToken(t => (t?.start === next?.start && t?.query === next?.query ? t : next)); if (next?.query !== token?.query) setActive(0); };
+  const role=(id:string)=>personas.find(p=>p.id===id)?.kind||"persona";
+  const count=(ids:string[],id:string)=>ids.filter(p=>role(p)===role(id)).length;
   function add(ids: string[], id: string) {
     if (ids.includes(id)) return ids;
-    if (ids.length >= MAX_PERSONAS) { onLimit?.(); return ids; }
+    if (count(ids,id) >= MAX_PERSONAS) { onLimit?.(); return ids; }
     return [...ids, id];
   }
-  function pick(persona: Persona) {
+  function pick(persona: Mentionable) {
     const el = textarea.current, caret = el?.selectionStart ?? value.length, start = token?.start ?? caret;
-    if (!selectedIds.includes(persona.id) && selectedIds.length >= MAX_PERSONAS) { setToken(null); onLimit?.(); return; }
+    if (!selectedIds.includes(persona.id) && count(selectedIds,persona.id) >= MAX_PERSONAS) { setToken(null); onLimit?.(); return; }
     const insert = "@" + persona.name + " ", next = value.slice(0, start) + insert + value.slice(caret);
     setValue(next.slice(0, 2400)); setToken(null);
     const ids = add(selectedIds, persona.id);
     if (ids !== selectedIds) onSelectionChange(ids);
-    requestAnimationFrame(() => { const at = Math.min(2400, start + insert.length); el?.focus(); el?.setSelectionRange(at, at); });
+    pendingCaret.current=Math.min(2400,start+insert.length);
   }
   const onChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const next = event.target.value;
@@ -99,11 +103,11 @@ export function usePersonaMentions({ value, setValue, personas, images, selected
       "aria-activedescendant": open ? optionId(index) : undefined,
     },
     list: open ? <>
-      <ul id={listId} className="mention-list" role="listbox" aria-label="Personas">
+      <ul id={listId} className="mention-list" role="listbox" aria-label={personas.some(p=>p.kind==="element")?"Personas and elements":"Personas"}>
         {matches.map((p, i) => <li key={p.id} id={optionId(i)} role="option" aria-selected={i === index} className="mention-option"
           onPointerDown={e => e.preventDefault()} onPointerMove={e => { const at = e.clientX + "," + e.clientY; if (lastPointer.current !== null && lastPointer.current !== at && i !== index) setActive(i); lastPointer.current = at; }} onClick={() => pick(p)}>
           {images[p.refs[0]] ? <img src={images[p.refs[0]]} alt="" width={28} height={28} /> : <span className="mention-avatar" aria-hidden="true">{p.name.slice(0, 1).toUpperCase()}</span>}
-          <span className="mention-name">{p.name}</span>
+          <span className="mention-name">{p.name}{p.kind==='element'&&<small> · Element</small>}</span>
           {selectedIds.includes(p.id) && <span className="mention-current">Added</span>}
         </li>)}
       </ul>
@@ -128,7 +132,7 @@ export function MentionMirror({ textarea, value, names }: { textarea: RefObject<
       out.style.borderStyle = "solid"; out.style.borderColor = "transparent";
       // The textarea's scrollbar (if any) narrows its text box; widen the mirror's right padding by the same amount.
       out.style.paddingRight = (parseFloat(cs.paddingRight) + el.offsetWidth - el.clientWidth - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth)) + "px";
-      out.style.width = el.offsetWidth + "px"; out.style.height = el.offsetHeight + "px"; out.style.top = el.offsetTop + "px"; out.style.left = el.offsetLeft + "px";
+      out.style.width = "100%"; out.style.height = el.offsetHeight + "px"; out.style.top = el.offsetTop + "px"; out.style.left = el.offsetLeft + "px";
       out.scrollTop = el.scrollTop;
     };
     const syncScroll = () => { out.scrollTop = el.scrollTop; };
