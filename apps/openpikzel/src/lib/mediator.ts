@@ -1,3 +1,4 @@
+import {elementDefinitions,type ReferenceAttachment} from "./elements";
 import OpenAI from "openai";
 import { z } from "zod";
 import { providerKey, hasProvider, providerContext } from "./provider-context";
@@ -12,7 +13,7 @@ import { principles, principleFiles } from "./principles.generated";
 // from the thumbnail playbook (principles/*.md, Derrick's zip). Nothing outside that
 // text counts as a principle.
 
-export const MEDIATOR_VERSION = "mediator-4";
+export const MEDIATOR_VERSION = "mediator-5";
 
 /** Substantial details: things the user named explicitly. Kept identical. */
 export type Substantial = {
@@ -116,7 +117,7 @@ RULES
 8. If the request conflicts with a principle and the request is substantial, the request wins (keep it) and you add the conflict to decisions.
 12. Variations. When variationTotal > 1 you are writing ONE image of a set; follow variationAxis exactly (placement, background colour family, emotion, framing, which intense colour marks the twist) so this image is clearly different from its siblings at a glance. Every variant must still follow the principles and keep every substantial detail and the exact on-image text. Record the axis you applied in decisions.
 9. Universal vs house rules. The playbook separates universal principles (01 principles, 02 visual rules "Universal", 06 QA, 09 pairing) from ONE channel's house look (00 rules 3 and 5, 03 house-style template, 04 Spanish text bank: yellow-on-top/white-below text, teal/orange gradient, red play badge, red only on ¿?). That house look is a STYLE, not a rule: apply it ONLY when chosenStyle is "House: Political news" — never because of the topic. With any other chosenStyle, follow that style. With no chosenStyle, apply only the universal principles and pick a palette and type treatment that fit the topic ("Fit the channel, not the theory", 01); record that choice in decisions.
-13. Reference images. When reference images are attached you can see them, in the same order as referenceNotes. A persona photo is the person who must appear: describe that exact face (shape, eyes, glasses, hairline, facial hair, skin tone, age) so the image model cannot swap in a look-alike. A brand, logo or product photo the user attached is a mark to COPY, not to redraw from memory and not a logo to forbid: name which reference image holds it, say "reproduce that mark exactly, do not invent a substitute", and do not put "no logo" in donts for a mark the user asked to show. "No logo" in the playbook means do not ADD a channel logo, date or watermark the user did not ask for.
+13. Structured attachments distinguish roles: persona = the person; style = visual treatment only; reference = user-provided additional imagery. An element is NEVER a person or a style. Every attached element must be named verbatim in the enriched prompt, with its reference image numbers and placement. Element kinds: ${Object.entries(elementDefinitions).map(([kind,definition])=>kind+": "+definition.description).join(" ")} Reference images. When reference images are attached you can see them, in the same order as referenceNotes. A persona photo is the person who must appear: describe that exact face (shape, eyes, glasses, hairline, facial hair, skin tone, age) so the image model cannot swap in a look-alike. A brand, logo or product photo the user attached is a mark to COPY, not to redraw from memory and not a logo to forbid: name which reference image holds it, say "reproduce that mark exactly, do not invent a substitute", and do not put "no logo" in donts for a mark the user asked to show. "No logo" in the playbook means do not ADD a channel logo, date or watermark the user did not ask for.
 10. Text must label what it describes. When there are several panels and the text names them (BEFORE/AFTER, ANTES/DESPUÉS, DÍA 1/DÍA 800, REAL/FALSO), place each word on its own panel, never stacked together in one block over the split. Apart from that, keep the house rule of 2-4 words.
 11. The cover test (01): the image alone must explain the transformation, contrast or question in under a second at phone size. Describe the subject so the difference between panels is obvious (same person, same pose and framing, only the changed attribute differs).
 14. Derrick's rules (file 11) in every prompt, unless the user's request says otherwise:
@@ -262,6 +263,7 @@ export async function mediate(input: {
   substantial?: Substantial;
   /** The same reference images the image model will receive, so the prompt describes what is actually attached. */
   referenceImages?: Buffer[];
+  attachments?: ReferenceAttachment[];
 }): Promise<{ enriched: Enriched; substantial: Substantial; provider: string; model: string; attempts: number }> {
   const chosen = providerOfChoice(currentModelPreferences().mediator);
   const provider: "openai" | "google" | null =
@@ -281,6 +283,7 @@ export async function mediate(input: {
     variationAxis: variationAxis(input.variation, input.variationTotal ?? 1),
     substantial,
     referenceNotes: input.notes,
+    attachments: input.attachments ?? [],
     referenceImages: input.referenceImages ?? [],
     referenceImageCount: input.referenceImages?.length ?? 0,
   };
@@ -303,6 +306,7 @@ export async function mediate(input: {
       continue;
     }
     const problems = verifyEnriched(substantial, parsed.data);
+    for(const attachment of input.attachments??[])if(attachment.role==="element"&&!normalise(parsed.data.prompt).toLowerCase().includes(normalise(attachment.name).toLowerCase()))problems.push(`Attached element "${attachment.name}" is missing from the enriched prompt. Include it with its kind, reference image numbers and placement.`);
     if (!problems.length) return { enriched: parsed.data, substantial, provider: result.provider, model: result.model, attempts: attempt };
     feedback = problems;
   }

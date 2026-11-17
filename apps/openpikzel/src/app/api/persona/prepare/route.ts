@@ -1,3 +1,4 @@
+import {profileTable,elementDefinitions,type ElementKind} from "@/lib/elements";
 import { z } from "zod";
 import {
   authenticated,
@@ -14,11 +15,11 @@ async function handle(request: Request) {
   try {
     const { db, user } = await authenticated(request);
     const input = z
-      .object({ id: z.string().uuid(), kind: z.enum(["persona", "style"]), provider: textProviderSchema })
+      .object({ id: z.string().uuid(), kind: z.enum(["persona", "style", "element"]), provider: textProviderSchema })
       .parse(await request.json());
     requireAI(input.provider);
     const table =
-      input.kind === "persona" ? "studio_personas" : "studio_styles";
+      profileTable(input.kind);
     const { data, error } = await db
       .from(table)
       .select("*")
@@ -29,7 +30,7 @@ async function handle(request: Request) {
     const images = await Promise.all(
       data.refs.slice(0, 3).map((p: string) => ownedAsset(db, user.id, p)),
     );
-    const identity_brief = await prepareIdentity(images, data.name, input.kind, input.provider);
+    const identity_brief = await prepareIdentity(images, input.kind === "element" ? `${data.name}: ${elementDefinitions[data.kind as ElementKind].description}` : data.name, input.kind, input.provider);
     const saved = await db
       .from(table)
       .update({ identity_brief, profile_status: "ready" })

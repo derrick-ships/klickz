@@ -9,6 +9,7 @@ import { signDiagnostic } from "../src/lib/diagnostic-proof";
 import { defaultSettings, pillars } from "../src/lib/types";
 const mock = vi.hoisted(() => ({
   duplicate: false,
+  profiles:{} as Record<string,any>,
   reservations: [] as Record<string, unknown>[],
   updates: [] as Record<string, unknown>[],
   render: vi.fn(),
@@ -33,7 +34,7 @@ vi.mock("../src/lib/server", async () => {
     authenticated: async () => ({
       user: { id: "11111111-1111-4111-8111-111111111111" },
       db: {
-        from: () => {
+        from: (table:string) => {
           let operation = "read",
             rows: Record<string, unknown>[] = [];
           let update: Record<string, unknown> = {},
@@ -49,7 +50,7 @@ vi.mock("../src/lib/server", async () => {
               error: null,
             }),
             single: async () => ({
-              data: operation === "update" ? { ...update, id } : mock.parent,
+              data: operation === "update" ? { ...update, id } : (mock.profiles[table]===undefined?mock.parent:mock.profiles[table]),
               error: null,
             }),
             insert: (value: Record<string, unknown>[]) => {
@@ -138,7 +139,7 @@ const request = (data: Record<string, unknown>) =>
   });
 beforeEach(() => {
   vi.stubEnv("STUDIO_ENCRYPTION_KEY", "a".repeat(64));
-  mock.duplicate = false;
+  mock.duplicate = false;mock.profiles={};
   mock.reservations = [];
   mock.updates = [];
   mock.render.mockReset().mockResolvedValue(Buffer.from("png"));
@@ -324,4 +325,30 @@ it("rejects more than three personas", async () => {
   const r = await POST(request({ personaIds: ids }));
   expect(r.status).toBe(400);
   expect(mock.render).not.toHaveBeenCalled();
+});
+
+
+it("orders persona, element and style attachments and records element lineage",async()=>{
+ const elementId="33333333-3333-4333-8333-333333333333";
+ mock.profiles={studio_personas:{name:"Derrick",refs:[id+"/face1",id+"/face2"],notes:""},studio_elements:{name:"Acme",kind:"logo",refs:[id+"/logo1",id+"/logo2"],notes:"Copy print"},studio_styles:{name:"Editorial",refs:[id+"/style"],notes:""}};
+ const response=await POST(request({personaIds:[id],elementIds:[elementId],styleId:id}));expect(response.status).toBe(200);
+ const {mediate}=await import('../src/lib/mediator');const input=vi.mocked(mediate).mock.calls.at(-1)![0];
+ expect(input.attachments?.map(a=>a.role)).toEqual(["persona","element","style"]);
+ expect(input.attachments?.[1]).toEqual({role:"element",kind:"logo",name:"Acme",images:[3,4]});
+ expect(input.notes.join(' ')).toContain('ELEMENT (logo) "Acme"');expect((mock.reservations[0].lineage as any).elementIds).toEqual([elementId]);
+});
+it("returns 404 for an element outside the owned query",async()=>{mock.profiles.studio_elements=null;expect((await POST(request({elementIds:[id]}))).status).toBe(404);});
+it("reduces element photos before rejecting an over-budget reference request",async()=>{
+ mock.profiles.studio_elements={name:"Acme",kind:"logo",refs:[id+"/a",id+"/b",id+"/c"],notes:""};
+ mock.profiles.studio_personas={name:"Person",refs:[id+"/p1",id+"/p2"],notes:""};
+ mock.profiles.studio_styles={name:"Look",refs:[id+"/s1",id+"/s2",id+"/s3"],notes:""};
+ const {imageModels}=await import("../src/lib/image-models");const model=imageModels.find(m=>m.id==="gemini-flash")!;const previous=model.maxReferences;model.maxReferences=5;
+ const response=await POST(request({elementIds:[id],styleId:id,referencePaths:Array.from({length:6},(_,i)=>id+'/r'+i),settings:{model:"gemini-flash"}}));
+ model.maxReferences=previous;expect(response.status).toBe(400);expect((await response.json()).error).toBe("Too many images for this model: remove an element or a reference");
+});
+
+it("keeps every attachment with one element photo when that meets the model budget",async()=>{
+ mock.profiles.studio_elements={name:"Acme",kind:"logo",refs:[id+"/a",id+"/b",id+"/c"],notes:""};mock.profiles.studio_styles={name:"Look",refs:[id+"/style"],notes:""};
+ const {imageModels}=await import("../src/lib/image-models");const model=imageModels.find(m=>m.id==="flare")!;const previous=model.maxReferences;model.maxReferences=2;
+ try{expect((await POST(request({elementIds:[id],styleId:id}))).status).toBe(200);const {mediate}=await import('../src/lib/mediator');expect(vi.mocked(mediate).mock.calls.at(-1)![0].attachments).toEqual([{role:"element",kind:"logo",name:"Acme",images:[1]},{role:"style",name:"Look",images:[2]}]);}finally{model.maxReferences=previous;}
 });

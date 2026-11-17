@@ -1,7 +1,7 @@
 import unicode from "@/lib/profile-unicode.json";
 import { AppError } from "@/lib/validation";
 
-export type ProfileKind = "persona" | "style";
+export type ProfileKind = "persona" | "style" | "element";
 export type NamedProfile = { id: string; name: string };
 export type DatedProfile = NamedProfile & { created_at: string };
 

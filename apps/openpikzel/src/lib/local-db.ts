@@ -1,12 +1,12 @@
 import { assertUniqueProfileName, dedupeProfileNames, type ProfileKind, type DatedProfile } from "./profile-name";
 import type { Creation, Persona, Style } from "./types";
 export type LocalRecord = Creation | Persona | Style;
-export type Store = "creations" | "personas" | "styles" | "assets" | "conversations" | "preferences" | "feedback";
+export type Store = "creations" | "personas" | "styles" | "elements" | "assets" | "conversations" | "preferences" | "feedback";
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open("derrick-thumbnail-studio", 2);
+    const req = indexedDB.open("derrick-thumbnail-studio", 3);
     req.onupgradeneeded = () => {
-      for (const name of ["creations", "personas", "styles", "assets", "conversations", "preferences", "feedback"])
+      for (const name of ["creations", "personas", "styles", "elements", "assets", "conversations", "preferences", "feedback"])
         if(!req.result.objectStoreNames.contains(name))req.result.createObjectStore(name, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
@@ -71,7 +71,7 @@ export async function localDelete(store: Store, id: string) {
 
 export async function localProfileTransaction<T extends DatedProfile>(kind: ProfileKind, operation: { create: T } | { id: string; name: string } | { repair: true }): Promise<T | T[]> {
   const db = await database();
-  const store = kind === "persona" ? "personas" : "styles";
+  const store = kind === "persona" ? "personas" : kind === "element" ? "elements" : "styles";
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, "readwrite");
     const objectStore = tx.objectStore(store);

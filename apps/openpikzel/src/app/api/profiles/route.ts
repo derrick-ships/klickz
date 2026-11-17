@@ -1,3 +1,4 @@
+import {profileTable} from '@/lib/elements';
 import {NextResponse} from 'next/server';
 import sharp from 'sharp';
 import {createHash} from 'node:crypto';
@@ -9,7 +10,7 @@ import {sameOrigin} from '@/lib/crypto';
 import {limitedJson} from '@/lib/oauth/http';
 import {AppError} from '@/lib/validation';
 
-function tableFor(kind:ProfileKind){return kind==='persona'?'studio_personas':'studio_styles';}
+const tableFor=profileTable;
 
 async function ownedNames(db:any,userId:string,kind:ProfileKind){
  const result=await db.from(tableFor(kind)).select('id,name').eq('user_id',userId);
@@ -28,7 +29,7 @@ export async function GET(request:Request){
   const url=new URL(request.url);
   const kind=url.searchParams.get('kind');
   const name=url.searchParams.get('name')??'';
-  if(kind!=='persona'&&kind!=='style')throw new AppError(400,'Check the request fields and try again.');
+  if(kind!=='persona'&&kind!=='style'&&kind!=='element')throw new AppError(400,'Check the request fields and try again.');
   const rows=await db.from(tableFor(kind)).select('*').eq('user_id',user.id);
   if(rows.error)throw rows.error;
   const resolved=resolveProfileName(rows.data||[],name,kind);
@@ -47,7 +48,7 @@ export async function POST(request:Request){
   if(digests.size!==images.length)throw new AppError(400,'Choose different reference images.');
   for(const image of images){const meta=await sharp(image,{limitInputPixels:40000000}).metadata();if(!['png','jpeg','webp'].includes(meta.format||'')||!meta.width||!meta.height||image.length>5*1024*1024)throw new AppError(400,'Use 2 or 3 PNG, JPG or WebP images under 5 MB.');}
   assertUniqueProfileName(await ownedNames(db,user.id,input.kind),input.name,input.kind);
-  const row:Record<string,unknown>={name:input.name,notes:input.notes,refs:input.refs,user_id:user.id,profile_status:'draft',...(input.kind==='persona'?{consent_at:new Date().toISOString()}:{source:input.source||{}})};
+  const row:Record<string,unknown>={name:input.name,notes:input.notes,refs:input.refs,user_id:user.id,profile_status:'draft',...(input.kind==='persona'?{consent_at:new Date().toISOString()}:input.kind==='element'?{kind:input.elementKind}:{source:input.source||{}})};
   const result=await db.from(tableFor(input.kind)).insert(row).select('*').single();
   if(result.error){if(uniqueViolation(result.error))throw new AppError(409,profileNameTakenError(input.kind,input.name));throw result.error;}
   return NextResponse.json({profile:result.data,method:'reference-guided'},{headers:{'Cache-Control':'no-store'}});

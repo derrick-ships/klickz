@@ -185,3 +185,11 @@ describe("Derrick's rules (file 11, 16 Nov)", () => {
     for (let i = 1; i <= 16; i++) expect(variationAxis(i, 16)!.background).not.toMatch(/\b(red|white|black|near-black|light background)\b/);
   });
 });
+
+it("distinguishes typed element attachments and retries when their name is omitted",async()=>{
+ create.fn.mockReset().mockResolvedValueOnce({output_text:JSON.stringify(enriched())}).mockResolvedValueOnce({output_text:JSON.stringify(enriched({prompt:enriched().prompt+' Acme is the exact logo from reference image 3 on the sign.'}))});
+ const attachments=[{role:"persona" as const,name:"Derrick",images:[1,2]},{role:"element" as const,kind:"logo" as const,name:"Acme",images:[3]},{role:"style" as const,name:"Editorial",images:[4]}];
+ const result=await providerContext.run({openai:"sk-test"},()=>mediate({rawPrompt:'Split-screen, text "BEFORE" and "AFTER"',title:"",format:"long",style:"Auto",notes:[],variation:1,hasPersona:true,isEdit:false,attachments}));
+ expect(result.attempts).toBe(2);const call=create.fn.mock.calls[0][0];const data=JSON.parse(call.input[0].content[0].text.replace(/^Answer in JSON\. Data:\n/,''));expect(data.attachments).toEqual(attachments);expect(call.instructions).toContain('An element is NEVER a person or a style');expect(call.instructions).toContain('clothing:');
+ const retry=JSON.parse(create.fn.mock.calls[1][0].input[0].content[0].text.replace(/^Answer in JSON\. Data:\n/,''));expect(retry.previousAttemptProblems.join(' ')).toContain('Acme');
+});

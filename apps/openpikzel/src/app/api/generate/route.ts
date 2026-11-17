@@ -1,3 +1,4 @@
+import {elementDefinitions,type Element,type ReferenceAttachment} from "@/lib/elements";
 import { youtubeJpeg } from "@/lib/youtube-jpeg";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -50,9 +51,10 @@ async function handle(request: Request) {
       );
     if(input.conversationId){const chat=await db.from("studio_conversations").select("id").eq("id",input.conversationId).eq("user_id",user.id).maybeSingle();if(chat.error||!chat.data)throw new AppError(404,"This chat is not available in your account.");}
     let conversationId=input.conversationId||null;
-    const refs: Buffer[] = [],seenPaths=new Set<string>();
-    async function addReference(path:string){if(seenPaths.has(path))return;seenPaths.add(path);refs.push(await ownedAsset(db,user.id,path));}
+    const refs: Buffer[] = [],seenPaths=new Set<string>(),referenceNumbers=new Map<string,number>();
+    async function addReference(path:string){if(seenPaths.has(path))return;seenPaths.add(path);refs.push(await ownedAsset(db,user.id,path));referenceNumbers.set(path,refs.length);}
     const notes: string[] = [];
+    const attachments:ReferenceAttachment[]=[];
     if (input.parentId) {
       const { data, error } = await db
         .from("studio_creations")
@@ -64,7 +66,7 @@ async function handle(request: Request) {
         throw new AppError(404, "Choose a rendered thumbnail to edit.");
       if(!conversationId)conversationId=data.conversation_id||null;
       const image = await ownedAsset(db, user.id, data.image_path);
-      refs.push(image);seenPaths.add(data.image_path);
+      refs.push(image);seenPaths.add(data.image_path);referenceNumbers.set(data.image_path,refs.length);attachments.push({role:"reference",images:[refs.length]});
       notes.push(
         "The first reference is the original. Preserve the main subject and identity. Apply only the requested edits.",
       );
@@ -85,6 +87,7 @@ async function handle(request: Request) {
         if (
           input.personaId ||
           input.personaIds.length ||
+          input.elementIds.length ||
           input.styleId ||
           input.referencePath ||
           input.referencePaths.length ||
@@ -113,24 +116,30 @@ async function handle(request: Request) {
       for (const path of data.refs.slice(0, photosPerPersona)) await addReference(path);
       if (refs.length > startIndex)
         notes.push(personaIdentityContract(data.name || "the person", startIndex + 1, refs.length, personaIds.length));
-      notes.push(`Persona guidance for ${data.name || "this person"}: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos.`);
+      attachments.push({role:"persona",name:data.name,images:data.refs.slice(0,photosPerPersona).map((p:string)=>referenceNumbers.get(p)!)});
+      notes.push(`PERSONA guidance for ${data.name || "this person"}: ${data.identity_brief || ""} ${data.notes}. Preserve identity when using persona photos.`);
     }
-    if (input.styleId) {
-      const { data, error } = await db.from("studio_styles").select("*").eq("id", input.styleId).eq("user_id", user.id).single();
-      if (error || !data) throw new AppError(404, "Style not found.");
-      for (const path of data.refs.slice(0, 3)) await addReference(path);
-      const palette = Array.isArray(data.source?.palette) ? data.source.palette.filter((c: unknown) => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)) : [];
-      notes.push(
-        `Style guidance: ${data.identity_brief || ""} ${data.notes}. Use style references for treatment and palette.${palette.length ? ` Measured style palette, most dominant first: ${palette.join(", ")}.` : ""}`,
-      );
-    }
+    const elementIds=[...new Set(input.elementIds)];
+    const elements:Element[]=[];
+    for(const id of elementIds){const result=await db.from("studio_elements").select("*").eq("id",id).eq("user_id",user.id).single();if(result.error||!result.data)throw new AppError(404,"Element not found.");elements.push(result.data as Element);}
+    let styleData:any=null;
+    if(input.styleId){const result=await db.from("studio_styles").select("*").eq("id",input.styleId).eq("user_id",user.id).single();if(result.error||!result.data)throw new AppError(404,"Style not found.");styleData=result.data;}
+    const userPaths=[...new Set([input.referencePath,...input.referencePaths].filter((p):p is string=>!!p))];
+    let elementPhotos=3;
+    const total=(count:number)=>new Set([...seenPaths,...elements.flatMap(e=>e.refs.slice(0,count)),...(styleData?.refs.slice(0,3)||[]),...userPaths]).size+(!input.styleId&&input.libraryStyleId?(libraryStyle(input.libraryStyleId)?.images.slice(0,2).length||0):0);
+    if(total(elementPhotos)>imageModel(input.settings.model).maxReferences)elementPhotos=1;
+    if(total(elementPhotos)>imageModel(input.settings.model).maxReferences)throw new AppError(400,"Too many images for this model: remove an element or a reference");
+    const elementReferencePaths:string[]=[];
+    for(const element of elements){const paths=element.refs.slice(0,elementPhotos);for(const path of paths){await addReference(path);elementReferencePaths.push(path);}const images=paths.map(p=>referenceNumbers.get(p)!);attachments.push({role:"element",kind:element.kind,name:element.name,images});notes.push(`ELEMENT (${element.kind}) "${element.name}": reference images ${images.join(', ')}. ${elementDefinitions[element.kind].description} ${element.identity_brief||''} ${element.notes}`);}
+    if(styleData){const data=styleData;for(const path of data.refs.slice(0,3))await addReference(path);const images=data.refs.slice(0,3).map((p:string)=>referenceNumbers.get(p)!);attachments.push({role:"style",name:data.name,images});const palette=Array.isArray(data.source?.palette)?data.source.palette.filter((c:unknown)=>typeof c==="string"&&/^#[0-9a-f]{6}$/i.test(c)):[];notes.push(`STYLE "${data.name}": reference images ${images.join(', ')} guide only treatment and palette, not people or objects. ${data.identity_brief||''} ${data.notes}. Measured palette: ${palette.join(', ')}`);}
     // Library style: its example thumbnails guide treatment and palette; never the people or text in them.
     const library = libraryStyle(input.libraryStyleId);
     if (input.libraryStyleId && !library) throw new AppError(400, "That style isn't in the library.");
     if (library && !input.styleId && !fixPlan) {
       const start = refs.length;
       for (const image of library.images.slice(0, 2)) refs.push(await readFile(join(process.cwd(), "public", image)));
-      notes.push(`Style "${library.name}" (${library.category}): reference images ${start + 1}-${refs.length} show the look to follow — lighting, palette, composition, typography treatment. Do not copy their people, logos or words. Look: ${library.description}`);
+      attachments.push({role:"style",name:library.name,images:Array.from({length:refs.length-start},(_,i)=>start+i+1)});
+      notes.push(`STYLE "${library.name}" (${library.category}): reference images ${start + 1}-${refs.length} show the look to follow — lighting, palette, composition, typography treatment. Do not copy their people, logos or words. Look: ${library.description}`);
     }
     const paths = [
       ...new Set(
@@ -139,14 +148,14 @@ async function handle(request: Request) {
         ),
       ),
     ];
-    for (const path of paths) await addReference(path);
+    for (const path of paths){await addReference(path);attachments.push({role:"reference",images:[referenceNumbers.get(path)!]});}
     if (paths.length)
       notes.push(
-        `Additional references (images ${refs.length - paths.length + 1}-${refs.length}) are attached. Copy any face, product or brand mark in them exactly. Do not invent a substitute logo. Create an original composition around those copied marks.`,
+        `Additional references (images ${paths.map(p=>referenceNumbers.get(p)).join(", ")}) are attached. Copy any face, product or brand mark in them exactly. Do not invent a substitute logo. Create an original composition around those copied marks.`,
       );
     if (input.mode === "fix" && !fixPlan)
       throw new AppError(400, "Choose the reviewed source variant.");
-    if(refs.length>imageModel(input.settings.model).maxReferences)throw new AppError(400,"Too many references for the selected image model. Remove extra references before running.");
+    if(refs.length>imageModel(input.settings.model).maxReferences)throw new AppError(400,"Too many images for this model: remove an element or a reference");
     const reserved = await reserveJob(
       db,
       user.id,
@@ -183,7 +192,7 @@ async function handle(request: Request) {
       batch_index: i,
       request_id: i === 0 ? input.requestId : crypto.randomUUID(),
       status: "generating",
-      lineage:{...(personaIds.length>1?{personaIds}:{}),origin:input.intent==="recompose"?"recomposed":input.mode==="edit"||input.mode==="fix"?"edited":"generated",nativeOutput:true,...(input.parentId?{sourceId:input.parentId,sourceDigest:digest(refs[0]),...(fixPlan?{fixPlanHash:fixPlan.hash,plan:fixPlan,...(fixPlan.suggestion?{fix:{suggestion:fixPlan.suggestion,keep:fixPlan.keep||[],keepText:fixPlan.preserve.exactText,parentScore:fixParentScore,history:fixPlan.history||[]}}:{})}:{})}:{})},
+      lineage:{elementIds,elementReferencePaths,...(personaIds.length>1?{personaIds}:{}),origin:input.intent==="recompose"?"recomposed":input.mode==="edit"||input.mode==="fix"?"edited":"generated",nativeOutput:true,...(input.parentId?{sourceId:input.parentId,sourceDigest:digest(refs[0]),...(fixPlan?{fixPlanHash:fixPlan.hash,plan:fixPlan,...(fixPlan.suggestion?{fix:{suggestion:fixPlan.suggestion,keep:fixPlan.keep||[],keepText:fixPlan.preserve.exactText,parentScore:fixParentScore,history:fixPlan.history||[]}}:{})}:{})}:{})},
     }));
     const reservation = await db
       .from("studio_creations")
@@ -213,6 +222,7 @@ async function handle(request: Request) {
               format: input.settings.format,
               style: input.style,
               notes,
+              attachments,
               variation: input.variationOffset + row.batch_index + 1,
               variationTotal: Math.max(input.variationTotal, input.settings.batch),
               hasPersona: personaIds.length > 0,
