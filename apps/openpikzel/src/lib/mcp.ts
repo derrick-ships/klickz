@@ -43,10 +43,11 @@ import {
   saveOwnedReference,
 } from "./signed-upload";
 import { widgetHtml } from "./widget.generated";
+import { chatFileSchema, fetchChatFile } from "./chat-file";
 import { forgetFact, recallFacts, rememberFact } from "./agent-memory";
 export const uiUri = "ui://openpikzels/analysis.html";
 const UI_TOOLS = new Set(["analyze_thumbnail", "score_thumbnail", "one_click_fix", "get_creation"]);
-export const agentGuide = `AFTER ANALYZING: the card shows the score, the fix and a One-Click Fix button. Don't repeat it. Reply in one short line in the user's language. If there's no title, ask for it. OpenPikzels does one loop: create a thumbnail, score it, fix what's holding it back, score again. Use generate_thumbnail to create (persona by name keeps the face), score_thumbnail or analyze_thumbnail to score, and get_fix_prompt / one_click_fix to improve; there are no separate edit, remix or title tools. Every generation goes through the OpenPikzels mediator: your prompt is rewritten with the thumbnail playbook's explicit do's and don'ts before it reaches the image model, keeping quoted text, numbers, subjects, panels and orientation exactly; get_creation returns lineage.mediator with the raw prompt, the enriched prompt and any declared change. Put exact on-image words in quotes. OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. A saved connection is not proof of model entitlement or balance; select a provider explicitly for each role and never substitute another provider silently. Use create_conversation/list_conversations/get_conversation to keep a project together; pass conversationId on generation. Personas need 2 or 3 distinct photos; styles need 1 to 3 references; names need at least 3 characters. A persona also requires explicit permission=true for likeness use. browse_style_channel uses the user’s own separate YouTube Data API key; never reuse an image-provider key for it. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. When asked to OpenPikzels Analyze a thumbnail, call analyze_thumbnail with exactly one of creationId, imagePath or base64; use create_upload_url first when the file is too large for base64. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail includes an image review by default when a Claude, OpenAI or Google key is connected (one extra request); without it the score is numbers only and one_click_fix reviews the image first. A title supports all five visible packaging rubrics; no written video brief is required. Optional videoUrl retrieves YouTube title/description using the user’s YouTube key. Missing titles or provider evidence remain unassessed; the video is not watched. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. enhance_prompt proposes a reviewed rewrite using one user-funded OpenAI or Google text request and a stable requestId. Conversation and image providers are independent; no consumer subscription is assumed to provide API access. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. recompose_thumbnail generates one new arrangement from the source in 9:16 or 16:9 using image-provider credits; preserve its requestId on an uncertain retry. The older resize_thumbnail tool remains a non-AI contained layout with a blurred background. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.\n\n${soul}`;
+export const agentGuide = `WHICH IMAGE TO SCORE: when the user asks to score, analyze or fix "this" thumbnail, or an image they attached or you generated in this chat, pass that image itself in the image field of analyze_thumbnail or score_thumbnail. Never score a different saved creation instead, never pick one from list_creations unless the user named it, and never send the user to another site or app to score. If the image can't be passed, say so in one line and ask the user to attach it. The product is called OpenPikzels. AFTER ANALYZING: the card shows the score, the fix and a One-Click Fix button. Don't repeat it. Reply in one short line in the user's language. If there's no title, ask for it. OpenPikzels does one loop: create a thumbnail, score it, fix what's holding it back, score again. Use generate_thumbnail to create (persona by name keeps the face), score_thumbnail or analyze_thumbnail to score, and get_fix_prompt / one_click_fix to improve; there are no separate edit, remix or title tools. Every generation goes through the OpenPikzels mediator: your prompt is rewritten with the thumbnail playbook's explicit do's and don'ts before it reaches the image model, keeping quoted text, numbers, subjects, panels and orientation exactly; get_creation returns lineage.mediator with the raw prompt, the enriched prompt and any declared change. Put exact on-image words in quotes. OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. A saved connection is not proof of model entitlement or balance; select a provider explicitly for each role and never substitute another provider silently. Use create_conversation/list_conversations/get_conversation to keep a project together; pass conversationId on generation. Personas need 2 or 3 distinct photos; styles need 1 to 3 references; names need at least 3 characters. A persona also requires explicit permission=true for likeness use. browse_style_channel uses the user’s own separate YouTube Data API key; never reuse an image-provider key for it. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. When asked to OpenPikzels Analyze a thumbnail, call analyze_thumbnail with exactly one of creationId, imagePath or base64; use create_upload_url first when the file is too large for base64. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail includes an image review by default when a Claude, OpenAI or Google key is connected (one extra request); without it the score is numbers only and one_click_fix reviews the image first. A title supports all five visible packaging rubrics; no written video brief is required. Optional videoUrl retrieves YouTube title/description using the user’s YouTube key. Missing titles or provider evidence remain unassessed; the video is not watched. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. enhance_prompt proposes a reviewed rewrite using one user-funded OpenAI or Google text request and a stable requestId. Conversation and image providers are independent; no consumer subscription is assumed to provide API access. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. recompose_thumbnail generates one new arrangement from the source in 9:16 or 16:9 using image-provider credits; preserve its requestId on an uncertain retry. The older resize_thumbnail tool remains a non-AI contained layout with a blurred background. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.\n\n${soul}`;
 export async function createMcpServer(token: string) {
   const context = await resolveAccess(token),
     { db, user, oauth } = context;
@@ -132,12 +133,14 @@ export async function createMcpServer(token: string) {
     work: (args: Record<string, any>) => Promise<Record<string, unknown>>,
     readOnly = false,
     destructive = false,
-    options?: { title?: string; toText?: (result: Record<string, unknown>) => string; ui?: boolean },
+    options?: { title?: string; toText?: (result: Record<string, unknown>) => string; ui?: boolean; fileParams?: string[] },
   ) => {
     const config = {
       title: options?.title,
       description,
       inputSchema,
+      // ChatGPT passes images from the conversation to these fields as { download_url, file_id }.
+      ...(options?.fileParams?.length ? { _meta: { "openai/fileParams": options.fileParams } } : {}),
       annotations: {
         readOnlyHint: readOnly,
         destructiveHint: destructive,
@@ -171,7 +174,7 @@ export async function createMcpServer(token: string) {
       };
     // The analysis card renders only for tools that return a score; other tools stay text-only.
     if (UI_TOOLS.has(name) || options?.ui)
-      return registerAppTool(server, name, { ...config, _meta: { ui: { resourceUri: uiUri }, "openai/outputTemplate": uiUri, "openai/toolInvocation/invoking": "Scoring your thumbnail…", "openai/toolInvocation/invoked": "Thumbnail scored" } }, handler);
+      return registerAppTool(server, name, { ...config, _meta: { ...(config._meta || {}), ui: { resourceUri: uiUri }, "openai/outputTemplate": uiUri, "openai/toolInvocation/invoking": "Scoring your thumbnail…", "openai/toolInvocation/invoked": "Thumbnail scored" } }, handler);
     return server.registerTool(name, config, handler);
   };
 
@@ -339,16 +342,19 @@ export async function createMcpServer(token: string) {
   });
   tool(
     "upload_reference",
-    "Save an image made in chat or another tool as a private reference. Supply one public HTTPS image/YouTube URL or base64 image (max 2 MB decoded).",
+    "Save an image from this chat (pass it as image), a public HTTPS image/YouTube URL, or base64 (max 2 MB decoded) as a private reference.",
     {
+      image: chatFileSchema.optional().describe("An image the user attached or generated in this conversation."),
       url: z.string().url().max(2000).optional(),
       base64: z.string().max(2800000).optional(),
     },
     "studio:write",
-    async ({ url, base64 }) => {
-      if (!!url === !!base64)
-        throw new AppError(400, "Supply a URL or base64 image.");
-      const image = url
+    async ({ image: file, url, base64 }) => {
+      if ([file, url, base64].filter(Boolean).length !== 1)
+        throw new AppError(400, "Supply the chat image, a URL or a base64 image.");
+      const image = file
+        ? await fetchChatFile(file)
+        : url
         ? await fetchReference(url)
         : await decodeInlineImage(base64);
       const path = await saveOwnedReference(db, user.id, image);
@@ -358,6 +364,9 @@ export async function createMcpServer(token: string) {
         previewExpiresIn: 300,
       };
     },
+    false,
+    false,
+    { fileParams: ["image"] },
   );
   tool(
     "create_upload_url",
@@ -442,8 +451,9 @@ export async function createMcpServer(token: string) {
   tool("list_analyses","Read saved analysis versions and their exact source/context/provider provenance without scoring, editing or replacing a title.",{creationId:z.string().uuid(),cursor:z.string().max(512).optional()},"studio:read",({creationId,cursor})=>analysisHistory(db,user.id,creationId,cursor));
   tool(
     "score_thumbnail",
-    "Score a real thumbnail + title across virality, clarity, idea, curiosity and emotion using your Jev credits, falling back to OpenAI Decisions, Claude or Google when Jev isn't connected or doesn't answer. Images created in ChatGPT are supported via upload_reference. This is a rubric, not predicted CTR.",
+    "Score a thumbnail + title across virality, clarity, idea, curiosity and emotion using your Jev credits, falling back to OpenAI Decisions, Claude or Google when Jev isn't connected or doesn't answer. To score an image from this chat, pass it as image. This is a rubric, not predicted CTR.",
     {
+      image: chatFileSchema.optional().describe("The image from this conversation to score."),
       creationId: z.string().uuid().optional(),
       imagePath: z.string().max(400).optional(),
       title: z.string().max(100).default(""),
@@ -457,7 +467,11 @@ export async function createMcpServer(token: string) {
     "studio:ai",
     async (args) => {
       await allowed("studio:write");
-      const analyzed = await backend(analyze, args);
+      const { image, ...rest } = args;
+      if ([image, rest.creationId, rest.imagePath].filter(Boolean).length !== 1)
+        throw new AppError(400, "Supply exactly one: the chat image, a creationId or an imagePath.");
+      if (image) rest.imagePath = await saveOwnedReference(db, user.id, await fetchChatFile(image));
+      const analyzed = await backend(analyze, rest);
       const creationId = analyzed.creationId as string;
       if (args.title) await adoptScoredTitle(creationId, analyzed.score as { title?: string });
       const c = await creation(creationId);
@@ -474,6 +488,9 @@ export async function createMcpServer(token: string) {
         },
       };
     },
+    false,
+    false,
+    { fileParams: ["image"] },
   );
   function analyzeSummary(result: Record<string, any>) {
     const score = result.score || {};
@@ -484,8 +501,9 @@ export async function createMcpServer(token: string) {
   }
   tool(
     "analyze_thumbnail",
-    "OpenPikzels Analyze: score a thumbnail from a creation, an uploaded imagePath, or a small base64 image, show the analysis card, and return an improved prompt plus a fix plan. Always pass the exact video title when known. Preserve requestId on retry.",
+    "OpenPikzels Analyze: score a thumbnail and show the analysis card with an improved prompt and a fix plan. To score an image from this chat (uploaded or generated here), pass it as image. Use creationId only for a thumbnail already saved in OpenPikzels that the user named. Always pass the exact video title when known. Preserve requestId on retry.",
     {
+      image: chatFileSchema.optional().describe("The image from this conversation to score."),
       creationId: z.string().uuid().optional(),
       imagePath: z.string().max(400).optional(),
       base64: z.string().max(2800000).optional(),
@@ -496,16 +514,17 @@ export async function createMcpServer(token: string) {
     "studio:ai",
     async (args) => {
       await allowed("studio:write");
-      const sources = [args.creationId, args.imagePath, args.base64].filter(Boolean);
+      const sources = [args.image, args.creationId, args.imagePath, args.base64].filter(Boolean);
       if (sources.length !== 1)
-        throw new AppError(400, "Supply a creationId, imagePath or base64 image.");
+        throw new AppError(400, "Supply exactly one: the chat image, a creationId, an imagePath or a base64 image.");
       const keys = await userKeys(db, user.id);
       const critiqueProvider = pickVisionProvider(keys, providerOfChoice(currentModelPreferences().reviewer));
       if (!critiqueProvider)
         throw new AppError(400, missingVisionKeyMessage());
       let imagePath = args.imagePath as string | undefined;
-      if (args.base64) imagePath = await saveOwnedReference(db, user.id, await decodeInlineImage(args.base64));
-      if (imagePath) await claimSignedUpload(db, user.id, imagePath, args.requestId);
+      if (args.image) imagePath = await saveOwnedReference(db, user.id, await fetchChatFile(args.image));
+      else if (args.base64) imagePath = await saveOwnedReference(db, user.id, await decodeInlineImage(args.base64));
+      else if (imagePath) await claimSignedUpload(db, user.id, imagePath, args.requestId);
       const analyzed = await backend(analyze, {
         ...(args.creationId ? { creationId: args.creationId } : { imagePath }),
         title: args.title ?? "",
@@ -538,7 +557,7 @@ export async function createMcpServer(token: string) {
     },
     false,
     false,
-    { title: "OpenPikzels Analyze", toText: analyzeSummary },
+    { title: "OpenPikzels Analyze", toText: analyzeSummary, fileParams: ["image"] },
   );
   tool(
     "get_fix_prompt",

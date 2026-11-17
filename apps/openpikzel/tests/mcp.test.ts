@@ -1047,3 +1047,45 @@ describe("analyze → fix loop and profiles by name", () => {
     expect(study.inputSchema.required).toContain("url");
   });
 });
+
+describe("ChatGPT chat images (openai/fileParams)", () => {
+  const chatFile = { download_url: "https://files.oaiusercontent.com/file-abc?sig=x", file_id: "file_abc", mime_type: "image/png", file_name: "who-wins.png" };
+  it("declares the chat image as a file input on the scoring tools", async () => {
+    const tools = (await (await call("tools/list", {})).json()).result.tools;
+    for (const name of ["analyze_thumbnail", "score_thumbnail"]) {
+      const t = tools.find((x: any) => x.name === name);
+      expect(t._meta["openai/fileParams"]).toEqual(["image"]);
+      expect(t._meta.ui.resourceUri).toBe("ui://openpikzels/analysis.html");
+      expect(Object.keys(t.inputSchema.properties.image.properties).sort()).toEqual(["download_url", "file_id", "file_name", "mime_type"]);
+      expect(t.inputSchema.properties.image.required.sort()).toEqual(["download_url", "file_id"]);
+    }
+    const upload = tools.find((x: any) => x.name === "upload_reference");
+    expect(upload._meta["openai/fileParams"]).toEqual(["image"]);
+  });
+  it("scores the exact image from the chat, not a saved creation", async () => {
+    const png = await (await import("sharp")).default({ create: { width: 64, height: 36, channels: 3, background: "#123456" } }).png().toBuffer();
+    const fetcher = vi.fn(async (_url: unknown) => new Response(png, { headers: { "content-type": "image/png", "content-length": String(png.length) } }));
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      const result = await invoke("analyze_thumbnail", { image: chatFile, title: "WHO WINS?", requestId: requestA });
+      expect(result.isError).not.toBe(true);
+      expect(String(fetcher.mock.calls[0][0])).toBe(chatFile.download_url);
+      expect(state.analyzeCalls[0].imagePath).toMatch(new RegExp("^" + uid + "/references/[0-9a-f]{64}\\.png$"));
+      expect(state.analyzeCalls[0].creationId).toBeUndefined();
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it("refuses two sources at once and links that aren't HTTPS", async () => {
+    const both = await invoke("analyze_thumbnail", { image: chatFile, creationId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd1", requestId: requestA });
+    expect(both.isError).toBe(true);
+    expect(errorText(both)).toMatch(/exactly one/);
+    const http = await invoke("score_thumbnail", { image: { ...chatFile, download_url: "http://files.example/x.png" }, requestId: requestB });
+    expect(http.isError).toBe(true);
+    expect(errorText(http)).toMatch(/Attach the image again/);
+    expect(state.analyzeCalls).toHaveLength(0);
+  });
+  it("tells the agent to score the chat image and never swap in a saved creation", async () => {
+    const workspace = await invoke("get_workspace", {});
+    expect(workspace.structuredContent.guide).toMatch(/pass that image itself in the image field/);
+    expect(workspace.structuredContent.guide).toMatch(/Never score a different saved creation/);
+  });
+});
