@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 import type { FixPlan } from "@/lib/diagnostics";
 import {AccountSignIn} from "@/components/account/sign-in";
-import {libraryStyle, styleLibrary} from "@/lib/style-library";
+import {libraryStyle} from "@/lib/style-library";
 import { PixelConfirmation } from "@/components/pixel-confirmation";
 import { imageModel } from "@/lib/image-models";
 import { AnalysisScanner } from "@/components/creative/analysis-scanner";
@@ -184,6 +184,7 @@ export default function Studio() {
     [email, setEmail] = useState(""),
     [password, setPassword] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [importedVideo,setImportedVideo]=useState<{id:string;title:string}|null>(null),[editImportedTitle,setEditImportedTitle]=useState(false);
   const [creativeDraft,setCreativeDraft]=useState<CreativeDraft>({}),[delivery,setDelivery]=useState<DeliveryState|null>(null),[reviewStatuses,setReviewStatuses]=useState<Record<string,ReviewStatus>>({});
   // The current delivery: how many images were asked for, and (for 8x/16x) which landed while the rest are still drawing.
   const [deliveryPlan,setDeliveryPlan]=useState<{requested:number;landed:string[]}>({requested:1,landed:[]});
@@ -556,7 +557,7 @@ export default function Studio() {
       setLinkOpen(false);
       // A YouTube link already names the video: use its public title and keep the link for the score.
       const isYouTube = /(^|\.)youtu(\.be|be\.com)$/.test((() => { try { return new URL(source).hostname; } catch { return ""; } })());
-      if (videoTitle && !title.trim()) setTitle(videoTitle);
+      if (videoTitle && (isYouTube && tool === "analyze" || !title.trim())) setTitle(videoTitle);
       if (isYouTube && tool === "analyze") setVideoUrl(source);
       if (["analyze", "edit"].includes(tool)) {
         const item = await studio.saveUploaded(
@@ -564,7 +565,7 @@ export default function Studio() {
           (title.trim() || videoTitle || "Imported thumbnail"),
           (await ensureChat()).id,
         );
-        if (isYouTube && tool === "analyze") videoUrlOwner.current = item.id;
+        if (isYouTube && tool === "analyze") { videoUrlOwner.current = item.id; setImportedVideo(videoTitle ? {id:item.id,title:videoTitle} : null); setEditImportedTitle(false); }
         setSelection(item.id);
         setComposerOpen(true);
       }
@@ -643,21 +644,21 @@ export default function Studio() {
     if(ok)setDelivery(current=>current&&current.stage==="review-pending"&&studio.creations.filter(c=>deliveryPlan.landed.includes(c.id)).every(c=>c.id===id||!!c.score)?{...current,stage:"ready",reviewed:current.total}:current);
   }
 
-  async function submit() {
+  async function submit(scoreOnly = false) {
     if (!workspaceReady) return;
     // Prompt-only validation is shown under the field (not the top banner) and focuses it.
-    const invalid=promptValidationError({tool,titleAction,prompt,title});
+    const invalid=scoreOnly ? null : promptValidationError({tool,titleAction,prompt,title});
     if(invalid){studio.setError("");setPromptError(invalid);requestAnimationFrame(()=>promptRef.current?.focus());return;}
     setPromptError("");
     const submittedFingerprint=draftFingerprint;
     await studio.run(
-      tool === "analyze"
+      tool === "analyze" || scoreOnly
         ? "Analyzing thumbnail"
         : tool === "title" && titleAction === "ideas"
           ? "Finding title angles"
           : `Generating ${settings.batch} thumbnail${settings.batch > 1 ? "s" : ""}`,
       async () => {
-        if (tool === "analyze") {
+        if (tool === "analyze" || scoreOnly) {
           if (!selected?.image_path)
             throw new Error(
               "Upload a thumbnail or choose one from your library.",
@@ -937,11 +938,11 @@ export default function Studio() {
   async function planIt() {
     const before = prompt;
     if (!before.trim()) return;
-    await studio.run("Planning your thumbnail", async () => {
+    await studio.run("Improving your prompt", async () => {
       studio.requireLive();
       const result = await studio.api("/api/plan", { prompt: before.trim(), title, format: settings.format, style: styleProfile?.name || libraryChoice?.name || preset });
-      const brief = typeof result?.brief === "string" ? result.brief.trim().slice(0, 2400) : "";
-      if (!brief) throw new Error("The plan came back empty. Your prompt is unchanged.");
+      const brief = typeof result?.prompt === "string" ? result.prompt.trim() : typeof result?.brief === "string" ? result.brief.trim() : "";
+      if (!brief) throw new Error("The improvement came back empty. Your prompt is unchanged.");
       setPrompt(brief); setPlanUndo({ before, after: brief });
       requestAnimationFrame(() => promptRef.current?.focus({ preventScroll: true }));
     });
@@ -964,15 +965,23 @@ export default function Studio() {
   const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:!workspaceReady,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider});
   // The inline prompt message follows the current text and mode, and clears once the prompt is valid.
   useEffect(()=>{if(!promptError)return;const next=promptValidationError({tool,titleAction,prompt,title})||"";if(next!==promptError)setPromptError(next);},[promptError,tool,titleAction,prompt,title]);
-  // OP-3: the action, its cost and the key note sit directly under the prompt.
-  const showCost=!busy&&!!readiness.costShort&&(readiness.action==="run"||readiness.action==="signin");
+  // Keep the action and connection note directly under the compact prompt.
+  const importedTitle = importedVideo?.id === selection && !!videoUrl;
+  useEffect(() => {
+    const field=promptRef.current;
+    if(!field || tool!=="generate")return;
+    const start=field.selectionStart,end=field.selectionEnd;
+    field.style.height="auto";
+    field.style.height=Math.min(240,Math.max(matchMedia("(max-width: 760px)").matches?84:88,field.scrollHeight))+"px";
+    field.setSelectionRange(start,end);
+  },[prompt,tool,showComposer]);
   const generateAction = (
                   <div className="generate-dock" data-placement={tool==="analyze"?"after-settings":"under-prompt"}>
                     <div className="generate-split">
                       <button type="button"
                         className="primary-button"
                         disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"}
-                        aria-describedby={(showCost?"generate-cost-description ":"")+"request-readiness"}
+                        aria-describedby="request-ready"
                         onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):submit()}
                       >
                         {busy ? (
@@ -991,7 +1000,6 @@ export default function Studio() {
                                 ? "Generate titles"
                                 : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create thumbnail"}
                         </span>
-                        {showCost&&<span className="generate-cost" aria-hidden="true">{readiness.costShort}</span>}
                       </button>
                       {tool !== "analyze" &&
                         !(tool === "title" && titleAction === "ideas") && (
@@ -1018,9 +1026,8 @@ export default function Studio() {
                         )}
                     </div>
                     {tool === "generate" && (planUndo && prompt === planUndo.after
-                      ? <button type="button" className="ghost-pill" disabled={busy} onClick={() => { setPrompt(planUndo.before); setPlanUndo(null); requestAnimationFrame(() => promptRef.current?.focus({ preventScroll: true })); }}><Undo2 size={15} aria-hidden="true"/>Undo plan</button>
-                      : prompt.trim().length >= 3 && studio.cloud && !!(studio.config?.openai || studio.config?.google) && <button type="button" className="ghost-pill" disabled={busy} onClick={() => void planIt()}><Sparkles size={15} aria-hidden="true"/>Plan it</button>)}
-                    {showCost&&<span id="generate-cost-description" className="sr-only">{readiness.costDescription}</span>}
+                      ? <button type="button" className="ghost-pill" disabled={busy} onClick={() => { setPrompt(planUndo.before); setPlanUndo(null); requestAnimationFrame(() => promptRef.current?.focus({ preventScroll: true })); }}><Undo2 size={15} aria-hidden="true"/>Undo</button>
+                      : prompt.trim().length >= 3 && studio.cloud && !!(studio.config?.openai || studio.config?.google) && <button type="button" className="ghost-pill" disabled={busy} onClick={() => void planIt()}><Sparkles size={15} aria-hidden="true"/>Improve</button>)}
                     <p className="generate-key-note" id="generate-key-note">{readiness.keyNote.connected?readiness.keyNote.text:<>{readiness.keyNote.text} <button type="button" className="generate-key-link" onClick={()=>setDialog("connections")}>{readiness.keyNote.link}</button></>}</p>
                   </div>
   );
@@ -1080,8 +1087,9 @@ export default function Studio() {
                     <>
                       <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.title || selected.title} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
                       <div className="result-actions">
+                        {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score thumbnail</button>}
                         <button type="button"
-                          className="primary-button download-button"
+                          className={(!score && scoreView.kind!=="no-jev" ? "neutral-button" : "primary-button")+" download-button"}
                           disabled={busy}
                           onClick={() =>
                             studio.run("Downloading image", () =>
@@ -1095,15 +1103,6 @@ export default function Studio() {
                         <details className="result-more">
                           <summary className="neutral-button">More</summary>
                           <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
-                        
-                        <button type="button"
-                          className="menu-item"
-                          disabled={busy}
-                          onClick={() => openReviewEditor("analyze")}
-                        >
-                          <ChartNoAxesCombined size={15} />
-                          Score it
-                        </button>
                         <button type="button"
                           className="menu-item"
                           disabled={busy}
@@ -1298,7 +1297,6 @@ export default function Studio() {
                       {scoreView.kind==="idle"&&<>
                         <p>Get a score for the thumbnail and its title on five things viewers notice.</p>
                         <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
-                        <button type="button" className="neutral-button" onClick={() => openReviewEditor("analyze")}>Score this thumbnail</button>
                       </>}
                       {scoreView.kind==="no-jev"&&<button type="button" className="neutral-button" onClick={()=>setDialog("connections")}>Connections</button>}
                       {scoreView.kind==="failed"&&<button type="button" className="neutral-button" disabled={busy} onClick={()=>{void retryScore();}}>Retry score</button>}
@@ -1621,7 +1619,8 @@ export default function Studio() {
                         )}
                       </div>
                     )}
-                    {(tool === "analyze" || tool === "title") && (
+                    {tool === "analyze" && importedTitle && !editImportedTitle && <p className="imported-video-title">Title: {title} <button type="button" className="ghost-pill" onClick={()=>{setEditImportedTitle(true);requestAnimationFrame(()=>document.getElementById("video-title")?.focus());}}>Edit</button></p>}
+                    {(tool === "title" || tool === "analyze" && (!importedTitle || editImportedTitle)) && (
                       <div className="field-block">
                         <label htmlFor="video-title">
                           <Type size={14} />
@@ -1639,11 +1638,11 @@ export default function Studio() {
                     )}
                     {tool === "analyze" && (
                       <div className="diagnostic-context">
-                        <p id="video-title-guidance">Add the title viewers will see. No written summary is required.</p>
+                        {!importedTitle && <p id="video-title-guidance">A video title is optional. You can score the image on its own.</p>}
                         <details className="more-options"><summary>More options</summary>
-                        <label htmlFor="analysis-video-url">YouTube video link (optional)</label>
+                        {!importedTitle && <><label htmlFor="analysis-video-url">YouTube video link (optional)</label>
                         <input id="analysis-video-url" type="url" maxLength={500} value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
-                        <p>Reads the video’s public title and description with your YouTube key. It does not watch the video.</p>
+                        <p>Reads the video’s public title and description with your YouTube key. It does not watch the video.</p></>}
                         {providerControls}
                         <p className="analysis-provider-note">{analysisReviewer ? "Score + "+analysisReviewer+" image review." : "Score only. Connect Claude, OpenAI or Google for image-specific advice."}</p>
                         <p>Anything the evidence can’t support is marked “Not assessed”; no scores are invented.</p>
@@ -1807,25 +1806,7 @@ export default function Studio() {
                         )}
                         <details className="more-options" open={advanced} onToggle={e=>setAdvanced((e.currentTarget as HTMLDetailsElement).open)}><summary>More options</summary>
                           <div className="more-options-body">
-                            <section className="option-group" aria-label="Look"><h3>Look</h3><div className="public-style-chips" role="group" aria-label="Style library">{styleLibrary.map(style=><button type="button" className="tool-chip" key={style.id} aria-label={style.name+" style"} aria-pressed={!styleId&&preset==="library:"+style.id} onClick={()=>{setPreset(preset==="library:"+style.id?"Auto":"library:"+style.id);setStyleId("");}}>{style.name}</button>)}</div></section>
-                            
-                            {!["recreate","edit","analyze"].includes(tool)&&<section className="option-group" aria-label="More image sources"><h3>More image sources</h3><div className="composer-tool-group" role="group" aria-label="More image sources">
-                          <button type="button"
-                            className="tool-chip"
-                            aria-label="Import references from link"
-                            onClick={() => setLinkOpen((x) => !x)}
-                          >
-                            <Link2 size={15} />Link
-                          </button>
-                          <button type="button"
-                            className="tool-chip"
-                            aria-label="Choose references from library"
-                            onClick={() => setDialog("references")}
-                          >
-                            <Images size={15} />Library
-                          </button>
-                            </div></section>}
-                            <section className="option-group" aria-label="AI model"><h3>AI model</h3><div className="settings-row">
+                             <section className="option-group" aria-label="AI model"><h3>AI model</h3><div className="settings-row">
                               <ModelTrigger label="Rendering model" model={settings.model} expanded={dialog==="models"} onOpen={()=>setDialog("models")}/>
                             </div>{providerControls}<div className="advanced-controls">
                             <label>
@@ -1898,13 +1879,7 @@ export default function Studio() {
                       </>
                     )}
                   </fieldset>
-                  <details className="request-readiness more-options" id="request-readiness" role="group" aria-label="Before you run">
-                    <summary>Cost and what you need</summary>
-                    <p className="request-identity">{readiness.identity}</p><p>{readiness.quantity}</p>
-                    <p className="request-key"><strong>{studio.cloud?"Your connected provider creates the image.":"Free drafts. Your own AI connection for generation."}</strong> Generating images requires an OpenPikzels account and your own OpenAI or Google API key. Provider usage is billed to that account; ChatGPT and Claude subscriptions alone do not enable studio generation.{!studio.cloud&&<> <a href="/connect#api">Sign in, then connect your API key</a></>}</p>
-                    <p className="request-cost">{readiness.cost} {readiness.pricingSource&&<a href={readiness.pricingSource} target="_blank" rel="noreferrer">Provider pricing</a>}</p>{readiness.apiModel&&<details><summary>Provider details</summary><p>API model: {readiness.apiModel}</p></details>}
-                  </details>
-                  <p className="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"?"":readiness.readiness}</p>
+                  <p className="request-ready" id="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"?"":readiness.readiness}</p>
                   {tool==="analyze"&&generateAction}
                 </div>
                 <div className="composer-footer" hidden={!showComposer}>

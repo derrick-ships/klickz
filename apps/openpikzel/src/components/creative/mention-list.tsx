@@ -68,7 +68,11 @@ export function usePersonaMentions({ value, setValue, personas, images, selected
     setValue(next.slice(0, 2400)); setToken(null);
     const ids = add(selectedIds, persona.id);
     if (ids !== selectedIds) onSelectionChange(ids);
-    requestAnimationFrame(() => { const at = Math.min(2400, start + insert.length); el?.focus(); el?.setSelectionRange(at, at); });
+    requestAnimationFrame(() => {
+      // Restore the insertion caret only if no newer keystroke has already moved it.
+      if (el?.value !== next.slice(0, 2400)) return;
+      const at = Math.min(2400, start + insert.length); el.focus(); el.setSelectionRange(at, at);
+    });
   }
   const onChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const next = event.target.value;

@@ -1,0 +1,16 @@
+import {beforeEach,expect,it,vi} from "vitest";
+const state=vi.hoisted(()=>({openai:true,google:false,text:'{"prompt":"@JP Serna sorprendido junto a 3 arepas, texto \\"FÁCIL\\"."}',create:vi.fn(),googleText:vi.fn()}));
+vi.mock("openai",()=>({default:class {responses={create:state.create};}}));
+vi.mock("../src/lib/provider-context",()=>({hasProvider:(p:string)=>p==="openai"?state.openai:state.google,providerKey:()=>"fixture"}));
+vi.mock("../src/lib/google",()=>({googleText:state.googleText}));
+vi.mock("../src/lib/server",()=>({authenticated:vi.fn(),requireAI:vi.fn(),withUserProviders:async(_r:Request,run:()=>Promise<Response>)=>run(),failure:(e:Error)=>Response.json({error:e.message},{status:502})}));
+import {POST} from "../src/app/api/plan/route";
+import {principles} from "../src/lib/principles.generated";
+const original='@JP Serna con 3 arepas y texto "FÁCIL"';
+const request=()=>new Request("http://localhost/api/plan",{method:"POST",body:JSON.stringify({prompt:original,title:"Arepas en casa"})});
+beforeEach(()=>{vi.clearAllMocks();vi.unstubAllEnvs();state.openai=true;state.google=false;state.create.mockResolvedValue({output_text:JSON.stringify({prompt:'@JP Serna sorprendido junto a 3 arepas, texto "FÁCIL".'})});});
+it("uses one bounded nano response with playbook and user text as JSON data",async()=>{const r=await POST(request());expect(r.status).toBe(200);expect((await r.json()).brief).toContain('@JP Serna');expect(state.create).toHaveBeenCalledTimes(1);const [call,options]=state.create.mock.calls[0];expect(call.model).toBe("gpt-5.4-nano");expect(call.instructions).toContain(principles);expect(call.input).toContain("Arepas en casa");expect(call.input).toContain("JSON");expect(call.store).toBe(false);expect(call.max_output_tokens).toBe(400);expect(options).toEqual({maxRetries:0,timeout:20000});});
+it("honors the improve model override",async()=>{vi.stubEnv("OPENAI_IMPROVE_MODEL","custom-nano");await POST(request());expect(state.create.mock.calls[0][0].model).toBe("custom-nano");});
+it.each(['Una persona con 3 arepas, texto "FÁCIL".','@JP Serna junto a 3 arepas.'])("rejects a lossy rewrite: %s",async(prompt)=>{state.create.mockResolvedValue({output_text:JSON.stringify({prompt})});const r=await POST(request());expect(r.status).toBe(502);expect((await r.json()).error).toContain("unchanged");});
+it("rejects malformed output rather than fabricating a prompt",async()=>{state.create.mockResolvedValue({output_text:"not json"});expect((await POST(request())).status).toBe(502);});
+it("uses Google only when there is no OpenAI key",async()=>{state.openai=false;state.google=true;state.googleText.mockResolvedValue(JSON.stringify({prompt:original}));expect((await POST(request())).status).toBe(200);expect(state.create).not.toHaveBeenCalled();expect(state.googleText.mock.calls[0][4]).toBe("gemini-3.5-flash-lite");expect(state.googleText.mock.calls[0][5]).toEqual({maxOutputTokens:400,timeoutMs:20000});});

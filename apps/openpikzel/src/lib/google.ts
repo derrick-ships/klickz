@@ -41,6 +41,7 @@ export async function googleText(
   images: Buffer[] = [],
   json = false,
   model = process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",
+  options: {maxOutputTokens?:number;timeoutMs?:number} = {},
 ) {
   const parts = await generate(
     model,
@@ -55,9 +56,9 @@ export async function googleText(
     ],
     {
       ...(json ? { responseMimeType: "application/json" } : {}),
-      maxOutputTokens: 3000,
+      maxOutputTokens: options.maxOutputTokens ?? 3000,
     },
-    45000,
+    options.timeoutMs ?? 45000,
     instructions,
   );
   const text = parts

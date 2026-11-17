@@ -7,15 +7,15 @@ test.beforeEach(async({page})=>{
 test("analysis setup preserves a real title and video link across modes and reload",async({page})=>{
  await reviewFixture(page,{scored:false,jev:true});
  await expect(page.getByRole("heading",{name:"Review thumbnail and title"})).toBeVisible();
- await page.getByRole("button",{name:"Score this thumbnail",exact:true}).click();
+ await page.getByRole("tab",{name:"Score",exact:true}).click();
  const title=page.getByLabel("Video title",{exact:true}),brief=page.getByLabel("YouTube video link (optional)",{exact:true});
- await expect(title).toBeFocused();
+ await expect(title).toBeVisible();
  await openMoreOptions(page);await title.fill("My actual video title, not the image brief");await brief.fill("https://www.youtube.com/watch?v=abcdefghijk");
- await page.getByRole("tab",{name:"Create",exact:true}).click();await page.getByRole("button",{name:"Score this thumbnail",exact:true}).click();
+ await page.getByRole("tab",{name:"Create",exact:true}).click();await page.getByRole("tab",{name:"Score",exact:true}).click();
  await expect(title).toHaveValue("My actual video title, not the image brief");
  await openMoreOptions(page);await expect(brief).toHaveValue("https://www.youtube.com/watch?v=abcdefghijk");
- await expect(page.locator(".diagnostic-context")).toContainText("No written summary is required.");
- await page.reload();await page.getByRole("button",{name:"Score this thumbnail",exact:true}).click();
+ await expect(page.locator(".diagnostic-context")).toContainText("A video title is optional.");
+ await page.reload();await page.getByRole("tab",{name:"Score",exact:true}).click();
  await expect(title).toHaveValue("My actual video title, not the image brief");
  for(const width of [1440,390,320]){
   await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});
