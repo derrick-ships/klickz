@@ -62,7 +62,9 @@ export function useStudio() {
         ),
       );
       if (current !== version.current || userRef.current!==user) return;
-      if (rows.some((r) => r.error))
+      // Elements are newer than the rest of the library: if their table isn't there yet, the studio still
+      // loads, just without elements. Any other failure stops the load as before.
+      if (rows.slice(0, 4).some((r) => r.error))
         throw new Error(
           "Your cloud library could not load. Refresh the page; if it still fails, contact the workspace owner.",
         );
@@ -70,7 +72,7 @@ export function useStudio() {
       setPersonas(rows[1].data as Persona[]);
       setStyles(rows[2].data as Style[]);
       setConversations(rows[3].data as Conversation[]);
-      setElements(rows[4].data as Element[]);
+      setElements((rows[4].error ? [] : rows[4].data || []) as Element[]);
       const pref=await db.current.from("studio_preferences").select("skip_persona_tutorial").eq("user_id",user).maybeSingle();if(current!==version.current||userRef.current!==user)return;setSkipPersonaTutorial(pref.data?.skip_persona_tutorial===true);
       const paths = [
         ...new Set(

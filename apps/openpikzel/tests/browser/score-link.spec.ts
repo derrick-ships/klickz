@@ -19,6 +19,10 @@ test("pasting a YouTube link in Score fetches the thumbnail and fills the title"
     el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
   });
   await expect.poll(() => calls).toBe(1);
+  // The video already has a title: it is shown, not asked for (16 Nov). Edit still reveals the field.
+  await expect(page.getByText("Title: Abelardo destruye el mito del M-19")).toBeVisible();
+  await expect(page.getByLabel("Video title", { exact: true })).toHaveCount(0);
+  await page.locator(".imported-video-title").getByRole("button", { name: "Edit", exact: true }).click();
   await expect(page.getByLabel("Video title", { exact: true })).toHaveValue("Abelardo destruye el mito del M-19");
   await expect(page.getByRole("button", { name: "Import", exact: true })).toHaveCount(0);
 });

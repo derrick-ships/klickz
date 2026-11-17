@@ -25,17 +25,17 @@ for(const size of sizes){
   const prompt=page.getByLabel("Describe your thumbnail",{exact:true}),action=page.getByRole("button",{name:"Sign in to generate",exact:true});
   await expect(action).toBeEnabled();expect(await page.evaluate(()=>scrollY)).toBe(0);
   await inView(prompt,page);await inView(action,page);
-  const cost=page.locator(".generate-cost");await expect(cost).toHaveText("~$0.03 + score");await expect(cost).toHaveAttribute("aria-hidden","true");await inView(cost,page);
+  await expect(page.locator(".generate-cost")).toHaveCount(0);
   const note=page.locator("#generate-key-note");await expect(note).toHaveText("Uses your own API key. Connect once in Connections.");await inView(note,page);
   await expect(page.getByRole("region",{name:"Before you start"})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width);
  });
- test("signed in with a key at "+size.width+"x"+size.height+": the action keeps its exact name and announces the cost",async({page})=>{
+ test("signed in with a key at "+size.width+"x"+size.height+": the action keeps its exact name without a price",async({page})=>{
   await page.setViewportSize(size);const f=await setup(page,{signedIn:true,openai:true});await page.goto("/studio?mode=generate");
   const action=page.getByRole("button",{name:"Create thumbnail",exact:true});await expect(action).toBeEnabled();
   await inView(page.getByLabel("Describe your thumbnail",{exact:true}),page);await inView(action,page);
-  await expect(action).toHaveAccessibleDescription(/Estimated image output about \$0\.03 for 1 image, plus a score\. Inputs and any analysis are extra\./);
-  await expect(action.locator(".generate-cost")).toHaveText("~$0.03 + score");
+  await expect(action).not.toContainText("$");
+  await expect(action.locator(".generate-cost")).toHaveCount(0);
   // Validation error: no paid request, the message is announced and the action stays in reach.
   await action.click();await expect(page.locator("#prompt-error")).toContainText("eight characters");expect(f.paid()).toBe(0);
   await page.evaluate(()=>scrollTo(0,0));await inView(action,page);
@@ -44,12 +44,12 @@ for(const size of sizes){
   await page.evaluate(()=>scrollTo(0,0));await inView(action,page);
  });
 }
-test("no key: the one-line note opens Connections and full readiness details stay available",async({page})=>{
+test("no key: the one-line note opens Connections without redundant readiness disclosure",async({page})=>{
  await page.setViewportSize({width:1440,height:900});await setup(page,{signedIn:true,openai:false});await page.goto("/studio?mode=generate");
  const action=page.getByRole("button",{name:"Connect OpenAI",exact:true});await expect(action).toBeVisible();await inView(action,page);
  const note=page.locator("#generate-key-note");const box=(await note.boundingBox())!;expect(box.height).toBeLessThan(30);
  await note.getByRole("button",{name:"Connect once in Connections.",exact:true}).click();await expect(page.getByRole("dialog")).toContainText("Manage connections");await page.keyboard.press("Escape");
- const info=page.locator("#request-readiness");await expect(info).toContainText("OpenAI · Flare 2.6");await expect(info).toContainText("1 image · 16:9");await expect(info).toContainText("Estimated image output");await expect(info).toContainText("ChatGPT and Claude subscriptions alone do not enable studio generation");
+ await expect(page.locator("#request-readiness")).toHaveCount(0);await expect(page.locator("#request-ready")).toBeAttached();
 });
 test("loading keeps a neutral disabled action with no cost claim",async({page})=>{
  let release!:()=>void;const hold=new Promise<void>(r=>release=r);await page.route("**/api/config",async r=>{await hold;await r.fulfill({json:{...base,openai:false}});});await page.route("https://test.supabase.co/**",r=>r.abort());
@@ -86,13 +86,9 @@ for(const size of allSizes){
   await page.setViewportSize(size);await setup(page,{signedIn:false,openai:false});await page.goto("/studio?mode=generate");
   for(const mode of ["Create"]){
    await page.getByRole("tab",{name:mode,exact:true}).click();
-   const button=page.locator(".generate-split > .primary-button");await expect(button.locator(".generate-cost")).toBeVisible();
-   const r=await page.evaluate(()=>{const q=(s:string)=>document.querySelector(s)!.getBoundingClientRect();const b=q(".generate-split > .primary-button"),l=q(".generate-split > .primary-button > span:not(.generate-cost)"),c=q(".generate-cost"),s=q(".generate-split .batch-select");return {b:{l:b.left,r:b.right,t:b.top,bo:b.bottom},l:{l:l.left,r:l.right,t:l.top,bo:l.bottom},c:{l:c.left,r:c.right,t:c.top,bo:c.bottom},s:{l:s.left,r:s.right}};});
-   const apart=(x:{l:number;r:number;t:number;bo:number},y:{l:number;r:number;t:number;bo:number})=>x.r+4<=y.l||y.r+4<=x.l||x.bo+1<=y.t||y.bo+1<=x.t;
-   expect(apart(r.l,r.c),mode+": label and cost").toBe(true);
-   expect(r.c.r,mode+": cost inside the button").toBeLessThanOrEqual(r.b.r);expect(r.l.r,mode+": label inside the button").toBeLessThanOrEqual(r.b.r);
-   expect(r.b.r,mode+": button before the selector").toBeLessThanOrEqual(r.s.l+1);
-   await expect(button).toHaveAccessibleName("Sign in to generate");
+   const button=page.locator(".generate-split > .primary-button");await expect(button.locator(".generate-cost")).toHaveCount(0);
+    const b=(await button.boundingBox())!,selector=(await page.locator(".batch-select").boundingBox())!;expect(b.x+b.width).toBeLessThanOrEqual(selector.x+1);
+    await expect(button).toHaveAccessibleName("Sign in to generate");
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width);
  });
@@ -128,6 +124,15 @@ test("a different text provider keeps its own connected status, because it is a 
  await openMoreOptions(page);await page.getByRole("combobox",{name:"Text and review provider",exact:true}).selectOption("google");
  await expect(page.locator(".composer .provider-choice p")).toContainText("Google key connected.");
  await expect(page.locator("#generate-key-note")).toHaveText("Using your OpenAI key.");
+});
+test("Improve rewrites once and Undo restores the exact draft",async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await setup(page,{signedIn:true,openai:true});let calls=0;
+ const original='@JP Serna con arepas y texto "FÁCIL"',improved='@JP Serna sonríe junto a arepas, texto "FÁCIL".';
+ await page.route("**/api/plan",r=>{calls++;expect(r.request().postDataJSON().prompt).toBe(original);return r.fulfill({json:{brief:improved}});});
+ await page.goto("/studio?mode=generate");const field=page.locator("#thumbnail-prompt");await field.fill(original);
+ await page.getByRole("button",{name:"Improve",exact:true}).click();await expect(field).toHaveValue(improved);expect(calls).toBe(1);
+ await page.getByRole("button",{name:"Undo",exact:true}).click();await expect(field).toHaveValue(original);expect(calls).toBe(1);
+ await page.screenshot({path:"evidence/composer-compact-1440.png"});
 });
 // Motion #2: the error banner arrives (opacity + 4px) instead of popping, and reduced motion keeps only a fade.
 for(const reduced of [false,true])test("error banner enters with a short settle"+(reduced?" (reduced motion: fade only)":""),async({page})=>{
