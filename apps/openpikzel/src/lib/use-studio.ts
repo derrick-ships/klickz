@@ -21,6 +21,14 @@ import { chatDeletionPlan } from "./chat-delete";
 import { canScore } from "./scorers";
 type Asset = { id: string; blob: Blob };
 type Collection = "creations" | "personas" | "styles" | "elements" | "conversations";
+export function libraryPaths(rows: { data: { image_path?: string | null; reference_paths?: string[] | null; refs?: string[] | null }[] | null }[]) {
+  return [...new Set([
+    ...(rows[0].data || []).flatMap((x) => [x.image_path, ...(x.reference_paths || [])]),
+    ...(rows[1].data || []).flatMap((x) => x.refs || []),
+    ...(rows[2].data || []).flatMap((x) => x.refs || []),
+    ...(rows[4].data || []).flatMap((x) => x.refs || []),
+  ].filter((path): path is string => !!path))];
+}
 export function useStudio() {
   const [config, setConfig] = useState<Config | null>(null),
     [user, setUser] = useState<string | null>(null),
@@ -69,24 +77,12 @@ export function useStudio() {
           "Your cloud library could not load. Refresh the page; if it still fails, contact the workspace owner.",
         );
       setCreations(rows[0].data as Creation[]);
-      setPersonas(rows[1].data as Persona[]);
-      setStyles(rows[2].data as Style[]);
+      setPersonas((rows[1].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Persona[]);
+      setStyles((rows[2].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Style[]);
       setConversations(rows[3].data as Conversation[]);
-      setElements((rows[4].error ? [] : rows[4].data || []) as Element[]);
+      setElements((rows[4].error ? [] : rows[4].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Element[]);
       const pref=await db.current.from("studio_preferences").select("skip_persona_tutorial").eq("user_id",user).maybeSingle();if(current!==version.current||userRef.current!==user)return;setSkipPersonaTutorial(pref.data?.skip_persona_tutorial===true);
-      const paths = [
-        ...new Set(
-          [
-            ...rows[0].data!.flatMap((x) => [
-              x.image_path,
-              ...(x.reference_paths || []),
-            ]),
-            ...rows[1].data!.flatMap((x) => x.refs),
-            ...rows[2].data!.flatMap((x) => x.refs),
-            ...rows[4].data!.flatMap((x) => x.refs),
-          ].filter(Boolean),
-        ),
-      ];
+      const paths = libraryPaths(rows);
       if (paths.length) {
         const signed = await db.current.storage
           .from("studio-assets")
