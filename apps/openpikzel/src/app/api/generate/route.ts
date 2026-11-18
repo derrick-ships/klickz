@@ -121,7 +121,7 @@ async function handle(request: Request) {
     }
     const elementIds=[...new Set(input.elementIds)];
     const elements:Element[]=[];
-    for(const id of elementIds){const result=await db.from("studio_elements").select("*").eq("id",id).eq("user_id",user.id).single();if(result.error||!result.data)throw new AppError(404,"Element not found.");elements.push(result.data as Element);}
+    for(const id of elementIds){const result=await db.from("studio_elements").select("*").eq("id",id).eq("user_id",user.id).single();if(result.error||!result.data)throw new AppError(404,"Element not found.");elements.push({...result.data,refs:result.data.refs||[]} as Element);}
     let styleData:any=null;
     if(input.styleId){const result=await db.from("studio_styles").select("*").eq("id",input.styleId).eq("user_id",user.id).single();if(result.error||!result.data)throw new AppError(404,"Style not found.");styleData=result.data;}
     const userPaths=[...new Set([input.referencePath,...input.referencePaths].filter((p):p is string=>!!p))];

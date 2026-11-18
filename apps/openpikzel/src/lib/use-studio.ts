@@ -21,6 +21,17 @@ import { chatDeletionPlan } from "./chat-delete";
 import { canScore } from "./scorers";
 type Asset = { id: string; blob: Blob };
 type Collection = "creations" | "personas" | "styles" | "elements" | "conversations";
+export function libraryPaths(rows: { data: { image_path?: string | null; reference_paths?: string[] | null; refs?: string[] | null }[] | null }[]) {
+  return [...new Set([
+    ...(rows[0].data || []).flatMap((x) => [x.image_path, ...(x.reference_paths || [])]),
+    ...(rows[1].data || []).flatMap((x) => x.refs || []),
+    ...(rows[2].data || []).flatMap((x) => x.refs || []),
+    ...(rows[4].data || []).flatMap((x) => x.refs || []),
+  ].filter((path): path is string => !!path))];
+}
+export function elementsMissing(error: { code?: string; message?: string } | null) {
+  return !!error && (error.code === "42P01" || error.code === "PGRST205" || /studio_elements.*(?:does not exist|schema cache)|schema cache.*studio_elements/i.test(error.message || ""));
+}
 export function useStudio() {
   const [config, setConfig] = useState<Config | null>(null),
     [user, setUser] = useState<string | null>(null),
@@ -34,6 +45,7 @@ export function useStudio() {
     [loading, setLoading] = useState(true);
   const [configStatus,setConfigStatus]=useState<"loading"|"ready"|"failed">("loading");
   const [conversations,setConversations]=useState<Conversation[]>([]),[skipPersonaTutorial,setSkipPersonaTutorial]=useState(false);
+  const elementsAvailable=useRef(false);
   const loadedOwner=useRef<string|null|undefined>(undefined);
   const ownerEpoch=useRef(0),chatWrites=useRef(Promise.resolve());
   const db = useRef<SupabaseClient | null>(null),
@@ -64,29 +76,19 @@ export function useStudio() {
       if (current !== version.current || userRef.current!==user) return;
       // Elements are newer than the rest of the library: if their table isn't there yet, the studio still
       // loads, just without elements. Any other failure stops the load as before.
-      if (rows.slice(0, 4).some((r) => r.error))
+      elementsAvailable.current = false;
+      if (rows.slice(0, 4).some((r) => r.error) || (rows[4].error && !elementsMissing(rows[4].error)))
         throw new Error(
           "Your cloud library could not load. Refresh the page; if it still fails, contact the workspace owner.",
         );
       setCreations(rows[0].data as Creation[]);
-      setPersonas(rows[1].data as Persona[]);
-      setStyles(rows[2].data as Style[]);
+      setPersonas((rows[1].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Persona[]);
+      setStyles((rows[2].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Style[]);
       setConversations(rows[3].data as Conversation[]);
-      setElements((rows[4].error ? [] : rows[4].data || []) as Element[]);
+      setElements((rows[4].error ? [] : rows[4].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Element[]);
+      elementsAvailable.current = !rows[4].error;
       const pref=await db.current.from("studio_preferences").select("skip_persona_tutorial").eq("user_id",user).maybeSingle();if(current!==version.current||userRef.current!==user)return;setSkipPersonaTutorial(pref.data?.skip_persona_tutorial===true);
-      const paths = [
-        ...new Set(
-          [
-            ...rows[0].data!.flatMap((x) => [
-              x.image_path,
-              ...(x.reference_paths || []),
-            ]),
-            ...rows[1].data!.flatMap((x) => x.refs),
-            ...rows[2].data!.flatMap((x) => x.refs),
-            ...rows[4].data!.flatMap((x) => x.refs),
-          ].filter(Boolean),
-        ),
-      ];
+      const paths = libraryPaths(rows);
       if (paths.length) {
         const signed = await db.current.storage
           .from("studio-assets")
@@ -115,7 +117,7 @@ export function useStudio() {
       setPersonas(personasNext);
       setStyles(stylesNext);
       const elementsNext=await localProfileTransaction<Element>("element",{repair:true}) as Element[];
-      if(current!==version.current||userRef.current!==user)return;setElements(elementsNext);
+      if(current!==version.current||userRef.current!==user)return;setElements(elementsNext);elementsAvailable.current=true;
       setConversations(chats);setSkipPersonaTutorial(preferences.find(p=>p.id==="local")?.skip_persona_tutorial===true);
       urls.current.forEach(URL.revokeObjectURL);
       const entries = a.map((x) => {
@@ -144,7 +146,7 @@ export function useStudio() {
             if (next !== userRef.current) {
               userRef.current = next;
               setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:next?"loading":"ready"}:current);
-              ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();pendingFixJobs.current.clear();
+              elementsAvailable.current=false;ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();pendingFixJobs.current.clear();
               version.current++;
               setCreations([]);
               setPersonas([]);
@@ -590,6 +592,7 @@ export function useStudio() {
   }
   async function saveProfile(kind:"persona"|"style"|"element",name:string,notes:string,files:File[],permission=false,source?:{kind:"youtube";channelId:string;videoIds:string[]},elementKind?:ElementKind){
     const epoch=ownerEpoch.current;
+    if(kind==="element"&&!elementsAvailable.current)throw new Error("Elements aren't available yet in this workspace.");
     if(kind==="element"&&!elementKind)throw new Error("Choose an element kind.");
     if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
     if(files.length<(kind==="persona"?2:1)||files.length>3)throw new Error(kind==="persona"?"Upload 2 or 3 photos of this persona.":"Use 1 to 3 style references.");
@@ -743,7 +746,7 @@ export function useStudio() {
         .eq("id", id);
       if (error) throw new Error("Could not delete this item. Refresh your library to check whether it is still there.");
     } else await localDelete(kind, id);
-    if(unused.length){if(cloud){const result=await db.current!.storage.from("studio-assets").remove(unused);if(result.error)throw new Error("Element deleted, but its unused images could not be removed.");}else for(const path of unused)await localDelete("assets",path);}
+    if(elementsAvailable.current&&unused.length){if(cloud){const result=await db.current!.storage.from("studio-assets").remove(unused);if(result.error)throw new Error("Element deleted, but its unused images could not be removed.");}else for(const path of unused)await localDelete("assets",path);}
     await load();
     ensureCurrentOwner();
   }
@@ -764,7 +767,7 @@ export function useStudio() {
       const chat = await db.current!.from("studio_conversations").delete().eq("user_id", user).eq("id", chatId);
       if (chat.error) throw new Error("The chat could not be deleted. Its thumbnails were removed; try deleting the chat again.");
       let filesLeft = 0;
-      for (let i = 0; i < plan.paths.length; i += 100) {
+      for (let i = 0; elementsAvailable.current && i < plan.paths.length; i += 100) {
         const removed = await db.current!.storage.from("studio-assets").remove(plan.paths.slice(i, i + 100));
         if (removed.error) filesLeft += plan.paths.slice(i, i + 100).length;
       }
@@ -777,7 +780,7 @@ export function useStudio() {
     }
     for (const id of plan.creationIds) await localDelete("creations", id);
     await localDelete("conversations", chatId);
-    for (const path of plan.paths) await localDelete("assets", path);
+    if(elementsAvailable.current)for (const path of plan.paths) await localDelete("assets", path);
     setConversations((items) => items.filter((c) => c.id !== chatId));
     await load();
     ensureCurrentOwner();

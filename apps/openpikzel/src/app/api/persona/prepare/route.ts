@@ -28,7 +28,7 @@ async function handle(request: Request) {
       .single();
     if (error || !data) throw new AppError(404, "Profile not found.");
     const images = await Promise.all(
-      data.refs.slice(0, 3).map((p: string) => ownedAsset(db, user.id, p)),
+      (data.refs || []).slice(0, 3).map((p: string) => ownedAsset(db, user.id, p)),
     );
     const identity_brief = await prepareIdentity(images, input.kind === "element" ? `${data.name}: ${elementDefinitions[data.kind as ElementKind].description}` : data.name, input.kind, input.provider);
     const saved = await db

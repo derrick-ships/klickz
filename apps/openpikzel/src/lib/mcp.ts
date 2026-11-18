@@ -286,11 +286,11 @@ export async function createMcpServer(token: string) {
         .eq("id", id)
         .eq("user_id", user.id)
         .single();
-      if (r.error) throw new AppError(404, "Profile not found.");
+      if (r.error || !r.data) throw new AppError(404, "Profile not found.");
       return {
         profile: r.data,
         pictures: await Promise.all(
-          r.data.refs.map(async (path: string) => ({
+          (r.data.refs || []).map(async (path: string) => ({
             path,
             url: await signed(path),
           })),
