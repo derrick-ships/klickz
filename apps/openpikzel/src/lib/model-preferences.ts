@@ -21,6 +21,7 @@ export const textAliases: ModelAlias[] = [
   { id: "opus-latest", label: "Claude Opus (latest)", provider: "anthropic", family: /^claude-opus-\d/, fallback: "claude-opus-5-5" },
   { id: "sonnet-latest", label: "Claude Sonnet (latest)", provider: "anthropic", family: /^claude-sonnet-\d/, fallback: "claude-sonnet-5-5" },
   { id: "haiku-latest", label: "Claude Haiku (latest)", provider: "anthropic", family: /^claude-haiku-\d/, fallback: "claude-haiku-5-5" },
+  { id: "gpt-6.2-sol", label: "GPT Sol 6.2", provider: "openai", family: /^gpt-6\.2-sol$/, fallback: "gpt-6.2-sol" },
   { id: "gpt-sol-latest", label: "GPT Sol (latest)", provider: "openai", family: /^gpt-\d+(\.\d+)?-sol$/, fallback: "gpt-6.1-sol" },
   { id: "gpt-terra-latest", label: "GPT Terra (latest)", provider: "openai", family: /^gpt-\d+(\.\d+)?-terra$/, fallback: "gpt-6.1-terra" },
   { id: "gpt-luna-latest", label: "GPT Luna (latest)", provider: "openai", family: /^gpt-\d+(\.\d+)?-luna$/, fallback: "gpt-6-luna" },
@@ -41,7 +42,7 @@ export const modelPreferencesSchema = z.object({
   /** Who gives the five numbers. */
   scorer: z.enum(["jev", "model"]).default("jev"),
   /** Rewrites the prompt before every image. "auto" = OpenAI, else Google. */
-  mediator: z.string().max(40).default("gpt-sol-latest"),
+  mediator: z.string().max(40).default("gpt-6.2-sol"),
   /** Default image model for Create. */
   image: z.enum(imageGenerators).default("flare"),
 });
@@ -54,7 +55,7 @@ export function readModelPreferences(metadata: unknown): ModelPreferences {
   if (!parsed.success) return defaultModelPreferences;
   // "auto" used to mean gpt-5.5 for the prompt writer and "first connected provider" for the
   // reviewer. Those two jobs now default to GPT Sol and Claude Sonnet respectively.
-  const mediator = parsed.data.mediator === "auto" ? "gpt-sol-latest" : parsed.data.mediator;
+  const mediator = ["auto", "gpt-sol-latest"].includes(parsed.data.mediator) ? "gpt-6.2-sol" : parsed.data.mediator;
   const reviewer = parsed.data.reviewer === "auto" ? "sonnet-latest" : parsed.data.reviewer;
   return { ...parsed.data, mediator, reviewer };
 }
