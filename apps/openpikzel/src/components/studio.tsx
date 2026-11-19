@@ -637,14 +637,14 @@ export default function Studio() {
       ...(plan.review?{review:(item:Creation)=>{const intent={title:input.title||"",includeVision:plan.includeVision,videoUrl,critiqueProvider:plan.critiqueProvider};scoreIntent.current[item.id]=intent;return studio.analyze(item,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined).then(result=>{noteComparison(item.id,result);return result;});},onReview:(itemId,status)=>setReviewStatuses(current=>({...current,[itemId]:status})),holdMs:45_000}:{}),
     });
   }
-  async function retryScore(){
+  async function retryScore(jevOnly=false){
     if(!selected)return;
     const plan=scorePlan(studio.config);
     const intent=scoreIntent.current[selected.id]||{title,includeVision:plan.includeVision,videoUrl,critiqueProvider:plan.critiqueProvider};
     const id=selected.id;
     setReviewStatuses(current=>({...current,[id]:"pending"}));
     const ok=await studio.run("Retrying score",async()=>{
-      const result=await studio.analyze(selected,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined);
+      const result=await studio.analyze(selected,intent.title,"",jevOnly ? false : intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined,jevOnly ? {rescore:true,scorer:"jev"} : undefined);
       noteComparison(id,result);return true;
     });
     setReviewStatuses(current=>({...current,[id]:ok?"scored":"failed"}));
@@ -1211,7 +1211,7 @@ export default function Studio() {
                             )}
                             {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<div><span className="score-fallback">{scoreView.fallback}</span>{score.scoring?.route.some(r=>r.scorer==="jev"&&r.outcome==="failed")&&<button type="button" className="quiet-button" disabled={busy} onClick={()=>void retryScore()}>Retry with Jev</button>}</div>}<button type="button" className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
+                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<div><span className="score-fallback">{scoreView.fallback}</span>{score.scoring?.route.some(r=>r.scorer==="jev"&&r.outcome==="failed")&&<button type="button" className="quiet-button" disabled={busy} onClick={()=>void retryScore(true)}>Retry with Jev</button>}</div>}<button type="button" className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
                         </div>
                         <div>
                         <button type="button"
@@ -1220,7 +1220,7 @@ export default function Studio() {
                           onClick={() => void runOneClickFix()}
                         >
                           <WandSparkles size={16} />
-                          Fix {names[[...pillars].filter(p=>score.dimensions[p].score!==null).sort((a,b)=>score.dimensions[a].score!-score.dimensions[b].score!)[0] || activePillar]}
+                          Fix thumbnail
                         </button>
                         <button type="button" className="quiet-button review-first" onClick={()=>void fix()}>Review first</button>
                         {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
@@ -2101,7 +2101,7 @@ export default function Studio() {
           {(dialog==="personas"||dialog==="styles"||dialog==="elements")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":dialog==="elements"?"element":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedIds={dialog==="elements"?elementIds:dialog==="personas"?personaIds:styleId?[styleId]:[]} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":dialog==="elements"?"element":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis-history"&&selected&&<AnalysisHistory key={selected.id+studio.user} creationId={selected.id} read={studio.read}/>}
-          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} onRetry={()=>void retryScore()} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
+          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} onRetry={()=>void retryScore(true)} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button type="button" className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
           {dialog === "references" && (

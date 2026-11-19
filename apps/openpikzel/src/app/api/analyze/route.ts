@@ -31,7 +31,8 @@ async function handle(request: Request) {
     const modelScorer = currentModelPreferences().scorer === "model";
     if (!(["jev", "openai", "anthropic", "google"] as const).some((p) => hasProvider(p)))
       throw new AppError(403, "Connect Jev, OpenAI, Claude or Google in Connections to score thumbnails.");
-    requireAI(hasProvider("jev") ? "jev" : (["openai", "anthropic", "google"] as const).find((p) => hasProvider(p))!);
+    if (input.scorer === "jev" && !hasProvider("jev")) throw new AppError(403, "Connect Jev to retry with Jev.");
+    requireAI(input.scorer === "jev" || hasProvider("jev") ? "jev" : (["openai", "anthropic", "google"] as const).find((p) => hasProvider(p))!);
     if (input.includeVision) requireAI(input.critiqueProvider);
     if (input.videoUrl) youtubeVideoId(input.videoUrl);
     let path = input.imagePath,
@@ -62,11 +63,11 @@ async function handle(request: Request) {
       const before = (parent.data?.score as Evaluation | null)?.overall ?? row.lineage?.fix?.parentScore;
       return compareFix(row.parent_id, row.id, before, score.overall);
     };
-    const scorer = modelScorer ? "model" : "jev";
+    const scorer = input.scorer === "jev" ? "jev" : modelScorer ? "model" : "jev";
     // Same image, same request, same rubric and instructions, and a complete review already on file:
     // return it without any provider call. A score must not wander between identical runs.
     const saved = row?.score;
-    if (saved && !input.rescore && saved.overall !== null && saved.inputDigest && saved.instructionVersion === instructionVersion && (!input.includeVision || saved.vision)) {
+    if (saved && !input.rescore && (!input.scorer || saved.scoring?.route.some(r => r.scorer === "jev" && r.outcome === "scored")) && saved.overall !== null && saved.inputDigest && saved.instructionVersion === instructionVersion && (!input.includeVision || saved.vision)) {
       const small = await actualPreview(image), meta = await sharp(small).metadata();
       const base = {
         sourceDigest: digest(image),
@@ -95,7 +96,7 @@ async function handle(request: Request) {
         input.requestId,
         "analyze",
         { ...input, sourceDigest: digest(image) },
-        input.includeVision ? 4 : 3,
+        input.scorer === "jev" ? (input.includeVision ? 2 : 1) : input.includeVision ? 4 : 3,
       );
     if (reserved.replay) return Response.json(reserved.replay);
     jobId = input.requestId;
@@ -122,6 +123,7 @@ async function handle(request: Request) {
         audience: input.audience,
         includeVision: input.includeVision,
         critiqueProvider: input.critiqueProvider,
+        requireScorer: input.scorer,
         fixHistory,
         cacheKey: { title: input.title, videoBrief: input.videoBrief, videoUrl: input.videoUrl },
       });
