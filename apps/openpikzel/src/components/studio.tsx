@@ -2303,7 +2303,8 @@ export default function Studio() {
                 Connect providers, manage agent access and copy MCP instructions
                 in Settings.
               </p>
-              <a href="/connect" className="primary-button inline-link">
+              <ul>{([["openai", "OpenAI"], ["google", "Google"], ["anthropic", "Claude"], ["jev", "Jev"], ["youtube", "YouTube"]] as const).map(([id, name]) => <li key={id}>{name}: {studio.config ? (studio.config[id] ? "Connected" : "Not connected") : "Checking…"}</li>)}</ul>
+              <a href="/connect" className="neutral-button inline-link full-width">
                 Manage connections
               </a>
               {studio.cloud&&<button type="button" className="neutral-button full-width" onClick={()=>void showJobs()}>View API activity</button>}

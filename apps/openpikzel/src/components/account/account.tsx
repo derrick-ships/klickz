@@ -97,7 +97,8 @@ export function ConnectionsPage() {
     [provider, setProvider] = useState("openai"),
     [key, setKey] = useState(""),
     [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState("");
+    [notice, setNotice] = useState(""),
+    [showRevoked, setShowRevoked] = useState(false);
   const [higgsfield, setHiggsfield] = useState(false), [higgsfieldTools, setHiggsfieldTools] = useState<string[]>([]);
   const [connectionRead, setConnectionRead] = useState<"loading" | "succeeded" | "failed">("loading");
   const connectionEpoch = useRef(0), connectionOwner = useRef("");
@@ -183,6 +184,7 @@ export function ConnectionsPage() {
           {session ? "Connect the provider for the job you want to do. Image generation and analysis use your provider account; usage charges may apply." : "Sign in with your email. It’s free, and your thumbnails, faces and styles stay saved."}
         </p>
       </div>
+      {session && <nav className="connections-index" aria-label="Connections sections"><a href="#api">API keys</a> · <a href="#models">Models</a> · <a href="#higgsfield">Higgsfield</a> · <a href="#mcp">Connect agent</a> · <a href="#agents">Connected agents</a> · <a href="#chatgpt">ChatGPT</a></nav>}
       {!ready ? (
         <p role="status">Loading your connections…</p>
       ) : !db ? (
@@ -197,11 +199,7 @@ export function ConnectionsPage() {
           <section id="api" className="account-panel">
             <h2>Connect an API provider</h2>
             {connectionRead === "failed" && <div role="status"><p>Connection status unavailable. Refresh to check.</p><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(refresh)}>Refresh connections</button></div>}
-            <p>
-              Start with the job you want to do: OpenAI or Google creates images
-              and titles; Jev scores thumbnails. You only need the provider for
-              that job. <a href="/studio">Continue with a free draft</a> if you are not ready to connect.
-            </p>
+
             <div className="provider-setup">
             <form
               className="account-form key-form"
@@ -234,16 +232,6 @@ export function ConnectionsPage() {
                   <option value="jev">Jev AI</option>
                 </select>
               </label>
-              <div className="provider-key-guide" key={provider}>
-                <p id="provider-purpose"><strong>{guide.name}</strong> — {guide.purpose}</p>
-                <p>An API key is a private code that lets OpenPikzels use your provider account. It is not your password. Keep it out of chat.</p>
-                <details>
-                  <summary>How to get a {guide.name} key</summary>
-                  <ol>{guide.steps.map(step => <li key={step}>{step}</li>)}</ol>
-                  <a href={guide.url} target="_blank" rel="noopener noreferrer">Open {guide.name}’s official setup guide (new tab)</a>
-                </details>
-                <p id="provider-key-cost">Provider usage may cost money. Check your account’s current allowance and billing before generating. Saving a key makes no billable test request.</p>
-              </div>
               <label>
                 Your API key
                 <input
@@ -258,6 +246,11 @@ export function ConnectionsPage() {
                   placeholder={connections.some((c) => c.provider === provider) ? "Leave empty to keep current key" : "Paste your key securely"}
                 />
               </label>
+              <div className="provider-key-guide" key={provider}>
+                <p id="provider-purpose"><strong>{guide.name}</strong> — {guide.purpose}</p>
+                <details><summary>How to get {provider === "openai" ? "an" : "a"} {guide.name} key</summary><p>An API key is private. It is not your password; keep it out of chat.</p><ol>{guide.steps.map(step => <li key={step}>{step}</li>)}</ol><a href={guide.url} target="_blank" rel="noopener noreferrer">Open {guide.name}’s official setup guide (new tab)</a></details>
+                <p id="provider-key-cost">Provider usage may cost money. Check billing before generating. Saving a key makes no billable test request.</p>
+              </div>
               <p id="provider-key-help">Your key is encrypted for your account and used on the server. Its full value is never shown again. Leave empty to keep current key; paste a new key to replace it.</p>
               <button type="submit"
                 className="primary-button"
@@ -279,7 +272,7 @@ export function ConnectionsPage() {
                   <article key={id}>
                     <h3>{name}</h3>
                     <p>{detail}</p>
-                    <strong>
+                    <strong className={connectionRead === "succeeded" && c ? "connection-saved" : "connection-muted"}>
                       {connectionRead === "loading" ? "Checking connections…" : connectionRead === "failed" ? "Status unavailable" : c
                         ? "Key saved · ••••" + c.suffix
                         : "Not connected"}
@@ -315,17 +308,17 @@ export function ConnectionsPage() {
               and allowances depend on your provider account; check its current
               terms. Connecting a key makes no billable test request.
             </p>
-            <a className="primary-button inline-link" href="/studio">
+            <a className="neutral-button inline-link" href="/studio">
               Open studio
             </a>
           </section>
           <ModelsPanel api={api} connected={{ openai: connections.some((c) => c.provider === "openai"), google: connections.some((c) => c.provider === "google"), anthropic: connections.some((c) => c.provider === "anthropic"), jev: connections.some((c) => c.provider === "jev") }} />
-          <section className="account-panel">
+          <section id="higgsfield" className="account-panel">
             <h2>Higgsfield</h2>
             <p>Connect your own Higgsfield account through its secure sign-in page. Tokens stay encrypted. Generating through MCP uses your Higgsfield credits, including on Unlimited plans.</p>
             <p role="status">{!config?.higgsfield ? "Higgsfield connection is awaiting activation." : connectionRead === "loading" ? "Checking Higgsfield connection…" : connectionRead === "failed" ? "Higgsfield status unavailable." : higgsfield ? "Higgsfield is connected." : "Higgsfield is not connected."}</p>
             <div className="connection-actions">
-              <button type="button" className="primary-button" disabled={busy || connectionRead !== "succeeded" || !config?.secureConnections || !config?.higgsfield} onClick={() => void action(async () => {
+              <button type="button" className={higgsfield ? "neutral-button" : "primary-button"} disabled={busy || connectionRead !== "succeeded" || !config?.secureConnections || !config?.higgsfield} onClick={() => void action(async () => {
                 const result = await api("/api/connections/higgsfield", "POST", { action: "start" });
                 location.assign(result.authorizationUrl);
               })}>{higgsfield ? "Reconnect Higgsfield" : "Connect Higgsfield"}</button>
@@ -396,15 +389,15 @@ export function ConnectionsPage() {
             </button>
             <p>
               The interactive HTML studio appears in hosts supporting MCP Apps.
-              Other clients receive the same tools and text results.
+              Other clients receive the same tools and text results. <a href="/local-companion">Explore the local companion</a> for use with an official CLI.
             </p>
           </section>
-          <section className="account-panel">
+          <section id="agents" className="account-panel">
             <h2>Connected agents</h2>
-            {connectionRead === "loading" ? <p role="status">Loading connected agents…</p> : connectionRead === "failed" ? <p>Connected agents could not be loaded. Refresh connections to check.</p> : !grants.length ? (
+            {connectionRead === "loading" ? <p role="status">Loading connected agents…</p> : connectionRead === "failed" ? <p>Connected agents could not be loaded. Refresh connections to check.</p> : !grants.some(g => !g.revoked_at) && !showRevoked ? (
               <p>No agents connected yet.</p>
             ) : (
-              grants.map((g) => (
+              grants.filter(g => !g.revoked_at || showRevoked).map((g) => (
                 <div className="grant-row" key={g.id}>
                   <div>
                     <strong>{g.client_name}</strong>
@@ -425,13 +418,9 @@ export function ConnectionsPage() {
                 </div>
               ))
             )}
-            <button type="button"
-              className="neutral-button"
-              onClick={() => void db.auth.signOut({ scope: "local" })}
-            >
-              Sign out
-            </button>
+            {grants.some(g => g.revoked_at) && <button type="button" className="neutral-button" onClick={() => setShowRevoked(!showRevoked)}>{showRevoked ? "Hide revoked" : `Show revoked (${grants.filter(g => g.revoked_at).length})`}</button>}
           </section>
+          <section className="account-panel"><h2>Account</h2><p>{session.user.email}</p><button type="button" className="neutral-button" onClick={() => void db.auth.signOut({ scope: "local" })}>Sign out</button></section>
         </>
       )}
       {session && <CodexConnection key={session.user.id} signedIn enabled={!!config?.codexDevice} api={api} />}

@@ -1,4 +1,4 @@
-export const metadata = { title: "Local companion — OpenPikzels" };
+export const metadata = { title: "Local companion · OpenPikzels" };
 export default function LocalCompanionPage() {
  return <main className="account-page">
   <header className="account-header"><a className="brand" href="/studio">OpenPikzels<span className="wordmark-pixel" aria-hidden="true"/></a><a href="/connect">Connections</a></header>
