@@ -12,6 +12,13 @@ beforeEach(()=>{vi.stubEnv("AI_ENABLED","true");vi.stubEnv("STUDIO_ENCRYPTION_KE
 afterEach(()=>vi.unstubAllEnvs());
 it("stores an assessed title in the versioned result without replacing the user's chosen title",async()=>{const r=await POST(request());expect(r.status).toBe(200);const result=await r.json();expect(result.score.title).toBe("Assessed scenario title");expect(state.creation.title).toBe("Keep the chosen title");expect(state.updates).toHaveLength(1);expect(state.updates[0]).not.toHaveProperty("title");expect(state.jobs.get(id).result.score.title).toBe("Assessed scenario title");expect(state.evaluate.mock.calls[0][3].critiqueProvider).toBe("google");});
 it("replays a saved analysis after mutable creation metadata changes without another scoring call",async()=>{const first=await POST(request()),saved=await first.json();state.creation.title="A later user title";const replay=await POST(request());expect(replay.status).toBe(200);expect(await replay.json()).toEqual(saved);expect(state.evaluate).toHaveBeenCalledTimes(1);expect(state.creation.title).toBe("A later user title");});
+it("passes explicit Jev rescore through rather than using cached fallback",async()=>{
+ state.creation.score={overall:50,inputDigest:"cached",instructionVersion:"old",scoring:{route:[{scorer:"openai",outcome:"scored"}]}};
+ const r=await POST(request({scorer:"jev",rescore:true,includeVision:false}));
+ expect(r.status).toBe(200);expect(state.evaluate).toHaveBeenCalledTimes(1);
+ expect(state.evaluate.mock.calls[0][3].requireScorer).toBe("jev");
+ expect(state.jobs.get(id).max_provider_calls).toBe(1);
+});
 it("blocks the unavailable selected reviewer before scoring instead of using another connected key",async()=>{const r=await POST(request({critiqueProvider:"openai"}));expect(r.status).toBe(403);expect(state.evaluate).not.toHaveBeenCalled();expect(state.jobs.size).toBe(0);});
 it("a score that every scorer refused ends as failed and says so, so Retry may run it again",async()=>{
  state.evaluate.mockReset().mockRejectedValue(Object.assign(new (await import("../src/lib/validation")).AppError(502,"No scorer could score this thumbnail. Jev returned an error (529)."),{scorerAttempts:[{scorer:"jev",reason:"x"}]}));

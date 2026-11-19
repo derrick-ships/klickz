@@ -14,6 +14,11 @@ it("orders fixes weakest pillar first and keeps identity and wording", () => {
   expect(prompt).toContain('"Why Nokia Lost"');
   expect(prompt).toContain("must not repeat the title");
 });
+it("labels generic rubric advice in copied prompts", () => {
+  const value=evaluation({virality:dim(80,""),clarity:dim(57,"Improve contrast"),idea:dim(81,""),curiosity:dim(62,""),emotion:dim(63,"")});
+  value.dimensions.clarity.generalAdvice=true;
+  expect(fixPrompt(value)).toContain("clarity (57/100): General advice: Improve contrast");
+});
 it("returns null when no concrete change is supported", () => {
   expect(fixPrompt(evaluation({ virality: dim(80, ""), clarity: dim(null, "x"), idea: dim(90, " "), curiosity: dim(70, ""), emotion: dim(75, "") }))).toBeNull();
 });

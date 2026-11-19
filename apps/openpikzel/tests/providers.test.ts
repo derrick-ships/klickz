@@ -173,6 +173,21 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
     expect(score.dimensions.clarity.weakness.trim()).not.toBe("");
     expect(score.issues?.some(issue=>issue.pillar==="clarity")).toBe(false);
   }));
+  it("uses only Jev for an explicit retry and never falls back", async () => providerContext.run({jev:"test-placeholder",openai:"test-placeholder"},async()=>{
+    const fetcher=vi.fn(async(_url:unknown)=>new Response("failure",{status:503}));
+    vi.stubGlobal("fetch",fetcher);
+    await expect(evaluateThumbnail(await sample(),"Title","jev-retry",{videoBrief:"",audience:"",includeVision:false,requireScorer:"jev"})).rejects.toThrow("No other scorer was used");
+    expect(fetcher.mock.calls.length).toBeGreaterThan(0);
+    expect(fetcher.mock.calls.every(call=>String(call[0]).includes("typesafe.ai"))).toBe(true);
+  }));
+  it("uses the capped score to determine missing advice", async () => providerContext.run({jev:"test-placeholder",openai:"test-placeholder"},async()=>{
+    const observations={summary:"review",dimensions:Object.fromEntries(pillars.map(p=>[p,{observation:"Visible",strength:"Clear",weakness:p==="idea"?"":"Weakness",fix:p==="idea"?"":"Change",flags:p==="idea"?["text_repeats_title"]:[]}]))};
+    vi.stubGlobal("fetch",vi.fn(async (url:unknown)=>String(url).includes("typesafe.ai")?response(jevReply({scores:Object.fromEntries(pillars.map(p=>[p,3]))})):textResponse(observations)));
+    const score=await evaluateThumbnail(await sample(),"A title","cap-test",{videoBrief:"",audience:"",includeVision:true});
+    expect(score.dimensions.idea.score).toBeLessThan(70);
+    expect(score.dimensions.idea.generalAdvice).toBe(true);
+    expect(score.dimensions.idea.fix.trim()).not.toBe("");
+  }));
   it("resizes instantly without any API call and preserves both output formats", async () => {
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);

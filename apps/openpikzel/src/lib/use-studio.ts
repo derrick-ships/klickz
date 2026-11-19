@@ -470,6 +470,7 @@ export function useStudio() {
     includeVision = false,
     videoUrl = "",
     critiqueProvider?: VisionProvider,
+    options?: {rescore?: boolean; scorer?: "jev"},
   ) {
     const epoch=ownerEpoch.current;
     if (!cloud)
@@ -482,7 +483,7 @@ export function useStudio() {
       );
     if (!canScore(config)) throw new Error("Connect Jev, OpenAI, Claude or Google in Connections, then score this thumbnail again.");
     if(includeVision&&!(critiqueProvider&&config?.[critiqueProvider]))throw new Error(missingVisionKeyMessage(critiqueProvider));
-    const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl, critiqueProvider };
+    const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl, critiqueProvider, ...options };
     const fingerprint = JSON.stringify(intent);
     const requestId = rememberPendingRequest(pendingAnalysis.current, item.id, fingerprint);
     let result;

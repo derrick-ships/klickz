@@ -349,6 +349,7 @@ export type ScoringContext = DiagnosticContext & {
   /** Who and what is allowed in the image (persona, references, uploaded by the creator). */
   peopleAuthorized?: boolean;
   marksAuthorized?: boolean;
+  requireScorer?: "jev";
 };
 export async function evaluateThumbnail(
   image: Buffer,
@@ -362,7 +363,8 @@ export async function evaluateThumbnail(
   const critiqueProvider = context.critiqueProvider || "openai";
   if (context.includeVision) providerKey(critiqueProvider);
   const keys = providerContext.getStore() || {};
-  const order = scorerOrder(currentModelPreferences().scorer, context.includeVision ? critiqueProvider : pickVisionProvider(keys), {
+  if (context.requireScorer === "jev" && !keys.jev) throw new AppError(403, "Connect Jev to retry with Jev.");
+  const order: ScorerId[] = context.requireScorer === "jev" ? ["jev"] : scorerOrder(currentModelPreferences().scorer, context.includeVision ? critiqueProvider : pickVisionProvider(keys), {
     jev: !!keys.jev, openai: !!keys.openai, anthropic: !!keys.anthropic, google: !!keys.google,
   });
   if (!order.length) throw new AppError(403, "Connect Jev, OpenAI, Claude or Google in Connections to score thumbnails.");
@@ -403,7 +405,7 @@ export async function evaluateThumbnail(
     }
   }
   const reviewed = await review;
-  if (!answered) throw Object.assign(new AppError(502, "No scorer could score this thumbnail. " + attempts.map((a) => a.reason).join(" ")), { scorerAttempts: attempts });
+  if (!answered) throw Object.assign(new AppError(502, (context.requireScorer === "jev" ? "Jev could not score this thumbnail. No other scorer was used. " : "No scorer could score this thumbnail. ") + attempts.map((a) => a.reason).join(" ")), { scorerAttempts: attempts });
   const visionFinished = !!reviewed?.ok;
   let observations = visionFinished ? reviewed!.value : observationSchema.parse(withoutVision);
   // Flags: the decision model's yes/no answers count whether or not the review finished. Code drops the ones
@@ -427,14 +429,6 @@ export async function evaluateThumbnail(
   observations = { ...observations, globalFlags, dimensions: Object.fromEntries(pillars.map((p) => [p, { ...observations.dimensions[p], flags: pillarFlags[p] }])) as typeof observations.dimensions };
   const anyFlag = pillars.some((p) => pillarFlags[p].length) || globalFlags.length > 0;
   const parsed = parseScores(answered.reply, observations, title);
-  if (visionFinished) for (const p of pillars) {
-    const dimension = parsed.dimensions[p];
-    if (dimension.score !== null && dimension.score < 70 && (!dimension.weakness.trim() || !dimension.fix.trim())) {
-      if (!dimension.weakness.trim()) dimension.weakness = withoutVision.dimensions[p].weakness;
-      if (!dimension.fix.trim()) dimension.fix = withoutVision.dimensions[p].fix;
-      dimension.generalAdvice = true;
-    }
-  }
   const diagnostic = enrichDiagnostic(
     parsed,
     image,
@@ -445,6 +439,14 @@ export async function evaluateThumbnail(
     observations.promiseConflict,
     { flagsDecided: anyFlag || visionFinished, imageOnly: !state.title && !state.intendedPromise },
   );
+  if (visionFinished) for (const p of pillars) {
+    const dimension = diagnostic.dimensions[p];
+    if (dimension.score !== null && dimension.score < 70 && (!dimension.weakness.trim() || !dimension.fix.trim())) {
+      if (!dimension.weakness.trim()) dimension.weakness = withoutVision.dimensions[p].weakness;
+      if (!dimension.fix.trim()) dimension.fix = withoutVision.dimensions[p].fix;
+      dimension.generalAdvice = true;
+    }
+  }
   diagnostic.instructionVersion = instructionVersion;
   diagnostic.scoring = {
     route: [...attempts.map((a) => ({ scorer: a.scorer, outcome: "failed" as const, reason: a.reason })), { scorer: answered.scorer, outcome: "scored" as const }],
