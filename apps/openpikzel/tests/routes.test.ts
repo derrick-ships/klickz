@@ -124,6 +124,7 @@ vi.mock("../src/lib/mediator", async () => {
   };
 });
 import { POST } from "../src/app/api/generate/route";
+import { mediate } from "../src/lib/mediator";
 const id = "11111111-1111-4111-8111-111111111111";
 const request = (data: Record<string, unknown>) =>
   new Request("http://localhost/api/generate", {
@@ -158,6 +159,17 @@ beforeEach(() => {
   };
 });
 describe("generation orchestration without provider traffic", () => {
+  it("keeps composition examples out of the renderer for the bee regression", async () => {
+    vi.mocked(mediate).mockClear();
+    const response = await POST(request({ prompt: "subject getting chased by a big bee", title: "", libraryStyleId: "contrast-environment", settings: { ...defaultSettings, batch: 1 } }));
+    expect(response.status).toBe(200);
+    const input = vi.mocked(mediate).mock.calls[0][0];
+    expect(input.chosenStyle).toMatchObject({ name: "Contrast Environment", mode: "composition", text: "none", exampleImages: [1, 2] });
+    expect(input.referenceImages).toHaveLength(2);
+    expect(input.notes.join(" ")).toContain("mediator only");
+    expect(mock.render.mock.calls[0][1]).toHaveLength(0);
+    expect(mock.render.mock.calls[0][0]).not.toContain("mediator only");
+  });
   it("atomically reserves a batch and forwards all settings to every variation", async () => {
     const response = await POST(
       request({
