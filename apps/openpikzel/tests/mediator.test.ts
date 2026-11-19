@@ -193,3 +193,30 @@ it("distinguishes typed element attachments and retries when their name is omitt
  expect(result.attempts).toBe(2);const call=create.fn.mock.calls[0][0];const data=JSON.parse(call.input[0].content[0].text.replace(/^Answer in JSON\. Data:\n/,''));expect(data.attachments).toEqual(attachments);expect(call.instructions).toContain('An element is NEVER a person or a style');expect(call.instructions).toContain('clothing:');
  const retry=JSON.parse(create.fn.mock.calls[1][0].input[0].content[0].text.replace(/^Answer in JSON\. Data:\n/,''));expect(retry.previousAttemptProblems.join(' ')).toContain('Acme');
 });
+
+
+describe("composition styles and text policy", () => {
+  const style = { name: "Contrast Environment", mode: "composition" as const, composition: "a subject where it does not belong", description: "contrast", text: "none" as const, take: ["contrast"], avoid: ["copied colours"], exampleImages: [2] };
+  const base = { rawPrompt: "subject getting chased by a big bee", title: "", format: "long" as const, style: style.name, chosenStyle: style, notes: [], variation: 1, hasPersona: false, isEdit: false };
+  it("rejects invented words and mediator-only reference citations", () => {
+    const sub = extractSubstantial(base.rawPrompt, "long");
+    const problems = verifyEnriched(sub, enriched({ imageText: ["WRONG", "ROOM"], prompt: enriched().prompt + " Follow reference image 2." }), { textAllowed: false, styleExampleImages: [2] });
+    expect(problems.join(" ")).toContain("imageText must be empty");
+    expect(problems.join(" ")).toContain("mediator-only");
+  });
+  it("retries invented text, allows required text, and respects no text override", async () => {
+    const noWords = enriched({ imageText: [], prompt: enriched().prompt + " No text, lettering or caption." });
+    create.fn.mockReset().mockResolvedValueOnce({ output_text: JSON.stringify(enriched({ imageText: ["WRONG", "ROOM"] })) }).mockResolvedValueOnce({ output_text: JSON.stringify(noWords) });
+    expect((await providerContext.run({ openai: "sk-test" }, () => mediate(base))).attempts).toBe(2);
+    const data = JSON.parse(create.fn.mock.calls[0][0].input[0].content[0].text.replace(/^Answer in JSON\. Data:\n/, ""));
+    expect(data.chosenStyle).toEqual(style);
+    expect(data.styleExampleImages).toEqual([2]);
+    create.fn.mockReset().mockResolvedValue({ output_text: JSON.stringify(enriched()) });
+    expect((await providerContext.run({ openai: "sk-test" }, () => mediate({ ...base, chosenStyle: { ...style, text: "required" } }))).attempts).toBe(1);
+    create.fn.mockReset().mockResolvedValueOnce({ output_text: JSON.stringify(enriched()) }).mockResolvedValueOnce({ output_text: JSON.stringify(noWords) });
+    expect((await providerContext.run({ openai: "sk-test" }, () => mediate({ ...base, rawPrompt: base.rawPrompt + ", no text", chosenStyle: { ...style, text: "required" } }))).attempts).toBe(2);
+  });
+  it("explicitly forbids lettering in the renderer prompt", () => {
+    expect(imagePromptFrom(enriched({ imageText: [] }), [], "")).toContain("TEXT ON THE IMAGE: none. Do not draw any letters, words, numbers, captions or logos-as-text.");
+  });
+});

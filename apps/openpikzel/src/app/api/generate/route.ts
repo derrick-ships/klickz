@@ -51,7 +51,8 @@ async function handle(request: Request) {
       );
     if(input.conversationId){const chat=await db.from("studio_conversations").select("id").eq("id",input.conversationId).eq("user_id",user.id).maybeSingle();if(chat.error||!chat.data)throw new AppError(404,"This chat is not available in your account.");}
     let conversationId=input.conversationId||null;
-    const refs: Buffer[] = [],seenPaths=new Set<string>(),referenceNumbers=new Map<string,number>();
+    const renderRefs: Buffer[] = [],seenPaths=new Set<string>(),referenceNumbers=new Map<string,number>();
+    const refs = renderRefs;
     async function addReference(path:string){if(seenPaths.has(path))return;seenPaths.add(path);refs.push(await ownedAsset(db,user.id,path));referenceNumbers.set(path,refs.length);}
     const notes: string[] = [];
     const attachments:ReferenceAttachment[]=[];
@@ -126,21 +127,15 @@ async function handle(request: Request) {
     if(input.styleId){const result=await db.from("studio_styles").select("*").eq("id",input.styleId).eq("user_id",user.id).single();if(result.error||!result.data)throw new AppError(404,"Style not found.");styleData=result.data;}
     const userPaths=[...new Set([input.referencePath,...input.referencePaths].filter((p):p is string=>!!p))];
     let elementPhotos=3;
-    const total=(count:number)=>new Set([...seenPaths,...elements.flatMap(e=>e.refs.slice(0,count)),...(styleData?.refs.slice(0,3)||[]),...userPaths]).size+(!input.styleId&&input.libraryStyleId?(libraryStyle(input.libraryStyleId)?.images.slice(0,2).length||0):0);
+    const total=(count:number)=>new Set([...seenPaths,...elements.flatMap(e=>e.refs.slice(0,count)),...(styleData?.refs.slice(0,3)||[]),...userPaths]).size;
     if(total(elementPhotos)>imageModel(input.settings.model).maxReferences)elementPhotos=1;
     if(total(elementPhotos)>imageModel(input.settings.model).maxReferences)throw new AppError(400,"Too many images for this model: remove an element or a reference");
     const elementReferencePaths:string[]=[];
     for(const element of elements){const paths=element.refs.slice(0,elementPhotos);for(const path of paths){await addReference(path);elementReferencePaths.push(path);}const images=paths.map(p=>referenceNumbers.get(p)!);attachments.push({role:"element",kind:element.kind,name:element.name,images});notes.push(`ELEMENT (${element.kind}) "${element.name}": reference images ${images.join(', ')}. ${elementDefinitions[element.kind].description} ${element.identity_brief||''} ${element.notes}`);}
     if(styleData){const data=styleData;for(const path of data.refs.slice(0,3))await addReference(path);const images=data.refs.slice(0,3).map((p:string)=>referenceNumbers.get(p)!);attachments.push({role:"style",name:data.name,images});const palette=Array.isArray(data.source?.palette)?data.source.palette.filter((c:unknown)=>typeof c==="string"&&/^#[0-9a-f]{6}$/i.test(c)):[];notes.push(`STYLE "${data.name}": reference images ${images.join(', ')} guide only treatment and palette, not people or objects. ${data.identity_brief||''} ${data.notes}. Measured palette: ${palette.join(', ')}`);}
-    // Library style: its example thumbnails guide treatment and palette; never the people or text in them.
+    // Library examples are appended after all renderer references, and only the mediator sees them.
     const library = libraryStyle(input.libraryStyleId);
     if (input.libraryStyleId && !library) throw new AppError(400, "That style isn't in the library.");
-    if (library && !input.styleId && !fixPlan) {
-      const start = refs.length;
-      for (const image of library.images.slice(0, 2)) refs.push(await readFile(join(process.cwd(), "public", image)));
-      attachments.push({role:"style",name:library.name,images:Array.from({length:refs.length-start},(_,i)=>start+i+1)});
-      notes.push(`STYLE "${library.name}" (${library.category}): reference images ${start + 1}-${refs.length} show the look to follow — lighting, palette, composition, typography treatment. Do not copy their people, logos or words. Look: ${library.description}`);
-    }
     const paths = [
       ...new Set(
         [input.referencePath, ...input.referencePaths].filter(
@@ -156,6 +151,25 @@ async function handle(request: Request) {
     if (input.mode === "fix" && !fixPlan)
       throw new AppError(400, "Choose the reviewed source variant.");
     if(refs.length>imageModel(input.settings.model).maxReferences)throw new AppError(400,"Too many images for this model: remove an element or a reference");
+    const mediatorRefs = [...renderRefs];
+    const exampleImages: number[] = [];
+    if (library && !input.styleId && !fixPlan) {
+      for (const image of library.images.slice(0, 2)) {
+        mediatorRefs.push(await readFile(join(process.cwd(), "public", image)));
+        exampleImages.push(mediatorRefs.length);
+      }
+    }
+    const take = ["layout", "framing", "subject arrangement", "graphic device"];
+    const chosenStyle = styleData ? {
+      name: styleData.name, mode: "look" as const, composition: styleData.identity_brief || styleData.notes || "Follow the saved style's layout and treatment.",
+      description: [styleData.identity_brief, styleData.notes].filter(Boolean).join(" "), text: "none" as const,
+      take: [...take, "lighting", "palette", "rendering treatment"], avoid: ["words/text in the examples", "people", "logos/brands"], exampleImages: [],
+    } : library && !fixPlan ? {
+      name: library.name, mode: library.mode, composition: library.composition, description: library.description, text: library.text,
+      take: library.mode === "look" ? [...take, "lighting", "palette", "rendering treatment"] : take,
+      avoid: library.mode === "look" ? ["words/text in the examples", "people", "logos/brands"] : ["palette and colours", "any words/text in the examples", "people", "logos/brands", "typography look"], exampleImages,
+    } : null;
+    const mediatorNotes = exampleImages.length ? [...notes, `Style examples (mediator only, images ${exampleImages.join(", ")}): ${library!.mode === "composition" ? "study composition only" : "study layout and treatment and describe them in words"}; never copy words, people or brands.`] : notes;
     const reserved = await reserveJob(
       db,
       user.id,
@@ -221,13 +235,14 @@ async function handle(request: Request) {
               title: input.title,
               format: input.settings.format,
               style: input.style,
-              notes,
+              notes: mediatorNotes,
+              chosenStyle,
               attachments,
               variation: input.variationOffset + row.batch_index + 1,
               variationTotal: Math.max(input.variationTotal, input.settings.batch),
               hasPersona: personaIds.length > 0,
               isEdit: !!input.parentId,
-              referenceImages: refs,
+              referenceImages: mediatorRefs,
               // A reviewed fix carries its own wording to keep; its plan JSON is not user text to mine for quotes.
               ...(fixPlan ? { substantial: { exactText: fixPlan.preserve.exactText, numbers: [], panels: null, orientation: input.settings.format === "short" ? "vertical" as const : "horizontal" as const } } : {}),
             });
@@ -239,7 +254,7 @@ async function handle(request: Request) {
               .eq("id", row.id)
               .eq("user_id", user.id);
             if (recorded.error) throw recorded.error;
-            const image = await renderThumbnail(prompt, refs, input.settings);
+            const image = await renderThumbnail(prompt, renderRefs, input.settings);
             renderReturned = true;
             const path = `${user.id}/creations/${row.id}.png`;
             const upload = await db.storage

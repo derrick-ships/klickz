@@ -27,7 +27,7 @@ export function ModelsPanel({ api, connected }: { api: Api; connected: Connected
       // saving another field never writes "auto" back.
       setModels({
         ...r.models,
-        mediator: r.models.mediator === "auto" ? "gpt-sol-latest" : r.models.mediator,
+        mediator: ["auto", "gpt-sol-latest"].includes(r.models.mediator) ? "gpt-6.2-sol" : r.models.mediator,
         // Same rule as the stored-preference reader: an "auto" reviewer is Claude Sonnet now.
         reviewer: r.models.reviewer === "auto" ? "sonnet-latest" : r.models.reviewer,
       });

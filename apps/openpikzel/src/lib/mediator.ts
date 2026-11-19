@@ -13,7 +13,7 @@ import { principles, principleFiles } from "./principles.generated";
 // from the thumbnail playbook (principles/*.md, Derrick's zip). Nothing outside that
 // text counts as a principle.
 
-export const MEDIATOR_VERSION = "mediator-5";
+export const MEDIATOR_VERSION = "mediator-6";
 
 /** Substantial details: things the user named explicitly. Kept identical. */
 export type Substantial = {
@@ -104,24 +104,24 @@ const mediatorInstructions = `You are the OpenPikzels prompt mediator. You sit b
 
 DEFINITIONS
 - Substantial detail: literal text, numbers, subjects, number of panels, orientation, or any element the user named explicitly. Keep each one identical. If you must change one (for example a principle forbids it, like a legal rule in 05), keep the change minimal and list it in substantialChanges, one line each: "Changed <what> from <original> to <new> because <principle file>".
-- Cosmetic detail: palette, typography, number of words on screen when the user gave none, composition, hierarchy, style, lighting. You may decide these using the principles.
+- Cosmetic detail: palette, typography, composition, hierarchy, style, lighting. You may decide these using the principles.
 
 RULES
 1. The user's SUBSTANTIAL details are provided separately as JSON. Every exactText entry must appear verbatim (same spelling, accents, ¿¡, case only if the principles require ALL CAPS — then note it in substantialChanges) in imageText and inside quotes in prompt. Every number must appear unchanged. Respect panels and orientation when given.
-2. If the user gave no text on the image, decide it with the principles (playbook 00 rule 3, 04 text bank, 09 pairing: never repeat the title, 2-4 words, two lines), in the language of the request, and record it in decisions.
+2. If substantial.exactText is empty, imageText MUST be [] and the prompt must state there is no text, lettering or caption, unless chosenStyle.text is "required" or chosenStyle is "House: Political news". In that exception write 1-4 words grounded only in the request or title, never invented facts, names or quotes, and record "Text added because the style <name> requires it" in decisions. If the user explicitly says no text (including "sin texto" or "without text"), imageText must be [] and the prompt must state no text, even for a required style.
 3. If the user gave no panel count, decide it with the principles (one focal point; split-screen only as a deliberate exception, 02/10) and record it in decisions.
 4. Never depict a real, named person's face (politician, celebrity, the creator) unless personaAttached is true or the request is an edit of an existing image (editingAnExistingImage) that already shows them; in an edit, keep only the people already in the image and never add a new real face. Otherwise show the story through objects, places, documents, symbols or an anonymous silhouette, and record that in decisions (03 house template: the face comes from a real photo; 05 legal). Never caricature or imply a crime (05).
-5. The prompt must be self-contained and concrete: subject and expression, composition and thirds, text block with exact words in quotes and its placement, font style, colours with hex values when the principles give them, lighting, background, and what to leave out. Write it in English; keep image text in its original language.
+5. The prompt must be self-contained and concrete: subject and expression, composition and thirds, if any text, its exact words in quotes, placement and font style, colours with hex values when the principles give them, lighting, background, and what to leave out. Write it in English; keep image text in its original language.
 6. dos and donts: 4-16 each, short imperative lines, each with the source file name (e.g. "02-visual-rules-dos-donts"). They will be appended to the prompt verbatim, so only include rules that apply to this image.
 7. Never add generic filler such as "high quality, 4k, cinematic, masterpiece". Every line must be a concrete visual instruction.
 8. If the request conflicts with a principle and the request is substantial, the request wins (keep it) and you add the conflict to decisions.
 12. Variations. When variationTotal > 1 you are writing ONE image of a set; follow variationAxis exactly (placement, background colour family, emotion, framing, which intense colour marks the twist) so this image is clearly different from its siblings at a glance. Every variant must still follow the principles and keep every substantial detail and the exact on-image text. Record the axis you applied in decisions.
-9. Universal vs house rules. The playbook separates universal principles (01 principles, 02 visual rules "Universal", 06 QA, 09 pairing) from ONE channel's house look (00 rules 3 and 5, 03 house-style template, 04 Spanish text bank: yellow-on-top/white-below text, teal/orange gradient, red play badge, red only on ¿?). That house look is a STYLE, not a rule: apply it ONLY when chosenStyle is "House: Political news" — never because of the topic. With any other chosenStyle, follow that style. With no chosenStyle, apply only the universal principles and pick a palette and type treatment that fit the topic ("Fit the channel, not the theory", 01); record that choice in decisions.
+9. Universal vs house rules. Apply the house look ONLY when chosenStyle is "House: Political news". For a chosenStyle object apply its composition and take, never its avoid. A composition-mode style is a layout/storytelling device only: choose palette from the topic and principles, never the examples; never copy text, people, brands, colours or typography look from example images. A look-mode style may also guide lighting, palette and rendering treatment, but never copy text, people or brands. The renderer does NOT see styleExampleImages: describe composition and, for look mode, treatment in words; never cite example image numbers in the prompt. Record "Style applied: <name> — <how>" in decisions. With no chosen style use universal principles and a topic-appropriate palette.
 13. Structured attachments distinguish roles: persona = the person; style = visual treatment only; reference = user-provided additional imagery. An element is NEVER a person or a style. Every attached element must be named verbatim in the enriched prompt, with its reference image numbers and placement. Element kinds: ${Object.entries(elementDefinitions).map(([kind,definition])=>kind+": "+definition.description).join(" ")} Reference images. When reference images are attached you can see them, in the same order as referenceNotes. A persona photo is the person who must appear: describe that exact face (shape, eyes, glasses, hairline, facial hair, skin tone, age) so the image model cannot swap in a look-alike. A brand, logo or product photo the user attached is a mark to COPY, not to redraw from memory and not a logo to forbid: name which reference image holds it, say "reproduce that mark exactly, do not invent a substitute", and do not put "no logo" in donts for a mark the user asked to show. "No logo" in the playbook means do not ADD a channel logo, date or watermark the user did not ask for.
-10. Text must label what it describes. When there are several panels and the text names them (BEFORE/AFTER, ANTES/DESPUÉS, DÍA 1/DÍA 800, REAL/FALSO), place each word on its own panel, never stacked together in one block over the split. Apart from that, keep the house rule of 2-4 words.
+10. Text must label what it describes. When there are several panels and the text names them (BEFORE/AFTER, ANTES/DESPUÉS, DÍA 1/DÍA 800, REAL/FALSO), place each word on its own panel, never stacked together in one block over the split. Only place text if any is permitted by rule 2.
 11. The cover test (01): the image alone must explain the transformation, contrast or question in under a second at phone size. Describe the subject so the difference between panels is obvious (same person, same pose and framing, only the changed attribute differs).
 14. Derrick's rules (file 11) in every prompt, unless the user's request says otherwise:
-   a. Z-scan: name the hook element and place it top-left; name the proof element and place it bottom-right. Say both placements in the prompt.
+   a. Z-scan: name the hook element and place it top-left; name the proof element and place it bottom-right; either can be visual, with no text. Say both placements in the prompt.
    b. Count the elements (face, text block, object, logo, panel subject): three at most. Fewer is fine. Name the one main focus and make it clearly the largest or most contrasted.
    c. Name the twist (what the image says that the title doesn't). It must not repeat the title.
    d. Main colours (background and the large areas) are never red, white or black; pick other hues and give their hex values. Red, white or black may appear only as small accents (text outline, a small mark).
@@ -169,12 +169,16 @@ function normalise(s: string) {
 }
 
 /** Code-level check that the enriched prompt kept every substantial detail. Returns problems (empty = ok). */
-export function verifyEnriched(sub: Substantial, e: Enriched): string[] {
+export function verifyEnriched(sub: Substantial, e: Enriched, options: { textAllowed?: boolean; styleExampleImages?: number[] } = {}): string[] {
   const problems: string[] = [];
   const prompt = normalise(e.prompt).toLowerCase();
   const texts = e.imageText.map((t) => normalise(t).toLowerCase());
   const changes = e.substantialChanges.join(" \n ").toLowerCase();
-  for (const t of sub.exactText) {
+  if (options.textAllowed === false && e.imageText.length) problems.push("The user gave no on-image text and the style doesn't require it: imageText must be empty and the prompt must not add words.");
+  for (const index of options.styleExampleImages ?? []) {
+    if (new RegExp(`\\breferences?(?:\\s+images?)?\\s+${index}(?!\\d)`, "i").test(e.prompt)) problems.push(`Reference image ${index} is a mediator-only style example; describe the style without citing it.`);
+  }
+  for (const t of options.textAllowed === false ? [] : sub.exactText) {
     const want = normalise(t).toLowerCase();
     const kept = prompt.includes(want) && texts.some((x) => x.includes(want) || want.includes(x));
     if (!kept && !changes.includes(want)) problems.push(`Exact text "${t}" is missing from the image text or prompt and no change was declared.`);
@@ -208,7 +212,7 @@ export function imagePromptFrom(e: Enriched, notes: string[], realism: string) {
     e.imageText.length
       ? "TEXT ON THE IMAGE (spell exactly; each quoted item is its own line; never draw a slash between lines): " + e.imageText.flatMap(splitLines).map((t, i) => `line ${i + 1}: "${t}"`).join("; ") +
         ". Lettering is bold condensed type with a dark outline and drop shadow directly on the image — no box, plate, band or rectangle behind any letter or word."
-      : "TEXT ON THE IMAGE: none.",
+      : "TEXT ON THE IMAGE: none. Do not draw any letters, words, numbers, captions or logos-as-text.",
     `PANELS: ${e.panels}.`,
     "",
     "DO:",
@@ -216,7 +220,7 @@ export function imagePromptFrom(e: Enriched, notes: string[], realism: string) {
     "DON'T:",
     ...e.donts.map((d) => `- ${d.rule}`),
   ];
-  if (notes.length) lines.push("", "REFERENCES AND IDENTITY (images are attached in this order; copy faces and brand marks from them, never redraw a logo from memory):", ...notes.map((n) => `- ${n}`));
+  if (notes.length) lines.push("", "REFERENCES AND IDENTITY (images are attached in this order; follow each note's role — copy a face or a brand mark only when its note says so; never redraw a logo from memory):", ...notes.map((n) => `- ${n}`));
   lines.push("", realism);
   return lines.join("\n");
 }
@@ -230,7 +234,7 @@ async function callModel(context: unknown, provider: "openai" | "google", feedba
     const images = (context as { referenceImages?: Buffer[] }).referenceImages ?? [];
     return { value: JSON.parse(await googleText(instructions, JSON.stringify({ ...(payload as object), referenceImages: undefined, referenceImageCount: images.length }), images, true, model)), model, provider: "Google API" };
   }
-  const model = await modelFor(choice, "openai", providerContext.getStore()?.openai, process.env.OPENAI_MEDIATOR_MODEL || "gpt-6.1-sol");
+  const model = await modelFor(choice, "openai", providerContext.getStore()?.openai, process.env.OPENAI_MEDIATOR_MODEL || "gpt-6.2-sol");
   const api = new OpenAI({ apiKey: providerKey("openai"), maxRetries: 0, timeout: 120000 });
   const response = await api.responses.create({
     model,
@@ -239,7 +243,7 @@ async function callModel(context: unknown, provider: "openai" | "google", feedba
     // OpenAI JSON mode rejects input that never says "json" (instructions don't count).
     input: [{ role: "user", content: [
       { type: "input_text", text: "Answer in JSON. Data:\n" + JSON.stringify({ ...(payload as object), referenceImages: undefined, referenceImageCount: ((context as { referenceImages?: Buffer[] }).referenceImages ?? []).length }) },
-      ...((context as { referenceImages?: Buffer[] }).referenceImages ?? []).map((b) => ({ type: "input_image" as const, image_url: "data:image/jpeg;base64," + b.toString("base64"), detail: "low" as const })),
+      ...((context as { referenceImages?: Buffer[] }).referenceImages ?? []).map((b) => ({ type: "input_image" as const, image_url: "data:image/jpeg;base64," + b.toString("base64"), detail: "auto" as const })),
     ] }],
     text: { format: { type: "json_object" } },
     max_output_tokens: 6000,
@@ -253,6 +257,7 @@ export async function mediate(input: {
   title: string;
   format: "long" | "short";
   style: string;
+  chosenStyle?: { name: string; mode: "composition" | "look"; composition: string; description: string; text: "required" | "none"; take: string[]; avoid: string[]; exampleImages: number[] } | null;
   notes: string[];
   variation: number;
   /** How many images this request belongs to (1-16), so each one is told to differ. */
@@ -271,16 +276,20 @@ export async function mediate(input: {
     : hasProvider("openai") ? "openai" : hasProvider("google") ? "google" : null;
   if (!provider) throw new AppError(403, "Connect an OpenAI or Google API key so OpenPikzels can prepare the image prompt.");
   const substantial = input.substantial ?? extractSubstantial(input.rawPrompt, input.format);
+  const noText = /\b(?:no\s+text|sin\s+texto|without\s+text)\b/i.test(input.rawPrompt);
+  const textAllowed = !noText && (substantial.exactText.length > 0 || input.chosenStyle?.text === "required" || input.style === "House: Political news");
+  const axis = variationAxis(input.variation, input.variationTotal ?? 1);
   const context = {
     rawRequest: input.rawPrompt,
     videoTitle: input.title || null,
     format: input.format === "short" ? "vertical 9:16 cover (Shorts)" : "horizontal 16:9 thumbnail",
-    chosenStyle: input.style && input.style !== "Auto" ? input.style : null,
+    chosenStyle: input.chosenStyle ?? (input.style && input.style !== "Auto" ? input.style : null),
+    styleExampleImages: input.chosenStyle?.exampleImages ?? [],
     personaAttached: input.hasPersona,
     editingAnExistingImage: input.isEdit,
     variationNumber: input.variation,
     variationTotal: input.variationTotal ?? 1,
-    variationAxis: variationAxis(input.variation, input.variationTotal ?? 1),
+    variationAxis: axis && input.chosenStyle?.mode === "look" ? { ...axis, background: "keep the style's palette; vary placement and framing instead" } : axis,
     substantial,
     referenceNotes: input.notes,
     attachments: input.attachments ?? [],
@@ -305,7 +314,7 @@ export async function mediate(input: {
       feedback = ["Schema problems: " + parsed.error.issues.slice(0, 6).map((i) => i.path.join(".") + " " + i.message).join("; ")];
       continue;
     }
-    const problems = verifyEnriched(substantial, parsed.data);
+    const problems = verifyEnriched(substantial, parsed.data, { textAllowed, styleExampleImages: input.chosenStyle?.exampleImages });
     for(const attachment of input.attachments??[])if(attachment.role==="element"&&!normalise(parsed.data.prompt).toLowerCase().includes(normalise(attachment.name).toLowerCase()))problems.push(`Attached element "${attachment.name}" is missing from the enriched prompt. Include it with its kind, reference image numbers and placement.`);
     if (!problems.length) return { enriched: parsed.data, substantial, provider: result.provider, model: result.model, attempts: attempt };
     feedback = problems;
