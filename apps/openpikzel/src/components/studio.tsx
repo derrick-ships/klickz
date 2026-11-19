@@ -84,7 +84,7 @@ import {OperationProgress} from "@/components/creative/progress";
 import {usePersonaMentions,MentionMirror,MAX_PERSONAS,unmention} from "@/components/creative/mention-list";
 import {ChatHistory,ChatTitle,ChatTimeline} from "@/components/creative/chat";
 import { readDraftCheckpoint, writeDraftCheckpoint } from "@/lib/draft-checkpoint";
-import type {Conversation,WorkspaceDraft} from "@/lib/workspaces";
+import {automaticChatTitle, type Conversation, type WorkspaceDraft} from "@/lib/workspaces";
 import { useStudio } from "@/lib/use-studio";
 import { DialogOverflowCue } from "@/components/dialog-overflow-cue";
 import { TypingExamples } from "@/components/creative/typing-examples";
@@ -151,6 +151,7 @@ export default function Studio() {
   const workspaceEpoch=useRef(0);
   const chatCreation=useRef<{owner:string|null;epoch:number;promise:Promise<Conversation>}|null>(null);
   const [pendingResult,setPendingResult]=useState<string|null>(null);
+  const [legacyNotice,setLegacyNotice]=useState(false);
   const [chatToDelete,setChatToDelete]=useState<Conversation|null>(null);
   const hydratedOwner=useRef(""),chatIdRef=useRef<string|null>(null),ownerUI=useRef(studio.user),userPickedTool=useRef(false);ownerUI.current=studio.user;chatIdRef.current=activeChatId;
   const [tool, setTool] = useState<Tool>("generate"),
@@ -303,7 +304,7 @@ export default function Studio() {
   });
   useEffect(() => {
     const initial = new URL(location.href).searchParams.get("mode");
-    if (initial) setTool(visibleTool(initial));
+    if (initial) { setTool(visibleTool(initial)); if (["edit","recreate","title"].includes(initial)) setLegacyNotice(true); }
   }, []);
   useEffect(() => {
     const media = matchMedia("(max-width: 1024px)");
@@ -394,7 +395,7 @@ export default function Studio() {
     if(chatCreation.current?.owner===owner&&chatCreation.current.epoch===epoch)return chatCreation.current.promise;
     const promise=studio.createConversation().then(async chat=>{
       if(ownerUI.current!==owner)throw new Error("Your account changed. Open your current workspace again.");
-      const saved={...chat,title:initialDraft.prompt?.trim().slice(0,80)||chat.title,draft:initialDraft,updated_at:new Date().toISOString()};
+      const saved={...chat,title:automaticChatTitle(initialDraft.title),draft:initialDraft,updated_at:new Date().toISOString()};
       await studio.saveConversation(saved,"draft");
       if(ownerUI.current===owner&&workspaceEpoch.current===epoch&&chatIdRef.current===startingChat){
         chatIdRef.current=chat.id;setActiveChatId(chat.id);
@@ -430,7 +431,7 @@ export default function Studio() {
       finally{if(wasActive){startNew();setPersonaIds([]);setElementIds([]);setStyleId("");setPreset("Auto");setDelivery(null);}}
     });
   }
-  async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();const chat=await studio.createConversation();activateChat(chat);startNew();});}
+  async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);localStorage.removeItem("openpikzels.activeChat."+(studio.user||"local"));startNew();});}
   useEffect(()=>{workspaceEpoch.current++;userPickedTool.current=false;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setReviewStatuses({});setIncludeVision(null);setTextProvider("openai");setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReviews({});setDialog(null);setChatSaveState("");},[studio.user]);
   useEffect(()=>{
     if(studio.loading)return;const key=studio.user||"local";if(hydratedOwner.current===key)return;hydratedOwner.current=key;
@@ -460,7 +461,7 @@ export default function Studio() {
       void (async()=>{
         const chat=activeChat||await ensureChat();
         if(cancelled||ownerUI.current!==owner||chatIdRef.current!==chat.id)return;
-        await studio.saveConversation({...chat,title:chat.title==="New chat"&&draft.prompt?.trim()?draft.prompt.trim().slice(0,80):chat.title,draft,updated_at:new Date().toISOString()},"draft");
+        await studio.saveConversation({...chat,title:chat.title==="New chat"?automaticChatTitle(draft.title):chat.title,draft,updated_at:new Date().toISOString()},"draft");
         if(!cancelled&&ownerUI.current===owner&&chatIdRef.current===chat.id)setChatSaveState(studio.cloud?"Saved to your workspace":"Saved on this device");
       })().catch(()=>{if(!cancelled&&ownerUI.current===owner)setChatSaveState(checkpointSaved?"Saved on this device. Workspace sync failed.":"Draft not saved. Keep this page open.");});
     },300);
@@ -708,6 +709,7 @@ export default function Studio() {
         if (tool === "edit" && !editSource?.image_path && !refs.length)
           throw new Error("Choose an image to edit.");
         const result = await createReviewed(input,async result=>{
+        if(chat.title==="New chat") await studio.saveConversation({...chat,title:automaticChatTitle(title,result.creations[0]?.title),draft:chatDraftRef.current,updated_at:new Date().toISOString()},"draft");
         if(draftFingerprintRef.current===submittedFingerprint){
           setSelection(result.creations[0].id);setComposerOpen(false);
           // OP-10: focus (and its announcement) moves to the result, but the page does not scroll: the delivered image is
@@ -918,7 +920,7 @@ export default function Studio() {
     if (!selected) return;
     setComposerOpen(true);
     setTool(mode);
-    if (mode === "edit") { setParentId(selected.id); }
+    if (mode === "edit") { setParentId(selected.id); setPrompt(""); }
     // Keep the user's video title; selected.title may only be an asset label.
     requestAnimationFrame(() => {
       document.getElementById(mode === "analyze" ? "video-title" : "thumbnail-prompt")?.focus({ preventScroll: true });
@@ -986,8 +988,8 @@ export default function Studio() {
                   <div className="generate-dock" data-placement={tool==="analyze"?"after-settings":"under-prompt"}>
                     <div className="generate-split">
                       <button type="button"
-                        className="primary-button"
-                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"}
+                        className={readiness.action==="loading"?"neutral-button":"primary-button"}
+                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"||(tool==="edit"&&(!prompt.trim()||prompt.trim()===editSource?.prompt?.trim()))}
                         aria-describedby="request-ready"
                         onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):submit()}
                       >
@@ -1002,7 +1004,7 @@ export default function Studio() {
                           {busy
                             ? studio.busy
                             : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
-                              ? "Analyze thumbnail"
+                              ? "Score thumbnail"
                               : tool === "title" && titleAction === "ideas"
                                 ? "Generate titles"
                                 : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create thumbnail"}
@@ -1052,9 +1054,8 @@ export default function Studio() {
                             ? "New version saved."
                             : selected.mode === "resize"
                               ? "Ready for another format."
-                              : "Your thumbnail."}
+                              : (selected.title || "Thumbnail")}
                       </ResultHeading>
-                      <p>{selected.title}</p>
                     {selected.image_path&&studio.images[selected.image_path]&&<NativeOutputNotice src={studio.images[selected.image_path]} requested={selected.style==="Uploaded"?undefined:selected.settings?.format} native={!!selected.lineage?.nativeOutput&&selected.mode!=="resize"}/>}
 
                     </div>
@@ -1092,11 +1093,12 @@ export default function Studio() {
                   <div className="review-layout"><div className="review-media">
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
-                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.title || selected.title} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
+                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
+                      {score&&<div className="mobile-score-summary"><span>{score.overall ?? "Partial"} · weakest: {names[pillars.filter(p=>score.dimensions[p].score!==null).sort((a,b)=>(score.dimensions[a].score??Infinity)-(score.dimensions[b].score??Infinity))[0]] || "Not assessed"}</span><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button></div>}
                       <div className="result-actions">
                         {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score thumbnail</button>}
                         <button type="button"
-                          className={(!score && scoreView.kind!=="no-jev" ? "neutral-button" : "primary-button")+" download-button"}
+                          className="neutral-button download-button"
                           disabled={busy}
                           onClick={() =>
                             studio.run("Downloading image", () =>
@@ -1107,27 +1109,12 @@ export default function Studio() {
                           <Download size={15} />
                           Download image
                         </button>
-                        <details className="result-more">
+                        <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
                           <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
-                        <button type="button"
-                          className="menu-item"
-                          disabled={busy}
-                          title="Makes one new image with your AI account (uses credits). The original stays saved."
-                          onClick={resize}
-                        >
-                          {selected.settings?.format === "short" ? (
-                            <RectangleHorizontal size={15} />
-                          ) : (
-                            <RectangleVertical size={15} />
-                          )}
-                          AI resize to{" "}
-                          {selected.settings?.format === "short"
-                            ? "long-form"
-                            : "short-form"}
-                        </button>
-                            <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}><Download size={15}/>Download PNG (original)</button>
-                            <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
+                            <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download PNG (original)</button>
+                        <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." onClick={resize}>AI resize to {selected.settings?.format === "short" ? "long-form" : "short-form"} · uses image credits</button>
+                            <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
                             {studio.cloud&&selected.image_path&&<button type="button" className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}>Score history</button>}
                           </div>
                         </details>
@@ -1342,7 +1329,7 @@ export default function Studio() {
             className="icon-button"
             onClick={() => { setSidebar(false); requestAnimationFrame(() => navigationOpenRef.current?.focus()); }}
             ref={navigationCloseRef}
-            aria-label="Close sidebar"
+            aria-label="Close sidebar" title="Close sidebar (Cmd/Ctrl+B)"
           >
             <PanelLeft size={17} />
           </button>
@@ -1374,7 +1361,7 @@ export default function Studio() {
           </button>
         </div>
         <div className="history-list">
-          <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>
+          {!studio.loading && <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
           {studio.creations.some(c=>!c.conversation_id)&&<p className="legacy-history-label">Recent creations</p>}
           {studio.creations.filter(c=>!c.conversation_id).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.images[item.image_path]} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
@@ -1403,7 +1390,7 @@ export default function Studio() {
                 className="icon-button"
                 onClick={() => setSidebar(true)}
                 ref={navigationOpenRef}
-                aria-label="Open sidebar"
+                aria-label="Open sidebar" title="Open sidebar (Cmd/Ctrl+B)"
               >
                 <PanelLeft size={18} />
               </button>
@@ -1434,6 +1421,7 @@ export default function Studio() {
           ref={mainRef}
           className={tab === "library" ? "library-main" : `studio-main ${hasReviewImage ? "review-active" : ""}`}
         >
+          {legacyNotice&&<div className="result-ready" role="status"><span>This old link opened Create.</span><button type="button" className="quiet-button" onClick={()=>setLegacyNotice(false)} aria-label="Dismiss old link notice"><X size={16}/></button></div>}
           {pendingResult&&<div className="result-ready" role="status"><span>Your new thumbnail is ready. Your current draft is unchanged.</span><button type="button" className="neutral-button" onClick={async()=>{const item=studio.creations.find(c=>c.id===pendingResult);if(item&&await choose(item))setPendingResult(null);}}>View result</button></div>}
           {dialog === "login" && (
             <p className="dialog-footnote">
@@ -1441,7 +1429,7 @@ export default function Studio() {
               <a href="/connect">Create an account and connect your keys</a>
             </p>
           )}
-          {activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
+          {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
           {studio.error && (
@@ -1460,6 +1448,7 @@ export default function Studio() {
           {tab === "studio" ? (
             <>
               {hasReviewImage && resultPanel}
+              {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button><button type="button" className="neutral-button" onClick={()=>{setTool("generate");setComposerOpen(true);requestAnimationFrame(()=>document.querySelector(".creation-workbench")?.scrollIntoView({block:"start"}));}}>Make another</button></div>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
@@ -1468,8 +1457,7 @@ export default function Studio() {
               >
                 <div className="workbench-heading">
                   <ComposerHeading>
-                    {hasReviewImage ? "Make another" : tool === "analyze"
-                      ? "Score your thumbnail"
+                    {tool === "analyze" ? "Score your thumbnail" : hasReviewImage ? "Make another"
                       : tool === "edit"
                         ? "Change your thumbnail"
                         : tool === "recreate"
@@ -1483,6 +1471,7 @@ export default function Studio() {
                     role="tablist"
                     aria-label="Creation mode"
                   >
+                    {tool === "edit" && <button type="button" role="tab" aria-selected="true" className="active" onClick={()=>{setTool("generate");setPrompt("");}} title="Exit editing">Editing: {editSource?.title || "thumbnail"} <X size={15} aria-label="Exit edit"/></button>}
                     {modes.map(({ id, label, icon: Icon }) => (
                       <button type="button"
                         key={id}
@@ -1679,6 +1668,7 @@ export default function Studio() {
                         <textarea
                           id="thumbnail-prompt"
                           ref={promptRef}
+                          onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'&&!busy&&readiness.action==='run'){e.preventDefault();void submit();}}}
                           onFocus={() => setPromptFocused(true)}
                           onBlur={() => setPromptFocused(false)}
                           aria-invalid={promptError?true:undefined}
@@ -1888,7 +1878,7 @@ export default function Studio() {
                       </>
                     )}
                   </fieldset>
-                  <p className="request-ready" id="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"?"":readiness.readiness}</p>
+                  <p className="request-ready" id="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"||readiness.readiness.startsWith("Connection saved.")?"":readiness.readiness}</p>
                   {tool==="analyze"&&generateAction}
                 </div>
                 <div className="composer-footer" hidden={!showComposer}>
@@ -2347,20 +2337,14 @@ export default function Studio() {
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <RevealImage surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} alt={item.title} />
+            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} alt={item.title} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />
               <p>{item.prompt}</p>
             </div>
           )}
-          <span>
-            {item.status === "ready"
-              ? item.settings?.format === "short"
-                ? "9:16"
-                : "16:9"
-              : item.status}
-          </span>
+          {(item.status !== "ready" || item.settings?.format === "short") && <span>{item.status === "ready" ? "9:16" : item.status}</span>}
         </button>
         {item.image_path && studio.images[item.image_path] && <ScoreBadge score={item.score} onOpen={busy ? undefined : () => openScore(item)} label={item.title}/>}
         </div>

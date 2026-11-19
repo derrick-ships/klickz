@@ -35,15 +35,15 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
   </div>;
   return <figure className="review-canvas" data-preview={feed?"feed":"full"} aria-busy={!failed&&!size}>
     {feed && <div className="feed-preview-controls">
-      <div role="group" aria-label="YouTube preview placement">
+      <div role="group" aria-label="YouTube preview placement"><span className="feed-group-label">Placement</span>
         <button type="button" className="neutral-button" aria-pressed={placement==="browse"} onClick={()=>morph(()=>setPlacement("browse"))}>Browse</button>
         <button type="button" className="neutral-button" aria-pressed={placement==="suggested"} onClick={()=>morph(()=>setPlacement("suggested"))}>Suggested</button>
       </div>
-      <div role="group" aria-label="Feed theme">
+      <div role="group" aria-label="Feed theme"><span className="feed-group-label">Theme</span>
         <button type="button" className="neutral-button" aria-pressed={theme==="dark"} onClick={()=>morph(()=>setTheme("dark"))}>Dark</button>
         <button type="button" className="neutral-button" aria-pressed={theme==="light"} onClick={()=>morph(()=>setTheme("light"))}>Light</button>
       </div>
-      <div role="group" aria-label="Thumbnail tests">
+      <div role="group" aria-label="Thumbnail tests"><span className="feed-group-label">Test</span>
         <button type="button" className="neutral-button" aria-pressed={monochrome} onClick={()=>morph(()=>setMonochrome(x=>!x))}>Black &amp; white</button>
         <button type="button" className="neutral-button" aria-pressed={squint} onClick={()=>morph(()=>setSquint(x=>!x))}>Squint</button>
       </div>
@@ -56,7 +56,7 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
       <div className="youtube-preview-context" aria-hidden="true">{placement==="browse"?<><b>All</b><span>For you</span><span>Recently uploaded</span></>:<><b>Up next</b><span>Suggested videos</span></>}</div>
       <article className="youtube-preview-card">
         <div className="youtube-preview-thumbnail">{image}<span className="feed-duration" aria-label="Example duration">12:34</span></div>
-        <div className="youtube-preview-copy"><span className="feed-avatar" aria-hidden="true">Y</span><div><h3>{title||"Your video title"}</h3><p>Your channel</p><small>Example placement</small></div><MoreVertical size={16} aria-hidden="true"/></div>
+        <div className="youtube-preview-copy"><span className="feed-avatar" aria-hidden="true">Y</span><div><h3 className={!title.trim()?"feed-title-placeholder":undefined}>{title.trim()||"Add a video title to preview it"}</h3><p>Your channel</p><small>Example placement</small></div><MoreVertical size={16} aria-hidden="true"/></div>
       </article>
       <p className="feed-simulation-note">Layout simulation. Channel and duration are examples, not live YouTube data.</p>
       {portrait&&<p className="feed-simulation-note">Standard video placement shown. The Shorts feed uses a different layout.</p>}
@@ -64,6 +64,7 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
     <figcaption><span>{feed ? placement==="browse"?"Browse · thumbnail at 200 px":"Suggested · compact recommendation" : "Full image"}</span>
       <span>{failed?"Preview unavailable":size?`${size.width} × ${size.height}`:"Image preview"}</span>
     </figcaption>
+    {feed&&squint&&<p className="feed-filter-note">{!check?"Checking image readability…":verdicts(check).every(v=>v.pass)?"Pixel checks pass; use the blurred preview to judge the overall shape.":"Some pixel checks need attention; use the blurred preview to judge the overall shape."}</p>}
     {feed&&check&&<ul className="feed-verdicts" aria-label="Feed checks">{verdicts(check).map(v=><li key={v.id} data-pass={v.pass}>{v.pass?<Check size={15} aria-hidden="true"/>:<AlertTriangle size={15} aria-hidden="true"/>}<span><strong>{v.label}</strong> {v.detail}</span></li>)}</ul>}
     {feed&&<p className="feed-filter-note">These tests change this preview only. Your original and download stay in color. Checks are measured from the image’s pixels in your browser; they describe readability, not predicted clicks.</p>}
   </figure>;
