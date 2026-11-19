@@ -10,7 +10,8 @@ export function Consent() {
       redirect: string;
       scope: string[];
     } | null>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [requestState, setRequestState] = useState<"loading" | "valid" | "invalid">("loading");
   useEffect(() => {
     const token = new URLSearchParams(location.search).get("request") || "";
     setRequest(token);
@@ -19,8 +20,9 @@ export function Consent() {
         const data = await r.json();
         if (!r.ok) throw new Error(data.error);
         setDetails(data);
+        setRequestState("valid");
       })
-      .catch((e) => setError(e.message));
+      .catch(() => setRequestState("invalid"));
   }, []);
   async function decide(decision: "allow" | "deny") {
     setBusy(true);
@@ -55,6 +57,7 @@ export function Consent() {
         OpenPikzels<span className="wordmark-pixel" aria-hidden="true" />
       </a>
       <section className="account-panel">
+        {requestState === "loading" ? <p role="status">Checking connection request…</p> : requestState === "invalid" ? <><h1>Invalid or expired connection token</h1><p role="alert">Start the connection again from your AI app.</p><a className="neutral-button inline-link" href="/connect">Back to connections</a></> : <>
         <h1>Allow {details?.name || "this client"} to use your studio?</h1>
         <p>
           This third-party client name is supplied by its developer. Approve
@@ -116,6 +119,7 @@ export function Consent() {
             {error}
           </p>
         )}
+        </>}
       </section>
     </main>
   );

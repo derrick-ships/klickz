@@ -368,7 +368,7 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 .batch-select select:focus-visible { outline-color: var(--color-accent-ink); }
 
 /* Explain the selected provider at the point of key entry. */
-.provider-key-guide { padding: 14px 16px; border: 1px solid var(--color-line-strong); border-radius: 12px; background: var(--color-control-ground); }
+.provider-key-guide { padding: 0; border: 0; background: transparent; }
 .provider-key-guide p, .key-form #provider-key-help { font-size: 14px; line-height: 1.65; color: var(--color-muted); }
 .provider-key-guide p:first-child { margin-top: 0; }
 .provider-key-guide p:last-child { margin-bottom: 0; }
