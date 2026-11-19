@@ -3,6 +3,7 @@ import {imageCostCents,imageCostCopy,imageCostShort,imageOutputEstimate} from ".
 import type {Config,Settings,TextProvider} from "./types";
 import {imageModel} from "./image-models";
 import {pickVisionProvider} from "./vision-provider";
+export function canApplyEdit(prompt:string, sourcePrompt?:string|null){return !!prompt.trim() && prompt.trim()!==sourcePrompt?.trim();}
 export function generationReadiness(input:{config:Config|null;cloud:boolean;loading:boolean;tool:string;titleIdeas:boolean;settings:Settings;prompt:string;title:string;hasSource:boolean;hasReferences:boolean;includeVision:boolean;textProvider?:TextProvider;autoReview?:boolean}){
  const {config,cloud,loading,tool,titleIdeas,settings}=input,model=imageModel(settings.model);
  const selectedText=input.textProvider||"openai", textProvider=selectedText==="openai"?"OpenAI":"Google", textConnected=!!config?.[selectedText];

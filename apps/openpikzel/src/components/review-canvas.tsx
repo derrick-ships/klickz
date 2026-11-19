@@ -62,7 +62,7 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
       {portrait&&<p className="feed-simulation-note">Standard video placement shown. The Shorts feed uses a different layout.</p>}
     </div> : image}
     <figcaption><span>{feed ? placement==="browse"?"Browse · thumbnail at 200 px":"Suggested · compact recommendation" : "Full image"}</span>
-      <span>{failed?"Preview unavailable":size?`${size.width} × ${size.height}`:"Image preview"}</span>
+      <span>{failed?"Preview unavailable":!size?"Image preview":""}</span>
     </figcaption>
     {feed&&squint&&<p className="feed-filter-note">{!check?"Checking image readability…":verdicts(check).every(v=>v.pass)?"Pixel checks pass; use the blurred preview to judge the overall shape.":"Some pixel checks need attention; use the blurred preview to judge the overall shape."}</p>}
     {feed&&check&&<ul className="feed-verdicts" aria-label="Feed checks">{verdicts(check).map(v=><li key={v.id} data-pass={v.pass}>{v.pass?<Check size={15} aria-hidden="true"/>:<AlertTriangle size={15} aria-hidden="true"/>}<span><strong>{v.label}</strong> {v.detail}</span></li>)}</ul>}

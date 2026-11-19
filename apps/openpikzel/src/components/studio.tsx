@@ -6,7 +6,7 @@ import {GenerationDelivery} from "@/components/creative/generation-delivery";
 import {deliverImages,type DeliveryState,type ReviewStatus} from "@/lib/generation-delivery";
 import type {CreativeDraft} from "@/components/creative/creative-partner";
 import {ProviderChoice} from "@/components/creative/provider-choice";
-import { generationReadiness } from "@/lib/generation-readiness";
+import { canApplyEdit, generationReadiness } from "@/lib/generation-readiness";
 import { pickVisionProvider } from "@/lib/vision-provider";
 import { critiqueProviderFromScore, reviewerName, scorePlan, scoreStatusCopy, scoreStatusFromEvaluation } from "@/lib/score-on-generate";
 import { canScore } from "@/lib/scorers";
@@ -153,6 +153,8 @@ export default function Studio() {
   const [pendingResult,setPendingResult]=useState<string|null>(null);
   const [legacyNotice,setLegacyNotice]=useState(false);
   const [chatToDelete,setChatToDelete]=useState<Conversation|null>(null);
+  const [creationToDelete,setCreationToDelete]=useState<Creation|null>(null);
+  const deleteCreationDialog=useRef<HTMLDialogElement>(null);
   const hydratedOwner=useRef(""),chatIdRef=useRef<string|null>(null),ownerUI=useRef(studio.user),userPickedTool=useRef(false);ownerUI.current=studio.user;chatIdRef.current=activeChatId;
   const [tool, setTool] = useState<Tool>("generate"),
     [settings, setSettings] = useState<Settings>(defaultSettings),
@@ -306,6 +308,10 @@ export default function Studio() {
     const initial = new URL(location.href).searchParams.get("mode");
     if (initial) { setTool(visibleTool(initial)); if (["edit","recreate","title"].includes(initial)) setLegacyNotice(true); }
   }, []);
+  useEffect(() => {
+    const closeMore=(event:PointerEvent)=>{document.querySelectorAll<HTMLDetailsElement>('.result-more[open]').forEach(menu=>{if(!menu.contains(event.target as Node))menu.open=false;});};
+    document.addEventListener('pointerdown',closeMore);return()=>document.removeEventListener('pointerdown',closeMore);
+  },[]);
   useEffect(() => {
     const media = matchMedia("(max-width: 1024px)");
     const adapt = () => { setCompactNavigation(media.matches); setSidebar(!media.matches); };
@@ -500,7 +506,7 @@ export default function Studio() {
   async function resume(item: Creation) {
     if(!await choose(item))return;
     setComposerOpen(true);
-    setPrompt(item.prompt);
+    setPrompt(item.mode === "edit" ? "" : item.prompt);
     setTool(
       ["generate", "recreate", "edit", "title"].includes(item.mode)
         ? (item.mode as Tool)
@@ -654,6 +660,7 @@ export default function Studio() {
 
   async function submit(scoreOnly = false) {
     if (!workspaceReady) return;
+    if (!scoreOnly && tool==="edit" && !canApplyEdit(prompt,editSource?.prompt)) { setPromptError("Describe a new change to apply."); return; }
     // Prompt-only validation is shown under the field (not the top banner) and focuses it.
     const invalid=scoreOnly ? null : promptValidationError({tool,titleAction,prompt,title});
     if(invalid){studio.setError("");setPromptError(invalid);requestAnimationFrame(()=>promptRef.current?.focus());return;}
@@ -905,7 +912,7 @@ export default function Studio() {
     });
   }
   async function deleteCreation(item: Creation) {
-    if (!confirm("Delete this creation from your library?")) return;
+    setCreationToDelete(null); deleteCreationDialog.current?.close();
     await studio.run("Deleting creation", async () => {
       await studio.remove("creations", item.id);
       if (selection === item.id) setSelection(null);
@@ -989,7 +996,7 @@ export default function Studio() {
                     <div className="generate-split">
                       <button type="button"
                         className={readiness.action==="loading"?"neutral-button":"primary-button"}
-                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"||(tool==="edit"&&(!prompt.trim()||prompt.trim()===editSource?.prompt?.trim()))}
+                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"||(tool==="edit"&&!canApplyEdit(prompt,editSource?.prompt))}
                         aria-describedby="request-ready"
                         onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):submit()}
                       >
@@ -1626,6 +1633,7 @@ export default function Studio() {
                           id="video-title"
                           maxLength={100}
                           value={title}
+                          onKeyDown={e=>{if(tool==="analyze"&&(e.metaKey||e.ctrlKey)&&e.key==="Enter"&&!busy&&readiness.action==="run"){e.preventDefault();void submit();}}}
                           onChange={(e) => setTitle(e.target.value)}
                           placeholder="The title your audience will see"
                           aria-describedby={tool === "analyze" ? "video-title-guidance" : undefined}
@@ -1680,7 +1688,7 @@ export default function Studio() {
                             tool === "recreate"
                               ? "Describe what to change from the reference, and what should stay. For example: replace the desk with a kitchen; keep the split-screen layout."
                               : tool === "edit"
-                                ? "Name the change and what to keep. For example: brighten the face; keep the headline and background."
+                                ? "For example: brighten the face, simplify the background, or enlarge the headline."
                                 : tool === "title"
                                   ? "Describe your video, audience, or visual direction…"
                                   : "Who or what is the focus? Describe the scene, mood and any words to show. Put exact wording in quotation marks."
@@ -1690,7 +1698,7 @@ export default function Studio() {
                         {mentions.list}
                         </div>
                         {promptError&&<p className="field-error" id="prompt-error" role="alert"><AlertCircle size={15} aria-hidden="true"/><span>{promptError}</span></p>}
-                        {generateAction}
+                        <div className="desktop-create-action">{generateAction}</div>
                           </div>
                         </div>
                         <div className="reference-strip">
@@ -1880,6 +1888,7 @@ export default function Studio() {
                   </fieldset>
                   <p className="request-ready" id="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"||readiness.readiness.startsWith("Connection saved.")?"":readiness.readiness}</p>
                   {tool==="analyze"&&generateAction}
+                  {tool!=="analyze"&&<div className="mobile-create-action">{generateAction}</div>}
                 </div>
                 <div className="composer-footer" hidden={!showComposer}>
                   <span>
@@ -2049,6 +2058,9 @@ export default function Studio() {
 
         </footer>
       </div>
+      <dialog ref={deleteCreationDialog} aria-labelledby="delete-creation-title" onClose={()=>setCreationToDelete(null)} onClick={e=>{if(e.target===e.currentTarget)e.currentTarget.close();}}>
+        <div className="dialog-shell"><div className="dialog-heading"><h2 id="delete-creation-title">Delete this creation?</h2><button type="button" className="icon-button" aria-label="Close dialog" onClick={()=>deleteCreationDialog.current?.close()}><X size={18}/></button></div><section className="delete-chat"><p>This permanently deletes {creationToDelete?.title || "this creation"}. This cannot be undone.</p><div className="consent-actions"><button type="button" className="quiet-button" onClick={()=>deleteCreationDialog.current?.close()}>Cancel</button><button type="button" className="danger-button" autoFocus onClick={()=>{if(creationToDelete)void deleteCreation(creationToDelete);}}>Delete creation</button></div></section></div>
+      </dialog>
       <dialog
         aria-labelledby="studio-dialog-title"
         ref={dialogRef}
@@ -2372,7 +2384,7 @@ export default function Studio() {
             className="icon-button"
             aria-label={`Delete ${item.title}`}
             disabled={busy}
-            onClick={() => deleteCreation(item)}
+            onClick={() => {setCreationToDelete(item);deleteCreationDialog.current?.showModal();}}
           >
             <Trash2 size={14} />
           </button>
