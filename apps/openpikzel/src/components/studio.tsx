@@ -12,9 +12,10 @@ import { critiqueProviderFromScore, reviewerName, scorePlan, scoreStatusCopy, sc
 import { canScore } from "@/lib/scorers";
 import { GEMINI_FIX_NOTICE } from "@/lib/fix-plan-notice";
 import { compareScore } from "@/lib/score-compare";
+import { scoreTone } from "@/lib/score-tone";
 import { promptValidationError } from "@/lib/prompt-validation";
 import {useRequestActivity} from "@/lib/use-request-activity";
-import { jobGuidance } from "@/lib/job-state";
+import { jobGuidance, jobOperationLabel, uncertainJobAdvice } from "@/lib/job-state";
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import {
@@ -1210,7 +1211,7 @@ export default function Studio() {
                             )}
                             {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<p className="score-fallback">{scoreView.fallback}</p>}<button type="button" className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
+                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<div><span className="score-fallback">{scoreView.fallback}</span>{score.scoring?.route.some(r=>r.scorer==="jev"&&r.outcome==="failed")&&<button type="button" className="quiet-button" disabled={busy} onClick={()=>void retryScore()}>Retry with Jev</button>}</div>}<button type="button" className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
                         </div>
                         <div>
                         <button type="button"
@@ -1219,9 +1220,9 @@ export default function Studio() {
                           onClick={() => void runOneClickFix()}
                         >
                           <WandSparkles size={16} />
-                          Fix what's holding it back
+                          Fix {names[[...pillars].filter(p=>score.dimensions[p].score!==null).sort((a,b)=>score.dimensions[a].score!-score.dimensions[b].score!)[0] || activePillar]}
                         </button>
-                        <a href="#adjust-fix" onClick={e=>{e.preventDefault();void fix();}}>Adjust fix first</a>
+                        <button type="button" className="quiet-button review-first" onClick={()=>void fix()}>Review first</button>
                         {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
                         {(fixReview?.kind === "blocked" || fixReview?.kind === "noop") && fixReview.reason && (
                           <p role="status">{fixReview.reason}</p>
@@ -1252,7 +1253,7 @@ export default function Studio() {
                                 )}
                               </strong>
                               {score.dimensions[p].score !== null && (
-                                <span className="pillar-meter" key={scoreReveal.run} style={{ "--i": i } as CSSProperties}>
+                                <span className="pillar-meter" data-tone={scoreTone(score.dimensions[p].score)} key={scoreReveal.run} style={{ "--i": i } as CSSProperties}>
                                   <progress
                                     aria-label={`${names[p]} score`}
                                     max={100}
@@ -1270,14 +1271,13 @@ export default function Studio() {
                             {score.dimensions[activePillar].missingReason ||
                               score.dimensions[activePillar].observation}
                           </p>
+                          {score.dimensions[activePillar].generalAdvice && <p>General advice — the image review gave no specific note for this pillar.</p>}
                           <dl>
-                            <dt>Working for you</dt>
-                            <dd>{score.dimensions[activePillar].strength}</dd>
-                            <dt>Holding it back</dt>
-                            <dd>{score.dimensions[activePillar].weakness}</dd>
-                            <dt>What to change</dt>
-                            <dd>{score.dimensions[activePillar].fix}</dd>
+                            {!!score.dimensions[activePillar].strength.trim() && <><dt>Working for you</dt><dd>{score.dimensions[activePillar].strength}</dd></>}
+                            {!!score.dimensions[activePillar].weakness.trim() && <><dt>Holding it back</dt><dd>{score.dimensions[activePillar].weakness}</dd></>}
+                            {!!score.dimensions[activePillar].fix.trim() && <><dt>What to change</dt><dd>{score.dimensions[activePillar].fix}</dd></>}
                           </dl>
+                          {(!score.dimensions[activePillar].weakness.trim() || !score.dimensions[activePillar].fix.trim()) && <p>Not assessed in detail. Score again with image review for specific advice.</p>}
                           <span className="confidence">
                             AI confidence:{" "}
                             {score.dimensions[activePillar].confidence >= 0.7
@@ -2071,7 +2071,7 @@ export default function Studio() {
         <div className="dialog-shell">
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
-              {dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Analysis history":dialog==="analysis"?"Thumbnail Analysis":dialog==="beforeafter"?"Compare Your Thumbnail":dialog==="feedback"?"Leave Your Feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
+              {dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
                 ? profileDialogTitle || "Your personas"
                 : dialog === "elements"
                   ? profileDialogTitle || "Your elements"
@@ -2101,7 +2101,7 @@ export default function Studio() {
           {(dialog==="personas"||dialog==="styles"||dialog==="elements")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":dialog==="elements"?"element":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedIds={dialog==="elements"?elementIds:dialog==="personas"?personaIds:styleId?[styleId]:[]} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":dialog==="elements"?"element":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis-history"&&selected&&<AnalysisHistory key={selected.id+studio.user} creationId={selected.id} read={studio.read}/>}
-          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
+          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} onRetry={()=>void retryScore()} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button type="button" className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
           {dialog === "references" && (
@@ -2166,17 +2166,16 @@ export default function Studio() {
               <p>Reloading resumes status checks. Closing the page can interrupt automatic review; saved results stay in your library. No paid request is resubmitted by this viewer.</p>
               {!jobs.length&&<p>No API requests in this workspace yet.</p>}
               {jobs.map((j) => (
-                <div className="connection-row" key={j.id}>
-                  <strong>{j.operation === "generate" ? "AI generation" : j.operation === "analyze" ? "Thumbnail analysis" : "API request"}</strong>
-                  <span>
-                    {jobGuidance(j.state).label}
-                    {` · Up to ${j.max_provider_calls} API request${j.max_provider_calls === 1 ? "" : "s"}`}
-                    <small>{jobGuidance(j.state).message}</small>
-                    {j.created_at&&<small>{new Date(j.created_at).toLocaleString()}</small>}
-                    <small className="job-id">Request {j.id}</small>
+                <div className="job-row" key={j.id}>
+                  <strong>{jobOperationLabel(j.operation)}</strong>
+                  <div className="job-detail">
+                    <div><span className="job-status">{jobGuidance(j.state).label}</span> {`Up to ${j.max_provider_calls} API request${j.max_provider_calls === 1 ? "" : "s"}`}</div>
+                    {j.state === "reconciling" ? <p><strong>What to do:</strong> {uncertainJobAdvice}</p> : <p>{jobGuidance(j.state).message}</p>}
+                    {j.created_at&&<time dateTime={j.created_at}>{new Date(j.created_at).toLocaleString()}</time>}
+                    <div className="job-id"><span title={j.id}>Request {j.id}</span><button type="button" className="quiet-button" aria-label="Copy request ID" onClick={()=>void navigator.clipboard.writeText(j.id)}>Copy</button></div>
                     {(typeof j.result?.value?.prompt==="string"||typeof j.result?.value?.reply==="string")&&<details className="job-text-result"><summary>Saved text result</summary><p>{j.result.value.prompt||j.result.value.reply}</p><small>{j.result.provider} · {j.result.model}</small><p>This saved text can be copied for review. It does not replace your current direction or run an image action.</p></details>}
                     {(()=>{const id=j.result?.creation?.id||j.result?.creations?.[0]?.id||j.result?.creationId,item=studio.creations.find(c=>c.id===id);return item?<button type="button" className="neutral-button" disabled={busy} onClick={async()=>{setDialog(null);await choose(item);}}>Open saved result</button>:null;})()}
-                  </span>
+                  </div>
                 </div>
               ))}
             </>

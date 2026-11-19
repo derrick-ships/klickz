@@ -336,3 +336,5 @@
 @media (prefers-reduced-motion: reduce) {
   .youtube-preview, .youtube-preview .youtube-preview-thumbnail { transition: none; }
 }
+
+.review-stage .pillar-meter[data-tone="high"] progress::-webkit-progress-value{background:oklch(0.78 0.16 155)}.review-stage .pillar-meter[data-tone="mid"] progress::-webkit-progress-value{background:oklch(0.82 0.15 80)}.review-stage .pillar-meter[data-tone="low"] progress::-webkit-progress-value{background:var(--accent-400)}.review-stage .pillar-meter[data-tone="high"] progress::-moz-progress-bar{background:oklch(0.78 0.16 155)}.review-stage .pillar-meter[data-tone="mid"] progress::-moz-progress-bar{background:oklch(0.82 0.15 80)}.review-stage .pillar-meter[data-tone="low"] progress::-moz-progress-bar{background:var(--accent-400)}

@@ -1,3 +1,7 @@
+export function jobOperationLabel(operation: string) {
+ return operation === "generate" ? "Create" : operation === "analyze" ? "Score" : "API request";
+}
+export const uncertainJobAdvice = "Check your provider's usage page before trying again. OpenPikzels never retries automatically.";
 /** Read-only policy shared by people and agents. It never dispatches or retries. */
 export const jobStates = ["queued","running","succeeded","failed","reconciling"] as const;
 export type JobState = typeof jobStates[number];
