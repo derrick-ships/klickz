@@ -1,5 +1,12 @@
 import {describe,it,expect} from 'vitest';
 describe('creative workspace contracts',()=>{
+ it('names chats from meaningful video or creation titles, never fragments',async()=>{
+  const {automaticChatTitle}=await import('../src/lib/workspaces');
+  expect(automaticChatTitle('@','A real concept')).toBe('A real concept');
+  expect(automaticChatTitle('  My video  ','Concept')).toBe('My video');
+  expect(automaticChatTitle('@','ab')).toBe('New chat');
+  expect(automaticChatTitle('','')).toBe('New chat');
+ });
  it('requires 2 or 3 persona photos, a 3-character name and explicit persona permission',async()=>{
   const {profileInput}=await import('../src/lib/profile-schema');
   expect(profileInput.safeParse({kind:'persona',name:'ab',notes:'',refs:['a','b','c'],permission:true}).success).toBe(false);

@@ -39,12 +39,16 @@
   opacity: 0;
   transition: opacity 160ms ease;
 }
-.mode-tabs button.active::before { opacity: 1; }
 .mode-tabs button.active {
-  border-color: transparent;
+  border-color: var(--color-panel-edge);
   color: var(--color-accent-ink);
-  /* One soft halo (two layers: a tight one for edge, a wide one that fades), lit top edge. */
-  box-shadow: inset 0 1px 0 color-mix(in oklab, white 28%, transparent), 0 0 0 1px color-mix(in oklab, var(--accent-400) 35%, transparent), 0 2px 8px color-mix(in oklab, var(--accent-500) 28%, transparent), 0 8px 28px -6px var(--color-accent-aura);
+  background: var(--color-composer-lit);
+  box-shadow: inset 0 1px 0 var(--color-panel-inset);
+}
+.inspector-touch-hint { display: none; }
+@media (pointer: coarse) {
+  .inspector-touch-hint { display: inline; }
+  .inspector-pointer-hint { display: none; }
 }
 .composer {
   border-color: var(--color-panel-edge);
@@ -660,3 +664,22 @@ button.score-badge:focus-visible { outline: 2px solid var(--color-focus); outlin
 .review-canvas .score-badge { inset-block-start: 10px; inset-inline-start: 10px; height: 26px; font-size: 14px; padding-inline-end: 8px; }
 .review-canvas .score-badge svg { width: 19px; height: 19px; }
 @media (prefers-reduced-motion: reduce) { .score-badge-arc { transition: none; } .score-badge[data-tone="pending"] .score-badge-arc { animation: none; stroke-dashoffset: 0; opacity: .6; } .score-badge > span { animation: none; } }
+.feed-group-label { color: var(--color-muted); font-size: 12px; align-self: center; margin-inline-end: 4px; }
+.youtube-preview-copy h3.feed-title-placeholder { color: var(--color-muted); font-weight: 400; }
+.chat-timeline { max-width: var(--content-width); margin-inline: auto; }
+.profile-manager { padding-bottom: 40px; }
+.mobile-score-summary, .mobile-result-actions, .mobile-create-action { display: none; }
+.selection-chip-group--persona { background: var(--color-selected-fill); border-color: var(--color-line); }
+.advanced-controls select { min-height: 44px; border-radius: 999px; padding: 8px 14px; }
+.composer-footer { padding-inline: 2px; overflow: visible; }
+@media (max-width: 640px) {
+  .desktop-create-action { display: none; }
+  .mobile-create-action { display: block; padding: 0 16px 16px; }
+  .mobile-score-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block: 8px; }
+  .mobile-score-summary button, .mobile-result-actions button { min-height: 44px; }
+  .mobile-result-actions { display: flex; position: sticky; bottom: 0; z-index: 25; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--color-panel); }
+  .mobile-result-actions button { flex: 1; }
+  .review-summary { margin-bottom: 8px; }
+  .review-active .chat-title { margin-bottom: 4px; }
+}
+
