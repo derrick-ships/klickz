@@ -8,6 +8,7 @@ import {
   digest,
   semanticDigest,
   validateFixPlan,
+  worstFlaggedPillar,
 } from "../src/lib/diagnostics";
 import { signDiagnostic, verifyDiagnostic } from "../src/lib/diagnostic-proof";
 import sharp from "sharp";
@@ -43,6 +44,16 @@ function score() {
 }
 afterEach(() => vi.unstubAllEnvs());
 describe("original evidence-based diagnostic and fix compiler", () => {
+  it("chooses the lowest displayed score even when a higher pillar has flags", () => {
+    const value=score();
+    value.dimensions.virality.score=69;
+    value.dimensions.idea.score=81;
+    value.dimensions.clarity.score=57;
+    value.dimensions.curiosity.score=62;
+    value.dimensions.emotion.score=63;
+    value.dimensions.emotion.flags=["weak_emotion"] as never;
+    expect(worstFlaggedPillar(value.dimensions)).toBe("clarity");
+  });
   it("keeps observed zero distinct from unassessable and computes no partial average", () => {
     const zero = parseScores({
       answers: Object.fromEntries(

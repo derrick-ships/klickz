@@ -426,8 +426,17 @@ export async function evaluateThumbnail(
   const globalFlags = [...new Set([...(visionFinished ? observations.globalFlags || [] : []), ...decided.globalFlags])].filter((f) => keepFlag(f, policy)) as typeof observations.globalFlags;
   observations = { ...observations, globalFlags, dimensions: Object.fromEntries(pillars.map((p) => [p, { ...observations.dimensions[p], flags: pillarFlags[p] }])) as typeof observations.dimensions };
   const anyFlag = pillars.some((p) => pillarFlags[p].length) || globalFlags.length > 0;
+  const parsed = parseScores(answered.reply, observations, title);
+  if (visionFinished) for (const p of pillars) {
+    const dimension = parsed.dimensions[p];
+    if (dimension.score !== null && dimension.score < 70 && (!dimension.weakness.trim() || !dimension.fix.trim())) {
+      if (!dimension.weakness.trim()) dimension.weakness = withoutVision.dimensions[p].weakness;
+      if (!dimension.fix.trim()) dimension.fix = withoutVision.dimensions[p].fix;
+      dimension.generalAdvice = true;
+    }
+  }
   const diagnostic = enrichDiagnostic(
-    parseScores(answered.reply, observations, title),
+    parsed,
     image,
     title,
     { ...context, scorer: answered.scorer === "jev" ? "jev" : "model" },

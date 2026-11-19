@@ -164,6 +164,15 @@ describe("OpenPikzel provider contracts; no paid traffic", () => {
         expect(score.dimensions.clarity.fix).toBe("Shorten the text");
       },
     ));
+  it("marks rubric fallback when image review omits specific advice", async () => providerContext.run({openai:"test-placeholder",jev:"test-placeholder"}, async () => {
+    const observations={summary:"review",dimensions:Object.fromEntries(pillars.map(p=>[p,{observation:"Visible",strength:"Clear",weakness:p==="clarity"?" ":"Weakness",fix:p==="clarity"?"":"Change"}]))};
+    vi.stubGlobal("fetch",vi.fn(async (url:unknown)=>String(url).includes("typesafe.ai")?response(jevReply({scores:Object.fromEntries(pillars.map(p=>[p,1.5]))})):textResponse(observations)));
+    const score=await evaluateThumbnail(await sample(),"A title","fallback-test",{videoBrief:"",audience:"",includeVision:true});
+    expect(score.dimensions.clarity.generalAdvice).toBe(true);
+    expect(score.dimensions.clarity.fix.trim()).not.toBe("");
+    expect(score.dimensions.clarity.weakness.trim()).not.toBe("");
+    expect(score.issues?.some(issue=>issue.pillar==="clarity")).toBe(false);
+  }));
   it("resizes instantly without any API call and preserves both output formats", async () => {
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);
