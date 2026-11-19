@@ -1128,7 +1128,6 @@ export default function Studio() {
                       </div>
                       {comparisons[selected.id]&&<p className="fix-outcome" data-improved={comparisons[selected.id].improved} role="status">{comparisons[selected.id].improved?<><TrendingUp size={14} aria-hidden="true"/>{comparisons[selected.id].before??"–"} → {comparisons[selected.id].after??"–"}</>:<>No gain ({comparisons[selected.id].after??"–"} vs {comparisons[selected.id].before??"–"}) · Kept the better one</>}</p>}
                       {score&&<div className="whats-next" role="group" aria-label="What's next?">
-                        <button type="button" className="next-pill next-pill--primary" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={() => void runOneClickFix()}><WandSparkles size={15} aria-hidden="true"/>One-Click Fix</button>
                         <button type="button" className="next-pill" disabled={busy} onClick={() => openReviewEditor("edit")}><Pencil size={15} aria-hidden="true"/>Edit</button>
                         <button type="button" className="next-pill" disabled={busy} onClick={() => openReviewEditor("analyze")}><RefreshCw size={15} aria-hidden="true"/>Score again</button>
                       </div>}
