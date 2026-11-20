@@ -1,3 +1,5 @@
+.mobile-score-toggle { display: none; }
+@media (max-width: 760px) { .mobile-score-toggle { display: inline-flex; } .review-stage .review-inspector { display: none; } }
 .key-first { display: grid; gap: 16px; max-width: 640px; margin: 0 auto; padding: 24px; }
 .key-first textarea { min-height: 120px; font-size: 16px; }
 .key-first .primary-button, .key-first .neutral-button { width: fit-content; }

@@ -1081,7 +1081,7 @@ export default function Studio() {
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
                       <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
-                      {score && <p className="result-verdict">{weakest ? `Good start. ${verdict[weakest]}` : "Score again for more detail."} {score.overall !== null && <strong>{score.overall}/100</strong>}</p>}
+                      {score && <p className="result-verdict">{weakest ? `Good start. ${verdict[weakest]}` : "Score again for more detail."} {score.overall !== null && <strong>{score.overall}/100</strong>} <button type="button" className="neutral-button mobile-score-toggle" onClick={()=>setDialog("analysis")}>See scores</button></p>}
                       <div className="result-actions">
                         {score && <button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it <small>Uses credits</small></button>}
                         {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score thumbnail</button>}
@@ -1185,14 +1185,6 @@ export default function Studio() {
                           <button type="button" className="neutral-button" onClick={()=>setDialog("analysis")}>See full score</button>
                         </div>
                         <div>
-                        <button type="button"
-                          className="neutral-button fix-button"
-                          disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"}
-                          onClick={() => void runOneClickFix()}
-                        >
-                          <WandSparkles size={16} />
-                          Fix it
-                        </button>
                         <button type="button" className="neutral-button review-first" onClick={()=>void fix()}>Review first</button>
                         {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
                         {(fixReview?.kind === "blocked" || fixReview?.kind === "noop") && fixReview.reason && (
