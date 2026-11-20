@@ -4,6 +4,9 @@ import "./surfaces.css";
 import "./review.css";
 import "./creative.css";
 import "./welcome.css";
+import "./polish.css";
+import "./media.css";
+import "./gestures.css";
 export const metadata: Metadata = {
   title: "OpenPikzels",
   description:

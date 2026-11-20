@@ -77,6 +77,9 @@ import { ScoreBadge } from "@/components/creative/score-badge";
 import { needsImageReview } from "@/lib/score-on-generate";
 import { MediatorDetails } from "@/components/creative/mediator-details";
 import { RevealImage, setRevealOwner } from "@/components/creative/image-reveal";
+import { ThumbImage } from "@/components/thumb-image";
+import { withViewTransition } from "@/lib/view-transition";
+import { useSwipeDismiss } from "@/lib/use-swipe-dismiss";
 import { createArrivals, staggerPositions } from "@/lib/image-reveal";
 import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
 const AnalysisHistory=dynamic(()=>import("@/components/creative/analysis-history").then(m=>m.AnalysisHistory),{loading:()=> <p role="status">Reading history…</p>});
@@ -249,6 +252,8 @@ export default function Studio() {
     dialogTriggerRef = useRef<HTMLElement | null>(null),
     reviewHeadingRef = useRef<HTMLHeadingElement>(null),
     draftFingerprintRef = useRef("");
+  const dialogSwipe = useSwipeDismiss<HTMLDivElement>("y", () => setDialog(null), dialog === "help" || dialog === "analysis");
+  const moreSwipe = useSwipeDismiss<HTMLDivElement>("y", () => { const menu = moreSwipe.ref.current?.parentElement as HTMLDetailsElement | null; if (menu) { menu.open = false; menu.querySelector<HTMLElement>("summary")?.focus(); } });
   const draftFingerprint = JSON.stringify({ prompt, title, tool, personaIds, elementIds, styleId, preset, refs, settings, parentId });
   draftFingerprintRef.current = draftFingerprint;
   // OP-10: creations that arrive this session (after this account's library loaded) may reveal once; a batch shares one arrival.
@@ -503,7 +508,7 @@ export default function Studio() {
     setDialog(which);
   }
   function toggleFavorite(item:Creation){void studio.run("Saving favorite",async()=>{await studio.favorite(item);offerUndo(item.favorite?"Removed from favorites.":"Saved.",()=>{void studio.run("Saving favorite",()=>studio.favorite({...item,favorite:!item.favorite}));});});}
-  async function choose(item:Creation){
+  async function choose(item:Creation, source?: HTMLElement | null){
     if(busy)return false;
     const changed=await studio.run("Opening creation",async()=>{
       const owner=studio.user;await flushDraft();if(ownerUI.current!==owner)return false;
@@ -513,7 +518,7 @@ export default function Studio() {
        else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaIds([]);setElementIds([]);setStyleId("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setDelivery(null);setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
       }
       setParentId(item.image_path?item.id:item.parent_id);
-      setComposerOpen(false);setSaveReceipt(0);setSelection(item.id);
+      setComposerOpen(false);setSaveReceipt(0);withViewTransition(()=>setSelection(item.id),item.id,source);
       setTitle(current => item.conversation_id && item.conversation_id === activeChatId ? current : (studio.conversations.find(c => c.id === item.conversation_id)?.draft.title ?? item.score?.context?.title ?? ""));
       if(item.settings)setSettings({...defaultSettings,...item.settings,batch:1});setTab("studio");
       if(compactNavigation){setSidebar(false);requestAnimationFrame(()=>mainRef.current?.focus());}
@@ -1083,7 +1088,7 @@ export default function Studio() {
                   <div className="review-layout"><div className="review-media">
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
-                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
+                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} placeholderSrc={studio.thumbs[thumbPath(selected.image_path)]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
                       {score && <p className="result-verdict">{weakest ? `Good start. ${verdict[weakest]}` : "Score again for more detail."} {score.overall !== null && <strong>{score.overall}/100</strong>} <button type="button" className="neutral-button mobile-score-toggle" onClick={()=>setDialog("analysis")}>See scores</button></p>}
                       <div className="result-actions">
                         {score && <button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}><span>Fix it<small className="paid-cue">Uses credits</small></span></button>}
@@ -1102,7 +1107,7 @@ export default function Studio() {
                         </button>
                         <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
-                          {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const movesFocus=!!(e.target as HTMLElement).closest('[data-moves-focus]');const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; if(!movesFocus)requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
+                          {/* copy-law: advanced */}<div ref={moreSwipe.ref} {...moreSwipe.handlers} className="result-more-menu swipe-sheet" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const movesFocus=!!(e.target as HTMLElement).closest('[data-moves-focus]');const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; if(!movesFocus)requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
                             {score&&<><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("edit")}><Pencil size={15}/> Edit</button><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("analyze")}><ScanLine size={15}/> Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}><Download size={15}/> Download full size</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." data-copy-law="allow-long" onClick={resize}><RectangleVertical size={15}/> Make {selected.settings?.format === "short" ? "wide" : "vertical"} version<small> · uses credits</small></button>
@@ -1342,7 +1347,7 @@ export default function Studio() {
         <div className="history-list">
           {studio.loading ? <HistorySkeleton/> : <ChatHistory chats={studio.conversations.filter(c=>!pendingDeletes[c.id])} creations={studio.creations.filter(c=>!pendingDeletes[c.id] && !(c.conversation_id && pendingDeletes[c.conversation_id]))} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
           {studio.creations.some(c=>!c.conversation_id&&!pendingDeletes[c.id])&&<p className="legacy-history-label">Recent creations</p>}
-          {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.thumbs[thumbPath(item.image_path)]||studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
+          {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<ThumbImage src={studio.images[item.image_path]} thumbSrc={studio.thumbs[thumbPath(item.image_path)]} alt="" aspect={item.settings?.format==="short"?"9:16":"16:9"}/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
         <div className="sidebar-bottom">
 
@@ -1426,7 +1431,7 @@ export default function Studio() {
               {studio.loading && <ResultSkeleton/>}
               {hasReviewImage && resultPanel}
               {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}><span>Fix it<small className="paid-cue">Uses credits</small></span></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
-              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
+              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={(c,source)=>c.status==="draft"?resume(c):choose(c,source)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               {!hasReviewImage && <p className="studio-help"><a href="mailto:derrickserna.ca@gmail.com">Need help? Email us</a></p>}
               {needsKey && <section className="key-first"><h2>One step before you start</h2><p>Add an AI key. It lets OpenPikzels make images for you.</p><a className="primary-button" href="/connect">Add key</a></section>}
               <section
@@ -2069,7 +2074,7 @@ export default function Studio() {
           if (e.target === e.currentTarget) setDialog(null);
         }}
       >
-        <div className="dialog-shell">
+        <div ref={dialogSwipe.ref} {...dialogSwipe.handlers} className={"dialog-shell" + (dialog === "help" || dialog === "analysis" ? " swipe-sheet" : "")}>
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
               {dialog==="help"?"Help":dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
@@ -2338,12 +2343,12 @@ export default function Studio() {
         <button type="button"
           className="creation-card-image"
           disabled={busy}
-          onClick={() =>
-            item.status === "draft" ? resume(item) : choose(item)
+          onClick={(event) =>
+            item.status === "draft" ? resume(item) : choose(item, event.currentTarget.querySelector("[data-transition-creation]"))
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.thumbs[thumbPath(item.image_path)] || studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt={item.title} />
+            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} placeholderSrc={studio.thumbs[thumbPath(item.image_path)]} data-transition-creation={item.id} alt={item.title} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />

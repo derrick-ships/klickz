@@ -1,0 +1,12 @@
+/* Keep existing rounded corners in browsers without corner-shape support. */
+@supports (corner-shape: squircle) {
+  :is(dialog, [role="dialog"], .creation-card, .profile-item, .account-panel, .thumb-frame, .result-image) {
+    corner-shape: squircle;
+  }
+}
+
+/* Numeric labels do not change width as their values update. */
+:root { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+h1, h2, h3, [role="dialog"] h2, .welcome-headline, .profile-empty, .score-verdict, .empty-state, button { text-wrap: balance; }
+p { text-wrap: pretty; }

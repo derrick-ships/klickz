@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useLayoutEffect, useId, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createOtpScheduler } from "@/lib/otp-code";
 
 export function AccountSignIn({
   db, onSignedIn, showEmailLinkHint = true, initialNotice = "",
@@ -14,6 +15,10 @@ export function AccountSignIn({
   const emailInput = useRef<HTMLInputElement>(null);
   const codeInput = useRef<HTMLInputElement>(null);
   const pending = useRef(false);
+  const verifyRef = useRef<(code: string) => void>(() => {});
+  const scheduler = useRef<ReturnType<typeof createOtpScheduler> | null>(null);
+  if (!scheduler.current) scheduler.current = createOtpScheduler(value => verifyRef.current(value));
+  useEffect(() => () => scheduler.current?.cancel(), []);
   const nextFocus = useRef<"email" | "code" | null>(null);
   const [mode, setMode] = useState<"email" | "password" | "signup">("email");
   const [step, setStep] = useState<"entry" | "code">("entry");
@@ -48,6 +53,7 @@ export function AccountSignIn({
     setStatus(message);
   }
   function changeMode(next: typeof mode) {
+    scheduler.current?.cancel();
     nextFocus.current = "email";
     setMode(next);
     setStep("entry");
@@ -91,7 +97,7 @@ export function AccountSignIn({
       setBusy(false);
     }
   }
-  async function verify() {
+  async function verify(submittedCode = code) {
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
@@ -99,7 +105,7 @@ export function AccountSignIn({
     setAuthError(false);
     try {
       const result = step === "code"
-        ? await db.auth.verifyOtp({ email: email.trim(), token: code, type: "email" })
+        ? await db.auth.verifyOtp({ email: email.trim(), token: submittedCode, type: "email" })
         : mode === "signup"
           ? await db.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: location.origin + "/connect" } })
           : await db.auth.signInWithPassword({ email: email.trim(), password });
@@ -127,11 +133,18 @@ export function AccountSignIn({
       setBusy(false);
     }
   }
+  verifyRef.current = value => { void verify(value); };
   const sending = step === "entry" && mode === "email";
   const sendLabel = "Send code";
   return (
-    <form className="account-form signin-form" aria-busy={busy} onSubmit={e => {
+    <form className="account-form signin-form" aria-busy={busy} onPaste={e => {
+      if (step !== "code" || pending.current) return;
+      const value = e.clipboardData.getData("text").replace(/\D/g, "");
+      if (!/^(?:\d{6}|\d{8})$/.test(value)) return;
+      e.preventDefault(); setCode(scheduler.current!.input(value, true)); setAuthError(false);
+    }} onSubmit={e => {
       e.preventDefault();
+      scheduler.current?.cancel();
       void (sending ? sendEmail() : verify());
     }}>
       <h2>{step === "code" ? "Check your email" : mode === "signup" ? "Create your free account" : "Sign in to OpenPikzels"}</h2>
@@ -151,7 +164,7 @@ export function AccountSignIn({
       {step === "code" && <label>Email sign-in code
         <input ref={codeInput} aria-describedby={status ? statusId : undefined} aria-invalid={authError || undefined}
           inputMode="numeric" autoComplete="one-time-code" pattern="([0-9]{6}|[0-9]{8})" minLength={6} maxLength={8}
-          required disabled={busy} value={code} onChange={e => { setCode(e.target.value.replace(/[^0-9]/g, "")); setAuthError(false); }} />
+          required disabled={busy} autoFocus value={code} onChange={e => { setCode(scheduler.current!.input(e.target.value, false)); setAuthError(false); }} />
       </label>}
       <button type="submit" className="primary-button" disabled={busy || (sending && remaining > 0)}>
         {busy ? sending ? "Sending email…" : step === "code" ? "Verifying…" : "Signing in…"

@@ -1,4 +1,4 @@
-
+import { ThumbImage } from "@/components/thumb-image";
 
 export function Welcome() {
  return <div className="welcome">
@@ -12,7 +12,7 @@ export function Welcome() {
      <a className="welcome-primary" href="/studio">Start</a>
      <p className="welcome-cost-inline">You’ll need an AI key. <a href="/connect">We’ll show you how.</a></p>
     </div>
-    <figure className="welcome-example"><img src="/styles/blueprint-1.webp" alt="Example thumbnail from the style library"/><figcaption>Example · illustrative score</figcaption>
+    <figure className="welcome-example"><ThumbImage src="/styles/blueprint-1.webp" alt="Example thumbnail from the style library" aspect="16:9"/><figcaption>Example · illustrative score</figcaption>
      <div className="welcome-score"><div className="welcome-score-heading"><strong>61<small>/100</small></strong><span>Score</span></div>
       <dl>{[["Virality",64],["Clarity",57],["Idea",81],["Curiosity",62],["Emotion",63]].map(([name, score])=><div key={name}><dt>{name}</dt><dd>{score}</dd></div>)}</dl>
       <p><strong>Next: fix clarity</strong></p>

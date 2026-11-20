@@ -6,8 +6,8 @@ import { RefreshCw, ScanLine, MoreVertical, Play, Check, AlertTriangle } from "l
 import { RevealImage } from "@/components/creative/image-reveal";
 import type { Arrival } from "@/lib/image-reveal";
 
-export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId, arrival, uploaded, badge }: {
-  src: string; title: string; feed: boolean; portrait: boolean;
+export function ReviewCanvas({ src, placeholderSrc, title, feed, portrait, onRefresh, creationId, arrival, uploaded, badge }: {
+  src: string; placeholderSrc?: string; title: string; feed: boolean; portrait: boolean;
   onRefresh: () => Promise<unknown>;
   // OP-10: which creation this is and whether it arrived this session (see createArrivals).
   creationId: string; arrival: Arrival | null; uploaded: boolean;
@@ -28,7 +28,7 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
   const image = <div className={`result-image ${feed ? "phone-preview" : ""} ${portrait ? "portrait" : ""}`}>
     {!size && <span className="review-preview-loading" role="status">Loading image…</span>}
     {!feed && size && badge}
-    <RevealImage key={src} surface="canvas" creationId={creationId} arrival={arrival} uploaded={uploaded} src={src} alt={title}
+    <RevealImage key={src} className="result-transition-image" data-transition-creation={creationId} surface="canvas" creationId={creationId} arrival={arrival} uploaded={uploaded} src={src} placeholderSrc={placeholderSrc} alt={title}
       width={size?.width ?? (portrait ? 720 : 1280)} height={size?.height ?? (portrait ? 1280 : 720)}
       onLoad={event=>setSize({width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight})}
       onError={()=>setFailed(true)}/>
