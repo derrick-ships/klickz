@@ -215,3 +215,7 @@ button.score-badge, button.score-badge:active:not(:disabled) { min-height: 0; tr
  .analysis-overlay .consent-actions button { width:auto; flex:1 1 0; min-width:0; white-space:normal; font-size:12px; line-height:1.2; padding:6px; }
 }
 @media(max-width:400px) { .analysis-overlay .consent-actions { flex-direction:row; } .analysis-overlay .consent-actions button { width:auto; } }
+/* Phone: the score header text column may shrink so the status line ellipsizes inside the dialog. */
+.score-header > div{min-width:0}.score-header h2,.score-header p{overflow-wrap:anywhere}
+@media(max-width:600px){.analysis-overlay .consent-actions button{white-space:normal;line-height:1.2;flex:1 1 0}}
+.result-actions .result-more > summary.neutral-button { min-height:44px; border-radius:999px; background:transparent; border:1px solid var(--color-line-strong); }

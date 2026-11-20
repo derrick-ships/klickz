@@ -186,7 +186,7 @@ export function useStudio() {
       void headers()
         .then((h) => fetch("/api/config", { headers: h }))
         .then((r) => {if(!r.ok)throw new Error("Connection settings did not load.");return r.json();})
-        .then(value => { if (active && epoch === ownerEpoch.current) setConfig({...value,connectionStatus:"ready"}); })
+        .then(value => { if (active && epoch === ownerEpoch.current) setConfig({...value,connectionStatus:value.connectionStatus==="failed"?"failed":"ready"}); })
         .catch(() => {if(active&&epoch===ownerEpoch.current){setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:"failed"}:current);setError("Your provider connection status could not load. Open Connections to refresh it before using AI. Your drafts remain safe.");}});
     }
     return () => { active = false; };

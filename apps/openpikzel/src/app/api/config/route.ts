@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     google = false,
     anthropic = false;
   let models = defaultModelPreferences;
+  let connectionStatus: "ready" | "failed" = "ready";
   if (request.headers.get("authorization")) {
     try {
       const context = await authenticated(request);
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
         .from("studio_provider_keys")
         .select("provider")
         .eq("user_id", context.user.id);
+      if (rows.error) connectionStatus = "failed";
       for (const row of rows.data || []) {
         if (row.provider === "openai") openai = true;
         if (row.provider === "jev") jev = true;
@@ -31,7 +33,10 @@ export async function GET(request: Request) {
           jev ||= !!process.env.JEV_API_KEY;
         }
       }
-    } catch {}
+    } catch {
+      // A signed-in request whose status can't be read must not look like "nothing connected".
+      connectionStatus = "failed";
+    }
   }
   return Response.json(
     {
@@ -49,6 +54,7 @@ export async function GET(request: Request) {
       google,
       anthropic,
       models,
+      connectionStatus,
       secureConnections: /^[a-f0-9]{64}$/i.test(
         process.env.STUDIO_ENCRYPTION_KEY || "",
       ),
