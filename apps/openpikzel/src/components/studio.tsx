@@ -2,6 +2,7 @@
 import {elementDefinitions} from "@/lib/elements";
 import { plainError } from "@/lib/plain-error";
 import {Box} from "lucide-react";
+import { GridSkeleton, HistorySkeleton, ProfileSkeleton, ScoreSkeleton } from "@/components/skeleton";
 import {NativeOutputNotice} from "@/components/creative/native-output";
 import {GenerationDelivery} from "@/components/creative/generation-delivery";
 import {deliverImages,type DeliveryState,type ReviewStatus} from "@/lib/generation-delivery";
@@ -79,7 +80,7 @@ import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
 const AnalysisHistory=dynamic(()=>import("@/components/creative/analysis-history").then(m=>m.AnalysisHistory),{loading:()=> <p role="status">Reading history…</p>});
 const AnalysisPanel=dynamic(()=>import("@/components/creative/analysis").then(m=>m.AnalysisPanel),{loading:()=> <p role="status">Opening…</p>});
 const ImageInspector=dynamic(()=>import("@/components/creative/image-inspector").then(m=>m.ImageInspector),{loading:()=> <p role="status">Opening image…</p>});
-const ProfileManager=dynamic(()=>import("@/components/creative/profiles").then(m=>m.ProfileManager),{loading:()=> <p role="status">Opening…</p>});
+const ProfileManager=dynamic(()=>import("@/components/creative/profiles").then(m=>m.ProfileManager),{loading:()=> <ProfileSkeleton/>});
 const ComparisonSlider=dynamic(()=>import("@/components/creative/comparison").then(m=>m.ComparisonSlider),{loading:()=> <p role="status">Opening…</p>});
 const FeedbackForm=dynamic(()=>import("@/components/creative/feedback").then(m=>m.FeedbackForm),{loading:()=> <p role="status">Opening…</p>});
 import {OperationProgress} from "@/components/creative/progress";
@@ -1156,7 +1157,7 @@ export default function Studio() {
                     </div>
                   )}
                   </div>
-                  {score ? (
+                  {(reviewStatuses[selected.id] === "pending" || analysisScan?.phase === "running") ? <ScoreSkeleton/> : score ? (
                     <aside className="score-panel review-inspector" aria-label="Scoring inspector" data-reveal={scoreReveal.running ? "running" : "settled"}>
                       <div className="score-header">
                         <div>
@@ -1333,7 +1334,7 @@ export default function Studio() {
           </button>
         </div>
         <div className="history-list">
-          {!studio.loading && <ChatHistory chats={studio.conversations} creations={studio.creations.filter(c=>!pendingDeletes[c.id])} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
+          {studio.loading ? <HistorySkeleton/> : <ChatHistory chats={studio.conversations} creations={studio.creations.filter(c=>!pendingDeletes[c.id])} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
           {studio.creations.some(c=>!c.conversation_id&&!pendingDeletes[c.id])&&<p className="legacy-history-label">Recent creations</p>}
           {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.thumbs[thumbPath(item.image_path)]||studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
@@ -2020,8 +2021,8 @@ export default function Studio() {
                   Favorites
                 </button>
               </div>
-              <div className="creation-grid">{cards(filtered)}</div>
-              {!filtered.length && (
+              {studio.loading ? <GridSkeleton/> : <div className="creation-grid">{cards(filtered)}</div>}
+              {!studio.loading && !filtered.length && (
                 <div className="library-empty">
                   <FolderOpen size={30} />
                   <h2>

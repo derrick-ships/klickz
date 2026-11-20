@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { ModelsPanel } from "./models-panel";
+import { Skeleton } from "@/components/skeleton";
 import {
   createClient,
   type SupabaseClient,
@@ -219,6 +220,7 @@ export function ConnectionsPage() {
               </form>
             </details>
             {/* copy-law: end */}
+            {connectionRead === "loading" && <div role="status" aria-label="Loading key status">{[0,1].map(i => <div className="grant-row skeleton-score-row" key={i}><Skeleton className="skeleton-line"/><Skeleton className="skeleton-short"/></div>)}</div>}
             {connections.filter(c => c.provider !== "jev").map(c => <div className="grant-row" key={c.provider}><span>{c.provider} · ••••{c.suffix}</span><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(async () => { await api("/api/providers", "DELETE", {provider:c.provider}); await refresh(); setSaved(false); })}>Remove</button></div>)}
           </section>
           {/* copy-law: advanced */}
