@@ -158,6 +158,8 @@ export default function Studio() {
   const [chatToDelete,setChatToDelete]=useState<Conversation|null>(null);
   const [creationToDelete,setCreationToDelete]=useState<Creation|null>(null);
   const deleteCreationDialog=useRef<HTMLDialogElement>(null);
+  const [pendingDeletes, setPendingDeletes] = useState<Record<string, Creation>>({});
+  const deleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const hydratedOwner=useRef(""),chatIdRef=useRef<string|null>(null),ownerUI=useRef(studio.user),userPickedTool=useRef(false);ownerUI.current=studio.user;chatIdRef.current=activeChatId;
   const [tool, setTool] = useState<Tool>("generate"),
     [settings, setSettings] = useState<Settings>(defaultSettings),
@@ -923,8 +925,13 @@ export default function Studio() {
       if (selection === item.id) setSelection(null);
     });
   }
+  function queueCreationDelete(item: Creation) {
+    setPendingDeletes(current => ({...current, [item.id]: item}));
+    deleteTimers.current[item.id] = setTimeout(() => { delete deleteTimers.current[item.id]; void deleteCreation(item).finally(() => setPendingDeletes(current => { const next = {...current}; delete next[item.id]; return next; })); }, 6000);
+  }
+  function undoCreationDelete(id: string) { clearTimeout(deleteTimers.current[id]); delete deleteTimers.current[id]; setPendingDeletes(current => { const next = {...current}; delete next[id]; return next; }); }
   const filtered = studio.creations.filter(
-    (c) =>
+    (c) => !pendingDeletes[c.id] &&
       (!onlyFavorites || c.favorite) &&
       `${c.title} ${c.prompt}`.toLowerCase().includes(search.toLowerCase()),
   );
@@ -1418,6 +1425,7 @@ export default function Studio() {
           {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
+          {Object.values(pendingDeletes).map(item=><div className="result-ready" role="status" key={item.id}>Creation removed. <button type="button" className="neutral-button" onClick={()=>undoCreationDelete(item.id)}>Undo</button></div>)}
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
@@ -2388,7 +2396,7 @@ export default function Studio() {
             className="icon-button"
             aria-label={`Delete ${item.title}`}
             disabled={busy}
-            onClick={() => {setCreationToDelete(item);deleteCreationDialog.current?.showModal();}}
+            onClick={() => queueCreationDelete(item)}
           >
             <Trash2 size={14} />
           </button>
