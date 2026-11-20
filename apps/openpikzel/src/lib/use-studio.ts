@@ -1,5 +1,6 @@
 "use client";
 import {unusedElementImages,type Element,type ElementKind} from "./elements";
+import { retryAction } from "./retry-action";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {thumbPath,worthSaving,type Conversation} from "./workspaces";
@@ -57,6 +58,7 @@ export function useStudio() {
     version = useRef(0),
     userRef = useRef<string | null>(null),
     pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
+  const lastFailedAction = useRef<(() => void) | null>(null);
   const pendingAnalysis = useRef(new Map<string, string>());
   const pendingFix = useRef(new Map<string, Promise<unknown>>());
   const pendingFixJobs = useRef(new Map<string, {requestId:string;fixPlanToken:string;plan:{title:string;sourceId:string;settings:Settings};notice?:string}>());
@@ -216,9 +218,12 @@ export function useStudio() {
     setBusy(label);
     setError("");
     try {
-      return await work();
+      const result = await work();
+      lastFailedAction.current = null;
+      return result;
     } catch (e) {
       if (startedEpoch !== ownerEpoch.current) return undefined;
+      lastFailedAction.current = e && typeof e === "object" && unknownOutcomes.has(e) ? null : () => { if (startedEpoch === ownerEpoch.current) void run(label, work); };
       setError(
         e instanceof Error
           ? e.message
@@ -894,6 +899,7 @@ export function useStudio() {
     busy,
     error,
     setError,
+    retryLastAction: () => { const action = lastFailedAction.current; lastFailedAction.current = null; retryAction(action); },
     run,
     load,
     upload,

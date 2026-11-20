@@ -1415,7 +1415,7 @@ export default function Studio() {
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
               <p>{plainError(studio.error).text}</p>
-              <button type="button" className="neutral-button" onClick={() => { const action = plainError(studio.error).action; studio.setError(""); if (action === "Connect") setDialog("connections"); }}>
+              <button type="button" className="neutral-button" onClick={() => { const action = plainError(studio.error).action; studio.setError(""); if (action === "Connect") setDialog("connections"); else if (action === "Retry") studio.retryLastAction(); else if (action === "My creations") setTab("library"); }}>
                 {plainError(studio.error).action}
               </button>
             </div>
