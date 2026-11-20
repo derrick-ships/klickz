@@ -48,7 +48,7 @@ export function Consent() {
       if (decision === "deny" && db) await db.auth.signOut({ scope: "local" });
       location.assign(data.redirect);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Consent could not complete.");
+      setError("Could not connect. Please try again.");
       setBusy(false);
     }
   }
@@ -58,12 +58,10 @@ export function Consent() {
         OpenPikzels<span className="wordmark-pixel" aria-hidden="true" />
       </a>
       <section className="account-panel">
-        {requestState === "loading" ? <p role="status">Checking connection request…</p> : requestState === "invalid" ? <><h1>Invalid or expired connection token</h1><p role="alert">Start the connection again from your AI app.</p><a className="neutral-button inline-link" href="/connect">Back to connections</a></> : <>
-        <h1>Allow {details?.name || "this client"} to use your studio?</h1>
-        <p>
-          This third-party client name is supplied by its developer. Approve
-          only if you started this connection and trust the application.
-        </p>
+        {requestState === "loading" ? <p role="status">Checking connection request…</p> : requestState === "invalid" ? <><h1>This connection expired</h1><p role="alert">Start the connection again from your AI app.</p><a className="neutral-button inline-link" href="/connect">Back to connections</a></> : <>
+        <h1>Let {details?.name || "this app"} use your OpenPikzels?</h1>
+        {/* copy-law: advanced */}
+        <details><summary>Details</summary><p>Only allow apps you trust.</p>
         {details && (
           <>
             <dl className="consent-details">
@@ -80,18 +78,12 @@ export function Consent() {
             </ul>
           </>
         )}
-        <p>
-          API keys stay private. You can revoke this connection in Settings at
-          any time. Access expires after 30 days.
-        </p>
+        </details>
+        {/* copy-law: end */}
         {!ready ? (
           <p>Loading your account…</p>
         ) : !session && db ? (
           <>
-            <p>
-              Sign in here to create a separate session for this agent. Your
-              studio session stays independent.
-            </p>
             <AccountSignIn db={db} showEmailLinkHint={false} />
           </>
         ) : session ? (
@@ -112,7 +104,7 @@ export function Consent() {
             disabled={busy || !details || !session}
             onClick={() => void decide("allow")}
           >
-            {busy ? "Connecting…" : "Allow access"}
+            {busy ? "Connecting…" : "Allow"}
           </button>
         </div>
         {error && (

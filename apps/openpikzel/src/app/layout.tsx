@@ -5,7 +5,7 @@ import "./review.css";
 import "./creative.css";
 import "./welcome.css";
 export const metadata: Metadata = {
-  title: "Not found · OpenPikzels",
+  title: "OpenPikzels",
   description:
     "Create, recreate and improve thumbnails with your personas, references and five-pillar image analysis.",
 };
