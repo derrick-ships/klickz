@@ -10,3 +10,14 @@
 
 h1, h2, h3, [role="dialog"] h2, .welcome-headline, .profile-empty, .score-verdict, .empty-state, button { text-wrap: balance; }
 p { text-wrap: pretty; }
+
+.row-menu { position: relative; flex: none; }
+.row-menu summary { list-style: none; cursor: pointer; }
+.row-menu summary::-webkit-details-marker { display: none; }
+.row-menu > div { position: absolute; z-index: 30; right: 0; top: 100%; min-width: 120px; padding: 6px; background: var(--color-panel); border: 1px solid var(--color-line); border-radius: 10px; }
+.row-menu > div button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px; white-space: nowrap; }
+.creation-card-info, .chat-title { gap: 8px; }
+.creation-card-info .icon-button, .chat-title .icon-button { width: auto; min-width: max-content; white-space: nowrap; gap: 5px; }
+.creation-card-info svg, .chat-title svg, .row-menu svg { flex-shrink: 0; }
+.chat-row-rename { display: flex; min-width: 0; }
+.chat-row-rename input { width: 100%; min-width: 0; }

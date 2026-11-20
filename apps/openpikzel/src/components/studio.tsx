@@ -63,6 +63,8 @@ import {
   AlertCircle,
   Undo2,
   TrendingUp,
+  MoreHorizontal,
+  MessageSquare,
 } from "lucide-react";
 import type { FixPlan } from "@/lib/diagnostics";
 import {AccountSignIn} from "@/components/account/sign-in";
@@ -447,6 +449,7 @@ export default function Studio() {
     const chat=activeChat||await ensureChat();
     if(ownerUI.current===owner)await studio.saveConversation({...chat,draft,updated_at:new Date().toISOString()},"draft");
   }
+  async function renameChat(chat:Conversation,name:string){await studio.saveConversation({...chat,title:name,updated_at:new Date().toISOString()},"title");offerUndo("Chat renamed.",()=>{void studio.run("Renaming chat",()=>studio.saveConversation({...chat,title:chat.title,updated_at:new Date().toISOString()},"title"));});}
   async function openChat(chat:Conversation){if(busy||chat.id===chatIdRef.current)return;await studio.run("Opening chat",async()=>{const owner=studio.user;await flushDraft();if(ownerUI.current===owner)activateChat(chat);});}
   function askDeleteChat(chat:Conversation){if(busy)return;setChatToDelete(chat);setDialog("delete-chat");}
   async function deleteChat(chat:Conversation){
@@ -508,7 +511,7 @@ export default function Studio() {
     setProfileFiles([]);
     setDialog(which);
   }
-  function toggleFavorite(item:Creation){void studio.run("Saving favorite",async()=>{await studio.favorite(item);offerUndo(item.favorite?"Removed from favorites.":"Saved.",()=>{void studio.run("Saving favorite",()=>studio.favorite({...item,favorite:!item.favorite}));});});}
+  function toggleFavorite(item:Creation){void studio.run("Saving favorite",async()=>{await studio.favorite(item);offerUndo(item.favorite?"Removed from favorites.":"Added to favorites.",()=>{void studio.run("Saving favorite",()=>studio.favorite({...item,favorite:!item.favorite}));});});}
   async function choose(item:Creation, source?: HTMLElement | null){
     if(busy)return false;
     const changed=await studio.run("Opening creation",async()=>{
@@ -1078,13 +1081,13 @@ export default function Studio() {
                             ? "icon-button favorited"
                             : "icon-button"
                         }
-                        aria-label="Save selected creation" title="Save selected creation" aria-pressed={selected.favorite}
+                        aria-label={selected.favorite ? "Unfavorite selected creation" : "Favorite selected creation"} title={selected.favorite ? "Unfavorite" : "Favorite"} aria-pressed={selected.favorite}
                         onClick={() => toggleFavorite(selected)}
                       >
                         <Star
                           size={16}
                           fill={selected.favorite ? "currentColor" : "none"}
-                        /> Save
+                        /> {selected.favorite ? "Unfavorite" : "Favorite"}
                       </button>
                     </div>
                   </div>
@@ -1112,10 +1115,10 @@ export default function Studio() {
                           <summary className="neutral-button">More</summary>
                           {/* copy-law: advanced */}<div ref={moreSwipe.ref} className="result-more-menu swipe-sheet" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const movesFocus=!!(e.target as HTMLElement).closest('[data-moves-focus]');const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; if(!movesFocus)requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
                             <div className="swipe-handle" {...moreSwipe.handlers} aria-hidden="true"/>
-                            {score&&<><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("edit")}><Pencil size={15}/> Edit</button><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("analyze")}><ScanLine size={15}/> Score again</button></>}
+                            {score&&<><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("edit")}><WandSparkles size={15}/> Edit</button><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("analyze")}><ScanLine size={15}/> Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}><Download size={15}/> Download full size</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." data-copy-law="allow-long" onClick={resize}><RectangleVertical size={15}/> Make {selected.settings?.format === "short" ? "wide" : "vertical"} version<small> · uses credits</small></button>
-                            <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}><Search size={15}/> Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}><Images size={15}/> Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}><Pencil size={15}/> Leave feedback</button>
+                            <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}><Search size={15}/> Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}><Images size={15}/> Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}><MessageSquare size={15}/> Leave feedback</button>
                             {studio.cloud&&selected.image_path&&<button type="button" className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}><RotateCcw size={15}/> Score history</button>}
                             <button type="button" className="menu-item" aria-pressed={phone} onClick={()=>setPhone(x=>!x)}><Smartphone size={15}/> Feed preview</button>
                             <details className="provenance-details"><summary>What we sent to the AI <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
@@ -1349,7 +1352,7 @@ export default function Studio() {
           </button>
         </div>
         <div className="history-list">
-          {studio.loading ? <HistorySkeleton/> : <ChatHistory chats={studio.conversations.filter(c=>!pendingDeletes[c.id])} creations={studio.creations.filter(c=>!pendingDeletes[c.id] && !(c.conversation_id && pendingDeletes[c.conversation_id]))} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
+          {studio.loading ? <HistorySkeleton/> : <ChatHistory chats={studio.conversations.filter(c=>!pendingDeletes[c.id])} creations={studio.creations.filter(c=>!pendingDeletes[c.id] && !(c.conversation_id && pendingDeletes[c.conversation_id]))} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat} onRename={renameChat}/>}
           {studio.creations.some(c=>!c.conversation_id&&!pendingDeletes[c.id])&&<p className="legacy-history-label">Recent creations</p>}
           {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<ThumbImage src={studio.thumbs[thumbPath(item.image_path)] || studio.images[item.image_path]} alt="" aspect={item.settings?.format==="short"?"9:16":"16:9"}/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
@@ -1418,7 +1421,7 @@ export default function Studio() {
               <a href="/connect">Create an account and connect your keys</a>
             </p>
           )}
-          {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");offerUndo("Chat renamed.",()=>{void studio.run("Renaming chat",()=>studio.saveConversation({...activeChat,title:activeChat.title,updated_at:new Date().toISOString()},"title"));});}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
+          {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={name=>renameChat(activeChat,name)}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
           <div className="undo-stack">{localUndo && <UndoToast key={localUndo.id} message={localUndo.message} onUndo={()=>{localUndoQueue.current?.undo(localUndo.id);localUndo.undo();setLocalUndo(null);}} onPause={reason=>localUndoQueue.current?.pause(localUndo.id,reason)} onResume={reason=>localUndoQueue.current?.resume(localUndo.id,reason)}/>}
@@ -2376,20 +2379,13 @@ export default function Studio() {
           </button>
           <button type="button"
             className={item.favorite ? "icon-button favorited" : "icon-button"}
-            aria-label={`Save ${item.title}`} title={`Save ${item.title}`}
+            aria-label={`${item.favorite ? "Unfavorite" : "Favorite"} ${item.title}`} title={item.favorite ? "Unfavorite" : "Favorite"}
             aria-pressed={item.favorite}
             onClick={() => toggleFavorite(item)}
           >
-            <Star size={14} fill={item.favorite ? "currentColor" : "none"} /> Save
+            <Star size={14} fill={item.favorite ? "currentColor" : "none"} /> {item.favorite ? "Unfavorite" : "Favorite"}
           </button>
-          <button type="button"
-            className="icon-button"
-            aria-label={`Delete ${item.title}`} title={`Delete ${item.title}`}
-            disabled={busy}
-            onClick={() => queueCreationDelete(item)}
-          >
-            <Trash2 size={14} /> Delete
-          </button>
+          <details className="row-menu"><summary className="icon-button" aria-label={`More options for ${item.title}`}><MoreHorizontal size={18}/></summary><div><button type="button" disabled={busy} onClick={() => queueCreationDelete(item)}><Trash2 size={14} /> Delete</button></div></details>
         </div>
       </article>
     );
