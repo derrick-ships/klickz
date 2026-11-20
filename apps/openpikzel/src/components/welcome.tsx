@@ -3,7 +3,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 export function Welcome() {
  return <div className="welcome">
   <a href="#welcome-main" className="welcome-skip">Skip to introduction</a>
-  <header className="welcome-header"><a className="welcome-brand" href="/welcome">OpenPikzels<span aria-hidden="true">.</span></a><a href="/studio" className="welcome-open">Open studio <ArrowUpRight size={16}/></a></header>
+  <header className="welcome-header"><a className="brand" href="/welcome">OpenPikzels<span className="wordmark-pixel" aria-hidden="true"/></a><a href="/studio" className="welcome-open">Open studio <ArrowUpRight size={16}/></a></header>
   <main id="welcome-main">
    <section className="welcome-hero" aria-labelledby="welcome-title">
     <div className="welcome-hero-copy"><p className="welcome-hook">Make, score and improve your thumbnail.</p>

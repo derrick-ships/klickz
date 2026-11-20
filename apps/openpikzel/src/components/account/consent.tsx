@@ -15,6 +15,7 @@ export function Consent() {
   useEffect(() => {
     const token = new URLSearchParams(location.search).get("request") || "";
     setRequest(token);
+    if (!token) { setRequestState("invalid"); return; }
     void fetch("/api/oauth/consent?request=" + encodeURIComponent(token))
       .then(async (r) => {
         const data = await r.json();

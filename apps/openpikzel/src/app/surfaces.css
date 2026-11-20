@@ -389,10 +389,10 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
   bottom: 0;
   display: flex;
   justify-content: center;
-  padding: 28px 0 10px;
-  margin-top: -38px;
+  padding: 10px 0;
+  margin-top: 0;
   pointer-events: none;
-  background: linear-gradient(transparent, var(--color-modal-base) 70%);
+  background: var(--color-modal-base);
   z-index: 13;
 }
 .dialog-overflow-cue span {
@@ -572,6 +572,25 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 .result-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
 .result-actions .download-button { min-height: 44px; gap: 8px; }
 .result-more { position: relative; }
+.result-actions .download-button { border-radius:999px; background:transparent; border:1px solid var(--color-line-strong); }
+.provenance-details summary { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.provenance-details[open] summary svg { transform:rotate(180deg); }
+.composer-footer .save-draft-button { padding:10px 14px; }
+.creation-card-image { background:linear-gradient(135deg,var(--color-panel),var(--color-hover)); }
+.creation-card-image > img { background:linear-gradient(135deg,var(--color-panel),var(--color-hover)); }
+.account-panel p + .neutral-button, .account-panel p + .primary-button, .account-panel button + p, .account-panel a + p { margin-top:var(--space-4); }
+.account-panel [role=status] p + button { margin-top:var(--space-4); }
+.account-panel > h1 + p, .not-found-page h1 + p { margin-top:var(--space-3); }
+.account-panel > h2 + p { margin-top:var(--space-3); }
+.dialog-shell section[aria-label="Saved analysis versions"] > * + * { margin-top:var(--space-3); }
+.profile-manager > * + * { margin-top:var(--space-3); }
+.account-panel a[href="/local-companion"] { color:var(--color-ink); text-decoration:underline; text-underline-offset:3px; }
+.not-found-page section > div { margin-top:var(--space-4); }
+.brand { display:inline-flex; align-items:center; gap:var(--space-1); font-size:23px; font-weight:750; letter-spacing:-.7px; }
+.brand .wordmark-pixel { display:block; flex:none; align-self:center; margin:0; }
+.welcome-closing > p { margin-block:var(--space-4); }
+.chat-timeline { width:100%; }
+.revision-strip-heading > div { flex:1; justify-content:space-between; }
 .result-more-menu .menu-item { transform: none !important; }
 .result-more > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding-inline: var(--space-4); cursor: pointer; }
 .result-more > summary::-webkit-details-marker { display: none; }
@@ -582,7 +601,7 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 }
 .result-more-menu {
   position: absolute; z-index: 40; inset-block-start: calc(100% + 6px); inset-inline-start: 0; isolation: isolate;
-  min-width: 240px; display: grid; padding: var(--space-1);
+  width: max-content; min-width: 240px; max-width: calc(100vw - 24px); display: grid; padding: var(--space-1);
   background-color: var(--color-modal-lit); border: 1px solid var(--color-panel-edge); border-radius: 12px;
   box-shadow: 0 12px 32px var(--color-recess-shadow);
 }
@@ -667,12 +686,15 @@ button.score-badge:focus-visible { outline: 2px solid var(--color-focus); outlin
 .feed-group-label { color: var(--color-muted); font-size: 12px; align-self: center; margin-inline-end: 4px; }
 .youtube-preview-copy h3.feed-title-placeholder { color: var(--color-muted); font-weight: 400; }
 .chat-timeline { max-width: var(--content-width); margin-inline: auto; }
-.profile-manager { padding-bottom: 40px; }
+.profile-manager { padding-bottom: 56px; }
 .mobile-score-summary, .mobile-result-actions, .mobile-create-action { display: none; }
 .selection-chip-group--persona { background: var(--color-selected-fill); border-color: var(--color-line); }
 .advanced-controls select { min-height: 44px; border-radius: 999px; padding: 8px 14px; }
 .composer-footer { padding-inline: 2px; overflow: visible; }
 @media (max-width: 640px) {
+  .result-more-menu { inset-inline-start:auto; inset-inline-end:0; }
+  .mobile-score-summary button { display:none; }
+  .review-inspector .fix-button { background:var(--color-control-ground); color:var(--color-ink); border:1px solid var(--color-line-strong); box-shadow:none; }
   .desktop-create-action { display: none; }
   .mobile-create-action { display: block; padding: 0 16px 16px; }
   .mobile-score-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block: 8px; }

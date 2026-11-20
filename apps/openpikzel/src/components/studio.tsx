@@ -996,10 +996,10 @@ export default function Studio() {
                   <div className="generate-dock" data-placement={tool==="analyze"?"after-settings":"under-prompt"}>
                     <div className="generate-split">
                       <button type="button"
-                        className={readiness.action==="loading"?"neutral-button":"primary-button"}
+                        className={readiness.action==="loading"||readiness.action==="retry"?"neutral-button":"primary-button"}
                         disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"||(tool==="edit"&&!canApplyEdit(prompt,editSource?.prompt))}
                         aria-describedby="request-ready"
-                        onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):submit()}
+                        onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):readiness.action==="retry"?studio.retryConnections():submit()}
                       >
                         {busy ? (
                           <LoaderCircle className="spin" size={17} />
@@ -1011,7 +1011,7 @@ export default function Studio() {
                         <span>
                           {busy
                             ? studio.busy
-                            : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
+                            : readiness.action==="retry" ? "Couldn’t check connections · Retry" : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
                               ? "Score thumbnail"
                               : tool === "title" && titleAction === "ideas"
                                 ? "Generate titles"
@@ -1102,7 +1102,7 @@ export default function Studio() {
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
                       <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
-                      {score&&<div className="mobile-score-summary"><span>{score.overall ?? "Partial"} · weakest: {names[pillars.filter(p=>score.dimensions[p].score!==null).sort((a,b)=>(score.dimensions[a].score??Infinity)-(score.dimensions[b].score??Infinity))[0]] || "Not assessed"}</span><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button></div>}
+                      {score&&<div className="mobile-score-summary"><span>{score.overall ?? "Partial"} · weakest: {names[pillars.filter(p=>score.dimensions[p].score!==null).sort((a,b)=>(score.dimensions[a].score??Infinity)-(score.dimensions[b].score??Infinity))[0]] || "Not assessed"}</span><button type="button" className="neutral-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button></div>}
                       <div className="result-actions">
                         {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score thumbnail</button>}
                         <button type="button"
@@ -1132,7 +1132,7 @@ export default function Studio() {
                         <button type="button" className="next-pill" disabled={busy} onClick={() => openReviewEditor("edit")}><Pencil size={15} aria-hidden="true"/>Edit</button>
                         <button type="button" className="next-pill" disabled={busy} onClick={() => openReviewEditor("analyze")}><RefreshCw size={15} aria-hidden="true"/>Score again</button>
                       </div>}
-                      <details className="provenance-details"><summary>What you asked vs. what was sent</summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
+                      <details className="provenance-details"><summary>What you asked vs. what was sent <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
                     </>
                   ) : (
                     <div className="draft-preview">
@@ -1204,7 +1204,7 @@ export default function Studio() {
                             )}
                             {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<div><span className="score-fallback">{scoreView.fallback}</span>{score.scoring?.route.some(r=>r.scorer==="jev"&&r.outcome==="failed")&&<button type="button" className="quiet-button" disabled={busy} onClick={()=>void retryScore(true)}>Retry with Jev</button>}</div>}<button type="button" className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
+                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<div><span className="score-fallback">{scoreView.fallback}</span>{score.scoring?.route.some(r=>r.scorer==="jev"&&r.outcome==="failed")&&<button type="button" className="neutral-button" disabled={busy} onClick={()=>void retryScore(true)}>Retry with Jev</button>}</div>}<button type="button" className="neutral-button" onClick={()=>setDialog("analysis")}>See full score</button>
                         </div>
                         <div>
                         <button type="button"
@@ -1215,7 +1215,7 @@ export default function Studio() {
                           <WandSparkles size={16} />
                           Fix thumbnail
                         </button>
-                        <button type="button" className="quiet-button review-first" onClick={()=>void fix()}>Review first</button>
+                        <button type="button" className="neutral-button review-first" onClick={()=>void fix()}>Review first</button>
                         {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
                         {(fixReview?.kind === "blocked" || fixReview?.kind === "noop") && fixReview.reason && (
                           <p role="status">{fixReview.reason}</p>
@@ -2154,7 +2154,7 @@ export default function Studio() {
             </>
           )}
           {dialog === "jobs" && (
-            <>
+            <div className="activity-stack">
               <p>
                 Requests remain here after a reload. If the outcome is still
                 being checked, API credits may already have been used. Wait and
@@ -2165,7 +2165,7 @@ export default function Studio() {
               {activity.paused&&<p role="status">Status refresh paused. Provider work may still finish and use credits. This does not cancel it.</p>}
               {activity.error&&<p role="alert">{activity.error}</p>}
               <p>Reloading resumes status checks. Closing the page can interrupt automatic review; saved results stay in your library. No paid request is resubmitted by this viewer.</p>
-              {!jobs.length&&<p>No API requests in this workspace yet.</p>}
+              {!activity.error&&!activity.loading&&!jobs.length&&<p>No API requests in this workspace yet.</p>}
               {jobs.map((j) => (
                 <div className="job-row" key={j.id}>
                   <strong>{jobOperationLabel(j.operation)}</strong>
@@ -2179,7 +2179,7 @@ export default function Studio() {
                   </div>
                 </div>
               ))}
-            </>
+            </div>
           )}
           {dialog === "compare" && blindPair && (
             <>
@@ -2298,13 +2298,13 @@ export default function Studio() {
             </>
           )}
           {dialog === "connections" && (
-            <>
+            <div className="connections-stack">
               <p className="dialog-description">
                 Your workspace uses your own OpenAI, Google and Jev keys.
                 Connect providers, manage agent access and copy MCP instructions
                 in Settings.
               </p>
-              <ul>{([["openai", "OpenAI"], ["google", "Google"], ["anthropic", "Claude"], ["jev", "Jev"], ["youtube", "YouTube"]] as const).map(([id, name]) => <li key={id}>{name}: {studio.config ? (studio.config[id] ? "Connected" : "Not connected") : "Checking…"}</li>)}</ul>
+              <ul>{([["openai", "OpenAI"], ["google", "Google"], ["anthropic", "Claude"], ["jev", "Jev"], ["youtube", "YouTube"]] as const).map(([id, name]) => <li key={id}>{name}: {!studio.config || studio.config.connectionStatus === "failed" ? "Status unavailable" : studio.config.connectionStatus === "loading" ? "Checking…" : studio.config[id] ? "Connected" : "Not connected"}</li>)}</ul>
               <a href="/connect" className="neutral-button inline-link full-width">
                 Manage connections
               </a>
@@ -2313,7 +2313,7 @@ export default function Studio() {
                 Your keys are encrypted and private to your account. Agent tools
                 never receive them.
               </p>
-            </>
+            </div>
           )}
           {dialog==="delete-chat"&&chatToDelete&&(()=>{const count=studio.creations.filter(c=>c.conversation_id===chatToDelete.id&&c.image_path).length;return <section className="delete-chat">
             <p><strong>{chatToDelete.title}</strong> and {count===0?"its draft":count===1?"its 1 thumbnail":"its "+count+" thumbnails"} will be deleted, including the image files saved in your account. This can’t be undone.</p>
