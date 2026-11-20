@@ -1,8 +1,7 @@
 /* Keep existing rounded corners in browsers without corner-shape support. */
 @supports (corner-shape: squircle) {
-  :is(button, input:not([type="checkbox"]):not([type="radio"]), select, textarea, dialog, [role="dialog"], .creation-card, .profile-item, .account-panel, .thumb-frame, .result-image, .selection-chip, .score-badge) {
+  :is(dialog, [role="dialog"], .creation-card, .profile-item, .account-panel, .thumb-frame, .result-image) {
     corner-shape: squircle;
-    border-radius: calc(var(--radius) + 2px);
   }
 }
 
