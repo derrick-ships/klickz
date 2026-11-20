@@ -107,7 +107,7 @@ export function usePersonaMentions({ value, setValue, personas, images, selected
         {matches.map((p, i) => <li key={p.id} id={optionId(i)} role="option" aria-selected={i === index} className="mention-option"
           onPointerDown={e => e.preventDefault()} onPointerMove={e => { const at = e.clientX + "," + e.clientY; if (lastPointer.current !== null && lastPointer.current !== at && i !== index) setActive(i); lastPointer.current = at; }} onClick={() => pick(p)}>
           {images[p.refs[0]] ? <img src={images[p.refs[0]]} alt="" width={28} height={28} /> : <span className="mention-avatar" aria-hidden="true">{p.name.slice(0, 1).toUpperCase()}</span>}
-          <span className="mention-name">{p.name}{p.kind==='element'&&<small> · Element</small>}</span>
+          <span className="mention-name">{p.name}{p.kind==='element'&&<small> · Object</small>}</span>
           {selectedIds.includes(p.id) && <span className="mention-current">Added</span>}
         </li>)}
       </ul>

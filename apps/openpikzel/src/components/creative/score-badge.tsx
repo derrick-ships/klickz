@@ -20,6 +20,6 @@ export function ScoreBadge({ score, pending = false, onOpen, label }: { score?: 
     {!pending && <span aria-hidden="true">{value === null ? "–" : value}</span>}
   </>;
   if (onOpen && !pending && score)
-    return <button type="button" className="score-badge" data-tone={tone} aria-label={(label ? label + ": " : "") + spoken + ". Open full score"} onClick={event => { event.stopPropagation(); onOpen(); }}>{content}</button>;
+    return <button type="button" className="score-badge" data-tone={tone} aria-label={(label ? label + ": " : "") + spoken + ". Open full score"} title="Open full score" onClick={event => { event.stopPropagation(); onOpen(); }}>{content}</button>;
   return <span className="score-badge" data-tone={tone} role="img" aria-label={spoken}>{content}</span>;
 }

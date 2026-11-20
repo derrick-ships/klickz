@@ -218,4 +218,34 @@ button.score-badge, button.score-badge:active:not(:disabled) { min-height: 0; tr
 /* Phone: the score header text column may shrink so the status line ellipsizes inside the dialog. */
 .score-header > div{min-width:0}.score-header h2,.score-header p{overflow-wrap:anywhere}
 @media(max-width:600px){.analysis-overlay .consent-actions button{white-space:normal;line-height:1.2;flex:1 1 0}}
+
+/* Plain, reachable controls on small screens. */
+.paid-cue { display: block; font-size: 12px; line-height: 1.2; font-weight: 500; white-space: nowrap; }
+.primary-button:has(.paid-cue) { white-space: nowrap; }
+.primary-button:has(.paid-cue) > span { display: block; text-align: center; white-space: nowrap; }
+.connections-phone { display: none; }
+.result-more-menu { inset-inline-start: auto; inset-inline-end: 0; }
+.batch-select { display: inline-flex; padding: 0; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-control-ground); box-shadow: none; }
+.batch-select select { min-height: 44px; padding: 0 30px 0 14px; background-color: transparent; }
+.format-choice .format-chip { position: relative; }
+.format-choice .format-chip select { align-self: stretch; min-height: 44px; cursor: pointer; }
+@media (max-width: 640px) {
+  .studio-main.review-active { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+  .review-stage .result-actions > .primary-button:not(.score-thumbnail-button) { display: none; }
+  .result-more-menu { position: fixed; inset: auto 0 0; z-index: 50; width: 100%; max-width: none; max-height: 80dvh; overflow-y: auto; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); border-radius: 16px 16px 0 0; }
+  .mobile-result-actions { position: fixed; inset: auto 0 0; width: 100%; min-height: calc(84px + env(safe-area-inset-bottom)); }
+  .mobile-result-actions button { min-width: 0; white-space: nowrap; font-size: 16px; }
+  .topbar-actions .quiet-button > span.connections-phone { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; display: inline; }
+  .topbar-actions .quiet-button > span.connections-desktop { display: none; }
+  .app-shell button, .app-shell select, .app-shell input, .app-shell textarea, .app-shell summary { font-size: 16px; }
+  .app-shell p, .app-shell label, .app-shell small, .app-shell .dialog-footnote { font-size: 14px; }
+  .app-shell .icon-button, .app-shell .chat-row-delete, .app-shell .selection-remove, .profile-photo-grid button, button.score-badge { min-width: 44px; min-height: 44px; }
+  .format-choice .format-chip { padding-block: 0; cursor: pointer; }
+  .format-choice .format-chip select { flex: 1; }
+  .analysis-overlay .consent-actions { position: static; }
+  .creation-card-info { column-gap: 12px; }
+  .analysis-overlay .consent-actions button { flex: 1 1 auto; min-width: max-content; white-space: nowrap; overflow-wrap: normal; word-break: normal; font-size: 16px; }
+  .analysis-overlay .consent-actions { flex-wrap: wrap; }
+  .analysis-overlay .consent-actions .paid-cue, .primary-button .paid-cue { font-size: 14px; }
+}
 .result-actions .result-more > summary.neutral-button { min-height:44px; border-radius:999px; background:transparent; border:1px solid var(--color-line-strong); }
