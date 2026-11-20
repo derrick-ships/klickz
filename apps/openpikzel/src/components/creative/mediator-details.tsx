@@ -20,7 +20,7 @@ export function MediatorDetails({ record }: { record: MediatorRecord }) {
         <dt>Don’t</dt><dd><ul>{e.donts.map((d) => <li key={d.rule}>{d.rule}</li>)}</ul></dd>
       </dl>
       <details className="mediator-sent">
-        <summary>Exact prompt sent to the image model</summary>
+        <summary>Exact prompt sent to create the image</summary>
         <pre>{record.imagePrompt}</pre>
         <small>Prepared by {record.provider} · {record.model} · {record.version} · {record.attempts} attempt{record.attempts === 1 ? "" : "s"}</small>
       </details>

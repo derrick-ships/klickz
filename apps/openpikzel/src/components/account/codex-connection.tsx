@@ -33,10 +33,10 @@ export function CodexConnection({signedIn,enabled,api}:{signedIn:boolean;enabled
  return <section className="account-panel codex-connection" aria-labelledby="chatgpt">
   <h2 id="chatgpt">ChatGPT models and usage</h2>
   <p>Check the models and usage available with your ChatGPT plan. Codex plan limits apply.</p>
-  <p>Generating studio images requires a separate API connection.</p>
+  <p>Generating images requires a separate connection.</p>
   <details><summary>How sign-in works</summary><p>Open OpenAI’s sign-in window, enter your one-time code and approve the connection. No download required.</p></details>
   <p>Your connection is encrypted on our server. Your OpenAI password stays with OpenAI.</p>
-  {!signedIn?<p>Sign in to your workspace first to connect your plan.</p>:!enabled?<p>ChatGPT connection setup is being completed. Your API connections remain available.</p>:<>
+  {!signedIn?<p>Sign in to your workspace first to connect your plan.</p>:!enabled?<p>ChatGPT connection setup is being completed. Your other connections remain available.</p>:<>
    {status.connected&&<p><strong>Connected · {status.label||"ChatGPT account"}</strong>{status.plan?" · "+status.plan:""}</p>}
    {status.needsReauth&&<p>Your OpenAI connection needs sign-in again.</p>}
    {pending?<div className="codex-device-step">
@@ -45,17 +45,17 @@ export function CodexConnection({signedIn,enabled,api}:{signedIn:boolean;enabled
     <a className="neutral-button" href={verify} target="_blank" rel="noopener noreferrer">Open OpenAI sign-in</a>
     <p role="status">Waiting for OpenAI approval…{status.expiresAt?" Expires at "+new Date(status.expiresAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})+".":""}</p>
     <button type="button" className="neutral-button" disabled={busy} onClick={()=>void act("cancel")}>Cancel sign-in</button>
-   </div>:<button type="button" className={status.connected?"neutral-button":"primary-button"} disabled={busy||status.phase==="loading"} onClick={()=>void act("start")}>{busy?"Connecting…":status.connected?"Connect another ChatGPT account":"Continue with ChatGPT"}</button>}
+   </div>:<button type="button" className={status.connected?"neutral-button":"primary-button"} disabled={busy||status.phase==="loading"} onClick={()=>void act("start")}>{busy?"Connecting…":status.connected?"Switch account":"Connect ChatGPT"}</button>}
    {status.phase==="expired"&&<p role="status">That code expired. Start a new sign-in.</p>}
    {status.phase==="failed"&&<p role="status">Sign-in was not completed. You can try again.</p>}
    {status.connected&&!pending&&<div className="codex-device-step">
-    <button type="button" className="neutral-button" disabled={busy} onClick={()=>void act("check")}>Refresh usage and models</button>
+    <button type="button" className="neutral-button" disabled={busy} onClick={()=>void act("check")}>Refresh usage</button>
     <button type="button" className="neutral-button" disabled={busy} onClick={()=>void act("disconnect")}>Disconnect ChatGPT</button>
     <p>Disconnect removes the saved connection here. You can also manage access in <a href="https://chatgpt.com/#settings/Security" target="_blank" rel="noopener noreferrer">ChatGPT settings</a>.</p>
    </div>}
    {status.checkedAt&&<div><p>Checked {new Date(status.checkedAt).toLocaleTimeString()}. Readings are kept only in this page’s memory.</p>
     {!status.usageAvailable||!status.windows?.length?<p>No usage reading is available.</p>:<ul>{status.windows.map((w,i)=><li key={i}>{w.kind}: {w.usedPercent===undefined?"No percentage available":w.usedPercent+"% used"}{w.resetsAt?" · resets "+new Date(w.resetsAt*1000).toLocaleString():""}</li>)}</ul>}
-    <details><summary>Available models ({status.models?.length||0})</summary>{!status.models?.length?<p>No model list is available.</p>:<ul>{status.models.map(m=><li key={m.id}>{m.name}</li>)}</ul>}</details>
+    <details><summary>Available models ({status.models?.length||0})</summary>{!status.models?.length?<p>No choices are available.</p>:<ul>{status.models.map(m=><li key={m.id}>{m.name}</li>)}</ul>}</details>
    </div>}
   </>}
   {error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}

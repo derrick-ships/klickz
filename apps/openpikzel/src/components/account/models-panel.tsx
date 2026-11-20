@@ -62,8 +62,8 @@ export function ModelsPanel({ api, connected }: { api: Api; connected: Connected
         </select>
       <label htmlFor="model-scorer">Scorer</label>
         <select id="model-scorer" value={models.scorer} onChange={(e) => void save({ ...models, scorer: e.target.value as Models["scorer"] })}>
-          <option value="jev" disabled={!connected.jev}>Jev{connected.jev ? "" : " · not connected"}</option>
-          <option value="model">Reviewer model</option>
+          <option value="jev" disabled={!connected.jev}>Scoring AI{connected.jev ? "" : " · not connected"}</option>
+          <option value="model">Reviewer</option>
         </select>
       <label htmlFor="model-mediator">Prompt writer</label>
         <select id="model-mediator" value={models.mediator} onChange={(e) => void save({ ...models, mediator: e.target.value })}>

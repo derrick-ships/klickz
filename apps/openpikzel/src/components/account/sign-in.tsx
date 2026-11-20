@@ -155,8 +155,8 @@ export function AccountSignIn({
       </label>}
       <button type="submit" className="primary-button" disabled={busy || (sending && remaining > 0)}>
         {busy ? sending ? "Sending email…" : step === "code" ? "Verifying…" : "Signing in…"
-          : sending ? remaining > 0 ? "Request another email shortly" : sendLabel
-          : step === "code" ? "Sign in" : mode === "signup" ? "Create account" : "Sign in with password"}
+          : sending ? remaining > 0 ? "Wait briefly" : sendLabel
+          : step === "code" ? "Sign in" : mode === "signup" ? "Create account" : "Use password"}
       </button>
       {step === "code" && <>
         <button type="button" className="neutral-button" disabled={busy || remaining > 0} onClick={() => void sendEmail()}>

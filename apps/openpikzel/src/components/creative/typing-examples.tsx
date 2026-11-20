@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 // what a good description looks like. Stops after 3 cycles, on focus, on typing,
 // when the tab is hidden, and once the visitor has creations. Reduced motion shows
 // one static example. The example is decorative: the textarea keeps its own
-// placeholder for assistive tech, and "Use this example" fills the box.
+// placeholder for assistive tech, and "Use example" fills the box.
 export const promptExamples = [
   "A shocked creator holding a tiny phone next to a giant one, text “TOO BIG?”",
   "Before and after of a messy desk turned spotless, bright and clean",
@@ -80,7 +80,7 @@ export function TypingExamples({ active, onUse }: { active: boolean; onUse: (tex
         <span className="typing-examples-live typing-caret-after">{text}</span>
       </p>
       <button type="button" className="typing-examples-use" onMouseDown={(e) => e.preventDefault()} onClick={() => onUse(current)}>
-        Use this example
+        Use example
       </button>
     </div>
   );

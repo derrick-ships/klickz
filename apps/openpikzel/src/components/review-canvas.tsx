@@ -44,7 +44,7 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
         <button type="button" className="neutral-button" aria-pressed={theme==="light"} onClick={()=>morph(()=>setTheme("light"))}>Light</button>
       </div>
       <div role="group" aria-label="Thumbnail tests"><span className="feed-group-label">Test</span>
-        <button type="button" className="neutral-button" aria-pressed={monochrome} onClick={()=>morph(()=>setMonochrome(x=>!x))}>Black &amp; white</button>
+        <button type="button" className="neutral-button" aria-pressed={monochrome} onClick={()=>morph(()=>setMonochrome(x=>!x))}>Monochrome</button>
         <button type="button" className="neutral-button" aria-pressed={squint} onClick={()=>morph(()=>setSquint(x=>!x))}>Squint</button>
       </div>
     </div>}

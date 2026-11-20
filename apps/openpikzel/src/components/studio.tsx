@@ -1021,11 +1021,11 @@ export default function Studio() {
                         <span>
                           {busy
                             ? studio.busy
-                            : readiness.action==="retry" ? "Couldn’t check connections · Retry" : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
+                            : readiness.action==="retry" ? "Retry connection" : readiness.action==="signin" ? "Sign in" : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
                               ? "Score"
                               : tool === "title" && titleAction === "ideas"
                                 ? "Generate titles"
-                                : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create"}
+                                : tool === "edit" ? "Apply edit" : tool === "recreate" ? "Create variation" : "Create"}
                         </span>
                       </button>
                     </div>
@@ -1079,8 +1079,8 @@ export default function Studio() {
                       <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
                       {score && <p className="result-verdict">{weakest ? `Good start. ${verdict[weakest]}` : "Score again for more detail."} {score.overall !== null && <strong>{score.overall}/100</strong>} <button type="button" className="neutral-button mobile-score-toggle" onClick={()=>setDialog("analysis")}>See scores</button></p>}
                       <div className="result-actions">
-                        {score && <button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it <small>Uses credits</small></button>}
-                        {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score <small>Uses credits</small></button>}
+                        {score && <button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it <small>Uses credits</small></button>}
+                        {!score && scoreView.kind!=="no-jev" && <button type="button" data-copy-law="allow-long" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score <small>Uses credits</small></button>}
                         <button type="button"
                           className="neutral-button download-button"
                           disabled={busy}
@@ -1143,7 +1143,7 @@ export default function Studio() {
                         }}
                       >
                         <ArrowLeft size={14} />
-                        View original thumbnail
+                        View original
                       </button>
                       <span>Your original is preserved.</span>
                       <button type="button"
@@ -1151,7 +1151,7 @@ export default function Studio() {
                         disabled={busy}
                         onClick={compare}
                       >
-                        Compare without scores
+                        Compare
                       </button>
                     </div>
                   )}
@@ -1178,7 +1178,7 @@ export default function Studio() {
                             )}
                             {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
-                          <button type="button" className="neutral-button" onClick={()=>setDialog("analysis")}>See full score</button>
+                          <button type="button" className="neutral-button" onClick={()=>setDialog("analysis")}>View score</button>
                         </div>
                         <div>
                         <button type="button" className="neutral-button review-first" onClick={()=>void fix()}>Review first</button>
@@ -1418,7 +1418,7 @@ export default function Studio() {
           {tab === "studio" ? (
             <>
               {hasReviewImage && resultPanel}
-              {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it <small>Uses credits</small></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
+              {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it <small>Uses credits</small></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               {needsKey && <section className="key-first"><h2>One step before you start</h2><p>Add an AI key. It lets OpenPikzels make images for you.</p><a className="primary-button" href="/connect">Add key</a></section>}
               <section
@@ -1477,7 +1477,7 @@ export default function Studio() {
                     ))}
                   </div>
                 </div>
-                {hasReviewImage && <button type="button" className="quiet-button review-editor-toggle" aria-expanded={showComposer} aria-controls="review-creation-controls" onClick={() => setComposerOpen((open) => !open)}>{showComposer ? "Hide prompt and settings" : "Show prompt and settings"}<ChevronDown size={14} /></button>}
+                {hasReviewImage && <button type="button" className="quiet-button review-editor-toggle" aria-expanded={showComposer} aria-controls="review-creation-controls" onClick={() => setComposerOpen((open) => !open)}>{showComposer ? "Hide settings" : "Show settings"}<ChevronDown size={14} /></button>}
                 <div className="composer" id="review-creation-controls" hidden={!showComposer}>
                   <fieldset className="composer-inner" disabled={navigating||!workspaceReady} aria-label="Thumbnail inputs">
                     {tool === "title" && (
@@ -1487,7 +1487,7 @@ export default function Studio() {
                           onClick={() => setTitleAction("image")}
                         >
                           <ImagePlus size={14} />
-                          Thumbnail from title
+                          From title
                         </button>
                         <button type="button"
                           className={titleAction === "ideas" ? "active" : ""}
@@ -1697,14 +1697,14 @@ export default function Studio() {
                             onClick={() => openProfiles("personas")}
                           >
                             <UserRoundPlus size={15} />
-                            Add a face
+                            Add face
                           </button>
                           <button type="button"
                             className="tool-chip"
                             onClick={() => openProfiles("styles")}
                           >
                             <Palette size={15} />
-                            Pick a look
+                            Pick look
                           </button>
                           </div>
                           <div className="composer-tool-group format-choice"><label className="tool-chip format-chip">
@@ -2036,7 +2036,7 @@ export default function Studio() {
                       : "Describe a thumbnail, upload one to score, or save an idea for later."}
                   </p>
                   <button type="button" className="neutral-button" onClick={() => { if (search || onlyFavorites) { setSearch(""); setOnlyFavorites(false); } else void newChat(); }}>
-                    {search || onlyFavorites ? "Clear filters" : "Create a thumbnail"}
+                    {search || onlyFavorites ? "Clear filters" : "Create thumbnail"}
                   </button>
                 </div>
               )}
@@ -2077,9 +2077,9 @@ export default function Studio() {
                       : dialog === "fixplan"
                         ? "Review one-click fix"
                         : dialog === "compare"
-                          ? "Compare without scores"
+                          ? "Compare"
                           : dialog === "jobs"
-                            ? "API activity"
+                            ? "Activity"
                             : "Workspace connections"}
             </h2>
             <button type="button"
@@ -2095,9 +2095,9 @@ export default function Studio() {
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis-history"&&selected&&<AnalysisHistory key={selected.id+studio.user} creationId={selected.id} read={studio.read}/>}
           {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} onRetry={()=>void retryScore(true)} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
-          {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button type="button" className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
+          {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button type="button" className="neutral-button full-width" disabled={busy} onClick={compare}>Compare</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
-          {dialog === "help" && <dl className="help-glossary"><dt>Thumbnail score</dt><dd>A guide to your thumbnail’s strengths.</dd><dt>Virality</dt><dd>Stands out in the feed.</dd><dt>Clarity</dt><dd>Easy to read, small.</dd><dt>Idea</dt><dd>The idea is clear.</dd><dt>Curiosity</dt><dd>Makes people want to click.</dd><dt>Emotion</dt><dd>Shows a real feeling.</dd><dt>Fix</dt><dd>Makes a new version using credits.</dd><dt>People</dt><dd>Saved faces for your thumbnails.</dd><dt>Look</dt><dd>A reusable visual style.</dd><dt>{"Jev"}</dt><dd>The AI that scores your thumbnail.</dd></dl>}
+          {dialog === "help" && <dl className="help-glossary"><dt>Thumbnail score</dt><dd>A guide to your thumbnail’s strengths.</dd><dt>Virality</dt><dd>Stands out in the feed.</dd><dt>Clarity</dt><dd>Easy to read, small.</dd><dt>Idea</dt><dd>The idea is clear.</dd><dt>Curiosity</dt><dd>Makes people want to click.</dd><dt>Emotion</dt><dd>Shows a real feeling.</dd><dt>Fix</dt><dd>Makes a new version using credits.</dd><dt>People</dt><dd>Saved faces for your thumbnails.</dd><dt>Look</dt><dd>A reusable visual style.</dd><dt>Scoring AI</dt><dd>The AI that scores your thumbnail.</dd></dl>}
           {dialog === "references" && (
             <>
               <p className="dialog-description">
@@ -2142,7 +2142,7 @@ export default function Studio() {
                 }}
               >
                 <Upload size={15} />
-                Upload a new reference
+                Upload reference
               </button>
             </>
           )}
@@ -2274,7 +2274,7 @@ export default function Studio() {
                     ))}
                   </ol>
                   <p>{fixReview.notice}</p>
-                  <button type="button"
+                  <button type="button" data-copy-law="allow-long"
                     className="primary-button full-width"
                     disabled={busy}
                     onClick={applyFix}
