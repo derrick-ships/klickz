@@ -1,5 +1,6 @@
 "use client";
 import {elementDefinitions} from "@/lib/elements";
+import { plainError } from "@/lib/plain-error";
 import {Box} from "lucide-react";
 import {NativeOutputNotice} from "@/components/creative/native-output";
 import {GenerationDelivery} from "@/components/creative/generation-delivery";
@@ -1417,13 +1418,9 @@ export default function Studio() {
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
-              <p>{studio.error}</p>
-              <button type="button"
-                className="icon-button"
-                aria-label="Dismiss error"
-                onClick={() => studio.setError("")}
-              >
-                <X size={15} />
+              <p>{plainError(studio.error).text}</p>
+              <button type="button" className="neutral-button" onClick={() => { const action = plainError(studio.error).action; studio.setError(""); if (action === "Connect") setDialog("connections"); }}>
+                {plainError(studio.error).action}
               </button>
             </div>
           )}
@@ -2327,7 +2324,7 @@ export default function Studio() {
           {dialog === "login" && (studio.authClient?<AccountSignIn db={studio.authClient} onSignedIn={()=>location.assign("/connect#api")}/>:<p>Sign in is unavailable here. Your draft stays on this device. <a href="/connect#api">Open sign-in and connections</a></p>)}
           {studio.error && (
             <p className="dialog-error" role="status">
-              {studio.error}
+              {plainError(studio.error).text}
             </p>
           )}
         </div>
