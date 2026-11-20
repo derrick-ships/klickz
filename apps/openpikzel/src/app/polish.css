@@ -18,7 +18,6 @@ p { text-wrap: pretty; }
 .chat-row-rename { display: flex; min-width: 0; }
 .chat-row-rename input { width: 100%; min-width: 0; }
 .undo-stack { left: 50%; bottom: 72px; transform: translateX(-50%); align-items: center; }
-.workspace-main:has(.undo-toast) { z-index: 21; }
 @media (min-width: 761px) { .sidebar-open .undo-stack { left: calc(50% + var(--sidebar-width) / 2); } }
 @media (max-width: 640px) {
   .undo-stack { left: 50%; bottom: calc(112px + env(safe-area-inset-bottom)); }

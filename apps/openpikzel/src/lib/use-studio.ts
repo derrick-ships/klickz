@@ -67,7 +67,7 @@ export function useStudio() {
     userRef = useRef<string | null>(null),
     pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const lastFailedAction = useRef<(() => void) | null>(null);
-  const backfillSeen = useRef(new Set<string>()), backfillQueue = useRef<Array<{path:string;url:string;portrait:boolean;owner:string}>>([]), backfillRunning = useRef(0), backfillLogged = useRef(false);
+  const backfillSeen = useRef(new Set<string>()), backfillQueue = useRef<Array<{path:string;url:string;portrait:boolean;owner:string;epoch:number}>>([]), backfillRunning = useRef(0), backfillLogged = useRef(false);
   const pendingAnalysis = useRef(new Map<string, string>());
   const pendingFix = useRef(new Map<string, Promise<unknown>>());
   const pendingFixJobs = useRef(new Map<string, {requestId:string;fixPlanToken:string;plan:{title:string;sourceId:string;settings:Settings};notice?:string}>());
@@ -79,18 +79,18 @@ export function useStudio() {
     if (document.visibilityState !== 'visible') return;
     while (backfillRunning.current < 2 && backfillQueue.current.length) {
       const task = backfillQueue.current.shift()!;
-      if (userRef.current !== task.owner || !db.current) continue;
+      if (userRef.current !== task.owner || ownerEpoch.current !== task.epoch || !db.current) continue;
       backfillRunning.current++;
       void (async () => {
         try {
           const blob = await makeThumb(task.url, task.portrait);
           if (document.visibilityState !== 'visible') { backfillQueue.current.unshift(task); return; }
-          if (userRef.current !== task.owner || !db.current) return;
+          if (userRef.current !== task.owner || ownerEpoch.current !== task.epoch || !db.current) return;
           const storage = db.current.storage.from('studio-assets'), path = thumbPath(task.path);
           const result = await storage.upload(path, blob, {contentType:'image/jpeg', upsert:false});
-          if (result.error || userRef.current !== task.owner) return;
+          if (result.error || userRef.current !== task.owner || ownerEpoch.current !== task.epoch) return;
           const signed = await storage.createSignedUrl(path, 300);
-          if (!signed.error && signed.data?.signedUrl && userRef.current === task.owner) setThumbs(old => ({...old, [path]:signed.data.signedUrl}));
+          if (!signed.error && signed.data?.signedUrl && userRef.current === task.owner && ownerEpoch.current === task.epoch) setThumbs(old => ({...old, [path]:signed.data.signedUrl}));
         } catch { /* Background conversion must never interrupt the workspace. */ }
         finally { backfillRunning.current--; setTimeout(pump, 500); }
       })();
@@ -142,7 +142,7 @@ export function useStudio() {
         setThumbs(Object.fromEntries((signed.data||[]).filter(x=>!x.error&&x.path&&x.signedUrl).map(x=>[x.path!,x.signedUrl!])));
         const missing = new Set((signed.data || []).filter(x => x.error && x.path).map(x => x.path!));
         const candidates = selectThumbBackfill((rows[0].data || []) as Creation[], user, missing, backfillSeen.current, Math.max(0, 40 - backfillSeen.current.size));
-        for (const item of candidates) { const path = item.image_path!; if (!imageUrls[path]) continue; backfillSeen.current.add(path); backfillQueue.current.push({path,url:imageUrls[path],portrait:item.settings?.format==='short',owner:user}); }
+        for (const item of candidates) { const path = item.image_path!; if (!imageUrls[path]) continue; backfillSeen.current.add(path); backfillQueue.current.push({path,url:imageUrls[path],portrait:item.settings?.format==='short',owner:user,epoch:ownerEpoch.current}); }
         if (backfillQueue.current.length && !backfillLogged.current) { backfillLogged.current = true; console.info('Preparing missing creation thumbnails in the background.'); }
         setTimeout(pumpBackfill, 500);
       }else setThumbs({});
@@ -190,7 +190,7 @@ export function useStudio() {
             if (next !== userRef.current) {
               userRef.current = next;
               setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:next?"loading":"ready"}:current);
-              elementsAvailable.current=false;ownerEpoch.current++;pendingChats.current.clear();setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();pendingFixJobs.current.clear();
+              elementsAvailable.current=false;ownerEpoch.current++;backfillQueue.current=[];pendingChats.current.clear();setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();pendingFixJobs.current.clear();
               version.current++;
               setCreations([]);
               setPersonas([]);

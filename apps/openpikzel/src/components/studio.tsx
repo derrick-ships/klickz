@@ -1,4 +1,5 @@
 "use client";
+import { createPortal } from "react-dom";
 import {elementDefinitions} from "@/lib/elements";
 import { plainError } from "@/lib/plain-error";
 import {Box} from "lucide-react";
@@ -153,6 +154,8 @@ const definitions: Record<Pillar, string> = {
   emotion: "Shows a real feeling",
 };
 export default function Studio() {
+  const [portalReady,setPortalReady]=useState(false);
+  useEffect(()=>setPortalReady(true),[]);
   useEffect(() => {
     const close = (menu: HTMLDetailsElement, focus = false) => { menu.open = false; if (focus) menu.querySelector<HTMLElement>('summary')?.focus(); };
     const onToggle = (event: Event) => { const menu = event.target; if (!(menu instanceof HTMLDetailsElement) || !menu.matches('.row-menu') || !menu.open) return; document.querySelectorAll<HTMLDetailsElement>('.row-menu[open]').forEach(other => { if (other !== menu) close(other); }); };
@@ -1434,8 +1437,8 @@ export default function Studio() {
           {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={name=>renameChat(activeChat,name)}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
-          <div className="undo-stack">{localUndo && <UndoToast key={localUndo.id} message={localUndo.message} onUndo={()=>{localUndoQueue.current?.undo(localUndo.id);localUndo.undo();setLocalUndo(null);}} onPause={reason=>localUndoQueue.current?.pause(localUndo.id,reason)} onResume={reason=>localUndoQueue.current?.resume(localUndo.id,reason)}/>}
-          {(()=>{const entries=Object.entries(pendingDeletes).filter(([,item])=>(item.kind==="creations"||item.kind==="conversations")&&!item.committing);if(!entries.length)return null;return <UndoToast message={entries.length===1?"Deleted.":`${entries.length} deleted.`} items={entries.map(([id,item])=>({id,name:item.name,undo:()=>undoCreationDelete(id)}))} onUndo={()=>entries.forEach(([id])=>undoCreationDelete(id))} onPause={reason=>entries.forEach(([id])=>studio.pauseDelete(id,reason))} onResume={reason=>entries.forEach(([id])=>studio.resumeDelete(id,reason))}/>;})()}</div>
+          {portalReady&&createPortal(<div className="undo-stack">{localUndo && <UndoToast key={localUndo.id} message={localUndo.message} onUndo={()=>{localUndoQueue.current?.undo(localUndo.id);localUndo.undo();setLocalUndo(null);}} onPause={reason=>localUndoQueue.current?.pause(localUndo.id,reason)} onResume={reason=>localUndoQueue.current?.resume(localUndo.id,reason)}/>}
+          {(()=>{const entries=Object.entries(pendingDeletes).filter(([,item])=>(item.kind==="creations"||item.kind==="conversations")&&!item.committing);if(!entries.length)return null;return <UndoToast message={entries.length===1?"Deleted.":`${entries.length} deleted.`} items={entries.map(([id,item])=>({id,name:item.name,undo:()=>undoCreationDelete(id)}))} onUndo={()=>entries.forEach(([id])=>undoCreationDelete(id))} onPause={reason=>entries.forEach(([id])=>studio.pauseDelete(id,reason))} onResume={reason=>entries.forEach(([id])=>studio.resumeDelete(id,reason))}/>;})()}</div>,document.body)}
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
