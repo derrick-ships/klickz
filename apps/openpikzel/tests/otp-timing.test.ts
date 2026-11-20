@@ -9,11 +9,9 @@ describe("OTP submission timing", () => {
     otp.input("12345678", false); expect(submit).toHaveBeenCalledOnce(); expect(submit).toHaveBeenCalledWith("12345678");
     vi.runAllTimers(); expect(submit).toHaveBeenCalledOnce();
   });
-  it("waits 1500ms for six typed digits and cancels on more input", () => {
+  it("never auto-submits six typed digits, even after a long pause", () => {
     vi.useFakeTimers(); const submit = vi.fn(); const otp = createOtpScheduler(submit);
-    otp.input("123456", false); vi.advanceTimersByTime(1499); expect(submit).not.toHaveBeenCalled();
-    otp.input("1234567", false); vi.runAllTimers(); expect(submit).not.toHaveBeenCalled();
-    otp.input("123456", false); vi.advanceTimersByTime(1500); expect(submit).toHaveBeenCalledOnce();
+    otp.input("123456", false); vi.advanceTimersByTime(10000); expect(submit).not.toHaveBeenCalled();
   });
   it.each(["12-34 56", "12-34 56 78"])("submits pasted digits immediately: %s", raw => {
     vi.useFakeTimers(); const submit = vi.fn(); const otp = createOtpScheduler(submit);

@@ -2,6 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import { createDeleteQueue } from "../src/lib/delete-queue";
 
 describe("delete queue", () => {
+  it("keeps independent pause reasons until each is cleared", async () => {
+    vi.useFakeTimers();
+    const commit = vi.fn(); const queue = createDeleteQueue(commit);
+    queue.add("chat"); queue.pause("chat", "hover"); queue.pause("chat", "focus");
+    queue.resume("chat", "hover"); await vi.advanceTimersByTimeAsync(10000);
+    expect(commit).not.toHaveBeenCalled();
+    queue.resume("chat", "focus"); await vi.advanceTimersByTimeAsync(6000);
+    expect(commit).toHaveBeenCalledExactlyOnceWith("chat");
+    vi.useRealTimers();
+  });
   it("commits only after six seconds and undo prevents commit", async () => {
     vi.useFakeTimers();
     const commit = vi.fn();

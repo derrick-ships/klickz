@@ -1,4 +1,4 @@
 @media (max-width: 640px) {
-  .swipe-sheet { touch-action: pan-x; }
-  .swipe-sheet::before { content: ""; display: block; width: 38px; height: 4px; margin: 8px auto 12px; border-radius: 999px; background: currentColor; opacity: .3; }
+  .swipe-handle, .swipe-heading { touch-action: none; }
+  .swipe-handle::before { content: ""; display: block; width: 38px; height: 4px; margin: 8px auto 12px; border-radius: 999px; background: currentColor; opacity: .3; }
 }

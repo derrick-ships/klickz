@@ -16,21 +16,22 @@ export function useSwipeDismiss<T extends HTMLElement>(axis: "x" | "y", dismiss:
       while (node && node !== event.currentTarget) { if (axis === "y" && node.scrollTop > 0) return; node = node.parentElement; }
       if (axis === "y" && event.currentTarget.scrollTop > 0) return;
       const value = coord(event); drag.current = { id: event.pointerId, start: value, last: value, time: event.timeStamp, velocity: 0 };
-      event.currentTarget.style.transition = "none"; event.currentTarget.setPointerCapture(event.pointerId);
+      if(ref.current) ref.current.style.transition = "none"; event.currentTarget.setPointerCapture(event.pointerId);
     },
     onPointerMove(event: PointerEvent<T>) {
       const state = drag.current; if (!state || state.id !== event.pointerId) return;
       const value = coord(event), delta = Math.max(0, value - state.start), elapsed = event.timeStamp - state.time;
       if (elapsed > 0) state.velocity = (value - state.last) / elapsed;
       state.last = value; state.time = event.timeStamp;
-      event.currentTarget.style.transform = axis === "y" ? `translateY(${delta}px)` : `translateX(${delta}px)`;
+      if(ref.current) ref.current.style.transform = axis === "y" ? `translateY(${delta}px)` : `translateX(${delta}px)`;
     },
     onPointerUp(event: PointerEvent<T>) {
       const state = drag.current; if (!state || state.id !== event.pointerId) return;
       drag.current = null; const distance = Math.max(0, coord(event) - state.start);
-      const size = axis === "y" ? event.currentTarget.offsetHeight : event.currentTarget.offsetWidth;
-      if (shouldDismiss(distance, size, state.velocity)) { reset(event.currentTarget); dismiss(); } else reset(event.currentTarget);
+      const sheet = ref.current; if(!sheet) return;
+      const size = axis === "y" ? sheet.offsetHeight : sheet.offsetWidth;
+      if (shouldDismiss(distance, size, state.velocity)) { reset(sheet); dismiss(); } else reset(sheet);
     },
-    onPointerCancel(event: PointerEvent<T>) { drag.current = null; reset(event.currentTarget); },
+    onPointerCancel() { drag.current = null; if(ref.current) reset(ref.current); },
   } };
 }

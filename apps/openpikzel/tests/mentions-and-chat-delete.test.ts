@@ -1,6 +1,7 @@
 import { it, expect } from "vitest";
 import { mentionSegments, unmention, mentioned } from "../src/components/creative/mention-list";
 import { chatDeletionPlan } from "../src/lib/chat-delete";
+import { commitChatDeletion } from "../src/lib/chat-delete-commit";
 import { personaIdentityContract } from "../src/lib/instructions";
 
 it("marks every saved-persona mention, longest name first, and leaves other @text alone", () => {
@@ -26,6 +27,16 @@ it("deletes a chat's thumbnails, their PNG and JPG files and chat-only reference
   const plan = chatDeletionPlan("c1", creations, [u + "/persona/face.png"]);
   expect(plan.creationIds).toEqual(["a", "b", "d"]);
   expect(plan.paths.sort()).toEqual([u + "/creations/a.jpg", u + "/creations/a.png", u + "/references/r1.png", u + "/references/upload.png"].sort());
+});
+
+it("reports whether a failed chat delete changed any thumbnail rows", async () => {
+  const fail = async () => { throw new Error("failed"); };
+  expect(await commitChatDeletion(["a"], fail, async () => {})).toBe("failed-nothing-changed");
+  expect(await commitChatDeletion(["a"], async () => {}, fail)).toBe("partial");
+  expect(await commitChatDeletion([], async () => {}, fail)).toBe("failed-nothing-changed");
+  expect(await commitChatDeletion(["a"], async () => {}, async () => {})).toBe("done");
+  let calls = 0;
+  expect(await commitChatDeletion(["a", "b"], async () => { if (++calls === 2) throw new Error("failed"); }, async () => {})).toBe("partial");
 });
 
 it("tells the image model to keep several people distinct", () => {

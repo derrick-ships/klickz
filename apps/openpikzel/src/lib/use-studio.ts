@@ -21,6 +21,7 @@ import type { VisionProvider } from "./vision-provider";
 import { missingVisionKeyMessage } from "./score-on-generate";
 import { forgetPendingRequest, rememberPendingRequest } from "./pending-requests";
 import { chatDeletionPlan } from "./chat-delete";
+import { commitChatDeletion } from "./chat-delete-commit";
 import { canScore } from "./scorers";
 type Asset = { id: string; blob: Blob };
 type Collection = "creations" | "personas" | "styles" | "elements" | "conversations";
@@ -811,10 +812,10 @@ export function useStudio() {
       setPendingDeletes(current=>current[id]?{...current,[id]:{...current[id],committing:true}}:current);
       await waitForIdle(); // never drop a delete because another action holds the lock
       if(epoch!==ownerEpoch.current){dropPending(id);return;}
-      const done=await run(kind==="creations"?"Deleting creation":"Deleting",async()=>{if(kind==="conversations")await deleteConversation(id);else await remove(kind,id);return true;});
-      if(done){dropPending(id);return;}
-      // Not deleted (workspace stayed busy or the request failed): put it back so nothing vanishes silently.
-      dropPending(id);setError("That item wasn't deleted. Try again.");
+      const status=await run(kind==="creations"?"Deleting creation":"Deleting",async()=>{if(kind==="conversations")return deleteConversation(id);await remove(kind,id);return "done" as const;});
+      dropPending(id);
+      if(status === "partial"){try{await load();}catch{} setError("Part of that chat was deleted. Refresh to see what's left.");}
+      else if(status !== "done")setError("That item wasn't deleted. Try again.");
     });
   }
   // Leaving the studio (client navigation) cancels waiting deletes: the items stay, nothing half-done.
@@ -837,15 +838,17 @@ export function useStudio() {
    */
   async function deleteConversation(chatId: string) {
     const epoch = ownerEpoch.current; ensureCurrentOwner();
-    if(pendingChats.current.delete(chatId)){setConversations(items=>items.filter(c=>c.id!==chatId));return chatDeletionPlan(chatId, creations, []);}
+    if(pendingChats.current.delete(chatId)){setConversations(items=>items.filter(c=>c.id!==chatId));return "done" as const;}
     const plan = chatDeletionPlan(chatId, creations, [...personas.flatMap((p) => p.refs), ...styles.flatMap((s) => s.refs), ...elements.flatMap(e=>e.refs),...creations.filter(c=>c.conversation_id!==chatId).flatMap(c=>c.lineage?.elementReferencePaths||[])]);
     if (cloud) {
-      if (plan.creationIds.length) {
+      const status = await commitChatDeletion(plan.creationIds.length ? ["batch"] : [], async () => {
         const rows = await db.current!.from("studio_creations").delete().eq("user_id", user).in("id", plan.creationIds);
-        if (rows.error) throw new Error("This chat's thumbnails could not be deleted. Nothing was removed; try again.");
-      }
-      const chat = await db.current!.from("studio_conversations").delete().eq("user_id", user).eq("id", chatId);
-      if (chat.error) throw new Error("The chat could not be deleted. Its thumbnails were removed; try deleting the chat again.");
+        if (rows.error) throw rows.error;
+      }, async () => {
+        const chat = await db.current!.from("studio_conversations").delete().eq("user_id", user).eq("id", chatId);
+        if (chat.error) throw chat.error;
+      });
+      if(status !== "done") return status;
       let filesLeft = 0;
       for (let i = 0; elementsAvailable.current && i < plan.paths.length; i += 100) {
         const removed = await db.current!.storage.from("studio-assets").remove(plan.paths.slice(i, i + 100));
@@ -856,15 +859,15 @@ export function useStudio() {
       await load();
       ensureCurrentOwner();
       if (filesLeft) throw new Error("The chat was deleted, but " + filesLeft + " image file" + (filesLeft === 1 ? "" : "s") + " could not be removed from storage. Try again later.");
-      return plan;
+      return "done" as const;
     }
-    for (const id of plan.creationIds) await localDelete("creations", id);
-    await localDelete("conversations", chatId);
+    const status = await commitChatDeletion(plan.creationIds, id => localDelete("creations", id), () => localDelete("conversations", chatId));
+    if(status !== "done") return status;
     if(elementsAvailable.current)for (const path of plan.paths) await localDelete("assets", path);
     setConversations((items) => items.filter((c) => c.id !== chatId));
     await load();
     ensureCurrentOwner();
-    return plan;
+    return "done" as const;
   }
   async function favorite(item: Creation) {
     const epoch = ownerEpoch.current, next = !item.favorite;
@@ -925,7 +928,7 @@ export function useStudio() {
     await db.current?.auth.signOut({ scope: "local" });
   }
   return {
-    pendingDeletes,pendingProfileDeletes,queueDelete,undoDelete,queueProfileDelete,undoProfileDelete, pauseDelete:(id:string)=>deleteQueue.current?.pause(id), resumeDelete:(id:string)=>deleteQueue.current?.resume(id), deleteDeadline:(id:string)=>deleteQueue.current?.deadline(id),
+    pendingDeletes,pendingProfileDeletes,queueDelete,undoDelete,queueProfileDelete,undoProfileDelete, pauseDelete:(id:string,reason?:string)=>deleteQueue.current?.pause(id,reason), resumeDelete:(id:string,reason?:string)=>deleteQueue.current?.resume(id,reason), deleteDeadline:(id:string)=>deleteQueue.current?.deadline(id),
     conversations,skipPersonaTutorial,saveConversation,persistConversation,createConversation,deleteConversation,saveTutorialPreference,feedback,importYouTube,
     config,
     retryConnections: () => { if (config) setConnectionRetry(n => n + 1); else location.reload(); },

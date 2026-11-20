@@ -7,7 +7,6 @@ export function createOtpScheduler(submit: (code: string) => void) {
       cancel();
       const value = raw.replace(/\D/g, "").slice(0, 8);
       if (value.length === 8 || (pasted && value.length === 6)) submit(value);
-      else if (value.length === 6) timer = setTimeout(() => { timer = undefined; submit(value); }, 1500);
       return value;
     },
   };
