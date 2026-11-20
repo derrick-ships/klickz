@@ -71,7 +71,7 @@ export function GenerationDelivery({state,portrait,images=[],requested,selectedI
  const arrivedWhileWaiting=generating?images.length:0;
  const detail=generating?(arrivedWhileWaiting?arrivedWhileWaiting+" of "+count:progress!==null?Math.round(progress*100)+"%":null):state.total>1?Math.min(state.total,state.reviewed+1)+" of "+state.total:null;
  const resultCount=Math.min(images.length,16);
- const doneLine=failed?"Didn’t finish. Check API activity before you try again.":state.stage==="review-pending"&&!scoring?"Some scores didn’t finish.":tray&&resultCount>1?"Tap one to review it.":null;
+ const doneLine=failed?"Didn’t finish. Check your creations before trying again.":state.stage==="review-pending"&&!scoring?"Some scores didn’t finish.":tray&&resultCount>1?"Tap one to review it.":null;
  return <section ref={region} className={"generation-delivery "+(!active?"delivery-compact":"")} aria-label="Thumbnail delivery" data-stage={state.stage}>
   {(generating||leaving||tray)&&<div className="delivery-slot">
    {tray&&<div className={"delivery-grid delivery-result "+(portrait?"portrait":"")} data-count={resultCount}>{images.slice(0,16).map((image,index)=><DeliveredTile key={image.id} image={image} index={index} hold={leaving}
