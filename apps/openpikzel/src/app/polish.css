@@ -23,6 +23,7 @@ p { text-wrap: pretty; }
 .chat-row-wrap .row-menu summary { min-width: 32px; }
 .chat-row-rename { display: flex; min-width: 0; }
 .chat-row-rename input { width: 100%; min-width: 0; }
-.undo-stack { left: 24px; bottom: 72px; transform: none; align-items: flex-start; }
-@media (max-width: 640px) { .undo-stack { left: 16px; bottom: calc(112px + env(safe-area-inset-bottom)); } }
+.undo-stack { left: 50%; bottom: 72px; transform: translateX(-50%); align-items: center; }
+@media (min-width: 761px) { .sidebar-open .undo-stack { left: calc(50% + var(--sidebar-width) / 2); } }
+@media (max-width: 640px) { .undo-stack { left: 50%; bottom: calc(112px + env(safe-area-inset-bottom)); } }
 .account-page .signin-form { margin-top: 24px; }

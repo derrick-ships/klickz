@@ -529,7 +529,7 @@ export default function Studio() {
       setTitle(current => item.conversation_id && item.conversation_id === activeChatId ? current : (studio.conversations.find(c => c.id === item.conversation_id)?.draft.title ?? item.score?.context?.title ?? ""));
       if(item.settings)setSettings({...defaultSettings,...item.settings,batch:1});setTab("studio");
       if(compactNavigation){setSidebar(false);requestAnimationFrame(()=>mainRef.current?.focus());}
-      },item.id,source);
+      },item.id,source,()=>window.scrollTo({top:0,behavior:"instant"}));
       return true;
     });return changed===true;
   }
@@ -1437,7 +1437,7 @@ export default function Studio() {
           )}
           {tab === "studio" ? (
             <>
-              {studio.loading && <ResultSkeleton/>}
+              {studio.loading && selection && <ResultSkeleton/>}
               {hasReviewImage && resultPanel}
               {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}><span>Fix it<small className="paid-cue">Uses credits</small></span></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={(c,source)=>c.status==="draft"?resume(c):choose(c,source)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}

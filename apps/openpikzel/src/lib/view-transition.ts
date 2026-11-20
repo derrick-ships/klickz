@@ -1,10 +1,11 @@
 import { flushSync } from "react-dom";
 
 /** Runs `update` exactly once: inside a view transition when the browser supports it, otherwise directly. */
-export function withViewTransition(update: () => void, id?: string, source?: HTMLElement | null) {
+export function withViewTransition(update: () => void, id?: string, source?: HTMLElement | null, afterUpdate?: () => void) {
   let applied = false;
   const apply = () => { if (applied) return; applied = true; update(); };
-  if (typeof document === "undefined" || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) { apply(); return; }
+  const finish = () => afterUpdate?.();
+  if (typeof document === "undefined" || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) { flushSync(apply); finish(); return; }
   if (!source || source.dataset.transitionCreation !== id || !source.isConnected) source = null;
   const name = id ? `thumb-${id.replace(/[^a-zA-Z0-9_-]/g, "-")}` : "";
   const cleanup = () => {
@@ -17,6 +18,7 @@ export function withViewTransition(update: () => void, id?: string, source?: HTM
     const transition = document.startViewTransition(() => {
       if (source) source.style.viewTransitionName = "";
       flushSync(apply);
+      finish();
       const target = document.querySelector<HTMLElement>(".result-transition-image");
       if (target && id && target.dataset.transitionCreation === id) target.style.viewTransitionName = name;
     });
@@ -24,6 +26,7 @@ export function withViewTransition(update: () => void, id?: string, source?: HTM
     transition.finished.catch(() => {}).finally(() => { apply(); cleanup(); });
   } catch {
     cleanup();
-    apply();
+    flushSync(apply);
+    finish();
   }
 }
