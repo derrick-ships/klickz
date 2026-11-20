@@ -1027,9 +1027,9 @@ export default function Studio() {
                                 ? "Generate titles"
                                 : tool === "edit" ? "Apply edit" : tool === "recreate" ? "Create variation" : "Create"}
                         </span>
+                        {readiness.action === "run" && !busy && <small className="composer-paid-cue">Uses credits</small>}
                       </button>
                     </div>
-                    {readiness.action === "run" && <small className="composer-paid-cue">Uses credits</small>}
                   </div>
   );
   const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy} connectedShownNearby={readiness.keyNote.connected&&readiness.keyNote.provider===(textProvider==="openai"?"OpenAI":"Google")}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Review the image itself for specific advice (one extra AI request)</label></>;
@@ -1098,7 +1098,7 @@ export default function Studio() {
                           {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const movesFocus=!!(e.target as HTMLElement).closest('[data-moves-focus]');const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; if(!movesFocus)requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
                             {score&&<><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download full size</button>
-                        <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." onClick={resize}>AI resize to {selected.settings?.format === "short" ? "long-form" : "short-form"}</button>
+                        <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." data-copy-law="allow-long" onClick={resize}>Make {selected.settings?.format === "short" ? "wide" : "vertical"} version<small> · uses credits</small></button>
                             <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
                             {studio.cloud&&selected.image_path&&<button type="button" className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}>Score history</button>}
                             <button type="button" className="menu-item" aria-pressed={phone} onClick={()=>setPhone(x=>!x)}>Feed preview</button>
@@ -1265,7 +1265,7 @@ export default function Studio() {
                         <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
                       </>}
                       {scoreView.kind==="no-jev"&&<button type="button" className="neutral-button" onClick={()=>setDialog("connections")}>Keys</button>}
-                      {scoreView.kind==="failed"&&<button type="button" data-copy-law="allow-long" className="neutral-button" disabled={busy} title="Uses credits" onClick={()=>{void retryScore();}}>Retry score</button>}
+                      {scoreView.kind==="failed"&&<button type="button" data-copy-law="allow-long" className="neutral-button" disabled={busy} title="Uses credits" onClick={()=>{void retryScore();}}>Retry score<small> · uses credits</small></button>}
                       <p className="score-disclaimer">Scoring uses your AI account’s credits. Scores estimate how clear and clickable the image looks; they aren’t real click data.</p>
                     </aside>
                   ) : null}
