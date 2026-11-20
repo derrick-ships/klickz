@@ -255,7 +255,7 @@ export default function Studio() {
     dialogTriggerRef = useRef<HTMLElement | null>(null),
     reviewHeadingRef = useRef<HTMLHeadingElement>(null),
     draftFingerprintRef = useRef("");
-  const dialogSwipe = useSwipeDismiss<HTMLDivElement>("y", () => setDialog(null), dialog === "help" || dialog === "analysis");
+  const dialogSwipe = useSwipeDismiss<HTMLDialogElement>("y", () => setDialog(null), dialog === "help" || dialog === "analysis");
   const moreSwipe = useSwipeDismiss<HTMLDivElement>("y", () => { const menu = moreSwipe.ref.current?.parentElement as HTMLDetailsElement | null; if (menu) { menu.open = false; menu.querySelector<HTMLElement>("summary")?.focus(); } });
   const draftFingerprint = JSON.stringify({ prompt, title, tool, personaIds, elementIds, styleId, preset, refs, settings, parentId });
   draftFingerprintRef.current = draftFingerprint;
@@ -2074,14 +2074,15 @@ export default function Studio() {
       </dialog>
       <dialog
         aria-labelledby="studio-dialog-title"
-        ref={dialogRef}
+        ref={el=>{dialogRef.current=el; dialogSwipe.ref.current=el;}}
+        className={dialog === "help" || dialog === "analysis" ? "mobile-bottom-sheet" : undefined}
         onCancel={() => setDialog(null)}
         onClose={() => { if (!dialogRef.current?.open) { setDialog(null); restoreDialogFocus(); } }}
         onClick={(e) => {
           if (e.target === e.currentTarget) setDialog(null);
         }}
       >
-        <div ref={dialogSwipe.ref} className={"dialog-shell" + (dialog === "help" || dialog === "analysis" ? " swipe-sheet" : "")}>
+        <div className={"dialog-shell" + (dialog === "help" || dialog === "analysis" ? " swipe-sheet" : "")}>
           {(dialog === "help" || dialog === "analysis") && <div className="swipe-handle" {...dialogSwipe.handlers} aria-hidden="true"/>}
           <div className={"dialog-heading" + (dialog === "help" || dialog === "analysis" ? " swipe-heading" : "")} {...(dialog === "help" || dialog === "analysis" ? dialogSwipe.handlers : {})}>
             <h2 id="studio-dialog-title">
