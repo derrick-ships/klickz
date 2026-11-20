@@ -5,4 +5,5 @@
 .thumb-image-main { object-fit: cover; opacity: 0; transition: opacity 200ms ease-out; }
 .thumb-image-main.is-loaded { opacity: 1; }
 .thumb-image-error { display: grid; place-items: center; color: #555; font-size: .8rem; }
+::view-transition-group(*) { animation-duration: 250ms; animation-timing-function: ease-out; }
 @media (prefers-reduced-motion: reduce) { .thumb-image-main { transition: none; } }

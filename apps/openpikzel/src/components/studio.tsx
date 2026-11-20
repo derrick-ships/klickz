@@ -75,6 +75,7 @@ import { needsImageReview } from "@/lib/score-on-generate";
 import { MediatorDetails } from "@/components/creative/mediator-details";
 import { setRevealOwner } from "@/components/creative/image-reveal";
 import { ThumbImage } from "@/components/thumb-image";
+import { withViewTransition } from "@/lib/view-transition";
 import { createArrivals, staggerPositions } from "@/lib/image-reveal";
 import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
 const AnalysisHistory=dynamic(()=>import("@/components/creative/analysis-history").then(m=>m.AnalysisHistory),{loading:()=> <p role="status">Reading history…</p>});
@@ -503,7 +504,7 @@ export default function Studio() {
        else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaIds([]);setElementIds([]);setStyleId("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setDelivery(null);setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
       }
       setParentId(item.image_path?item.id:item.parent_id);
-      setComposerOpen(false);setSaveReceipt(0);setSelection(item.id);
+      setComposerOpen(false);setSaveReceipt(0);withViewTransition(()=>setSelection(item.id),item.id);
       setTitle(current => item.conversation_id && item.conversation_id === activeChatId ? current : (studio.conversations.find(c => c.id === item.conversation_id)?.draft.title ?? item.score?.context?.title ?? ""));
       if(item.settings)setSettings({...defaultSettings,...item.settings,batch:1});setTab("studio");
       if(compactNavigation){setSidebar(false);requestAnimationFrame(()=>mainRef.current?.focus());}
@@ -2335,7 +2336,7 @@ export default function Studio() {
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <ThumbImage src={studio.images[item.image_path]} thumbSrc={studio.thumbs[thumbPath(item.image_path)]} alt={item.title} aspect={item.settings?.format === "short" ? "9:16" : "16:9"} />
+            <ThumbImage creationId={item.id} src={studio.images[item.image_path]} thumbSrc={studio.thumbs[thumbPath(item.image_path)]} alt={item.title} aspect={item.settings?.format === "short" ? "9:16" : "16:9"} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />

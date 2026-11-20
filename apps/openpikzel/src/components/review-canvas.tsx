@@ -28,7 +28,7 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
   const image = <div className={`result-image ${feed ? "phone-preview" : ""} ${portrait ? "portrait" : ""}`}>
     {!size && <span className="review-preview-loading" role="status">Loading image…</span>}
     {!feed && size && badge}
-    <ThumbImage key={src} src={src} alt={title} aspect={portrait ? "9:16" : "16:9"} priority
+    <ThumbImage key={src} className="result-transition-image" creationId={creationId} src={src} alt={title} aspect={portrait ? "9:16" : "16:9"} priority
       onLoad={image=>setSize({width:image.naturalWidth,height:image.naturalHeight})}
       onError={()=>setFailed(true)}/>
   </div>;
