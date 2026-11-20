@@ -184,7 +184,7 @@ export function ConnectionsPage() {
       ) : (
         <>
           <section id="api" className="account-panel">
-            {saved ? <><h2>You&apos;re ready.</h2><a className="primary-button inline-link" href="/studio">Start creating</a></> : <>
+            {connectionRead === "succeeded" && connections.some(c => c.provider === "openai" || c.provider === "google") ? <><h2>You&apos;re ready.</h2><a className="primary-button inline-link" href="/studio">Start creating</a></> : <>
               <h2>1. Open OpenAI</h2><p>Sign in or create an account.</p>
               <a className="neutral-button inline-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Open OpenAI</a>
               <h2>2. Add credit</h2><p>Add $5 or more. You pay OpenAI directly.</p>
