@@ -156,7 +156,7 @@ export default function Studio() {
   useEffect(() => {
     const close = (menu: HTMLDetailsElement, focus = false) => { menu.open = false; if (focus) menu.querySelector<HTMLElement>('summary')?.focus(); };
     const onToggle = (event: Event) => { const menu = event.target; if (!(menu instanceof HTMLDetailsElement) || !menu.matches('.row-menu') || !menu.open) return; document.querySelectorAll<HTMLDetailsElement>('.row-menu[open]').forEach(other => { if (other !== menu) close(other); }); };
-    const onPointer = (event: PointerEvent) => { document.querySelectorAll<HTMLDetailsElement>('.row-menu[open]').forEach(menu => { if (!menu.contains(event.target as Node)) close(menu); }); };
+    const onPointer = (event: PointerEvent) => { document.querySelectorAll<HTMLDetailsElement>('.row-menu[open]').forEach(menu => { if (!menu.contains(event.target as Node)) close(menu, true); }); };
     const onKey = (event: KeyboardEvent) => { if (event.key !== 'Escape') return; const menu = document.querySelector<HTMLDetailsElement>('.row-menu[open]'); if (menu) { event.preventDefault(); event.stopPropagation(); close(menu, true); } };
     document.addEventListener('toggle', onToggle, true); document.addEventListener('pointerdown', onPointer); document.addEventListener('keydown', onKey, true);
     return () => { document.removeEventListener('toggle', onToggle, true); document.removeEventListener('pointerdown', onPointer); document.removeEventListener('keydown', onKey, true); };

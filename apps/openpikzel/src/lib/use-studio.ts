@@ -84,7 +84,8 @@ export function useStudio() {
       void (async () => {
         try {
           const blob = await makeThumb(task.url, task.portrait);
-          if (document.visibilityState !== 'visible' || userRef.current !== task.owner || !db.current) return;
+          if (document.visibilityState !== 'visible') { backfillQueue.current.unshift(task); return; }
+          if (userRef.current !== task.owner || !db.current) return;
           const storage = db.current.storage.from('studio-assets'), path = thumbPath(task.path);
           const result = await storage.upload(path, blob, {contentType:'image/jpeg', upsert:false});
           if (result.error || userRef.current !== task.owner) return;
