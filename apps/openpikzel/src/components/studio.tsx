@@ -118,6 +118,7 @@ type Dialog =
   | "jobs"
   | "login"
   | "delete-chat"
+  | "help"
   | null;
 const modes = [
   { id: "generate", label: "Create", icon: ImagePlus },
@@ -1381,6 +1382,7 @@ export default function Studio() {
             {!sidebar && <span className="workspace-name">OpenPikzels</span>}
           </div>
           <div className="topbar-actions">
+            <button type="button" className="icon-button" aria-label="Help" onClick={()=>setDialog("help")}>?</button>
             <button type="button"
               className="quiet-button"
               onClick={() => setDialog("connections")}
@@ -2073,7 +2075,7 @@ export default function Studio() {
         <div className="dialog-shell">
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
-              {dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
+              {dialog==="help"?"Help":dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
                 ? profileDialogTitle || "Your personas"
                 : dialog === "elements"
                   ? profileDialogTitle || "Your elements"
@@ -2106,6 +2108,7 @@ export default function Studio() {
           {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} onRetry={()=>void retryScore(true)} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button type="button" className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
+          {dialog === "help" && <dl className="help-glossary"><dt>Thumbnail score</dt><dd>A guide to your thumbnail’s strengths.</dd><dt>Virality</dt><dd>Stands out in the feed.</dd><dt>Clarity</dt><dd>Easy to read, small.</dd><dt>Idea</dt><dd>The idea is clear.</dd><dt>Curiosity</dt><dd>Makes people want to click.</dd><dt>Emotion</dt><dd>Shows a real feeling.</dd><dt>Fix</dt><dd>Makes a new version using credits.</dd><dt>People</dt><dd>Saved faces for your thumbnails.</dd><dt>Look</dt><dd>A reusable visual style.</dd><dt>Jev</dt><dd>The AI that scores your thumbnail.</dd></dl>}
           {dialog === "references" && (
             <>
               <p className="dialog-description">
