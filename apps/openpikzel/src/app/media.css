@@ -1,0 +1,8 @@
+.thumb-image { display: block; position: relative; overflow: hidden; width: 100%; background: #dedede; }
+.thumb-image-placeholder, .thumb-image-gradient, .thumb-image-main, .thumb-image-error { position: absolute; inset: 0; width: 100%; height: 100%; }
+.thumb-image-placeholder { object-fit: cover; filter: blur(12px); transform: scale(1.1); }
+.thumb-image-gradient { background: linear-gradient(135deg, #e5e5e5, #cfcfcf); }
+.thumb-image-main { object-fit: cover; opacity: 0; transition: opacity 200ms ease-out; }
+.thumb-image-main.is-loaded { opacity: 1; }
+.thumb-image-error { display: grid; place-items: center; color: #555; font-size: .8rem; }
+@media (prefers-reduced-motion: reduce) { .thumb-image-main { transition: none; } }

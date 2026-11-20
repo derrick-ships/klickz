@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { ThumbImage } from "@/components/thumb-image";
 import { styleCategories, styleLibrary } from "@/lib/style-library";
 
 /** Pre-made styles, filterable by category. Picking one uses its examples as style references. */
@@ -18,7 +19,7 @@ export function StyleLibraryGrid({ onPick }: { onPick: (id: string) => void }) {
       <div className="style-library-grid">
         {shown.map((style) => (
           <button key={style.id} type="button" className="style-library-card" onClick={() => onPick(style.id)} aria-label={`${style.name}, ${style.category}`}>
-            <img src={style.images[0]} alt="" loading="lazy" width={480} height={270} />
+            <ThumbImage src={style.images[0]} alt="" aspect="16:9" />
             <span><strong>{style.name}</strong><small>{style.category}</small></span>
           </button>
         ))}

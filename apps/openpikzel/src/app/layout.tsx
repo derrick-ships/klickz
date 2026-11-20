@@ -5,6 +5,7 @@ import "./review.css";
 import "./creative.css";
 import "./welcome.css";
 import "./polish.css";
+import "./media.css";
 export const metadata: Metadata = {
   title: "OpenPikzels",
   description:

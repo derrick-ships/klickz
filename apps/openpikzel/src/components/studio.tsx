@@ -73,7 +73,8 @@ import { ReviewCanvas } from "@/components/review-canvas";
 import { ScoreBadge } from "@/components/creative/score-badge";
 import { needsImageReview } from "@/lib/score-on-generate";
 import { MediatorDetails } from "@/components/creative/mediator-details";
-import { RevealImage, setRevealOwner } from "@/components/creative/image-reveal";
+import { setRevealOwner } from "@/components/creative/image-reveal";
+import { ThumbImage } from "@/components/thumb-image";
 import { createArrivals, staggerPositions } from "@/lib/image-reveal";
 import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
 const AnalysisHistory=dynamic(()=>import("@/components/creative/analysis-history").then(m=>m.AnalysisHistory),{loading:()=> <p role="status">Reading history…</p>});
@@ -1335,7 +1336,7 @@ export default function Studio() {
         <div className="history-list">
           {!studio.loading && <ChatHistory chats={studio.conversations} creations={studio.creations.filter(c=>!pendingDeletes[c.id])} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
           {studio.creations.some(c=>!c.conversation_id&&!pendingDeletes[c.id])&&<p className="legacy-history-label">Recent creations</p>}
-          {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.thumbs[thumbPath(item.image_path)]||studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
+          {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<ThumbImage src={studio.images[item.image_path]} thumbSrc={studio.thumbs[thumbPath(item.image_path)]} alt="" aspect={item.settings?.format==="short"?"9:16":"16:9"}/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
         <div className="sidebar-bottom">
 
@@ -2334,7 +2335,7 @@ export default function Studio() {
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.thumbs[thumbPath(item.image_path)] || studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt={item.title} />
+            <ThumbImage src={studio.images[item.image_path]} thumbSrc={studio.thumbs[thumbPath(item.image_path)]} alt={item.title} aspect={item.settings?.format === "short" ? "9:16" : "16:9"} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />

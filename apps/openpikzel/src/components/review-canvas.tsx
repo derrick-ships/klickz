@@ -3,7 +3,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { checkImage, verdicts, type FeedCheck } from "@/lib/feed-check";
 import { RefreshCw, ScanLine, MoreVertical, Play, Check, AlertTriangle } from "lucide-react";
-import { RevealImage } from "@/components/creative/image-reveal";
+import { ThumbImage } from "@/components/thumb-image";
 import type { Arrival } from "@/lib/image-reveal";
 
 export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId, arrival, uploaded, badge }: {
@@ -28,9 +28,8 @@ export function ReviewCanvas({ src, title, feed, portrait, onRefresh, creationId
   const image = <div className={`result-image ${feed ? "phone-preview" : ""} ${portrait ? "portrait" : ""}`}>
     {!size && <span className="review-preview-loading" role="status">Loading image…</span>}
     {!feed && size && badge}
-    <RevealImage key={src} surface="canvas" creationId={creationId} arrival={arrival} uploaded={uploaded} src={src} alt={title}
-      width={size?.width ?? (portrait ? 720 : 1280)} height={size?.height ?? (portrait ? 1280 : 720)}
-      onLoad={event=>setSize({width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight})}
+    <ThumbImage key={src} src={src} alt={title} aspect={portrait ? "9:16" : "16:9"} priority
+      onLoad={image=>setSize({width:image.naturalWidth,height:image.naturalHeight})}
       onError={()=>setFailed(true)}/>
   </div>;
   return <figure className="review-canvas" data-preview={feed?"feed":"full"} aria-busy={!failed&&!size}>
