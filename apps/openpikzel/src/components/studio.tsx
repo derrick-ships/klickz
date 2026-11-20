@@ -76,6 +76,7 @@ import { MediatorDetails } from "@/components/creative/mediator-details";
 import { setRevealOwner } from "@/components/creative/image-reveal";
 import { ThumbImage } from "@/components/thumb-image";
 import { withViewTransition } from "@/lib/view-transition";
+import { useSwipeDismiss } from "@/lib/use-swipe-dismiss";
 import { createArrivals, staggerPositions } from "@/lib/image-reveal";
 import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
 const AnalysisHistory=dynamic(()=>import("@/components/creative/analysis-history").then(m=>m.AnalysisHistory),{loading:()=> <p role="status">Reading history…</p>});
@@ -241,6 +242,8 @@ export default function Studio() {
     dialogTriggerRef = useRef<HTMLElement | null>(null),
     reviewHeadingRef = useRef<HTMLHeadingElement>(null),
     draftFingerprintRef = useRef("");
+  const dialogSwipe = useSwipeDismiss<HTMLDivElement>("y", () => setDialog(null), dialog === "help" || dialog === "analysis");
+  const moreSwipe = useSwipeDismiss<HTMLDivElement>("y", () => { const menu = moreSwipe.ref.current?.parentElement as HTMLDetailsElement | null; if (menu) { menu.open = false; menu.querySelector<HTMLElement>("summary")?.focus(); } });
   const draftFingerprint = JSON.stringify({ prompt, title, tool, personaIds, elementIds, styleId, preset, refs, settings, parentId });
   draftFingerprintRef.current = draftFingerprint;
   // OP-10: creations that arrive this session (after this account's library loaded) may reveal once; a batch shares one arrival.
@@ -1097,7 +1100,7 @@ export default function Studio() {
                         </button>
                         <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
-                          {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const movesFocus=!!(e.target as HTMLElement).closest('[data-moves-focus]');const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; if(!movesFocus)requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
+                          {/* copy-law: advanced */}<div ref={moreSwipe.ref} {...moreSwipe.handlers} className="result-more-menu swipe-sheet" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const movesFocus=!!(e.target as HTMLElement).closest('[data-moves-focus]');const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; if(!movesFocus)requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
                             {score&&<><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download full size</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." data-copy-law="allow-long" onClick={resize}>Make {selected.settings?.format === "short" ? "wide" : "vertical"} version<small> · uses credits</small></button>
@@ -2062,7 +2065,7 @@ export default function Studio() {
           if (e.target === e.currentTarget) setDialog(null);
         }}
       >
-        <div className="dialog-shell">
+        <div ref={dialogSwipe.ref} {...dialogSwipe.handlers} className={"dialog-shell" + (dialog === "help" || dialog === "analysis" ? " swipe-sheet" : "")}>
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
               {dialog==="help"?"Help":dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
