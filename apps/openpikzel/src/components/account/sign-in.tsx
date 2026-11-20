@@ -135,7 +135,7 @@ export function AccountSignIn({
       void (sending ? sendEmail() : verify());
     }}>
       <h2>{step === "code" ? "Check your email" : mode === "signup" ? "Create your free account" : "Sign in to OpenPikzels"}</h2>
-      {step === "entry" && <p>Enter your email to sign in or create an account.</p>}
+      {step === "entry" ? <p>Enter your email to sign in or create an account.</p> : <p>Check your email for a 6- or 8-digit code.</p>}
       <label hidden={step === "code"}>Email
         <input ref={emailInput} type="email" required autoComplete="email" autoCapitalize="none" spellCheck={false}
           readOnly={step === "code"} disabled={busy} aria-describedby={status ? statusId : undefined}
@@ -150,7 +150,7 @@ export function AccountSignIn({
       <p id={statusId} role="status" className={authError ? "account-inline-error" : "signin-status"}>{status}</p>
       {step === "code" && <label>Email sign-in code
         <input ref={codeInput} aria-describedby={status ? statusId : undefined} aria-invalid={authError || undefined}
-          inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8}
+          inputMode="numeric" autoComplete="one-time-code" pattern="([0-9]{6}|[0-9]{8})" minLength={6} maxLength={8}
           required disabled={busy} value={code} onChange={e => { setCode(e.target.value.replace(/[^0-9]/g, "")); setAuthError(false); }} />
       </label>}
       <button type="submit" className="primary-button" disabled={busy || (sending && remaining > 0)}>
@@ -159,9 +159,8 @@ export function AccountSignIn({
           : step === "code" ? "Sign in" : mode === "signup" ? "Create account" : "Use password"}
       </button>
       {step === "code" && <>
-        <button type="button" className="neutral-button" disabled={busy || remaining > 0} onClick={() => void sendEmail()}>
-          {remaining > 0 ? "Send again in " + remaining + "s" : "Send again"}
-        </button>
+        {remaining > 0 ? <p role="status">Send again in {remaining}s</p> :
+          <button type="button" className="neutral-button" disabled={busy} onClick={() => void sendEmail()}>Send again</button>}
         <button type="button" className="neutral-button" disabled={busy} onClick={() => changeMode("email")}>Change email</button>
       </>}
       {/* copy-law: advanced */}

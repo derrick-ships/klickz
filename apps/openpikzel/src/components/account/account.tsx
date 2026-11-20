@@ -92,6 +92,7 @@ export function ConnectionsPage() {
     [notice, setNotice] = useState(""),
     [showRevoked, setShowRevoked] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [keyError, setKeyError] = useState("");
   const [higgsfield, setHiggsfield] = useState(false), [higgsfieldTools, setHiggsfieldTools] = useState<string[]>([]);
   const [connectionRead, setConnectionRead] = useState<"loading" | "succeeded" | "failed">("loading");
   const connectionEpoch = useRef(0), connectionOwner = useRef("");
@@ -185,17 +186,22 @@ export function ConnectionsPage() {
         <>
           <section id="api" className="account-panel">
             {connectionRead === "succeeded" && connections.some(c => c.provider === "openai" || c.provider === "google") ? <><h2>You&apos;re ready.</h2><a className="primary-button inline-link" href="/studio">Start creating</a></> : <>
-              <h2>1. Open OpenAI</h2><p>Sign in or create an account.</p>
+              <h2>1. Open OpenAI</h2>
               <a className="neutral-button inline-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Open OpenAI</a>
-              <h2>2. Add credit</h2><p>Add $5 or more. You pay OpenAI directly.</p>
-              <a href="https://platform.openai.com/settings/organization/billing" target="_blank" rel="noopener noreferrer">Add credit</a>
-              <h2>3. Paste your key</h2>
-              <form className="account-form key-form" onSubmit={e => { e.preventDefault(); void action(async () => {
-                const submitted = key; setKey("");
+              <p>Sign in. Then tap &apos;Create new secret key&apos;.</p>
+              <h2>2. Add credit</h2>
+              <a className="neutral-button inline-link" href="https://platform.openai.com/settings/organization/billing" target="_blank" rel="noopener noreferrer">Add credit</a>
+              <p>Add $5. It pays for your images.</p>
+              <h2>3. Paste your key</h2><p>It starts with sk-</p>
+              <form className="account-form key-form" onSubmit={e => { e.preventDefault();
+                const submitted = key.trim();
+                if (!submitted.startsWith("sk-") || submitted.length <= 3) { setKeyError("That doesn't look like a key. It starts with sk-."); return; }
+                setKeyError(""); void action(async () => {
                 await api("/api/providers", "POST", { provider: "openai", key: submitted });
-                await refresh(); setSaved(true);
+                setKey(""); await refresh(); setSaved(true);
               }); }}>
-                <label>Key<input type="password" autoComplete="off" spellCheck={false} required minLength={12} value={key} onChange={e => setKey(e.target.value)} /></label>
+                <label>Key<input type="password" autoComplete="off" spellCheck={false} required value={key} aria-invalid={!!keyError} aria-describedby={keyError ? "key-error" : undefined} onChange={e => { setKey(e.target.value); setKeyError(""); }} /></label>
+                {keyError && <p id="key-error" className="account-inline-error" role="alert">{keyError}</p>}
                 <p>We keep it private. You can remove it anytime.</p>
                 <button type="submit" className="primary-button" disabled={busy || !config?.secureConnections}>{busy ? "Saving…" : "Save"}</button>
               </form>
@@ -336,6 +342,7 @@ export function ConnectionsPage() {
         </p>
       )}
       <p role="status">{notice}</p>
+      <a className="account-help" href="mailto:derrickserna.ca@gmail.com">Need help? Email us</a>
     </main>
   );
 }

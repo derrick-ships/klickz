@@ -17,11 +17,12 @@ test("email-first flow snapshots recipient, prevents repeats and supports changi
   await page.goto("/connect");
   await expect(page.getByLabel("Password",{exact:true})).toHaveCount(0);
   await page.getByLabel("Email",{exact:true}).fill("creator@example.com");
-  await page.getByRole("button",{name:"Email me a sign-in link",exact:true}).click();
+  await page.getByRole("button",{name:"Send code",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Check your email"})).toBeVisible();
-  await expect(page.getByRole("status").filter({hasText:"Open the sign-in link"})).toBeVisible();
+  await expect(page.getByText("Check your email for a 6- or 8-digit code.")).toBeVisible();
   await expect(page.getByLabel("Email",{exact:true})).toHaveAttribute("readonly","");
-  await expect(page.getByRole("button",{name:/Send again in/})).toBeDisabled();
+  await expect(page.getByRole("status").filter({hasText:/Send again in/})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Send again",exact:true})).toHaveCount(0);
   expect(sent).toHaveLength(1);
   expect(sent[0]).toMatchObject({email:"creator@example.com"});
   await page.getByLabel("Email sign-in code",{exact:true}).fill("123456");
@@ -30,7 +31,7 @@ test("email-first flow snapshots recipient, prevents repeats and supports changi
   await expect(page.getByLabel("Email sign-in code",{exact:true})).toHaveCount(0);
   await page.getByLabel("Email",{exact:true}).fill("second@example.com");
   await page.clock.fastForward(61_000);
-  await page.getByRole("button",{name:"Email me a sign-in link",exact:true}).click();
+  await page.getByRole("button",{name:"Send code",exact:true}).click();
   await expect.poll(() => sent.length).toBe(2);
   await expect(page.getByLabel("Email sign-in code",{exact:true})).toHaveValue("");
   expect(sent[1]).toMatchObject({email:"second@example.com"});

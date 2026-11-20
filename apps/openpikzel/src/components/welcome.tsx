@@ -10,7 +10,7 @@ export function Welcome() {
      <h1 id="welcome-title" className="welcome-headline">No designer.<br/>No photoshoots.<br/><span>Less guesswork.</span></h1>
      <p className="welcome-lead">Make, score and fix your thumbnail.</p>
      <a className="welcome-primary" href="/studio">Start</a>
-     <p className="welcome-cost-inline">You’ll need an AI key. We’ll help.</p>
+     <p className="welcome-cost-inline">You’ll need an AI key. <a href="/connect">We’ll show you how.</a></p>
     </div>
     <figure className="welcome-example"><img src="/styles/blueprint-1.webp" alt="Example thumbnail from the style library"/><figcaption>Example · illustrative score</figcaption>
      <div className="welcome-score"><div className="welcome-score-heading"><strong>61<small>/100</small></strong><span>Score</span></div>
@@ -20,7 +20,7 @@ export function Welcome() {
     </figure>
    </section>
    <section className="welcome-closing">
-    {/* copy-law: advanced */}<details className="welcome-privacy"><summary>What we store</summary><div><p>Local drafts, reference images, personas and styles can be saved in this browser. With a cloud account, we store your account, conversations and prompts, creations and private images, personas, styles, analyses, feedback and job metadata.</p><p>Cloud connections store encrypted API keys and connection tokens so the server can use them for your requests. Saved keys are not returned to the interface. AI requests send the necessary inputs to your selected providers, whose terms and retention policies apply.</p></div></details>{/* copy-law: end */}
+    {/* copy-law: advanced */}<details className="welcome-privacy"><summary>What we store</summary><div><p>Local drafts, reference images, people and styles can be saved in this browser. With a cloud account, we store your account, conversations and prompts, creations and private images, people, styles, analyses, feedback and job metadata.</p><p>Cloud connections store encrypted API keys and connection tokens so the server can use them for your requests. Saved keys are not returned to the interface. AI requests send the necessary inputs to your selected providers, whose terms and retention policies apply.</p></div></details>{/* copy-law: end */}
    </section>
   </main></div>;
 }
