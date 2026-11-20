@@ -7,10 +7,9 @@ type Node = { type: string; value?: string; name?: string | Node; children?: Nod
 export const copyLawFiles = [
   "src/components/welcome.tsx", "src/components/account/account.tsx",
   "src/components/account/sign-in.tsx", "src/components/account/consent.tsx",
-  "src/app/connect/page.tsx", "src/app/local-companion/page.tsx", "src/app/not-found.tsx",
+  "src/app/connect/page.tsx", "src/app/local-companion/page.tsx", "src/app/not-found.tsx", "src/components/studio.tsx",
 ];
-// TODO: Enable after the studio lane has adopted the copy law.
-export const pendingFiles = ["src/components/studio.tsx"];
+export const pendingFiles: string[] = [];
 // These components render only inside the collapsed developer section.
 export const advancedFiles = ["src/components/account/codex-connection.tsx", "src/components/account/models-panel.tsx"];
 const banned = /\b(?:API|provider|model|token|MCP|OAuth|Jev|Flare|Sunburst|lever|rubric|mediator|lineage|batch|reconciling|Planning effort|Profile preparation provider)\b/i;

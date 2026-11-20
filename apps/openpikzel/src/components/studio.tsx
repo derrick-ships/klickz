@@ -1099,7 +1099,7 @@ export default function Studio() {
                         </button>
                         <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
-                          <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
+                          {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
                             {score&&<><button type="button" className="menu-item" onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download PNG (original)</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." onClick={resize}>AI resize to {selected.settings?.format === "short" ? "long-form" : "short-form"} · uses image credits</button>
@@ -1107,7 +1107,7 @@ export default function Studio() {
                             {studio.cloud&&selected.image_path&&<button type="button" className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}>Score history</button>}
                             <button type="button" className="menu-item" aria-pressed={phone} onClick={()=>setPhone(x=>!x)}>Feed preview</button>
                             <details className="provenance-details"><summary>What we sent to the AI <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
-                          </div>
+                          </div>{/* copy-law: end */}
                         </details>
                       </div>
                       {comparisons[selected.id]&&<p className="fix-outcome" data-improved={comparisons[selected.id].improved} role="status">{comparisons[selected.id].improved?<><TrendingUp size={14} aria-hidden="true"/>{comparisons[selected.id].before??"–"} → {comparisons[selected.id].after??"–"}</>:<>No gain ({comparisons[selected.id].after??"–"} vs {comparisons[selected.id].before??"–"}) · Kept the better one</>}</p>}
@@ -1431,7 +1431,7 @@ export default function Studio() {
             <>
               {needsKey && <section className="key-first"><h1>One step before you start</h1><p>Add an AI key. It lets OpenPikzels make images for you.</p><a className="primary-button" href="/connect">Add key</a><label htmlFor="first-draft">Your idea</label><textarea id="first-draft" value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="What’s your video about?"/><button type="button" className="neutral-button" onClick={saveDraft}>Save draft</button></section>}
               {!needsKey && <>{hasReviewImage && resultPanel}
-              {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it · uses credits</button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
+              {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it <small>Uses credits</small></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
@@ -1763,7 +1763,7 @@ export default function Studio() {
                     ) : (
                       <>
                         <details className="more-options" open={advanced} onToggle={e=>setAdvanced((e.currentTarget as HTMLDetailsElement).open)}><summary>More options</summary>
-                          <div className="more-options-body">
+                          {/* copy-law: advanced */}                          <div className="more-options-body">
                         {settings.model.startsWith("gemini-") && (
                           <p className="dialog-footnote">
                             Google uses its native 1K image output. Quality and
@@ -1885,7 +1885,7 @@ export default function Studio() {
                               Higher settings may take longer and cost more with your provider.
                             </p>
                           </div></section>
-                          </div>
+                          </div>{/* copy-law: end */}
                         </details>
                       </>
                     )}
@@ -2109,7 +2109,7 @@ export default function Studio() {
           {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} onRetry={()=>void retryScore(true)} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button type="button" className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
-          {dialog === "help" && <dl className="help-glossary"><dt>Thumbnail score</dt><dd>A guide to your thumbnail’s strengths.</dd><dt>Virality</dt><dd>Stands out in the feed.</dd><dt>Clarity</dt><dd>Easy to read, small.</dd><dt>Idea</dt><dd>The idea is clear.</dd><dt>Curiosity</dt><dd>Makes people want to click.</dd><dt>Emotion</dt><dd>Shows a real feeling.</dd><dt>Fix</dt><dd>Makes a new version using credits.</dd><dt>People</dt><dd>Saved faces for your thumbnails.</dd><dt>Look</dt><dd>A reusable visual style.</dd><dt>Jev</dt><dd>The AI that scores your thumbnail.</dd></dl>}
+          {dialog === "help" && <dl className="help-glossary"><dt>Thumbnail score</dt><dd>A guide to your thumbnail’s strengths.</dd><dt>Virality</dt><dd>Stands out in the feed.</dd><dt>Clarity</dt><dd>Easy to read, small.</dd><dt>Idea</dt><dd>The idea is clear.</dd><dt>Curiosity</dt><dd>Makes people want to click.</dd><dt>Emotion</dt><dd>Shows a real feeling.</dd><dt>Fix</dt><dd>Makes a new version using credits.</dd><dt>People</dt><dd>Saved faces for your thumbnails.</dd><dt>Look</dt><dd>A reusable visual style.</dd><dt>{"Jev"}</dt><dd>The AI that scores your thumbnail.</dd></dl>}
           {dialog === "references" && (
             <>
               <p className="dialog-description">
@@ -2161,16 +2161,14 @@ export default function Studio() {
           {dialog === "jobs" && (
             <div className="activity-stack">
               <p>
-                Requests remain here after a reload. If the outcome is still
-                being checked, API credits may already have been used. Wait and
-                check My creations before trying again.
+                Check My creations before trying again.
               </p>
               <button type="button" className="neutral-button full-width" disabled={activity.loading} onClick={()=>void showJobs()}>Refresh activity</button>
               {activity.active>0&&!activity.paused&&<button type="button" className="neutral-button full-width" onClick={activity.pause}>Stop waiting</button>}
-              {activity.paused&&<p role="status">Status refresh paused. Provider work may still finish and use credits. This does not cancel it.</p>}
+              {activity.paused&&<p role="status">Work may still finish and use credits.</p>}
               {activity.error&&<p role="alert">{activity.error}</p>}
               <p>Reloading resumes status checks. Closing the page can interrupt automatic review; saved results stay in your library. No paid request is resubmitted by this viewer.</p>
-              {!activity.error&&!activity.loading&&!jobs.length&&<p>No API requests in this workspace yet.</p>}
+              {!activity.error&&!activity.loading&&!jobs.length&&<p>No requests yet.</p>}
               {jobs.map((j) => (
                 <div className="job-row" key={j.id}>
                   <strong>{jobOperationLabel(j.operation)}</strong>
@@ -2232,9 +2230,7 @@ export default function Studio() {
           {dialog === "fixplan" && (
             <>
               <p className="dialog-description">
-                Preview the changes first, then choose whether to spend API
-                credits on one new image. Your original stays saved. The new
-                image is scored after it is created.
+                Preview changes before spending credits. Your original stays saved.
               </p>
               {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
               {[
@@ -2265,7 +2261,7 @@ export default function Studio() {
                 disabled={busy}
                 onClick={prepareFix}
               >
-                Preview fixes · no API charge
+                Preview
               </button>
               {fixReview?.plan && (
                 <>
@@ -2276,7 +2272,7 @@ export default function Studio() {
                     <strong>Video promise:</strong> {fixReview.plan.videoBrief}
                   </p>
                   <dl className="fix-settings">
-                    <div><dt>Model</dt><dd>{fixReview.plan.settings.model}</dd></div>
+                    <div><dt>Image settings</dt><dd>{fixReview.plan.settings.model}</dd></div>
                     <div><dt>Quality</dt><dd>{fixReview.plan.settings.quality}</dd></div>
                     <div><dt>Images</dt><dd>1</dd></div>
                   </dl>
@@ -2295,7 +2291,7 @@ export default function Studio() {
                     disabled={busy}
                     onClick={applyFix}
                   >
-                    Generate fix with API credits
+                    Fix it
                   </button>
                 </>
               )}
@@ -2305,15 +2301,13 @@ export default function Studio() {
           {dialog === "connections" && (
             <div className="connections-stack">
               <p className="dialog-description">
-                Your workspace uses your own OpenAI, Google and Jev keys.
-                Connect providers, manage agent access and copy MCP instructions
-                in Settings.
+                Manage your AI connections in Settings.
               </p>
               <ul>{([["openai", "OpenAI"], ["google", "Google"], ["anthropic", "Claude"], ["jev", "Jev"], ["youtube", "YouTube"]] as const).map(([id, name]) => <li key={id}>{name}: {!studio.config || studio.config.connectionStatus === "failed" ? "Status unavailable" : studio.config.connectionStatus === "loading" ? "Checking…" : studio.config[id] ? "Connected" : "Not connected"}</li>)}</ul>
               <a href="/connect" className="neutral-button inline-link full-width">
                 Manage connections
               </a>
-              {studio.cloud&&<button type="button" className="neutral-button full-width" onClick={()=>void showJobs()}>View API activity</button>}
+              {studio.cloud&&<button type="button" className="neutral-button full-width" onClick={()=>void showJobs()}>View activity</button>}
               <p className="dialog-footnote">
                 Your keys are encrypted and private to your account. Agent tools
                 never receive them.
