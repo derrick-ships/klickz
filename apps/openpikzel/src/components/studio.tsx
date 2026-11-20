@@ -1084,7 +1084,7 @@ export default function Studio() {
                       {score && <p className="result-verdict">{weakest ? `Good start. ${verdict[weakest]}` : "Score again for more detail."} {score.overall !== null && <strong>{score.overall}/100</strong>} <button type="button" className="neutral-button mobile-score-toggle" onClick={()=>setDialog("analysis")}>See scores</button></p>}
                       <div className="result-actions">
                         {score && <button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it <small>Uses credits</small></button>}
-                        {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score thumbnail</button>}
+                        {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score <small>Uses credits</small></button>}
                         <button type="button"
                           className="neutral-button download-button"
                           disabled={busy}
@@ -1099,7 +1099,7 @@ export default function Studio() {
                         </button>
                         <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
-                          {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
+                          {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
                             {score&&<><button type="button" className="menu-item" onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download PNG (original)</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." onClick={resize}>AI resize to {selected.settings?.format === "short" ? "long-form" : "short-form"} · uses image credits</button>
@@ -2284,7 +2284,7 @@ export default function Studio() {
                     disabled={busy}
                     onClick={applyFix}
                   >
-                    Fix it
+                    Fix it <small>Uses credits</small>
                   </button>
                 </>
               )}
