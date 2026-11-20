@@ -66,6 +66,7 @@ export const reviewSchema = z
     audience: z.string().trim().max(200).default(""),
     includeVision: z.boolean().default(false),
     rescore: z.boolean().default(false),
+    scorer: z.literal("jev").optional(),
     critiqueProvider: visionProviderSchema,
     requestId: z
       .string()

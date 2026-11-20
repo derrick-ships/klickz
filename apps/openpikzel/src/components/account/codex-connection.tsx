@@ -45,7 +45,7 @@ export function CodexConnection({signedIn,enabled,api}:{signedIn:boolean;enabled
     <a className="neutral-button" href={verify} target="_blank" rel="noopener noreferrer">Open OpenAI sign-in</a>
     <p role="status">Waiting for OpenAI approval…{status.expiresAt?" Expires at "+new Date(status.expiresAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})+".":""}</p>
     <button type="button" className="neutral-button" disabled={busy} onClick={()=>void act("cancel")}>Cancel sign-in</button>
-   </div>:<button type="button" className="primary-button" disabled={busy||status.phase==="loading"} onClick={()=>void act("start")}>{busy?"Connecting…":status.connected?"Connect another ChatGPT account":"Continue with ChatGPT"}</button>}
+   </div>:<button type="button" className={status.connected?"neutral-button":"primary-button"} disabled={busy||status.phase==="loading"} onClick={()=>void act("start")}>{busy?"Connecting…":status.connected?"Connect another ChatGPT account":"Continue with ChatGPT"}</button>}
    {status.phase==="expired"&&<p role="status">That code expired. Start a new sign-in.</p>}
    {status.phase==="failed"&&<p role="status">Sign-in was not completed. You can try again.</p>}
    {status.connected&&!pending&&<div className="codex-device-step">

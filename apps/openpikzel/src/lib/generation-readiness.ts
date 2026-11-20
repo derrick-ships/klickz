@@ -3,6 +3,7 @@ import {imageCostCents,imageCostCopy,imageCostShort,imageOutputEstimate} from ".
 import type {Config,Settings,TextProvider} from "./types";
 import {imageModel} from "./image-models";
 import {pickVisionProvider} from "./vision-provider";
+export function canApplyEdit(prompt:string, sourcePrompt?:string|null){return !!prompt.trim() && prompt.trim()!==sourcePrompt?.trim();}
 export function generationReadiness(input:{config:Config|null;cloud:boolean;loading:boolean;tool:string;titleIdeas:boolean;settings:Settings;prompt:string;title:string;hasSource:boolean;hasReferences:boolean;includeVision:boolean;textProvider?:TextProvider;autoReview?:boolean}){
  const {config,cloud,loading,tool,titleIdeas,settings}=input,model=imageModel(settings.model);
  const selectedText=input.textProvider||"openai", textProvider=selectedText==="openai"?"OpenAI":"Google", textConnected=!!config?.[selectedText];
@@ -11,11 +12,11 @@ export function generationReadiness(input:{config:Config|null;cloud:boolean;load
  const provider=operation==="analysis"?scorer:operation==="titles"?textProvider:model.providerName;
  const visionProvider=pickVisionProvider(config||{});
  const connected=operation==="analysis"?canScore(config):operation==="titles"?textConnected:config?.[model.provider];
- const connectionCheckFailed=config?.connectionStatus==="failed";
+ const connectionCheckFailed=!config || config.connectionStatus==="failed";
  let readiness=loading?"Checking your workspace…":connectionCheckFailed?"Connection status could not load. Open Connections to refresh before using AI.":!cloud?"Sign in and connect your own API key.":!config?.ai?"AI is not enabled in this workspace.":!connected?"Connect your "+provider+" API key in Connections.":operation==="analysis"&&input.includeVision&&!visionProvider?"Connect a Claude, OpenAI, or Google API key for the extra image review.":operation==="analysis"&&!input.hasSource?"Choose a thumbnail to analyze.":tool==="edit"&&!input.hasSource&&!input.hasReferences?"Choose an image to edit.":tool==="recreate"&&!input.hasReferences?"Add a reference thumbnail to recreate.":tool==="title"&&!titleIdeas&&!input.title.trim()&&!input.prompt.trim()?"Add a video title or direction before generating.":operation!=="analysis"&&(titleIdeas?(input.prompt||input.title).trim().length<8:tool!=="title"&&input.prompt.trim().length<8)?"Describe what you want to create or change (8 characters minimum).":"Connection saved. Model access and balance are checked when you run.";
  const identity=operation==="image"?provider+" · "+model.name:operation==="titles"?provider+" · "+((textProvider==="Google"?config?.textModels?.google:config?.textModels?.openai)||"configured text model"): "Jev · "+(config?.scoreModel||"configured scoring model")+(input.includeVision?" + "+(visionProvider==="anthropic"?"Claude":visionProvider==="google"?"Google":visionProvider==="openai"?"OpenAI":"Claude, OpenAI or Google")+" image review":"");
  const quantity=operation==="image"?settings.batch+" image"+(settings.batch===1?"":"s")+" · "+(settings.format==="short"?"9:16":"16:9"):operation==="titles"?"Five title ideas":"One thumbnail analysis"+(input.includeVision?" + one image review":"");
- const action=loading?"loading":connectionCheckFailed?"connect":cloud&&!config?.ai?"unavailable":!cloud?"signin":!connected||operation==="analysis"&&input.includeVision&&!visionProvider?"connect":"run";
+ const action=loading?"loading":connectionCheckFailed?"retry":cloud&&!config?.ai?"unavailable":!cloud?"signin":!connected||operation==="analysis"&&input.includeVision&&!visionProvider?"connect":"run";
  const costShort=operation==="image"?imageCostShort(settings)+" + score":undefined;
  const costDescription=operation==="image"?"Estimated image output about $"+imageCostCents(settings).toFixed(2)+" for "+settings.batch+" image"+(settings.batch===1?"":"s")+", plus a score. Inputs and any analysis are extra.":undefined;
  // One line beside the action: name the key in use once it is known to be connected, otherwise point to Connections.

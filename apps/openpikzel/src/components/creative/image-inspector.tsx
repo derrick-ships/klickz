@@ -90,7 +90,7 @@ export function ImageInspector({src,title}:{src:string;title:string}){
  return <figure className="image-inspector">
  <div className="image-inspector-controls" role="group" aria-label="Image inspection controls">
   <button type="button" className="icon-button" aria-label="Zoom out" disabled={failed||percent<=100} onClick={()=>zoom(view.current.scale-1)}><Minus size={18}/></button>
-  <output aria-label="Image zoom" aria-live="polite">{percent}%</output>
+  <output aria-label="Image zoom" aria-live="polite">{percent===100?'Fit':`${percent}%`}</output>
   <button type="button" className="icon-button" aria-label="Zoom in" disabled={failed||percent>=400} onClick={()=>zoom(view.current.scale+1)}><Plus size={18}/></button>
   <button type="button" className="quiet-button" aria-label="Fit image" disabled={failed} onClick={()=>zoom(1)}><RotateCcw size={15}/>Fit</button>
  </div>
@@ -106,7 +106,7 @@ export function ImageInspector({src,title}:{src:string;title:string}){
   }}>
   {failed?<p role="alert">This image could not load. Close this panel and refresh your workspace.</p>:<img className="image-inspector-photo" ref={photo} src={src} alt={title} draggable={false} onLoad={e=>{natural.current={width:e.currentTarget.naturalWidth,height:e.currentTarget.naturalHeight};setAspect(natural.current.width+" / "+natural.current.height);measure();}} onError={()=>{stop();setFailed(true);}}/>}
  </div>
- <p id={hint} className="image-inspector-hint">Double-tap to zoom. Drag when zoomed; Fit shows the whole image. Keyboard: +, −, arrows and Home.</p>
+ <p id={hint} className="image-inspector-hint"><span className="inspector-touch-hint">Double-tap</span><span className="inspector-pointer-hint">Double-click</span> to zoom. Drag when zoomed; Fit shows the whole image. Keyboard: +, −, arrows and Home.</p>
  <figcaption>{title}</figcaption>
  <a className="image-inspector-original" href={src} target="_blank" rel="noopener noreferrer">Open original image</a>
  </figure>;

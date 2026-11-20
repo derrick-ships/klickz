@@ -87,11 +87,10 @@ export function analysisInputDigest(input: {
     instructionVersion,
   });
 }
-/** Lowest-scoring pillar that has a TRUE flag; falls back to the lowest-scoring pillar. */
+/** Lowest displayed assessed score among the eligible pillars. */
 export function worstFlaggedPillar(dimensions: Evaluation["dimensions"], among: readonly Pillar[] = pillars): Pillar | undefined {
   const byScore = (a: Pillar, b: Pillar) => (dimensions[a]?.score ?? 100) - (dimensions[b]?.score ?? 100);
-  const flagged = among.filter((p) => dimensions[p]?.flags?.length).sort(byScore);
-  return flagged[0] ?? [...among].sort(byScore)[0];
+  return [...among].filter((p) => dimensions[p]?.score !== null).sort(byScore)[0];
 }
 export const diagnosticDefaults: DiagnosticContext = {
   videoBrief: "",
@@ -162,6 +161,7 @@ export function enrichDiagnostic(
         .filter(
           (p) =>
             dimensions[p].score !== null &&
+            !dimensions[p].generalAdvice &&
             dimensions[p].weakness.trim() &&
             dimensions[p].fix.trim() &&
             dimensions[p].confidence >= 0.3 &&
@@ -353,7 +353,7 @@ export function compileFixPlan(
     throw new AppError(400, "Unknown or duplicate fix issue.");
   if (ids.length > 3)
     throw new AppError(400, "Select at most three supported changes.");
-  const operations = (score.issues || []).filter((i) => ids.includes(i.id));
+  const operations = (score.issues || []).filter((i) => ids.includes(i.id)).sort((a, b) => (score.dimensions[a.pillar].score ?? 100) - (score.dimensions[b.pillar].score ?? 100));
   if (!operations.length)
     return {
       kind: "noop",

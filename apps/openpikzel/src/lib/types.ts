@@ -76,6 +76,7 @@ export type Dimension = {
   strength: string;
   weakness: string;
   fix: string;
+  generalAdvice?: boolean;
   /** TRUE flags only, from pillarFlagVocabulary[pillar]. Absent on older scores. */
   flags?: PillarFlag[];
   /** Up to three concrete edits for this pillar; fix === suggestions[0] when present. */

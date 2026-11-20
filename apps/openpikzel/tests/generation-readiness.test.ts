@@ -1,10 +1,11 @@
 import {describe,it,expect} from "vitest";
-import {generationReadiness} from "../src/lib/generation-readiness";
+import {canApplyEdit,generationReadiness} from "../src/lib/generation-readiness";
 import {defaultSettings,type Config} from "../src/lib/types";
 import {imageModel} from "../src/lib/image-models";
 const config:Config={cloud:true,ai:true,openai:true,jev:true,anthropic:false,google:false,supabaseUrl:"",supabaseKey:"",ownerGate:false,textModels:{openai:"configured-openai-text",google:"configured-google-text"},scoreModel:"configured-jev"};
 const base={config,cloud:true,loading:false,tool:"generate",titleIdeas:false,settings:defaultSettings,prompt:"A clear visual idea",title:"",hasSource:false,hasReferences:false,includeVision:false};
 describe("request readiness",()=>{
+ it("requires a distinct edit instruction",()=>{expect(canApplyEdit("  ","original")).toBe(false);expect(canApplyEdit(" original ","original")).toBe(false);expect(canApplyEdit("brighten the face","original")).toBe(true);});
  it("does not treat any connected image provider as the selected provider",()=>{expect(generationReadiness({...base,settings:{...defaultSettings,model:"gemini-pro"}}).readiness).toContain("Connect your Google");expect(generationReadiness({...base,config:{...config,openai:false,google:true}}).readiness).toContain("Connect your OpenAI");});
  it("shows actual mappings and explicitly unknown spend",()=>{const r=generationReadiness({...base,settings:{...defaultSettings,batch:4,format:"short"}});expect(r.apiModel).toContain(imageModel("flare").apiModel);expect(r.quantity).toBe("4 images · 9:16");expect(r.cost).toContain("total remains unknown");expect(r.readiness).toContain("Connection saved");});
  it("explains sign-in, disabled AI, missing source and incomplete prompt",()=>{expect(generationReadiness({...base,cloud:false}).readiness).toContain("Sign in");expect(generationReadiness({...base,config:{...config,ai:false}}).readiness).toContain("not enabled");expect(generationReadiness({...base,tool:"edit"}).readiness).toContain("Choose an image");expect(generationReadiness({...base,tool:"recreate"}).readiness).toContain("reference");expect(generationReadiness({...base,prompt:""}).readiness).toContain("8 characters minimum");});
@@ -17,7 +18,7 @@ it("shows verified output-only estimates with input and analysis charges left ex
 
 it("does not block image generate when Jev or a vision key is missing",()=>{expect(generationReadiness({...base,config:{...config,jev:false}})).toMatchObject({action:"run"});expect(generationReadiness({...base,includeVision:true,textProvider:"google",config:{...config,google:false}})).toMatchObject({action:"run"});});
 
-it("treats failed provider lookup as unknown instead of claiming a key is disconnected",()=>{const value=generationReadiness({...base,config:{...config,connectionStatus:"failed"}});expect(value).toMatchObject({action:"connect",connectionCheckFailed:true});expect(value.readiness).toContain("Connection status could not load");});
+it("treats failed provider lookup as unknown instead of claiming a key is disconnected",()=>{const value=generationReadiness({...base,config:{...config,connectionStatus:"failed"}});expect(value).toMatchObject({action:"retry",connectionCheckFailed:true});expect(value.readiness).toContain("Connection status could not load");});
 
 it("gives the generate button a short image cost and a spoken description, only for image requests",()=>{
  const r=generationReadiness({...base,settings:{...defaultSettings,quality:"medium",batch:1}});

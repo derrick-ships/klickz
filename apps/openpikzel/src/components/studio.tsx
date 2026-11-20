@@ -6,15 +6,16 @@ import {GenerationDelivery} from "@/components/creative/generation-delivery";
 import {deliverImages,type DeliveryState,type ReviewStatus} from "@/lib/generation-delivery";
 import type {CreativeDraft} from "@/components/creative/creative-partner";
 import {ProviderChoice} from "@/components/creative/provider-choice";
-import { generationReadiness } from "@/lib/generation-readiness";
+import { canApplyEdit, generationReadiness } from "@/lib/generation-readiness";
 import { pickVisionProvider } from "@/lib/vision-provider";
 import { critiqueProviderFromScore, reviewerName, scorePlan, scoreStatusCopy, scoreStatusFromEvaluation } from "@/lib/score-on-generate";
 import { canScore } from "@/lib/scorers";
 import { GEMINI_FIX_NOTICE } from "@/lib/fix-plan-notice";
 import { compareScore } from "@/lib/score-compare";
+import { scoreTone } from "@/lib/score-tone";
 import { promptValidationError } from "@/lib/prompt-validation";
 import {useRequestActivity} from "@/lib/use-request-activity";
-import { jobGuidance } from "@/lib/job-state";
+import { jobGuidance, jobOperationLabel, uncertainJobAdvice } from "@/lib/job-state";
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import {
@@ -84,7 +85,7 @@ import {OperationProgress} from "@/components/creative/progress";
 import {usePersonaMentions,MentionMirror,MAX_PERSONAS,unmention} from "@/components/creative/mention-list";
 import {ChatHistory,ChatTitle,ChatTimeline} from "@/components/creative/chat";
 import { readDraftCheckpoint, writeDraftCheckpoint } from "@/lib/draft-checkpoint";
-import type {Conversation,WorkspaceDraft} from "@/lib/workspaces";
+import {automaticChatTitle, type Conversation, type WorkspaceDraft} from "@/lib/workspaces";
 import { useStudio } from "@/lib/use-studio";
 import { DialogOverflowCue } from "@/components/dialog-overflow-cue";
 import { TypingExamples } from "@/components/creative/typing-examples";
@@ -151,7 +152,10 @@ export default function Studio() {
   const workspaceEpoch=useRef(0);
   const chatCreation=useRef<{owner:string|null;epoch:number;promise:Promise<Conversation>}|null>(null);
   const [pendingResult,setPendingResult]=useState<string|null>(null);
+  const [legacyNotice,setLegacyNotice]=useState(false);
   const [chatToDelete,setChatToDelete]=useState<Conversation|null>(null);
+  const [creationToDelete,setCreationToDelete]=useState<Creation|null>(null);
+  const deleteCreationDialog=useRef<HTMLDialogElement>(null);
   const hydratedOwner=useRef(""),chatIdRef=useRef<string|null>(null),ownerUI=useRef(studio.user),userPickedTool=useRef(false);ownerUI.current=studio.user;chatIdRef.current=activeChatId;
   const [tool, setTool] = useState<Tool>("generate"),
     [settings, setSettings] = useState<Settings>(defaultSettings),
@@ -303,8 +307,12 @@ export default function Studio() {
   });
   useEffect(() => {
     const initial = new URL(location.href).searchParams.get("mode");
-    if (initial) setTool(visibleTool(initial));
+    if (initial) { setTool(visibleTool(initial)); if (["edit","recreate","title"].includes(initial)) setLegacyNotice(true); }
   }, []);
+  useEffect(() => {
+    const closeMore=(event:PointerEvent)=>{document.querySelectorAll<HTMLDetailsElement>('.result-more[open]').forEach(menu=>{if(!menu.contains(event.target as Node))menu.open=false;});};
+    document.addEventListener('pointerdown',closeMore);return()=>document.removeEventListener('pointerdown',closeMore);
+  },[]);
   useEffect(() => {
     const media = matchMedia("(max-width: 1024px)");
     const adapt = () => { setCompactNavigation(media.matches); setSidebar(!media.matches); };
@@ -394,7 +402,7 @@ export default function Studio() {
     if(chatCreation.current?.owner===owner&&chatCreation.current.epoch===epoch)return chatCreation.current.promise;
     const promise=studio.createConversation().then(async chat=>{
       if(ownerUI.current!==owner)throw new Error("Your account changed. Open your current workspace again.");
-      const saved={...chat,title:initialDraft.prompt?.trim().slice(0,80)||chat.title,draft:initialDraft,updated_at:new Date().toISOString()};
+      const saved={...chat,title:automaticChatTitle(initialDraft.title),draft:initialDraft,updated_at:new Date().toISOString()};
       await studio.saveConversation(saved,"draft");
       if(ownerUI.current===owner&&workspaceEpoch.current===epoch&&chatIdRef.current===startingChat){
         chatIdRef.current=chat.id;setActiveChatId(chat.id);
@@ -430,7 +438,7 @@ export default function Studio() {
       finally{if(wasActive){startNew();setPersonaIds([]);setElementIds([]);setStyleId("");setPreset("Auto");setDelivery(null);}}
     });
   }
-  async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();const chat=await studio.createConversation();activateChat(chat);startNew();});}
+  async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);localStorage.removeItem("openpikzels.activeChat."+(studio.user||"local"));startNew();});}
   useEffect(()=>{workspaceEpoch.current++;userPickedTool.current=false;setActiveChatId(null);chatCreation.current=null;setHydratedWorkspace("");hydratedOwner.current="";setPrompt("");setTitle("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setReviewStatuses({});setIncludeVision(null);setTextProvider("openai");setDelivery(null);setTitles([]);setBlindPair(null);setReviewResult("");setFixReviews({});setDialog(null);setChatSaveState("");},[studio.user]);
   useEffect(()=>{
     if(studio.loading)return;const key=studio.user||"local";if(hydratedOwner.current===key)return;hydratedOwner.current=key;
@@ -460,7 +468,7 @@ export default function Studio() {
       void (async()=>{
         const chat=activeChat||await ensureChat();
         if(cancelled||ownerUI.current!==owner||chatIdRef.current!==chat.id)return;
-        await studio.saveConversation({...chat,title:chat.title==="New chat"&&draft.prompt?.trim()?draft.prompt.trim().slice(0,80):chat.title,draft,updated_at:new Date().toISOString()},"draft");
+        await studio.saveConversation({...chat,title:chat.title==="New chat"?automaticChatTitle(draft.title):chat.title,draft,updated_at:new Date().toISOString()},"draft");
         if(!cancelled&&ownerUI.current===owner&&chatIdRef.current===chat.id)setChatSaveState(studio.cloud?"Saved to your workspace":"Saved on this device");
       })().catch(()=>{if(!cancelled&&ownerUI.current===owner)setChatSaveState(checkpointSaved?"Saved on this device. Workspace sync failed.":"Draft not saved. Keep this page open.");});
     },300);
@@ -499,7 +507,7 @@ export default function Studio() {
   async function resume(item: Creation) {
     if(!await choose(item))return;
     setComposerOpen(true);
-    setPrompt(item.prompt);
+    setPrompt(item.mode === "edit" ? "" : item.prompt);
     setTool(
       ["generate", "recreate", "edit", "title"].includes(item.mode)
         ? (item.mode as Tool)
@@ -636,14 +644,14 @@ export default function Studio() {
       ...(plan.review?{review:(item:Creation)=>{const intent={title:input.title||"",includeVision:plan.includeVision,videoUrl,critiqueProvider:plan.critiqueProvider};scoreIntent.current[item.id]=intent;return studio.analyze(item,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined).then(result=>{noteComparison(item.id,result);return result;});},onReview:(itemId,status)=>setReviewStatuses(current=>({...current,[itemId]:status})),holdMs:45_000}:{}),
     });
   }
-  async function retryScore(){
+  async function retryScore(jevOnly=false){
     if(!selected)return;
     const plan=scorePlan(studio.config);
     const intent=scoreIntent.current[selected.id]||{title,includeVision:plan.includeVision,videoUrl,critiqueProvider:plan.critiqueProvider};
     const id=selected.id;
     setReviewStatuses(current=>({...current,[id]:"pending"}));
     const ok=await studio.run("Retrying score",async()=>{
-      const result=await studio.analyze(selected,intent.title,"",intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined);
+      const result=await studio.analyze(selected,intent.title,"",jevOnly ? false : intent.includeVision,intent.videoUrl,intent.critiqueProvider||undefined,jevOnly ? {rescore:true,scorer:"jev"} : undefined);
       noteComparison(id,result);return true;
     });
     setReviewStatuses(current=>({...current,[id]:ok?"scored":"failed"}));
@@ -653,6 +661,7 @@ export default function Studio() {
 
   async function submit(scoreOnly = false) {
     if (!workspaceReady) return;
+    if (!scoreOnly && tool==="edit" && !canApplyEdit(prompt,editSource?.prompt)) { setPromptError("Describe a new change to apply."); return; }
     // Prompt-only validation is shown under the field (not the top banner) and focuses it.
     const invalid=scoreOnly ? null : promptValidationError({tool,titleAction,prompt,title});
     if(invalid){studio.setError("");setPromptError(invalid);requestAnimationFrame(()=>promptRef.current?.focus());return;}
@@ -708,6 +717,7 @@ export default function Studio() {
         if (tool === "edit" && !editSource?.image_path && !refs.length)
           throw new Error("Choose an image to edit.");
         const result = await createReviewed(input,async result=>{
+        if(chat.title==="New chat") await studio.saveConversation({...chat,title:automaticChatTitle(title,result.creations[0]?.title),draft:chatDraftRef.current,updated_at:new Date().toISOString()},"draft");
         if(draftFingerprintRef.current===submittedFingerprint){
           setSelection(result.creations[0].id);setComposerOpen(false);
           // OP-10: focus (and its announcement) moves to the result, but the page does not scroll: the delivered image is
@@ -903,7 +913,7 @@ export default function Studio() {
     });
   }
   async function deleteCreation(item: Creation) {
-    if (!confirm("Delete this creation from your library?")) return;
+    setCreationToDelete(null); deleteCreationDialog.current?.close();
     await studio.run("Deleting creation", async () => {
       await studio.remove("creations", item.id);
       if (selection === item.id) setSelection(null);
@@ -918,7 +928,7 @@ export default function Studio() {
     if (!selected) return;
     setComposerOpen(true);
     setTool(mode);
-    if (mode === "edit") { setParentId(selected.id); }
+    if (mode === "edit") { setParentId(selected.id); setPrompt(""); }
     // Keep the user's video title; selected.title may only be an asset label.
     requestAnimationFrame(() => {
       document.getElementById(mode === "analyze" ? "video-title" : "thumbnail-prompt")?.focus({ preventScroll: true });
@@ -986,10 +996,10 @@ export default function Studio() {
                   <div className="generate-dock" data-placement={tool==="analyze"?"after-settings":"under-prompt"}>
                     <div className="generate-split">
                       <button type="button"
-                        className="primary-button"
-                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"}
+                        className={readiness.action==="loading"||readiness.action==="retry"?"neutral-button":"primary-button"}
+                        disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"||(tool==="edit"&&!canApplyEdit(prompt,editSource?.prompt))}
                         aria-describedby="request-ready"
-                        onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):submit()}
+                        onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):readiness.action==="retry"?studio.retryConnections():submit()}
                       >
                         {busy ? (
                           <LoaderCircle className="spin" size={17} />
@@ -1001,8 +1011,8 @@ export default function Studio() {
                         <span>
                           {busy
                             ? studio.busy
-                            : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
-                              ? "Analyze thumbnail"
+                            : readiness.action==="retry" ? "Couldn’t check connections · Retry" : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
+                              ? "Score thumbnail"
                               : tool === "title" && titleAction === "ideas"
                                 ? "Generate titles"
                                 : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create thumbnail"}
@@ -1052,9 +1062,8 @@ export default function Studio() {
                             ? "New version saved."
                             : selected.mode === "resize"
                               ? "Ready for another format."
-                              : "Your thumbnail."}
+                              : (selected.title || "Thumbnail")}
                       </ResultHeading>
-                      <p>{selected.title}</p>
                     {selected.image_path&&studio.images[selected.image_path]&&<NativeOutputNotice src={studio.images[selected.image_path]} requested={selected.style==="Uploaded"?undefined:selected.settings?.format} native={!!selected.lineage?.nativeOutput&&selected.mode!=="resize"}/>}
 
                     </div>
@@ -1092,11 +1101,12 @@ export default function Studio() {
                   <div className="review-layout"><div className="review-media">
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
-                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.title || selected.title} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
+                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
+                      {score&&<div className="mobile-score-summary"><span>{score.overall ?? "Partial"} · weakest: {names[pillars.filter(p=>score.dimensions[p].score!==null).sort((a,b)=>(score.dimensions[a].score??Infinity)-(score.dimensions[b].score??Infinity))[0]] || "Not assessed"}</span><button type="button" className="neutral-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button></div>}
                       <div className="result-actions">
                         {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score thumbnail</button>}
                         <button type="button"
-                          className={(!score && scoreView.kind!=="no-jev" ? "neutral-button" : "primary-button")+" download-button"}
+                          className="neutral-button download-button"
                           disabled={busy}
                           onClick={() =>
                             studio.run("Downloading image", () =>
@@ -1107,38 +1117,22 @@ export default function Studio() {
                           <Download size={15} />
                           Download image
                         </button>
-                        <details className="result-more">
+                        <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
                           <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
-                        <button type="button"
-                          className="menu-item"
-                          disabled={busy}
-                          title="Makes one new image with your AI account (uses credits). The original stays saved."
-                          onClick={resize}
-                        >
-                          {selected.settings?.format === "short" ? (
-                            <RectangleHorizontal size={15} />
-                          ) : (
-                            <RectangleVertical size={15} />
-                          )}
-                          AI resize to{" "}
-                          {selected.settings?.format === "short"
-                            ? "long-form"
-                            : "short-form"}
-                        </button>
-                            <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}><Download size={15}/>Download PNG (original)</button>
-                            <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
+                            <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download PNG (original)</button>
+                        <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." onClick={resize}>AI resize to {selected.settings?.format === "short" ? "long-form" : "short-form"} · uses image credits</button>
+                            <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
                             {studio.cloud&&selected.image_path&&<button type="button" className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}>Score history</button>}
                           </div>
                         </details>
                       </div>
                       {comparisons[selected.id]&&<p className="fix-outcome" data-improved={comparisons[selected.id].improved} role="status">{comparisons[selected.id].improved?<><TrendingUp size={14} aria-hidden="true"/>{comparisons[selected.id].before??"–"} → {comparisons[selected.id].after??"–"}</>:<>No gain ({comparisons[selected.id].after??"–"} vs {comparisons[selected.id].before??"–"}) · Kept the better one</>}</p>}
                       {score&&<div className="whats-next" role="group" aria-label="What's next?">
-                        <button type="button" className="next-pill next-pill--primary" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={() => void runOneClickFix()}><WandSparkles size={15} aria-hidden="true"/>One-Click Fix</button>
                         <button type="button" className="next-pill" disabled={busy} onClick={() => openReviewEditor("edit")}><Pencil size={15} aria-hidden="true"/>Edit</button>
                         <button type="button" className="next-pill" disabled={busy} onClick={() => openReviewEditor("analyze")}><RefreshCw size={15} aria-hidden="true"/>Score again</button>
                       </div>}
-                      <details className="provenance-details"><summary>What you asked vs. what was sent</summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
+                      <details className="provenance-details"><summary>What you asked vs. what was sent <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
                     </>
                   ) : (
                     <div className="draft-preview">
@@ -1210,7 +1204,7 @@ export default function Studio() {
                             )}
                             {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<p className="score-fallback">{scoreView.fallback}</p>}<button type="button" className="quiet-button" onClick={()=>setDialog("analysis")}>See full score</button>
+                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<div><span className="score-fallback">{scoreView.fallback}</span>{score.scoring?.route.some(r=>r.scorer==="jev"&&r.outcome==="failed")&&<button type="button" className="neutral-button" disabled={busy} onClick={()=>void retryScore(true)}>Retry with Jev</button>}</div>}<button type="button" className="neutral-button" onClick={()=>setDialog("analysis")}>See full score</button>
                         </div>
                         <div>
                         <button type="button"
@@ -1219,9 +1213,9 @@ export default function Studio() {
                           onClick={() => void runOneClickFix()}
                         >
                           <WandSparkles size={16} />
-                          Fix what's holding it back
+                          Fix thumbnail
                         </button>
-                        <a href="#adjust-fix" onClick={e=>{e.preventDefault();void fix();}}>Adjust fix first</a>
+                        <button type="button" className="neutral-button review-first" onClick={()=>void fix()}>Review first</button>
                         {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
                         {(fixReview?.kind === "blocked" || fixReview?.kind === "noop") && fixReview.reason && (
                           <p role="status">{fixReview.reason}</p>
@@ -1252,7 +1246,7 @@ export default function Studio() {
                                 )}
                               </strong>
                               {score.dimensions[p].score !== null && (
-                                <span className="pillar-meter" key={scoreReveal.run} style={{ "--i": i } as CSSProperties}>
+                                <span className="pillar-meter" data-tone={scoreTone(score.dimensions[p].score)} key={scoreReveal.run} style={{ "--i": i } as CSSProperties}>
                                   <progress
                                     aria-label={`${names[p]} score`}
                                     max={100}
@@ -1270,14 +1264,13 @@ export default function Studio() {
                             {score.dimensions[activePillar].missingReason ||
                               score.dimensions[activePillar].observation}
                           </p>
+                          {score.dimensions[activePillar].generalAdvice && <p>General advice — the image review gave no specific note for this pillar.</p>}
                           <dl>
-                            <dt>Working for you</dt>
-                            <dd>{score.dimensions[activePillar].strength}</dd>
-                            <dt>Holding it back</dt>
-                            <dd>{score.dimensions[activePillar].weakness}</dd>
-                            <dt>What to change</dt>
-                            <dd>{score.dimensions[activePillar].fix}</dd>
+                            {!!(score.dimensions[activePillar].strength||"").trim() && <><dt>Working for you</dt><dd>{score.dimensions[activePillar].strength}</dd></>}
+                            {!!(score.dimensions[activePillar].weakness||"").trim() && <><dt>Holding it back</dt><dd>{score.dimensions[activePillar].weakness}</dd></>}
+                            {!!(score.dimensions[activePillar].fix||"").trim() && <><dt>What to change</dt><dd>{score.dimensions[activePillar].fix}</dd></>}
                           </dl>
+                          {(!(score.dimensions[activePillar].weakness||"").trim() || !(score.dimensions[activePillar].fix||"").trim()) && <p>Not assessed in detail. Score again with image review for specific advice.</p>}
                           <span className="confidence">
                             AI confidence:{" "}
                             {score.dimensions[activePillar].confidence >= 0.7
@@ -1342,7 +1335,7 @@ export default function Studio() {
             className="icon-button"
             onClick={() => { setSidebar(false); requestAnimationFrame(() => navigationOpenRef.current?.focus()); }}
             ref={navigationCloseRef}
-            aria-label="Close sidebar"
+            aria-label="Close sidebar" title="Close sidebar (Cmd/Ctrl+B)"
           >
             <PanelLeft size={17} />
           </button>
@@ -1374,7 +1367,7 @@ export default function Studio() {
           </button>
         </div>
         <div className="history-list">
-          <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>
+          {!studio.loading && <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
           {studio.creations.some(c=>!c.conversation_id)&&<p className="legacy-history-label">Recent creations</p>}
           {studio.creations.filter(c=>!c.conversation_id).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.images[item.image_path]} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
@@ -1403,7 +1396,7 @@ export default function Studio() {
                 className="icon-button"
                 onClick={() => setSidebar(true)}
                 ref={navigationOpenRef}
-                aria-label="Open sidebar"
+                aria-label="Open sidebar" title="Open sidebar (Cmd/Ctrl+B)"
               >
                 <PanelLeft size={18} />
               </button>
@@ -1434,6 +1427,7 @@ export default function Studio() {
           ref={mainRef}
           className={tab === "library" ? "library-main" : `studio-main ${hasReviewImage ? "review-active" : ""}`}
         >
+          {legacyNotice&&<div className="result-ready" role="status"><span>This old link opened Create.</span><button type="button" className="quiet-button" onClick={()=>setLegacyNotice(false)} aria-label="Dismiss old link notice"><X size={16}/></button></div>}
           {pendingResult&&<div className="result-ready" role="status"><span>Your new thumbnail is ready. Your current draft is unchanged.</span><button type="button" className="neutral-button" onClick={async()=>{const item=studio.creations.find(c=>c.id===pendingResult);if(item&&await choose(item))setPendingResult(null);}}>View result</button></div>}
           {dialog === "login" && (
             <p className="dialog-footnote">
@@ -1441,7 +1435,7 @@ export default function Studio() {
               <a href="/connect">Create an account and connect your keys</a>
             </p>
           )}
-          {activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
+          {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
           {studio.error && (
@@ -1460,6 +1454,7 @@ export default function Studio() {
           {tab === "studio" ? (
             <>
               {hasReviewImage && resultPanel}
+              {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button><button type="button" className="neutral-button" onClick={()=>{setTool("generate");setComposerOpen(true);requestAnimationFrame(()=>document.querySelector(".creation-workbench")?.scrollIntoView({block:"start"}));}}>Make another</button></div>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
@@ -1468,8 +1463,7 @@ export default function Studio() {
               >
                 <div className="workbench-heading">
                   <ComposerHeading>
-                    {hasReviewImage ? "Make another" : tool === "analyze"
-                      ? "Score your thumbnail"
+                    {tool === "analyze" ? "Score your thumbnail" : hasReviewImage ? "Make another"
                       : tool === "edit"
                         ? "Change your thumbnail"
                         : tool === "recreate"
@@ -1483,6 +1477,7 @@ export default function Studio() {
                     role="tablist"
                     aria-label="Creation mode"
                   >
+                    {tool === "edit" && <button type="button" role="tab" aria-selected="true" className="active" onClick={()=>{setTool("generate");setPrompt("");}} title="Exit editing">Editing: {editSource?.title || "thumbnail"} <X size={15} aria-label="Exit edit"/></button>}
                     {modes.map(({ id, label, icon: Icon }) => (
                       <button type="button"
                         key={id}
@@ -1637,6 +1632,7 @@ export default function Studio() {
                           id="video-title"
                           maxLength={100}
                           value={title}
+                          onKeyDown={e=>{if(tool==="analyze"&&(e.metaKey||e.ctrlKey)&&e.key==="Enter"&&!busy&&readiness.action==="run"){e.preventDefault();void submit();}}}
                           onChange={(e) => setTitle(e.target.value)}
                           placeholder="The title your audience will see"
                           aria-describedby={tool === "analyze" ? "video-title-guidance" : undefined}
@@ -1679,6 +1675,7 @@ export default function Studio() {
                         <textarea
                           id="thumbnail-prompt"
                           ref={promptRef}
+                          onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'&&!busy&&readiness.action==='run'){e.preventDefault();void submit();}}}
                           onFocus={() => setPromptFocused(true)}
                           onBlur={() => setPromptFocused(false)}
                           aria-invalid={promptError?true:undefined}
@@ -1690,7 +1687,7 @@ export default function Studio() {
                             tool === "recreate"
                               ? "Describe what to change from the reference, and what should stay. For example: replace the desk with a kitchen; keep the split-screen layout."
                               : tool === "edit"
-                                ? "Name the change and what to keep. For example: brighten the face; keep the headline and background."
+                                ? "For example: brighten the face, simplify the background, or enlarge the headline."
                                 : tool === "title"
                                   ? "Describe your video, audience, or visual direction…"
                                   : "Who or what is the focus? Describe the scene, mood and any words to show. Put exact wording in quotation marks."
@@ -1700,7 +1697,7 @@ export default function Studio() {
                         {mentions.list}
                         </div>
                         {promptError&&<p className="field-error" id="prompt-error" role="alert"><AlertCircle size={15} aria-hidden="true"/><span>{promptError}</span></p>}
-                        {generateAction}
+                        <div className="desktop-create-action">{generateAction}</div>
                           </div>
                         </div>
                         <div className="reference-strip">
@@ -1888,8 +1885,9 @@ export default function Studio() {
                       </>
                     )}
                   </fieldset>
-                  <p className="request-ready" id="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"?"":readiness.readiness}</p>
+                  <p className="request-ready" id="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"||readiness.readiness.startsWith("Connection saved.")?"":readiness.readiness}</p>
                   {tool==="analyze"&&generateAction}
+                  {tool!=="analyze"&&<div className="mobile-create-action">{generateAction}</div>}
                 </div>
                 <div className="composer-footer" hidden={!showComposer}>
                   <span>
@@ -2059,6 +2057,9 @@ export default function Studio() {
 
         </footer>
       </div>
+      <dialog ref={deleteCreationDialog} aria-labelledby="delete-creation-title" onClose={()=>setCreationToDelete(null)} onClick={e=>{if(e.target===e.currentTarget)e.currentTarget.close();}}>
+        <div className="dialog-shell"><div className="dialog-heading"><h2 id="delete-creation-title">Delete this creation?</h2><button type="button" className="icon-button" aria-label="Close dialog" onClick={()=>deleteCreationDialog.current?.close()}><X size={18}/></button></div><section className="delete-chat"><p>This permanently deletes {creationToDelete?.title || "this creation"}. This cannot be undone.</p><div className="consent-actions"><button type="button" className="quiet-button" onClick={()=>deleteCreationDialog.current?.close()}>Cancel</button><button type="button" className="danger-button" autoFocus onClick={()=>{if(creationToDelete)void deleteCreation(creationToDelete);}}>Delete creation</button></div></section></div>
+      </dialog>
       <dialog
         aria-labelledby="studio-dialog-title"
         ref={dialogRef}
@@ -2071,7 +2072,7 @@ export default function Studio() {
         <div className="dialog-shell">
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
-              {dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Analysis history":dialog==="analysis"?"Thumbnail Analysis":dialog==="beforeafter"?"Compare Your Thumbnail":dialog==="feedback"?"Leave Your Feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
+              {dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
                 ? profileDialogTitle || "Your personas"
                 : dialog === "elements"
                   ? profileDialogTitle || "Your elements"
@@ -2101,7 +2102,7 @@ export default function Studio() {
           {(dialog==="personas"||dialog==="styles"||dialog==="elements")&&<ProfileManager key={dialog+studio.user} kind={dialog==="personas"?"persona":dialog==="elements"?"element":"style"} studio={studio} onTitle={setProfileDialogTitle} selectedIds={dialog==="elements"?elementIds:dialog==="personas"?personaIds:styleId?[styleId]:[]} onChoose={id=>{void selectProfile(dialog==="personas"?"persona":dialog==="elements"?"element":"style",id).catch(e=>studio.setError(e.message));}} onPreset={name=>{setPreset(name);setStyleId("");}} onClose={()=>setDialog(null)}/>}
           {dialog==="inspect"&&selected?.image_path&&<ImageInspector key={selected.id+studio.user} src={studio.images[selected.image_path]} title={selected.title}/>}
           {dialog==="analysis-history"&&selected&&<AnalysisHistory key={selected.id+studio.user} creationId={selected.id} read={studio.read}/>}
-          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
+          {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} onRetry={()=>void retryScore(true)} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button type="button" className="neutral-button full-width" disabled={busy} onClick={compare}>Compare without scores</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
           {dialog === "references" && (
@@ -2153,7 +2154,7 @@ export default function Studio() {
             </>
           )}
           {dialog === "jobs" && (
-            <>
+            <div className="activity-stack">
               <p>
                 Requests remain here after a reload. If the outcome is still
                 being checked, API credits may already have been used. Wait and
@@ -2164,22 +2165,21 @@ export default function Studio() {
               {activity.paused&&<p role="status">Status refresh paused. Provider work may still finish and use credits. This does not cancel it.</p>}
               {activity.error&&<p role="alert">{activity.error}</p>}
               <p>Reloading resumes status checks. Closing the page can interrupt automatic review; saved results stay in your library. No paid request is resubmitted by this viewer.</p>
-              {!jobs.length&&<p>No API requests in this workspace yet.</p>}
+              {!activity.error&&!activity.loading&&!jobs.length&&<p>No API requests in this workspace yet.</p>}
               {jobs.map((j) => (
-                <div className="connection-row" key={j.id}>
-                  <strong>{j.operation === "generate" ? "AI generation" : j.operation === "analyze" ? "Thumbnail analysis" : "API request"}</strong>
-                  <span>
-                    {jobGuidance(j.state).label}
-                    {` · Up to ${j.max_provider_calls} API request${j.max_provider_calls === 1 ? "" : "s"}`}
-                    <small>{jobGuidance(j.state).message}</small>
-                    {j.created_at&&<small>{new Date(j.created_at).toLocaleString()}</small>}
-                    <small className="job-id">Request {j.id}</small>
+                <div className="job-row" key={j.id}>
+                  <strong>{jobOperationLabel(j.operation)}</strong>
+                  <div className="job-detail">
+                    <div><span className="job-status">{jobGuidance(j.state).label}</span> {`Up to ${j.max_provider_calls} API request${j.max_provider_calls === 1 ? "" : "s"}`}</div>
+                    {j.state === "reconciling" ? <p><strong>What to do:</strong> {uncertainJobAdvice}</p> : <p>{jobGuidance(j.state).message}</p>}
+                    {j.created_at&&<time dateTime={j.created_at}>{new Date(j.created_at).toLocaleString()}</time>}
+                    <div className="job-id"><span title={j.id}>Request {j.id}</span><button type="button" className="quiet-button" aria-label="Copy request ID" onClick={()=>void navigator.clipboard.writeText(j.id)}>Copy</button></div>
                     {(typeof j.result?.value?.prompt==="string"||typeof j.result?.value?.reply==="string")&&<details className="job-text-result"><summary>Saved text result</summary><p>{j.result.value.prompt||j.result.value.reply}</p><small>{j.result.provider} · {j.result.model}</small><p>This saved text can be copied for review. It does not replace your current direction or run an image action.</p></details>}
                     {(()=>{const id=j.result?.creation?.id||j.result?.creations?.[0]?.id||j.result?.creationId,item=studio.creations.find(c=>c.id===id);return item?<button type="button" className="neutral-button" disabled={busy} onClick={async()=>{setDialog(null);await choose(item);}}>Open saved result</button>:null;})()}
-                  </span>
+                  </div>
                 </div>
               ))}
-            </>
+            </div>
           )}
           {dialog === "compare" && blindPair && (
             <>
@@ -2298,13 +2298,14 @@ export default function Studio() {
             </>
           )}
           {dialog === "connections" && (
-            <>
+            <div className="connections-stack">
               <p className="dialog-description">
                 Your workspace uses your own OpenAI, Google and Jev keys.
                 Connect providers, manage agent access and copy MCP instructions
                 in Settings.
               </p>
-              <a href="/connect" className="primary-button inline-link">
+              <ul>{([["openai", "OpenAI"], ["google", "Google"], ["anthropic", "Claude"], ["jev", "Jev"], ["youtube", "YouTube"]] as const).map(([id, name]) => <li key={id}>{name}: {!studio.config || studio.config.connectionStatus === "failed" ? "Status unavailable" : studio.config.connectionStatus === "loading" ? "Checking…" : studio.config[id] ? "Connected" : "Not connected"}</li>)}</ul>
+              <a href="/connect" className="neutral-button inline-link full-width">
                 Manage connections
               </a>
               {studio.cloud&&<button type="button" className="neutral-button full-width" onClick={()=>void showJobs()}>View API activity</button>}
@@ -2312,7 +2313,7 @@ export default function Studio() {
                 Your keys are encrypted and private to your account. Agent tools
                 never receive them.
               </p>
-            </>
+            </div>
           )}
           {dialog==="delete-chat"&&chatToDelete&&(()=>{const count=studio.creations.filter(c=>c.conversation_id===chatToDelete.id&&c.image_path).length;return <section className="delete-chat">
             <p><strong>{chatToDelete.title}</strong> and {count===0?"its draft":count===1?"its 1 thumbnail":"its "+count+" thumbnails"} will be deleted, including the image files saved in your account. This can’t be undone.</p>
@@ -2347,20 +2348,14 @@ export default function Studio() {
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <RevealImage surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} alt={item.title} />
+            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} alt={item.title} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />
               <p>{item.prompt}</p>
             </div>
           )}
-          <span>
-            {item.status === "ready"
-              ? item.settings?.format === "short"
-                ? "9:16"
-                : "16:9"
-              : item.status}
-          </span>
+          {(item.status !== "ready" || item.settings?.format === "short") && <span>{item.status === "ready" ? "9:16" : item.status}</span>}
         </button>
         {item.image_path && studio.images[item.image_path] && <ScoreBadge score={item.score} onOpen={busy ? undefined : () => openScore(item)} label={item.title}/>}
         </div>
@@ -2388,7 +2383,7 @@ export default function Studio() {
             className="icon-button"
             aria-label={`Delete ${item.title}`}
             disabled={busy}
-            onClick={() => deleteCreation(item)}
+            onClick={() => {setCreationToDelete(item);deleteCreationDialog.current?.showModal();}}
           >
             <Trash2 size={14} />
           </button>
