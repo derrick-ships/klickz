@@ -983,6 +983,7 @@ export default function Studio() {
   const verdict: Record<Pillar,string> = {clarity:"The text is hard to read at small size.",curiosity:"It doesn’t make people wonder.",emotion:"It doesn’t show a feeling.",idea:"The idea isn’t clear.",virality:"It won’t stand out in the feed."};
   const showComposer = !hasReviewImage || composerOpen;
   const workspaceReady = !studio.loading && hydratedWorkspace === (studio.user || "local");
+  const needsKey = workspaceReady && !!studio.user && studio.config?.connectionStatus === "ready" && !studio.config.openai && !studio.config.google;
   // Living empty state: only for a first-time visitor on an empty Create prompt.
   const showExamples = workspaceReady && tool === "generate" && !prompt && !promptFocused && !hasReviewImage && studio.creations.length === 0;
   const readiness = generationReadiness({config:studio.config,cloud:studio.cloud,loading:!workspaceReady,tool,titleIdeas:tool==="title"&&titleAction==="ideas",settings,prompt,title,hasSource:!!(tool==="edit"?editSource?.image_path:selected?.image_path),hasReferences:refs.length>0,includeVision:analysisVision,textProvider});
@@ -1428,7 +1429,8 @@ export default function Studio() {
           )}
           {tab === "studio" ? (
             <>
-              {hasReviewImage && resultPanel}
+              {needsKey && <section className="key-first"><h1>One step before you start</h1><p>Add an AI key. It lets OpenPikzels make images for you.</p><a className="primary-button" href="/connect">Add key</a><label htmlFor="first-draft">Your idea</label><textarea id="first-draft" value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="What’s your video about?"/><button type="button" className="neutral-button" onClick={saveDraft}>Save draft</button></section>}
+              {!needsKey && <>{hasReviewImage && resultPanel}
               {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button><button type="button" className="neutral-button" onClick={()=>{setTool("generate");setComposerOpen(true);requestAnimationFrame(()=>document.querySelector(".creation-workbench")?.scrollIntoView({block:"start"}));}}>Make another</button></div>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               <section
@@ -1930,8 +1932,7 @@ export default function Studio() {
                     e.target.value = "";
                   }}
                 />
-              </section>
-
+              </section></>}
 
               {titles.length > 0 && (
                 <section className="title-results result-section">
