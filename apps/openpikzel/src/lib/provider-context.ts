@@ -10,7 +10,7 @@ export function providerKey(provider: Provider) {
   if (!key)
     throw new AppError(
       403,
-      `Connect your own ${provider === "google" ? "Google" : provider === "jev" ? "Jev" : provider === "anthropic" ? "Claude" : "OpenAI"} API key in Connections.`,
+      `Connect your own ${provider === "google" ? "Google" : provider === "jev" ? "Jev" : provider === "anthropic" ? "Claude" : "OpenAI"} API key in Keys.`,
     );
   return key;
 }

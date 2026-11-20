@@ -71,7 +71,7 @@ export function useAccount(isolated = false) {
   }, [isolated]);
   return { db, session, config, error, setError, ready, signInNotice };
 }
-export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page. Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Connections. Start with get_workspace. Use list_profiles/get_profile for persona references and list_creations to inspect existing work. Use upload_reference for an image created in ChatGPT, then score_thumbnail with its actual title. Use get_fix_prompt to return a copyable prompt for editing it in ChatGPT without generating another image through an API. Only use generate_thumbnail or one_click_fix when I request an API-rendered image, with my chosen provider, quality and batch. Keep the same requestId across an uncertain retry, and check history after a timeout. Scores are visual rubrics, not a promise of CTR. Use open_studio for the interactive HTML interface when supported.`;
+export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page. Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Keys. Start with get_workspace. Use list_profiles/get_profile for persona references and list_creations to inspect existing work. Use upload_reference for an image created in ChatGPT, then score_thumbnail with its actual title. Use get_fix_prompt to return a copyable prompt for editing it in ChatGPT without generating another image through an API. Only use generate_thumbnail or one_click_fix when I request an API-rendered image, with my chosen provider, quality and batch. Keep the same requestId across an uncertain retry, and check history after a timeout. Scores are visual rubrics, not a promise of CTR. Use open_studio for the interactive HTML interface when supported.`;
 
 export function ConnectionsPage() {
   const { db, session, config, error, setError, ready, signInNotice } = useAccount();
@@ -101,7 +101,7 @@ export function ConnectionsPage() {
   const callbackHandled = useRef(false);
   async function api(path: string, method = "GET", body?: unknown) {
     const fresh = await db?.auth.getSession();
-    if (!fresh?.data.session) throw new Error("Your session ended. Sign in again to manage connections.");
+    if (!fresh?.data.session) throw new Error("Your session ended. Sign in again to manage keys.");
     const r = await fetch(path, {
       method,
       headers: {
@@ -172,27 +172,28 @@ export function ConnectionsPage() {
         </a>
         <a href="/studio">Back to studio</a>
       </header>
-      <div className="account-intro"><h1>{session ? "Set up your key" : "Welcome"}</h1></div>
+      <div className="account-intro"><h1>Your keys</h1></div>
       {!ready ? (
-        <p role="status">Loading your connections…</p>
+        <p role="status">Loading your keys…</p>
       ) : !db ? (
         <p>
           Cloud sign-in is not available here yet.{" "}
           <a href="/studio">Save drafts in this browser.</a>
         </p>
       ) : !session ? (
-        <section id="api" className="account-panel"><AccountSignIn db={db} initialNotice={signInNotice} /></section>
+        <section id="api" className="account-panel"><h2>Set up your key</h2><ol className="key-preview"><li>Open OpenAI. Create a new secret key.</li><li>Add $5 credit. It pays for your images.</li><li>Paste your key. It starts with sk-.</li></ol><p>Sign in first. Then paste your key here.</p><AccountSignIn db={db} initialNotice={signInNotice} /></section>
       ) : (
         <>
           <section id="api" className="account-panel">
             {connectionRead === "succeeded" && connections.some(c => c.provider === "openai" || c.provider === "google") ? <><h2>You&apos;re ready.</h2><a className="primary-button inline-link" href="/studio">Start creating</a></> : <>
-              <h2>1. Open OpenAI</h2>
+              <h2>Set up your key</h2>
+              <h3>1. Open OpenAI</h3>
               <a className="neutral-button inline-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Open OpenAI</a>
               <p>Sign in. Then tap &apos;Create new secret key&apos;.</p>
-              <h2>2. Add credit</h2>
+              <h3>2. Add credit</h3>
               <a className="neutral-button inline-link" href="https://platform.openai.com/settings/organization/billing" target="_blank" rel="noopener noreferrer">Add credit</a>
               <p>Add $5. It pays for your images.</p>
-              <h2>3. Paste your key</h2><p>It starts with sk-</p>
+              <h3>3. Paste your key</h3><p>It starts with sk-</p>
               <form className="account-form key-form" onSubmit={e => { e.preventDefault();
                 const submitted = key.trim();
                 if (!submitted.startsWith("sk-") || submitted.length <= 3) { setKeyError("That doesn't look like a key. It starts with sk-."); return; }
@@ -218,10 +219,11 @@ export function ConnectionsPage() {
               </form>
             </details>
             {/* copy-law: end */}
-            {connections.map(c => <div className="grant-row" key={c.provider}><span>{c.provider} · ••••{c.suffix}</span><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(async () => { await api("/api/providers", "DELETE", {provider:c.provider}); await refresh(); setSaved(false); })}>Remove</button></div>)}
+            {connections.filter(c => c.provider !== "jev").map(c => <div className="grant-row" key={c.provider}><span>{c.provider} · ••••{c.suffix}</span><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(async () => { await api("/api/providers", "DELETE", {provider:c.provider}); await refresh(); setSaved(false); })}>Remove</button></div>)}
           </section>
           {/* copy-law: advanced */}
           <details><summary>For developers</summary>
+          {connections.filter(c => c.provider === "jev").map(c => <div className="grant-row" key={c.provider}><span>Jev · ••••{c.suffix}</span><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(async () => { await api("/api/providers", "DELETE", {provider:c.provider}); await refresh(); setSaved(false); })}>Remove</button></div>)}
           <ModelsPanel api={api} connected={{ openai: connections.some((c) => c.provider === "openai"), google: connections.some((c) => c.provider === "google"), anthropic: connections.some((c) => c.provider === "anthropic"), jev: connections.some((c) => c.provider === "jev") }} />
           <section id="higgsfield" className="account-panel">
             <h2>Higgsfield</h2>

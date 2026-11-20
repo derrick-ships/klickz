@@ -787,7 +787,7 @@ export default function Studio() {
       // A fix needs specific findings. If this score was made without looking at the image,
       // look at it first (one extra AI request), then fix — instead of a dead button.
       if (needsImageReview(source.score)) {
-        if (!plan.critiqueProvider) throw new Error("To fix it, connect an AI account that can look at images (Claude, OpenAI or Google) in Connections.");
+        if (!plan.critiqueProvider) throw new Error("To fix it, connect an AI account that can look at images (Claude, OpenAI or Google) in Keys.");
         const reviewTitle = scoreIntent.current[source.id]?.title || source.score?.title || source.title || title;
         if (!reviewTitle.trim()) throw new Error("Add the video title, then try the fix again.");
         await studio.analyze(source, reviewTitle, "", true, scoreIntent.current[source.id]?.videoUrl ?? videoUrl, plan.critiqueProvider);
@@ -1026,10 +1026,10 @@ export default function Studio() {
                               : tool === "title" && titleAction === "ideas"
                                 ? "Generate titles"
                                 : tool === "edit" ? "Apply edit" : tool === "recreate" ? "Create variation" : "Create"}
-                        {readiness.action === "run" && <small className="paid-cue">Uses credits</small>}
                         </span>
                       </button>
                     </div>
+                    {readiness.action === "run" && <small className="composer-paid-cue">Uses credits</small>}
                   </div>
   );
   const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy} connectedShownNearby={readiness.keyNote.connected&&readiness.keyNote.provider===(textProvider==="openai"?"OpenAI":"Google")}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Review the image itself for specific advice (one extra AI request)</label></>;
@@ -1082,7 +1082,7 @@ export default function Studio() {
                         {score && <button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}><span>Fix it<small className="paid-cue">Uses credits</small></span></button>}
                         {!score && scoreView.kind!=="no-jev" && <button type="button" data-copy-law="allow-long" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/><span>Score<small className="paid-cue">Uses credits</small></span></button>}
                         <button type="button"
-                          className="neutral-button download-button"
+                          className={`neutral-button download-button ${score ? "has-sticky-download" : ""}`}
                           disabled={busy}
                           onClick={() =>
                             studio.run("Downloading image", () =>
@@ -1264,7 +1264,7 @@ export default function Studio() {
                         <p>Get a score for the thumbnail and its title on five things viewers notice.</p>
                         <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
                       </>}
-                      {scoreView.kind==="no-jev"&&<button type="button" className="neutral-button" onClick={()=>setDialog("connections")}>Connections</button>}
+                      {scoreView.kind==="no-jev"&&<button type="button" className="neutral-button" onClick={()=>setDialog("connections")}>Keys</button>}
                       {scoreView.kind==="failed"&&<button type="button" data-copy-law="allow-long" className="neutral-button" disabled={busy} title="Uses credits" onClick={()=>{void retryScore();}}>Retry score</button>}
                       <p className="score-disclaimer">Scoring uses your AI account’s credits. Scores estimate how clear and clickable the image looks; they aren’t real click data.</p>
                     </aside>
@@ -1376,7 +1376,7 @@ export default function Studio() {
               onClick={() => setDialog("connections")}
             >
               <SlidersHorizontal size={15} />
-              <span className="connections-desktop">Connections</span><span className="connections-phone">Keys</span>
+              <span>Keys</span>
             </button>
             {!studio.cloud && (
               <button type="button"
@@ -1418,6 +1418,7 @@ export default function Studio() {
               {hasReviewImage && resultPanel}
               {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}><span>Fix it<small className="paid-cue">Uses credits</small></span></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
+              {!hasReviewImage && <p className="studio-help"><a href="mailto:derrickserna.ca@gmail.com">Need help? Email us</a></p>}
               {needsKey && <section className="key-first"><h2>One step before you start</h2><p>Add an AI key. It lets OpenPikzels make images for you.</p><a className="primary-button" href="/connect">Add key</a></section>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
@@ -1763,7 +1764,7 @@ export default function Studio() {
                             <input id="create-video-title" maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The title your audience will see" />
                           </div>
                         )}
-<div className="prompt-tools"><div className="composer-tool-group">                          <button type="button" className="tool-chip" onClick={()=>openProfiles("elements")}><Box size={15}/>Object</button>
+<div className="prompt-tools"><div className="composer-tool-group">                          <button type="button" className="tool-chip" title="A product, logo, place or outfit to include" onClick={()=>openProfiles("elements")}><Box size={15}/>Object</button>
                           </div>
                           {!["recreate","edit","analyze"].includes(tool)&&<div className="composer-tool-group" role="group" aria-label="Image references">
                           <button type="button"
@@ -2078,7 +2079,7 @@ export default function Studio() {
                           ? "Compare"
                           : dialog === "jobs"
                             ? "Activity"
-                            : "Workspace connections"}
+                            : "Your keys"}
             </h2>
             <button type="button"
               className="icon-button"
@@ -2095,7 +2096,7 @@ export default function Studio() {
           {dialog==="analysis"&&score&&<AnalysisPanel score={score} busy={busy} onFix={()=>void runOneClickFix()} onAdjust={fix} onRetry={()=>void retryScore(true)} fixUnavailable={fixReview?.kind==="blocked"||fixReview?.kind==="noop"} resultKey={scoreKey} arrived={scoreArrived}/>}
           {dialog==="beforeafter"&&selected&&(()=>{const original=studio.creations.find(c=>c.id===selected.parent_id);return original?.image_path&&selected.image_path?<><ComparisonSlider before={{src:studio.images[original.image_path],title:original.title}} after={{src:studio.images[selected.image_path],title:selected.title}}/>{studio.cloud&&<button type="button" className="neutral-button full-width" disabled={busy} onClick={compare}>Compare</button>}</>:<p>Choose a revised thumbnail with a saved original to compare.</p>;})()}
           {dialog==="feedback"&&selected?.image_path&&<FeedbackForm key={selected.id+studio.user} image={studio.images[selected.image_path]} title={selected.title} onSave={body=>studio.feedback(selected.id,body)}/>}
-          {dialog === "help" && <><p>How it works: 1. Describe your video. 2. Tap Create. 3. Tap Fix it to improve.</p><dl className="help-glossary"><dt>Thumbnail score</dt><dd>A guide to your thumbnail’s strengths.</dd><dt>Virality</dt><dd>How much your image stands out.</dd><dt>Clarity</dt><dd>How easy it is to read.</dd><dt>Idea</dt><dd>How clear your idea is.</dd><dt>Curiosity</dt><dd>Makes people want to click.</dd><dt>Emotion</dt><dd>Shows a real feeling.</dd><dt>Fix</dt><dd>Makes an improved version.</dd><dt>People</dt><dd>Saved faces for your thumbnails.</dd><dt>Styles</dt><dd>Reusable visual styles.</dd><dt>Credits</dt><dd>What your AI account charges. A thumbnail costs a few cents.</dd></dl><p>Need help? <a href="mailto:derrickserna.ca@gmail.com">Email us</a></p></>}
+          {dialog === "help" && <><p>How it works: 1. Sign in and add your key. 2. Tap Create. 3. Tap Fix it to improve.</p><dl className="help-glossary"><dt>Thumbnail score</dt><dd>A guide to your thumbnail’s strengths.</dd><dt>Virality</dt><dd>How much your image stands out.</dd><dt>Clarity</dt><dd>How easy it is to read.</dd><dt>Idea</dt><dd>How clear your idea is.</dd><dt>Curiosity</dt><dd>Makes people want to click.</dd><dt>Emotion</dt><dd>Shows a real feeling.</dd><dt>Fix</dt><dd>Makes an improved version.</dd><dt>People</dt><dd>Saved faces for your thumbnails.</dd><dt>Styles</dt><dd>Reusable visual styles.</dd><dt>Credits</dt><dd>What your AI account charges. A thumbnail costs a few cents.</dd></dl><p>Need help? <a href="mailto:derrickserna.ca@gmail.com">Email us</a></p></>}
           {dialog === "references" && (
             <>
               <p className="dialog-description">
@@ -2287,11 +2288,11 @@ export default function Studio() {
           {dialog === "connections" && (
             <div className="connections-stack">
               <p className="dialog-description">
-                Manage your AI connections in Settings.
+                Manage your AI keys.
               </p>
-              <ul>{([["openai", "OpenAI"], ["google", "Google"], ["anthropic", "Claude"], ["jev", "Jev"], ["youtube", "YouTube"]] as const).map(([id, name]) => <li key={id}>{name}: {!studio.config || studio.config.connectionStatus === "failed" ? "Status unavailable" : studio.config.connectionStatus === "loading" ? "Checking…" : studio.config[id] ? "Connected" : "Not connected"}</li>)}</ul>
+              <ul>{([["openai", "OpenAI"], ["google", "Google"], ["anthropic", "Claude"], ["youtube", "YouTube"]] as const).map(([id, name]) => <li key={id}>{name}: {!studio.config || studio.config.connectionStatus === "failed" ? "Status unavailable" : studio.config.connectionStatus === "loading" ? "Checking…" : studio.config[id] ? "Connected" : "Not connected"}</li>)}</ul>
               <a href="/connect" className="neutral-button inline-link full-width">
-                Manage connections
+                Manage keys
               </a>
               {studio.cloud&&<button type="button" className="neutral-button full-width" onClick={()=>void showJobs()}>View activity</button>}
               <p className="dialog-footnote">
@@ -2305,7 +2306,7 @@ export default function Studio() {
             <p className="dialog-footnote">People, styles and images used in another chat are kept.</p>
             <div className="consent-actions"><button type="button" className="quiet-button" onClick={()=>{setDialog(null);setChatToDelete(null);}}>Cancel</button><button type="button" className="danger-button" autoFocus onClick={()=>void deleteChat(chatToDelete)}>Delete chat</button></div>
           </section>;})()}
-          {dialog === "login" && (studio.authClient?<AccountSignIn db={studio.authClient} onSignedIn={()=>location.assign("/connect#api")}/>:<p>Sign in is unavailable here. Your draft stays on this device. <a href="/connect#api">Open sign-in and connections</a></p>)}
+          {dialog === "login" && (studio.authClient?<AccountSignIn db={studio.authClient} onSignedIn={()=>location.assign("/connect#api")}/>:<p>Sign in is unavailable here. Your draft stays on this device. <a href="/connect#api">Open Keys</a></p>)}
           {studio.error && (
             <p className="dialog-error" role="status">
               {plainError(studio.error).text}

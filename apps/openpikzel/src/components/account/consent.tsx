@@ -58,7 +58,7 @@ export function Consent() {
         OpenPikzels<span className="wordmark-pixel" aria-hidden="true" />
       </a>
       <section className="account-panel">
-        {requestState === "loading" ? <p role="status">Checking connection request…</p> : requestState === "invalid" ? <><h1>This connection expired</h1><p role="alert">Start the connection again from your AI app.</p><a className="neutral-button inline-link" href="/connect">Back to connections</a></> : <>
+        {requestState === "loading" ? <p role="status">Checking connection request…</p> : requestState === "invalid" ? <><h1>This connection expired</h1><p role="alert">Start the connection again from your AI app.</p><a className="neutral-button inline-link" href="/connect">Back to Keys</a></> : <>
         <h1>Let {details?.name || "this app"} use your OpenPikzels?</h1>
         {/* copy-law: advanced */}
         <details><summary>Details</summary><p>Only allow apps you trust.</p>

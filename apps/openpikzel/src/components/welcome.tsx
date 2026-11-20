@@ -22,5 +22,5 @@ export function Welcome() {
    <section className="welcome-closing">
     {/* copy-law: advanced */}<details className="welcome-privacy"><summary>What we store</summary><div><p>Local drafts, reference images, people and styles can be saved in this browser. With a cloud account, we store your account, conversations and prompts, creations and private images, people, styles, analyses, feedback and job metadata.</p><p>Cloud connections store encrypted API keys and connection tokens so the server can use them for your requests. Saved keys are not returned to the interface. AI requests send the necessary inputs to your selected providers, whose terms and retention policies apply.</p></div></details>{/* copy-law: end */}
    </section>
-  </main></div>;
+  </main><footer className="welcome-help"><a href="mailto:derrickserna.ca@gmail.com">Need help? Email us</a></footer></div>;
 }

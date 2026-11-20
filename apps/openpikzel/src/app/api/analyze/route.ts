@@ -30,7 +30,7 @@ async function handle(request: Request) {
     // Any connected scorer can give the numbers (Jev, OpenAI Decisions, Claude, Google), tried in order.
     const modelScorer = currentModelPreferences().scorer === "model";
     if (!(["jev", "openai", "anthropic", "google"] as const).some((p) => hasProvider(p)))
-      throw new AppError(403, "Connect Jev, OpenAI, Claude or Google in Connections to score thumbnails.");
+      throw new AppError(403, "Connect Jev, OpenAI, Claude or Google in Keys to score thumbnails.");
     if (input.scorer === "jev" && !hasProvider("jev")) throw new AppError(403, "Connect Jev to retry with Jev.");
     requireAI(input.scorer === "jev" || hasProvider("jev") ? "jev" : (["openai", "anthropic", "google"] as const).find((p) => hasProvider(p))!);
     if (input.includeVision) requireAI(input.critiqueProvider);

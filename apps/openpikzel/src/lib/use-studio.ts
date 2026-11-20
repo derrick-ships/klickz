@@ -201,7 +201,7 @@ export function useStudio() {
         .then((h) => fetch("/api/config", { headers: h }))
         .then((r) => {if(!r.ok)throw new Error("Connection settings did not load.");return r.json();})
         .then(value => { if (active && epoch === ownerEpoch.current) setConfig({...value,connectionStatus:value.connectionStatus==="failed"?"failed":"ready"}); })
-        .catch(() => {if(active&&epoch===ownerEpoch.current){setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:"failed"}:current);setError("Your provider connection status could not load. Open Connections to refresh it before using AI. Your drafts remain safe.");}});
+        .catch(() => {if(active&&epoch===ownerEpoch.current){setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:"failed"}:current);setError("Your provider connection status could not load. Open Keys to refresh it before using AI. Your drafts remain safe.");}});
     }
     return () => { active = false; };
   }, [user, connectionRetry]);
@@ -293,12 +293,12 @@ export function useStudio() {
     return result;
   }
   function requireLive() {
-    if(config?.connectionStatus==="failed")throw new Error("Provider connection status is unavailable. Open Connections to refresh it before using AI.");
+    if(config?.connectionStatus==="failed")throw new Error("Provider connection status is unavailable. Open Keys to refresh it before using AI.");
     if (!live)
       throw new Error(
         cloud
           ? config?.ai
-            ? "Connect OpenAI or Google in Connections to generate images and titles. You can still save drafts or resize an uploaded image."
+            ? "Connect OpenAI or Google in Keys to generate images and titles. You can still save drafts or resize an uploaded image."
             : "AI generation is not enabled in this workspace. You can still save drafts or resize an uploaded image."
           : "Sign in and connect your own API key to use AI. Uploads, drafts and resize also work in this browser.",
       );
@@ -499,7 +499,7 @@ export function useStudio() {
       throw new Error(
         "Scoring is not enabled in this workspace. Your saved images remain available to review and download.",
       );
-    if (!canScore(config)) throw new Error("Connect Jev, OpenAI, Claude or Google in Connections, then score this thumbnail again.");
+    if (!canScore(config)) throw new Error("Connect Jev, OpenAI, Claude or Google in Keys, then score this thumbnail again.");
     if(includeVision&&!(critiqueProvider&&config?.[critiqueProvider]))throw new Error(missingVisionKeyMessage(critiqueProvider));
     const intent = { creationId: item.id, title, videoBrief, includeVision, videoUrl, critiqueProvider, ...options };
     const fingerprint = JSON.stringify(intent);

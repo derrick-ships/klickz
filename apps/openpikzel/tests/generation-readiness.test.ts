@@ -34,7 +34,7 @@ it("gives the generate button a short image cost and a spoken description, only 
 });
 
 it("key note names the connected provider and only asks to connect when a key is missing",()=>{
- const connect={text:"Uses your own API key.",link:"Connect once in Connections.",connected:false};
+ const connect={text:"Uses your own API key.",link:"Open Keys to connect.",connected:false};
  expect(generationReadiness({...base,cloud:false}).keyNote).toEqual(connect);
  expect(generationReadiness({...base,loading:true}).keyNote).toEqual(connect);
  expect(generationReadiness({...base,config:{...config,connectionStatus:"failed"}}).keyNote).toEqual(connect);

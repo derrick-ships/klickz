@@ -75,7 +75,7 @@ describe("BYOK tenant isolation", () => {
   it("asks for a Claude key without naming OpenAI or leaking a key value", () => {
     const key = "sk-ant-test-0000FAKE";
     expect(() => providerKey("anthropic")).toThrow(/Claude/);
-    expect(() => providerKey("anthropic")).toThrow("Connections");
+    expect(() => providerKey("anthropic")).toThrow("Keys");
     try {
       providerKey("anthropic");
     } catch (error) {

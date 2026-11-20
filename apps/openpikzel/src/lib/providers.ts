@@ -367,7 +367,7 @@ export async function evaluateThumbnail(
   const order: ScorerId[] = context.requireScorer === "jev" ? ["jev"] : scorerOrder(currentModelPreferences().scorer, context.includeVision ? critiqueProvider : pickVisionProvider(keys), {
     jev: !!keys.jev, openai: !!keys.openai, anthropic: !!keys.anthropic, google: !!keys.google,
   });
-  if (!order.length) throw new AppError(403, "Connect Jev, OpenAI, Claude or Google in Connections to score thumbnails.");
+  if (!order.length) throw new AppError(403, "Connect Jev, OpenAI, Claude or Google in Keys to score thumbnails.");
   const withoutVision = {
     summary: "Scored without an image review. These rubric-based prompts are suggestions.",
     dimensions: Object.fromEntries(pillars.map((p) => [p, {
@@ -469,7 +469,7 @@ export async function evaluateThumbnail(
 }
 function reviewFailure(provider: VisionProvider, status: unknown) {
   const label = provider === "anthropic" ? "Claude" : provider === "openai" ? "OpenAI" : "Google";
-  return status === 401 || status === 403 ? label + " rejected the API key. Reconnect it in Connections."
+  return status === 401 || status === 403 ? label + " rejected the API key. Reconnect it in Keys."
     : status === 404 ? label + " doesn't offer the image-review model to this key."
     : status === 429 ? label + " is rate-limiting or out of balance. Try again later or add credit."
     : status === 400 ? label + " refused the request (the image may be too large or not allowed)."
