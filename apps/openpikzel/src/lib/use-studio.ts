@@ -44,6 +44,8 @@ export function useStudio() {
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
+  const [pendingProfileDeletes,setPendingProfileDeletes]=useState<Record<string,{name:string;kind: "personas"|"styles"|"elements"}>>({});
+  const profileDeleteTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
   const [configStatus,setConfigStatus]=useState<"loading"|"ready"|"failed">("loading");
   const [conversations,setConversations]=useState<Conversation[]>([]),[skipPersonaTutorial,setSkipPersonaTutorial]=useState(false);
   const elementsAvailable=useRef(false);
@@ -777,6 +779,12 @@ export function useStudio() {
     await load();
     ensureCurrentOwner();
   }
+  function queueProfileDelete(kind: "personas"|"styles"|"elements", id:string, name:string) {
+    const epoch=ownerEpoch.current;
+    setPendingProfileDeletes(current=>({...current,[id]:{kind,name}}));
+    profileDeleteTimers.current[id]=setTimeout(()=>{delete profileDeleteTimers.current[id];if(epoch!==ownerEpoch.current){setPendingProfileDeletes(current=>{const next={...current};delete next[id];return next;});return;}void run("Deleting profile",()=>remove(kind,id)).finally(()=>setPendingProfileDeletes(current=>{const next={...current};delete next[id];return next;}));},6000);
+  }
+  function undoProfileDelete(id:string){clearTimeout(profileDeleteTimers.current[id]);delete profileDeleteTimers.current[id];setPendingProfileDeletes(current=>{const next={...current};delete next[id];return next;});}
   /**
    * Delete a chat for good: its thumbnails, their stored image files (PNG and the YouTube JPG copy),
    * reference uploads only this chat used, and the chat itself. Files still used by another chat,
@@ -870,6 +878,7 @@ export function useStudio() {
     await db.current?.auth.signOut({ scope: "local" });
   }
   return {
+    pendingProfileDeletes,queueProfileDelete,undoProfileDelete,
     conversations,skipPersonaTutorial,saveConversation,persistConversation,createConversation,deleteConversation,saveTutorialPreference,feedback,importYouTube,
     config,
     retryConnections: () => { if (config) setConnectionRetry(n => n + 1); else location.reload(); },

@@ -1409,6 +1409,7 @@ export default function Studio() {
           {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
+          {Object.entries(studio.pendingProfileDeletes).map(([id,item])=><div className="result-ready" role="status" key={id}>{item.name} removed. <button type="button" className="neutral-button" onClick={()=>studio.undoProfileDelete(id)}>Undo</button></div>)}
           {Object.values(pendingDeletes).map(item=><div className="result-ready" role="status" key={item.id}>Creation removed. <button type="button" className="neutral-button" onClick={()=>undoCreationDelete(item.id)}>Undo</button></div>)}
           {studio.error && (
             <div className="error-banner" role="alert">
