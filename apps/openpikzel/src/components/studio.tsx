@@ -397,13 +397,15 @@ export default function Studio() {
   }
   async function ensureChat(){
     const current=studio.conversations.find(c=>c.id===chatIdRef.current);
-    if(current)return current;
+    // A chat kept only in memory is written now: the server action about to run references its id.
+    if(current){await studio.persistConversation(current.id);return current;}
     const owner=studio.user,epoch=workspaceEpoch.current,startingChat=chatIdRef.current,initialDraft={...chatDraftRef.current,draftSavedAt:Date.now()};
     if(chatCreation.current?.owner===owner&&chatCreation.current.epoch===epoch)return chatCreation.current.promise;
     const promise=studio.createConversation().then(async chat=>{
       if(ownerUI.current!==owner)throw new Error("Your account changed. Open your current workspace again.");
       const saved={...chat,title:automaticChatTitle(initialDraft.title),draft:initialDraft,updated_at:new Date().toISOString()};
       await studio.saveConversation(saved,"draft");
+      await studio.persistConversation(chat.id);
       if(ownerUI.current===owner&&workspaceEpoch.current===epoch&&chatIdRef.current===startingChat){
         chatIdRef.current=chat.id;setActiveChatId(chat.id);
         localStorage.setItem("openpikzels.activeChat."+(owner||"local"),chat.id);

@@ -640,6 +640,19 @@ export function useStudio() {
     return next;
   }
   async function importYouTube(videoId:string){const res=await fetch("/api/youtube/reference",{method:"POST",headers:await headers(),body:JSON.stringify({videoId})});if(!res.ok){const e=await res.json();throw new Error(e.error||"This thumbnail could not import.");}return new File([await res.blob()],videoId+".png",{type:"image/png"});}
+  /** Write a chat that is still only in memory, before an action (generate, upload, draft) references its id on the server. */
+  async function persistConversation(id:string){
+    const epoch=ownerEpoch.current;
+    const operation=chatWrites.current.then(async()=>{
+      const pending=pendingChats.current.get(id);
+      if(!pending)return;
+      if(epoch!==ownerEpoch.current||userRef.current!==user)throw new Error("Your account changed.");
+      await put("conversations",pending);
+      pendingChats.current.delete(id);
+    });
+    chatWrites.current=operation.catch(()=>{});
+    return operation;
+  }
   async function saveConversation(chat:Conversation,mode:"full"|"draft"|"title"|"selection"="full"){
     const epoch=ownerEpoch.current;
     const operation=chatWrites.current.then(async()=>{
@@ -857,7 +870,7 @@ export function useStudio() {
     await db.current?.auth.signOut({ scope: "local" });
   }
   return {
-    conversations,skipPersonaTutorial,saveConversation,createConversation,deleteConversation,saveTutorialPreference,feedback,importYouTube,
+    conversations,skipPersonaTutorial,saveConversation,persistConversation,createConversation,deleteConversation,saveTutorialPreference,feedback,importYouTube,
     config,
     retryConnections: () => { if (config) setConnectionRetry(n => n + 1); else location.reload(); },
     authClient:db.current,
