@@ -1,3 +1,10 @@
+.key-first { display: grid; gap: 16px; max-width: 640px; margin: 0 auto; padding: 24px; }
+.key-first textarea { min-height: 120px; font-size: 16px; }
+.key-first .primary-button, .key-first .neutral-button { width: fit-content; }
+.pillar > span > small, .analysis-more summary span small { display: block; font-size: 14px; font-weight: normal; }
+@media (max-width: 760px) {
+  .studio-main p, .studio-main label, .studio-main small, .analysis-overlay p, .analysis-overlay small { font-size: 16px; }
+}
 /* Hallmark · shape: app screen · theme: locked OpenPikzels review studio · genre: atmospheric · scope: app · signature: full-image canvas with a real 200px feed review · v2.0.0 */
 /* Critique: actual thumbnails lead, evidence stays beside the image, and controls reveal without changing provider behavior. */
 .studio-main.review-active { max-width: 1240px; padding-top: var(--space-8); }
