@@ -202,7 +202,7 @@ export function ConnectionsPage() {
               {!config?.secureConnections && <p>Saving is not available here yet.</p>}
             </>}
             {connectionRead === "failed" && <button type="button" className="neutral-button" disabled={busy} onClick={() => void action(refresh)}>Try again</button>}
-            <details><summary>Use a different AI</summary>
+            {/* copy-law: advanced */}<details><summary>Use a different AI</summary>
               <form className="account-form" onSubmit={e => { e.preventDefault(); void action(async () => {
                 const submitted = key; setKey(""); await api("/api/providers", "POST", { provider, key: submitted }); await refresh(); setNotice("Key saved.");
               }); }}>
@@ -211,6 +211,7 @@ export function ConnectionsPage() {
                 <button type="submit" className="neutral-button" disabled={busy || !config?.secureConnections}>Save</button>
               </form>
             </details>
+            {/* copy-law: end */}
             {connections.map(c => <div className="grant-row" key={c.provider}><span>{c.provider} · ••••{c.suffix}</span><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(async () => { await api("/api/providers", "DELETE", {provider:c.provider}); await refresh(); setSaved(false); })}>Remove</button></div>)}
           </section>
           {/* copy-law: advanced */}

@@ -20,7 +20,7 @@ export function Welcome() {
     </figure>
    </section>
    <section className="welcome-closing">
-    <details className="welcome-privacy"><summary>What we store</summary><div><p>Local drafts, reference images, personas and styles can be saved in this browser. With a cloud account, we store your account, conversations and prompts, creations and private images, personas, styles, analyses, feedback and job metadata.</p><p>Cloud connections store encrypted API keys and connection tokens so the server can use them for your requests. Saved keys are not returned to the interface. AI requests send the necessary inputs to your selected providers, whose terms and retention policies apply.</p></div></details>
+    {/* copy-law: advanced */}<details className="welcome-privacy"><summary>What we store</summary><div><p>Local drafts, reference images, personas and styles can be saved in this browser. With a cloud account, we store your account, conversations and prompts, creations and private images, personas, styles, analyses, feedback and job metadata.</p><p>Cloud connections store encrypted API keys and connection tokens so the server can use them for your requests. Saved keys are not returned to the interface. AI requests send the necessary inputs to your selected providers, whose terms and retention policies apply.</p></div></details>{/* copy-law: end */}
    </section>
   </main></div>;
 }
