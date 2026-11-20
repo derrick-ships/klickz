@@ -23,6 +23,7 @@ export function RevealImage({ surface, creationId, arrival, uploaded = false, in
   const ref = useRef<HTMLImageElement>(null);
   // A failed load is marked for the slot to explain itself (review.css); a later successful load clears it.
   const [failedLoad, setFailedLoad] = useState(false);
+  const [placeholderFailed, setPlaceholderFailed] = useState(false);
   const [decoded, setDecoded] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [phase, setPhase] = useState<Phase>(() => {
@@ -54,7 +55,7 @@ export function RevealImage({ surface, creationId, arrival, uploaded = false, in
   };
   const cls = phase.kind === "pending" ? "image-reveal-pending" : phase.kind === "running" ? "image-reveal" : "";
   const revealStyle = phase.kind === "running" ? ({ "--i": index, "--reveal-delay": phase.delay + "ms", animationDelay: phase.delay + "ms" } as CSSProperties) : undefined;
-  return <>{placeholderSrc && <img className="reveal-placeholder" src={placeholderSrc} alt="" aria-hidden="true" />}<img {...img} src={fallback ? fallbackSrc : img.src} ref={ref} className={[className, cls, decoded ? "reveal-decoded" : "reveal-decoding"].filter(Boolean).join(" ") || undefined} style={revealStyle ? { ...style, ...revealStyle } : style}
+  return <>{placeholderSrc && !placeholderFailed && <img className="reveal-placeholder" src={placeholderSrc} alt="" aria-hidden="true" onError={() => setPlaceholderFailed(true)} />}<img {...img} src={fallback ? fallbackSrc : img.src} ref={ref} className={[className, cls, decoded ? "reveal-decoded" : "reveal-decoding"].filter(Boolean).join(" ") || undefined} style={revealStyle ? { ...style, ...revealStyle } : style}
     data-load={failedLoad ? "failed" : undefined}
     onLoad={loaded}
     onError={event => { if (!fallback && fallbackSrc && fallbackSrc !== img.src) { setFallback(true); setDecoded(false); return; } onError?.(event); setFailedLoad(true); setDecoded(true); setPhase({ kind: "static" }); }}

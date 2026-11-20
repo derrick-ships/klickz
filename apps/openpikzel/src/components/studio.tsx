@@ -218,7 +218,9 @@ export default function Studio() {
   if(!localUndoQueue.current)localUndoQueue.current=createDeleteQueue(id=>setLocalUndo(current=>current?.id===id?null:current));
   function offerUndo(message:string,undo:()=>void,composer=false){localUndoQueue.current!.clear();const id=crypto.randomUUID(), chat=activeChatId;localUndoQueue.current!.add(id);setLocalUndo({id,message,undo:composer?scopedComposerUndo(chat,()=>chatIdRef.current,undo):undo});}
   useEffect(()=>()=>localUndoQueue.current?.clear(),[]);
-  useEffect(()=>{const ids=Object.entries(pendingDeletes).filter(([,item])=>item.kind==='creations'||item.kind==='conversations').map(([id])=>id);if(dialog)ids.forEach(id=>studio.pauseDelete(id,"dialog"));else ids.forEach(id=>studio.resumeDelete(id,"dialog"));if(localUndo){if(dialog)localUndoQueue.current?.pause(localUndo.id,"dialog");else localUndoQueue.current?.resume(localUndo.id,"dialog");}},[dialog,pendingDeletes,localUndo]);
+  // A dialog, or the phone drawer covering the inert workspace, hides the Undo toast: pause until it's visible again.
+  const undoHidden=!!dialog||(compactNavigation&&sidebar);
+  useEffect(()=>{const ids=Object.entries(pendingDeletes).filter(([,item])=>item.kind==='creations'||item.kind==='conversations').map(([id])=>id);if(undoHidden)ids.forEach(id=>studio.pauseDelete(id,"dialog"));else ids.forEach(id=>studio.resumeDelete(id,"dialog"));if(localUndo){if(undoHidden)localUndoQueue.current?.pause(localUndo.id,"dialog");else localUndoQueue.current?.resume(localUndo.id,"dialog");}},[undoHidden,pendingDeletes,localUndo]);
   const videoUrlOwner=useRef<string|null>(null);
   const deliveryAttempt=useRef(0),selectedIdRef=useRef<string|null>(null),scoreIntent=useRef<Record<string,{title:string;includeVision:boolean;videoUrl:string;critiqueProvider:ReturnType<typeof scorePlan>["critiqueProvider"]}>>({}),oneClickInFlight=useRef<Promise<unknown>|null>(null);selectedIdRef.current=selection;
   const [analysisScan, setAnalysisScan] = useState<{id:number;src:string;phase:ScanPhase;reviewer:string}|null>(null);
