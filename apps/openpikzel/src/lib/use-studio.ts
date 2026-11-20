@@ -45,8 +45,10 @@ export function useStudio() {
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
-  const [pendingProfileDeletes,setPendingProfileDeletes]=useState<Record<string,{name:string;kind: "personas"|"styles"|"elements"}>>({});
-  const profileDeleteTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
+  // One delete queue for creations and profiles: each item waits 6 s for Undo, then commits once.
+  const [pendingDeletes,setPendingDeletes]=useState<Record<string,{name:string;kind:Collection;committing?:boolean}>>({});
+  const pendingProfileDeletes=Object.fromEntries(Object.entries(pendingDeletes).filter(([,v])=>v.kind!=="creations"));
+  const deleteTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
   const [configStatus,setConfigStatus]=useState<"loading"|"ready"|"failed">("loading");
   const [conversations,setConversations]=useState<Conversation[]>([]),[skipPersonaTutorial,setSkipPersonaTutorial]=useState(false);
   const elementsAvailable=useRef(false);
@@ -784,12 +786,32 @@ export function useStudio() {
     await load();
     ensureCurrentOwner();
   }
-  function queueProfileDelete(kind: "personas"|"styles"|"elements", id:string, name:string) {
+  const dropPending=(id:string)=>setPendingDeletes(current=>{const next={...current};delete next[id];return next;});
+  async function waitForIdle(){for(let i=0;i<600&&lock.current;i++)await new Promise(r=>setTimeout(r,500));}
+  function queueDelete(kind:Collection,id:string,name:string){
+    if(deleteTimers.current[id])return; // already queued: one timer per item
     const epoch=ownerEpoch.current;
-    setPendingProfileDeletes(current=>({...current,[id]:{kind,name}}));
-    profileDeleteTimers.current[id]=setTimeout(()=>{delete profileDeleteTimers.current[id];if(epoch!==ownerEpoch.current){setPendingProfileDeletes(current=>{const next={...current};delete next[id];return next;});return;}void run("Deleting profile",()=>remove(kind,id)).finally(()=>setPendingProfileDeletes(current=>{const next={...current};delete next[id];return next;}));},6000);
+    setPendingDeletes(current=>({...current,[id]:{kind,name}}));
+    deleteTimers.current[id]=setTimeout(async()=>{
+      delete deleteTimers.current[id];
+      if(epoch!==ownerEpoch.current){dropPending(id);return;}
+      setPendingDeletes(current=>current[id]?{...current,[id]:{...current[id],committing:true}}:current);
+      await waitForIdle(); // never drop a delete because another action holds the lock
+      if(epoch!==ownerEpoch.current){dropPending(id);return;}
+      await run(kind==="creations"?"Deleting creation":"Deleting",()=>remove(kind,id));
+      dropPending(id);
+    },6000);
   }
-  function undoProfileDelete(id:string){clearTimeout(profileDeleteTimers.current[id]);delete profileDeleteTimers.current[id];setPendingProfileDeletes(current=>{const next={...current};delete next[id];return next;});}
+  const queueProfileDelete=(kind:"personas"|"styles"|"elements",id:string,name:string)=>queueDelete(kind,id,name);
+  function undoDelete(id:string){if(!deleteTimers.current[id])return;clearTimeout(deleteTimers.current[id]);delete deleteTimers.current[id];dropPending(id);}
+  const undoProfileDelete=undoDelete;
+  // Leaving while a delete waits for Undo: ask, so the delete is neither lost nor silently done.
+  useEffect(()=>{
+    if(!Object.keys(pendingDeletes).length)return;
+    const warn=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue="";};
+    window.addEventListener("beforeunload",warn);
+    return()=>window.removeEventListener("beforeunload",warn);
+  },[pendingDeletes]);
   /**
    * Delete a chat for good: its thumbnails, their stored image files (PNG and the YouTube JPG copy),
    * reference uploads only this chat used, and the chat itself. Files still used by another chat,
@@ -883,7 +905,7 @@ export function useStudio() {
     await db.current?.auth.signOut({ scope: "local" });
   }
   return {
-    pendingProfileDeletes,queueProfileDelete,undoProfileDelete,
+    pendingDeletes,pendingProfileDeletes,queueDelete,undoDelete,queueProfileDelete,undoProfileDelete,
     conversations,skipPersonaTutorial,saveConversation,persistConversation,createConversation,deleteConversation,saveTutorialPreference,feedback,importYouTube,
     config,
     retryConnections: () => { if (config) setConnectionRetry(n => n + 1); else location.reload(); },

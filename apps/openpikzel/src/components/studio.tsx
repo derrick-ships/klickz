@@ -158,8 +158,7 @@ export default function Studio() {
   const [chatToDelete,setChatToDelete]=useState<Conversation|null>(null);
   const [creationToDelete,setCreationToDelete]=useState<Creation|null>(null);
   const deleteCreationDialog=useRef<HTMLDialogElement>(null);
-  const [pendingDeletes, setPendingDeletes] = useState<Record<string, Creation>>({});
-  const deleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingDeletes = studio.pendingDeletes;
   const hydratedOwner=useRef(""),chatIdRef=useRef<string|null>(null),ownerUI=useRef(studio.user),userPickedTool=useRef(false);ownerUI.current=studio.user;chatIdRef.current=activeChatId;
   const [tool, setTool] = useState<Tool>("generate"),
     [settings, setSettings] = useState<Settings>(defaultSettings),
@@ -925,11 +924,8 @@ export default function Studio() {
       if (selection === item.id) setSelection(null);
     });
   }
-  function queueCreationDelete(item: Creation) {
-    setPendingDeletes(current => ({...current, [item.id]: item}));
-    deleteTimers.current[item.id] = setTimeout(() => { delete deleteTimers.current[item.id]; void deleteCreation(item).finally(() => setPendingDeletes(current => { const next = {...current}; delete next[item.id]; return next; })); }, 6000);
-  }
-  function undoCreationDelete(id: string) { clearTimeout(deleteTimers.current[id]); delete deleteTimers.current[id]; setPendingDeletes(current => { const next = {...current}; delete next[id]; return next; }); }
+  const queueCreationDelete=(item: Creation)=>studio.queueDelete("creations",item.id,item.title||"Creation");
+  const undoCreationDelete=(id:string)=>studio.undoDelete(id);
   const filtered = studio.creations.filter(
     (c) => !pendingDeletes[c.id] &&
       (!onlyFavorites || c.favorite) &&
@@ -1337,9 +1333,9 @@ export default function Studio() {
           </button>
         </div>
         <div className="history-list">
-          {!studio.loading && <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
-          {studio.creations.some(c=>!c.conversation_id)&&<p className="legacy-history-label">Recent creations</p>}
-          {studio.creations.filter(c=>!c.conversation_id).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.thumbs[thumbPath(item.image_path)]||studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
+          {!studio.loading && <ChatHistory chats={studio.conversations} creations={studio.creations.filter(c=>!pendingDeletes[c.id])} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
+          {studio.creations.some(c=>!c.conversation_id&&!pendingDeletes[c.id])&&<p className="legacy-history-label">Recent creations</p>}
+          {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.thumbs[thumbPath(item.image_path)]||studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
         <div className="sidebar-bottom">
 
@@ -1409,8 +1405,7 @@ export default function Studio() {
           {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
-          {Object.entries(studio.pendingProfileDeletes).map(([id,item])=><div className="result-ready" role="status" key={id}>{item.name} removed. <button type="button" className="neutral-button" onClick={()=>studio.undoProfileDelete(id)}>Undo</button></div>)}
-          {Object.values(pendingDeletes).map(item=><div className="result-ready" role="status" key={item.id}>Creation removed. <button type="button" className="neutral-button" onClick={()=>undoCreationDelete(item.id)}>Undo</button></div>)}
+          {Object.entries(pendingDeletes).map(([id,item])=><div className="result-ready" role="status" key={id}>{item.committing?"Deleting…":"Deleted."}{!item.committing&&<button type="button" className="neutral-button" onClick={()=>undoCreationDelete(id)}>Undo</button>}</div>)}
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
@@ -1424,7 +1419,7 @@ export default function Studio() {
             <>
               {hasReviewImage && resultPanel}
               {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix it <small>Uses credits</small></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
-              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
+              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               {needsKey && <section className="key-first"><h2>One step before you start</h2><p>Add an AI key. It lets OpenPikzels make images for you.</p><a className="primary-button" href="/connect">Add key</a></section>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
