@@ -83,7 +83,11 @@ export function useStudio() {
       backfillRunning.current++;
       void (async () => {
         try {
-          const blob = await makeThumb(task.url, task.portrait);
+          // Sign the original just before fetching: queued links can be older than their 5-minute expiry.
+          const client = db.current; if (!client) return;
+          const fresh = await client.storage.from('studio-assets').createSignedUrl(task.path, 300);
+          if (fresh.error || !fresh.data?.signedUrl || userRef.current !== task.owner || ownerEpoch.current !== task.epoch) return;
+          const blob = await makeThumb(fresh.data.signedUrl, task.portrait);
           if (document.visibilityState !== 'visible') { backfillQueue.current.unshift(task); return; }
           if (userRef.current !== task.owner || ownerEpoch.current !== task.epoch || !db.current) return;
           const storage = db.current.storage.from('studio-assets'), path = thumbPath(task.path);
@@ -91,7 +95,7 @@ export function useStudio() {
           if (result.error || userRef.current !== task.owner || ownerEpoch.current !== task.epoch) return;
           const signed = await storage.createSignedUrl(path, 300);
           if (!signed.error && signed.data?.signedUrl && userRef.current === task.owner && ownerEpoch.current === task.epoch) setThumbs(old => ({...old, [path]:signed.data.signedUrl}));
-        } catch { /* Background conversion must never interrupt the workspace. */ }
+        } catch { backfillSeen.current.delete(task.path); /* Background conversion must never interrupt the workspace; a failed item may retry on the next load. */ }
         finally { backfillRunning.current--; setTimeout(pump, 500); }
       })();
     }
@@ -336,6 +340,8 @@ export function useStudio() {
   function ensureCurrentOwner(){if(userRef.current!==user)throw new Error("Your account changed. Check the original account for the result.");}
   async function put(kind: Collection, item: Creation | Persona | Style | Element | Conversation) {
     ensureCurrentOwner();
+    // A library load that started before this write would overwrite it with older rows: make it stale.
+    version.current++;
     if (cloud) {
       const { error } = await db
         .current!.from("studio_" + kind)
@@ -897,7 +903,7 @@ export function useStudio() {
   async function favorite(item: Creation) {
     const epoch = ownerEpoch.current, next = !item.favorite;
     await optimisticUpdate({
-      apply: () => setCreations(items => items.map(c => c.id === item.id ? {...c, favorite: next} : c)),
+      apply: () => { version.current++; setCreations(items => items.map(c => c.id === item.id ? {...c, favorite: next} : c)); },
       persist: async () => { await put("creations", {...item, favorite: next}); ensureCurrentOwner(); },
       rollback: () => { if (epoch === ownerEpoch.current) setCreations(items => items.map(c => c.id === item.id && c.favorite === next ? {...c, favorite: item.favorite} : c)); },
     });
