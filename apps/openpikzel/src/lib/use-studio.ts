@@ -177,6 +177,7 @@ export function useStudio() {
       .finally(() => { if (active && userRef.current === user) setLoading(false); });
     return () => { active = false; };
   }, [load, user]);
+  const [connectionRetry, setConnectionRetry] = useState(0);
   useEffect(() => {
     let active = true;
     const epoch = ownerEpoch.current;
@@ -189,7 +190,7 @@ export function useStudio() {
         .catch(() => {if(active&&epoch===ownerEpoch.current){setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:"failed"}:current);setError("Your provider connection status could not load. Open Connections to refresh it before using AI. Your drafts remain safe.");}});
     }
     return () => { active = false; };
-  }, [user]);
+  }, [user, connectionRetry]);
   useEffect(() => {
     if (!cloud) return;
     const timer = setInterval(() => load().catch(() => {}), 240000);
@@ -845,6 +846,7 @@ export function useStudio() {
   return {
     conversations,skipPersonaTutorial,saveConversation,createConversation,deleteConversation,saveTutorialPreference,feedback,importYouTube,
     config,
+    retryConnections: () => { if (config) setConnectionRetry(n => n + 1); else location.reload(); },
     authClient:db.current,
     user,
     cloud,

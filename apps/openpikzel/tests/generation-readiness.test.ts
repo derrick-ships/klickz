@@ -18,7 +18,7 @@ it("shows verified output-only estimates with input and analysis charges left ex
 
 it("does not block image generate when Jev or a vision key is missing",()=>{expect(generationReadiness({...base,config:{...config,jev:false}})).toMatchObject({action:"run"});expect(generationReadiness({...base,includeVision:true,textProvider:"google",config:{...config,google:false}})).toMatchObject({action:"run"});});
 
-it("treats failed provider lookup as unknown instead of claiming a key is disconnected",()=>{const value=generationReadiness({...base,config:{...config,connectionStatus:"failed"}});expect(value).toMatchObject({action:"connect",connectionCheckFailed:true});expect(value.readiness).toContain("Connection status could not load");});
+it("treats failed provider lookup as unknown instead of claiming a key is disconnected",()=>{const value=generationReadiness({...base,config:{...config,connectionStatus:"failed"}});expect(value).toMatchObject({action:"retry",connectionCheckFailed:true});expect(value.readiness).toContain("Connection status could not load");});
 
 it("gives the generate button a short image cost and a spoken description, only for image requests",()=>{
  const r=generationReadiness({...base,settings:{...defaultSettings,quality:"medium",batch:1}});
