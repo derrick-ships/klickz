@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+// Next bundles the parser used by its own build.
+const { parse } = require("next/dist/compiled/babel/parser") as { parse: (source: string, options: object) => Node };
+type Node = { type: string; value?: string; name?: string | Node; children?: Node[]; openingElement?: Node; attributes?: Node[]; loc?: { start: { line: number } }; [key: string]: unknown };
 
 export const copyLawFiles = [
   "src/components/welcome.tsx", "src/components/account/account.tsx",
@@ -15,17 +18,26 @@ const banned = /\b(?:API|provider|model|token|MCP|OAuth|Jev|Flare|Sunburst|lever
 function visibleCopy(path: string) {
   const source = readFileSync(path, "utf8");
   const cleaned = source.replace(/\{\/\* copy-law: advanced \*\/\}[\s\S]*?\{\/\* copy-law: end \*\/\}/g, "");
+  const file = parse(cleaned, { sourceType: "module", plugins: ["jsx", "typescript"] });
   const found: { text: string; line: number; button: boolean }[] = [];
-  const jsx = cleaned.slice(cleaned.lastIndexOf("return ("));
-  const pattern = />\s*([^<>{}]+?)\s*</g;
-  for (const match of jsx.matchAll(pattern)) {
-    const prefix = jsx.slice(0, match.index);
-    const button = /<button\b[^>]*>\s*$/.test(prefix) && /^\s*<\/button/.test(jsx.slice((match.index || 0) + match[0].length - 1));
-    found.push({ text: match[1].trim(), line: prefix.split("\n").length, button });
+  function walk(node: unknown, button = false) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) { node.forEach(child => walk(child, button)); return; }
+    const n = node as Node;
+    if (n.type === "JSXText" && n.value?.trim()) found.push({ text: n.value.trim(), line: n.loc?.start.line || 0, button });
+    if (n.type === "JSXAttribute" && typeof n.name === "object" && ["aria-label", "title", "placeholder"].includes(String(n.name?.name))) {
+      const value = n.value as unknown as Node;
+      if (value?.type === "StringLiteral" && value.value) found.push({ text: value.value, line: n.loc?.start.line || 0, button: false });
+    }
+    if (n.type === "JSXElement") {
+      const tag = n.openingElement?.name as Node | undefined;
+      walk(n.openingElement, false);
+      walk(n.children, tag?.name === "button" && n.children?.length === 1);
+      return;
+    }
+    for (const [key, value] of Object.entries(n)) if (key !== "loc" && key !== "tokens" && key !== "comments") walk(value, false);
   }
-  for (const match of cleaned.matchAll(/\b(?:aria-label|title|placeholder)="([^"]+)"/g)) {
-    found.push({ text: match[1], line: cleaned.slice(0, match.index).split("\n").length, button: false });
-  }
+  walk(file);
   return found;
 }
 

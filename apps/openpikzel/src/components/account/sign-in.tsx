@@ -73,9 +73,9 @@ export function AccountSignIn({
         if (error.status === 429) {
           setRetryAt(Date.now() + 60_000);
           setRemaining(60);
-          showCode("The sign-in email limit has been reached. Use a link or code you already received, or wait before requesting another email.");
+          showCode("Too many emails. Wait a minute and try again.");
         } else {
-          setStatus("Could not send the sign-in email. Check your connection and try again. You can still use a code you already received or sign in with your password.");
+          setStatus("Email not sent. Check your connection and try again.");
         }
         return;
       }
@@ -85,7 +85,7 @@ export function AccountSignIn({
       showCode("");
     } catch {
       setAuthError(true);
-      setStatus("Could not send the sign-in email. Check your connection and try again.");
+      setStatus("Email not sent. Check your connection and try again.");
     } finally {
       pending.current = false;
       setBusy(false);
@@ -107,10 +107,10 @@ export function AccountSignIn({
       if (result.error) {
         setAuthError(true);
         setStatus(step === "code"
-          ? "That code could not be verified. Check the digits, or request a new email if it expired. Use only the newest link or code."
+          ? "That code did not work. Try the newest code."
           : mode === "signup"
-            ? "Could not create the account. Check your details, or use an email sign-in link."
-            : "Sign-in failed. Check your email and password. Your password was cleared; enter it again, or use an email sign-in link.");
+            ? "Could not create your account. Check your details."
+            : "Sign-in failed. Check your email and password.");
         if (step === "code") codeInput.current?.focus();
       } else if (result.data.session) {
         setCode("");
@@ -121,7 +121,7 @@ export function AccountSignIn({
     } catch {
       setPassword("");
       setAuthError(true);
-      setStatus("Could not complete sign-in. Check your connection and try again.");
+      setStatus("Sign-in failed. Check your connection and try again.");
     } finally {
       pending.current = false;
       setBusy(false);
