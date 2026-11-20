@@ -11,6 +11,6 @@ function ThumbImageState({ src, thumbSrc, alt, aspect, priority = false, classNa
   const [previewFailed, setPreviewFailed] = useState(false);
   return <span data-transition-creation={creationId} className={`thumb-image ${className}`} style={{ aspectRatio: aspect.replace(":", " / ") }}>
     {!loaded && !failed && (thumbSrc && !previewFailed ? <img className="thumb-image-placeholder" src={thumbSrc} alt="" aria-hidden="true" onError={() => setPreviewFailed(true)} /> : <span className="thumb-image-gradient" aria-hidden="true" />)}
-    {!failed ? <img key={src} className={loaded ? "thumb-image-main is-loaded" : "thumb-image-main"} src={src} alt={alt} loading={priority ? "eager" : "lazy"} decoding="async" onLoad={event => { setLoaded(true); onLoad?.(event.currentTarget); }} onError={() => { setFailed(true); onError?.(); }} /> : <span className="thumb-image-error" role="img" aria-label={`${alt ? alt + ": " : ""}Image unavailable`}>Image unavailable</span>}
+    {!failed ? <img key={src} className={loaded ? "thumb-image-main is-loaded" : "thumb-image-main"} src={src} alt={alt} loading={priority ? "eager" : "lazy"} decoding="async" onLoad={event => { const image = event.currentTarget; void (image.decode?.() ?? Promise.resolve()).catch(() => {}).then(() => { setLoaded(true); onLoad?.(image); }); }} onError={() => { setFailed(true); onError?.(); }} /> : <span className="thumb-image-error" role="img" aria-label={`${alt ? alt + ": " : ""}Image unavailable`}>Image unavailable</span>}
   </span>;
 }

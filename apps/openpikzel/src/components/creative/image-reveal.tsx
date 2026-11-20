@@ -23,6 +23,7 @@ export function RevealImage({ surface, creationId, arrival, uploaded = false, in
   const ref = useRef<HTMLImageElement>(null);
   // A failed load is marked for the slot to explain itself (review.css); a later successful load clears it.
   const [failedLoad, setFailedLoad] = useState(false);
+  const [decoded, setDecoded] = useState(!placeholderSrc);
   const [phase, setPhase] = useState<Phase>(() => {
     if (typeof window === "undefined") return { kind: "static" };
     const startedAt = registry.startedAt(surface, creationId);
@@ -41,17 +42,18 @@ export function RevealImage({ surface, creationId, arrival, uploaded = false, in
   // An image already complete before React attached onLoad (cache) must not stay hidden: settle it now.
   useLayoutEffect(() => {
     const image = ref.current;
-    if (phase.kind === "pending" && image?.complete) start(image);
+    if (image?.complete && image.naturalWidth) void (image.decode?.() ?? Promise.resolve()).catch(() => {}).then(() => { setDecoded(true); if (phase.kind === "pending") start(image); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const loaded = (event: SyntheticEvent<HTMLImageElement>) => {
     onLoad?.(event);
     setFailedLoad(false);
-    if (phase.kind === "pending") start(event.currentTarget);
+    const image = event.currentTarget;
+    void (image.decode?.() ?? Promise.resolve()).catch(() => {}).then(() => { setDecoded(true); if (phase.kind === "pending") start(image); });
   };
   const cls = phase.kind === "pending" ? "image-reveal-pending" : phase.kind === "running" ? "image-reveal" : "";
   const revealStyle = phase.kind === "running" ? ({ "--i": index, "--reveal-delay": phase.delay + "ms", animationDelay: phase.delay + "ms" } as CSSProperties) : undefined;
-  return <>{placeholderSrc && <img className="reveal-placeholder" src={placeholderSrc} alt="" aria-hidden="true" />}<img {...img} ref={ref} className={[className, cls].filter(Boolean).join(" ") || undefined} style={revealStyle ? { ...style, ...revealStyle } : style}
+  return <>{placeholderSrc && <img className="reveal-placeholder" src={placeholderSrc} alt="" aria-hidden="true" />}<img {...img} ref={ref} className={[className, cls, placeholderSrc ? (decoded ? "reveal-decoded" : "reveal-decoding") : ""].filter(Boolean).join(" ") || undefined} style={revealStyle ? { ...style, ...revealStyle } : style}
     data-load={failedLoad ? "failed" : undefined}
     onLoad={loaded}
     onError={event => { onError?.(event); setFailedLoad(true); setPhase({ kind: "static" }); }}

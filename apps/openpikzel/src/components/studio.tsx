@@ -513,16 +513,18 @@ export default function Studio() {
     if(busy)return false;
     const changed=await studio.run("Opening creation",async()=>{
       const owner=studio.user;await flushDraft();if(ownerUI.current!==owner)return false;
+      withViewTransition(()=>{
       if((item.conversation_id||null)!==activeChatId){
        const chat=studio.conversations.find(c=>c.id===item.conversation_id);
        if(chat)activateChat(chat,false);
        else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaIds([]);setElementIds([]);setStyleId("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setDelivery(null);setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
       }
       setParentId(item.image_path?item.id:item.parent_id);
-      setComposerOpen(false);setSaveReceipt(0);withViewTransition(()=>setSelection(item.id),item.id,source);
+      setComposerOpen(false);setSaveReceipt(0);setSelection(item.id);
       setTitle(current => item.conversation_id && item.conversation_id === activeChatId ? current : (studio.conversations.find(c => c.id === item.conversation_id)?.draft.title ?? item.score?.context?.title ?? ""));
       if(item.settings)setSettings({...defaultSettings,...item.settings,batch:1});setTab("studio");
       if(compactNavigation){setSidebar(false);requestAnimationFrame(()=>mainRef.current?.focus());}
+      },item.id,source);
       return true;
     });return changed===true;
   }
@@ -1349,7 +1351,7 @@ export default function Studio() {
         <div className="history-list">
           {studio.loading ? <HistorySkeleton/> : <ChatHistory chats={studio.conversations.filter(c=>!pendingDeletes[c.id])} creations={studio.creations.filter(c=>!pendingDeletes[c.id] && !(c.conversation_id && pendingDeletes[c.conversation_id]))} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
           {studio.creations.some(c=>!c.conversation_id&&!pendingDeletes[c.id])&&<p className="legacy-history-label">Recent creations</p>}
-          {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<ThumbImage src={studio.images[item.image_path]} thumbSrc={studio.thumbs[thumbPath(item.image_path)]} alt="" aspect={item.settings?.format==="short"?"9:16":"16:9"}/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
+          {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<ThumbImage src={studio.thumbs[thumbPath(item.image_path)] || studio.images[item.image_path]} alt="" aspect={item.settings?.format==="short"?"9:16":"16:9"}/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
         <div className="sidebar-bottom">
 
@@ -2351,7 +2353,7 @@ export default function Studio() {
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} placeholderSrc={studio.thumbs[thumbPath(item.image_path)]} data-transition-creation={item.id} alt={item.title} />
+            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.thumbs[thumbPath(item.image_path)] || studio.images[item.image_path]} data-transition-creation={item.id} alt={item.title} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />
