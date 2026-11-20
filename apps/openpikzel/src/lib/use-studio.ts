@@ -1,5 +1,6 @@
 "use client";
 import {unusedElementImages,type Element,type ElementKind} from "./elements";
+import { optimisticUpdate } from "./optimistic";
 import { retryAction, retryableAction } from "./retry-action";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -633,6 +634,12 @@ export function useStudio() {
     if(name.trim().length<3)throw new Error("Name must be at least 3 characters");
     if(name.trim().length>80)throw new Error("Use a name up to 80 characters.");
     const trimmed=name.trim();
+    const previous = (kind === "persona" ? personas : kind === "style" ? styles : elements).find(item => item.id === id)?.name;
+    const updateName = (value: string, expected?: string) => {
+      const update = <T extends {id:string;name:string}>(items:T[]) => items.map(item => item.id === id && (expected === undefined || item.name === expected) ? {...item, name: value} : item);
+      if (kind === "persona") setPersonas(update); else if (kind === "style") setStyles(update); else setElements(update);
+    };
+    return optimisticUpdate({apply: () => updateName(trimmed), rollback: () => {if (epoch === ownerEpoch.current && previous !== undefined) updateName(previous, trimmed);}, persist: async () => {
     if(cloud){
       const requestHeaders=await headers();
       if(epoch!==ownerEpoch.current)throw new Error("Your account changed.");
@@ -647,6 +654,7 @@ export function useStudio() {
     if(epoch!==ownerEpoch.current)throw new Error("Your account changed. The profile remains in its original account.");
     await load();
     return next;
+    }});
   }
   async function importYouTube(videoId:string){const res=await fetch("/api/youtube/reference",{method:"POST",headers:await headers(),body:JSON.stringify({videoId})});if(!res.ok){const e=await res.json();throw new Error(e.error||"This thumbnail could not import.");}return new File([await res.blob()],videoId+".png",{type:"image/png"});}
   /** Write a chat that is still only in memory, before an action (generate, upload, draft) references its id on the server. */
@@ -664,6 +672,8 @@ export function useStudio() {
   }
   async function saveConversation(chat:Conversation,mode:"full"|"draft"|"title"|"selection"="full"){
     const epoch=ownerEpoch.current;
+    const previous = mode === "title" ? conversations.find(item => item.id === chat.id) : undefined;
+    if (previous) setConversations(items => items.map(item => item.id === chat.id ? {...item, title: chat.title} : item));
     const operation=chatWrites.current.then(async()=>{
       if(epoch!==ownerEpoch.current||userRef.current!==user)throw new Error("Your account changed.");
       let next=chat;
@@ -683,7 +693,8 @@ export function useStudio() {
       if(epoch!==ownerEpoch.current)throw new Error("Your account changed. This chat stays in its original workspace.");
       setConversations(items=>[next,...items.filter(c=>c.id!==next.id)].sort((a,b)=>b.updated_at.localeCompare(a.updated_at)));return next;
     });
-    chatWrites.current=operation.then(()=>{},()=>{});return operation;
+    chatWrites.current=operation.then(()=>{},()=>{});
+    return operation.catch(error => {if (previous && epoch === ownerEpoch.current) setConversations(items => items.map(item => item.id === chat.id && item.title === chat.title ? {...item, title: previous.title} : item)); throw error;});
   }
   async function rememberCreation(item:Creation){
     if(!item.conversation_id)return;
@@ -854,9 +865,12 @@ export function useStudio() {
     return plan;
   }
   async function favorite(item: Creation) {
-    await put("creations", { ...item, favorite: !item.favorite });
-    await load();
-    ensureCurrentOwner();
+    const epoch = ownerEpoch.current, next = !item.favorite;
+    await optimisticUpdate({
+      apply: () => setCreations(items => items.map(c => c.id === item.id ? {...c, favorite: next} : c)),
+      persist: async () => { await put("creations", {...item, favorite: next}); ensureCurrentOwner(); },
+      rollback: () => { if (epoch === ownerEpoch.current) setCreations(items => items.map(c => c.id === item.id && c.favorite === next ? {...c, favorite: item.favorite} : c)); },
+    });
   }
   /** YouTube's mobile upload limit is 2 MB: export 1280×720 (or 720×1280) JPEG, lowering quality until it fits. */
   async function youtubeReady(source: Blob, portrait: boolean) {
