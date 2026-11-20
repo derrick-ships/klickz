@@ -1014,40 +1014,14 @@ export default function Studio() {
                           {busy
                             ? studio.busy
                             : readiness.action==="retry" ? "Couldn’t check connections · Retry" : readiness.action==="signin" ? (tool==="analyze"?"Sign in to analyze":"Sign in to generate") : readiness.action==="connect" ? "Connect "+readiness.provider : readiness.action==="loading" ? "Checking your workspace…" : readiness.action==="unavailable" ? "AI unavailable" : tool === "analyze"
-                              ? "Score thumbnail"
+                              ? "Score"
                               : tool === "title" && titleAction === "ideas"
                                 ? "Generate titles"
-                                : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create thumbnail"}
+                                : tool === "edit" ? "Apply AI edit" : tool === "recreate" ? "Create variation" : "Create"}
                         </span>
                       </button>
-                      {tool !== "analyze" &&
-                        !(tool === "title" && titleAction === "ideas") && (
-                          <label className="batch-select">
-                            <span className="sr-only">Images per request</span>
-                            <select
-                              aria-label="Images per request"
-                              value={settings.batch}
-                              disabled={busy}
-                              onChange={(e) =>
-                                changeSettings(
-                                  "batch",
-                                  Number(e.target.value) as Settings["batch"],
-                                )
-                              }
-                            >
-                              <option value={1}>1×</option>
-                              <option value={2}>2×</option>
-                              <option value={4}>4×</option>
-                              <option value={8}>8×</option>
-                              <option value={16}>16×</option>
-                            </select>
-                          </label>
-                        )}
                     </div>
-                    {tool === "generate" && (planUndo && prompt === planUndo.after
-                      ? <button type="button" className="ghost-pill" disabled={busy} onClick={() => { setPrompt(planUndo.before); setPlanUndo(null); requestAnimationFrame(() => promptRef.current?.focus({ preventScroll: true })); }}><Undo2 size={15} aria-hidden="true"/>Undo</button>
-                      : prompt.trim().length >= 3 && studio.cloud && !!(studio.config?.openai || studio.config?.google) && <button type="button" className="ghost-pill" disabled={busy} onClick={() => void planIt()}><Sparkles size={15} aria-hidden="true"/>Improve</button>)}
-                    <p className="generate-key-note" id="generate-key-note">{readiness.keyNote.connected?readiness.keyNote.text:<>{readiness.keyNote.text} <button type="button" className="generate-key-link" onClick={()=>setDialog("connections")}>{readiness.keyNote.link}</button></>}</p>
+                    <small>Uses credits</small>
                   </div>
   );
   const providerControls=<><ProviderChoice value={textProvider} onChange={setTextProvider} config={studio.config} disabled={busy} connectedShownNearby={readiness.keyNote.connected&&readiness.keyNote.provider===(textProvider==="openai"?"OpenAI":"Google")}/><label className="permission-field"><input type="checkbox" checked={includeVision} disabled={busy} onChange={e=>setIncludeVision(e.target.checked)}/>Review the image itself for specific advice (one extra AI request)</label></>;
@@ -1070,7 +1044,7 @@ export default function Studio() {
 
                     </div>
                     <div className="result-utilities">
-                    
+
                       {hasReviewImage && (
                       <button type="button"
                         className={phone ? "icon-button active" : "icon-button"}
@@ -1614,9 +1588,9 @@ export default function Studio() {
                                 <span>
                                   {tool === "recreate"
                                     ? "Drop a thumbnail to recreate"
-                                    : "Drop your thumbnail here"}
+                                    : "Add a thumbnail"}
                                 </span>
-                                <small>Any photo or image file, up to 30 MB</small>
+
                               </>
                             )}
                           </button>
@@ -1637,13 +1611,12 @@ export default function Studio() {
                           onKeyDown={e=>{if(tool==="analyze"&&(e.metaKey||e.ctrlKey)&&e.key==="Enter"&&!busy&&readiness.action==="run"){e.preventDefault();void submit();}}}
                           onChange={(e) => setTitle(e.target.value)}
                           placeholder="The title your audience will see"
-                          aria-describedby={tool === "analyze" ? "video-title-guidance" : undefined}
                         />
                       </div>
                     )}
                     {tool === "analyze" && (
                       <div className="diagnostic-context">
-                        {!importedTitle && <p id="video-title-guidance">A video title is optional. You can score the image on its own.</p>}
+
                         <details className="more-options"><summary>More options</summary>
                         {!importedTitle && <><label htmlFor="analysis-video-url">YouTube video link (optional)</label>
                         <input id="analysis-video-url" type="url" maxLength={500} value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
@@ -1692,14 +1665,14 @@ export default function Studio() {
                                 ? "For example: brighten the face, simplify the background, or enlarge the headline."
                                 : tool === "title"
                                   ? "Describe your video, audience, or visual direction…"
-                                  : "Who or what is the focus? Describe the scene, mood and any words to show. Put exact wording in quotation marks."
+                                  : "What's your video about?"
                           }
                         />
-                        <TypingExamples active={showExamples} onUse={(text)=>{setPrompt(text);requestAnimationFrame(()=>promptRef.current?.focus());}} />
+
                         {mentions.list}
                         </div>
                         {promptError&&<p className="field-error" id="prompt-error" role="alert"><AlertCircle size={15} aria-hidden="true"/><span>{promptError}</span></p>}
-                        <div className="desktop-create-action">{generateAction}</div>
+
                           </div>
                         </div>
                         <div className="reference-strip">
@@ -1728,12 +1701,6 @@ export default function Studio() {
                           {!styleProfile && libraryChoice && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+libraryChoice.name}><img src={libraryChoice.images[0]} alt=""/><span className="selection-name">{libraryChoice.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+libraryChoice.name} onClick={()=>setPreset("Auto")}><X size={11}/></button></div>}
                           {styleProfile && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+styleProfile.name}><Palette size={13}/><span className="selection-name">{styleProfile.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+styleProfile.name} onClick={()=>{setStyleId("");document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[1]?.focus();}}><X size={14}/></button></div>}
                         </div>
-                        {tool === "generate" && (
-                          <div className="field-block create-title">
-                            <label htmlFor="create-video-title">Video title <span>(optional, gives a complete score)</span></label>
-                            <input id="create-video-title" maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The title your audience will see" />
-                          </div>
-                        )}
                         <div className="prompt-tools">
                           <div className="composer-tool-group" role="group" aria-label="Subject and style">
                           <button type="button"
@@ -1741,28 +1708,16 @@ export default function Studio() {
                             onClick={() => openProfiles("personas")}
                           >
                             <UserRoundPlus size={15} />
-                            Persona
+                            Add a face
                           </button>
                           <button type="button"
                             className="tool-chip"
                             onClick={() => openProfiles("styles")}
                           >
                             <Palette size={15} />
-                            Style
+                            Pick a look
                           </button>
-                          <button type="button" className="tool-chip" onClick={()=>openProfiles("elements")}><Box size={15}/>Element</button>
                           </div>
-                          {!["recreate","edit","analyze"].includes(tool)&&<div className="composer-tool-group" role="group" aria-label="Image references">
-                          <button type="button"
-                            className="tool-chip"
-                            onClick={() => uploadRef.current?.click()}
-                          >
-                            <ImagePlus size={15} />
-                            Add image
-                            {refs.length > 0 && <span>{refs.length}/6</span>}
-                          </button>
-
-                          </div>}
                           <div className="composer-tool-group format-choice"><label className="tool-chip format-chip">
                             {settings.format === "long" ? (
                               <RectangleHorizontal size={14} />
@@ -1806,14 +1761,61 @@ export default function Studio() {
                       null
                     ) : (
                       <>
+                        <details className="more-options" open={advanced} onToggle={e=>setAdvanced((e.currentTarget as HTMLDetailsElement).open)}><summary>More options</summary>
+                          <div className="more-options-body">
                         {settings.model.startsWith("gemini-") && (
                           <p className="dialog-footnote">
                             Google uses its native 1K image output. Quality and
-                            planning effort controls apply to Sunburst and Flare.
+                            thinking time controls apply to Sunburst and Flare.
                           </p>
                         )}
-                        <details className="more-options" open={advanced} onToggle={e=>setAdvanced((e.currentTarget as HTMLDetailsElement).open)}><summary>More options</summary>
-                          <div className="more-options-body">
+
+                        {tool === "generate" && (
+                          <div className="field-block create-title">
+                            <label htmlFor="create-video-title">Video title <span>(optional, gives a complete score)</span></label>
+                            <input id="create-video-title" maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The title your audience will see" />
+                          </div>
+                        )}
+<div className="prompt-tools"><div className="composer-tool-group">                          <button type="button" className="tool-chip" onClick={()=>openProfiles("elements")}><Box size={15}/>Element</button>
+                          </div>
+                          {!["recreate","edit","analyze"].includes(tool)&&<div className="composer-tool-group" role="group" aria-label="Image references">
+                          <button type="button"
+                            className="tool-chip"
+                            onClick={() => uploadRef.current?.click()}
+                          >
+                            <ImagePlus size={15} />
+                            Add image
+                            {refs.length > 0 && <span>{refs.length}/6</span>}
+                          </button>
+
+                          </div>}
+                      {!(tool === "title" && titleAction === "ideas") && (
+                          <label className="batch-select">
+                            <span className="sr-only">Images per request</span>
+                            <select
+                              aria-label="Images per request"
+                              value={settings.batch}
+                              disabled={busy}
+                              onChange={(e) =>
+                                changeSettings(
+                                  "batch",
+                                  Number(e.target.value) as Settings["batch"],
+                                )
+                              }
+                            >
+                              <option value={1}>1×</option>
+                              <option value={2}>2×</option>
+                              <option value={4}>4×</option>
+                              <option value={8}>8×</option>
+                              <option value={16}>16×</option>
+                            </select>
+                          </label>
+                        )}
+                    {tool === "generate" && (planUndo && prompt === planUndo.after
+                      ? <button type="button" className="ghost-pill" disabled={busy} onClick={() => { setPrompt(planUndo.before); setPlanUndo(null); requestAnimationFrame(() => promptRef.current?.focus({ preventScroll: true })); }}><Undo2 size={15} aria-hidden="true"/>Undo</button>
+                      : prompt.trim().length >= 3 && studio.cloud && !!(studio.config?.openai || studio.config?.google) && <button type="button" className="ghost-pill" disabled={busy} onClick={() => void planIt()}><Sparkles size={15} aria-hidden="true"/>Improve</button>)}
+</div>
+
                              <section className="option-group" aria-label="AI model"><h3>AI model</h3><div className="settings-row">
                               <ModelTrigger label="Rendering model" model={settings.model} expanded={dialog==="models"} onOpen={()=>setDialog("models")}/>
                             </div>{providerControls}<div className="advanced-controls">
@@ -1838,9 +1840,9 @@ export default function Studio() {
                               </select>
                             </label>
                             <label>
-                              Planning effort
+                              Thinking time
                               <select
-                                aria-label="Planning effort"
+                                aria-label="Thinking time"
                                 disabled={settings.model.startsWith("gemini-")}
                                 value={settings.complexity}
                                 onChange={(e) =>
@@ -1878,7 +1880,7 @@ export default function Studio() {
                               </select>
                             </label>
                             <p>
-                              Quality controls image detail. Planning effort controls preparation.
+                              Quality controls image detail. Thinking time controls preparation.
                               Higher settings may take longer and cost more with your provider.
                             </p>
                           </div></section>
@@ -1889,7 +1891,7 @@ export default function Studio() {
                   </fieldset>
                   <p className="request-ready" id="request-ready" role="status">{readiness.action==="signin"||readiness.action==="connect"&&!readiness.connectionCheckFailed||readiness.action==="loading"||readiness.readiness.startsWith("Connection saved.")?"":readiness.readiness}</p>
                   {tool==="analyze"&&generateAction}
-                  {tool!=="analyze"&&<div className="mobile-create-action">{generateAction}</div>}
+                  {tool!=="analyze"&&<div className="create-action">{generateAction}</div>}
                 </div>
                 <div className="composer-footer" hidden={!showComposer}>
                   <span>
@@ -1930,8 +1932,8 @@ export default function Studio() {
                   }}
                 />
               </section>
-              
-              
+
+
               {titles.length > 0 && (
                 <section className="title-results result-section">
                   <div className="section-heading">
