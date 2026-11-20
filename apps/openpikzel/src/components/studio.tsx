@@ -73,7 +73,7 @@ import { ReviewCanvas } from "@/components/review-canvas";
 import { ScoreBadge } from "@/components/creative/score-badge";
 import { needsImageReview } from "@/lib/score-on-generate";
 import { MediatorDetails } from "@/components/creative/mediator-details";
-import { setRevealOwner } from "@/components/creative/image-reveal";
+import { RevealImage, setRevealOwner } from "@/components/creative/image-reveal";
 import { ThumbImage } from "@/components/thumb-image";
 import { withViewTransition } from "@/lib/view-transition";
 import { useSwipeDismiss } from "@/lib/use-swipe-dismiss";
@@ -497,7 +497,7 @@ export default function Studio() {
     setProfileFiles([]);
     setDialog(which);
   }
-  async function choose(item:Creation){
+  async function choose(item:Creation, source?: HTMLElement | null){
     if(busy)return false;
     const changed=await studio.run("Opening creation",async()=>{
       const owner=studio.user;await flushDraft();if(ownerUI.current!==owner)return false;
@@ -507,7 +507,7 @@ export default function Studio() {
        else{workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);setPrompt("");setRefs([]);setPersonaIds([]);setElementIds([]);setStyleId("");setVideoBrief("");setVideoUrl("");setCreativeDraft({});setDelivery(null);setPreset("Auto");localStorage.removeItem("openpikzels.activeChat."+(owner||"local"));}
       }
       setParentId(item.image_path?item.id:item.parent_id);
-      setComposerOpen(false);setSaveReceipt(0);withViewTransition(()=>setSelection(item.id),item.id);
+      setComposerOpen(false);setSaveReceipt(0);withViewTransition(()=>setSelection(item.id),item.id,source);
       setTitle(current => item.conversation_id && item.conversation_id === activeChatId ? current : (studio.conversations.find(c => c.id === item.conversation_id)?.draft.title ?? item.score?.context?.title ?? ""));
       if(item.settings)setSettings({...defaultSettings,...item.settings,batch:1});setTab("studio");
       if(compactNavigation){setSidebar(false);requestAnimationFrame(()=>mainRef.current?.focus());}
@@ -1081,7 +1081,7 @@ export default function Studio() {
                   <div className="review-layout"><div className="review-media">
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
-                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
+                      <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} placeholderSrc={studio.thumbs[thumbPath(selected.image_path)]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
                       {score && <p className="result-verdict">{weakest ? `Good start. ${verdict[weakest]}` : "Score again for more detail."} {score.overall !== null && <strong>{score.overall}/100</strong>} <button type="button" className="neutral-button mobile-score-toggle" onClick={()=>setDialog("analysis")}>See scores</button></p>}
                       <div className="result-actions">
                         {score && <button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}><span>Fix it<small className="paid-cue">Uses credits</small></span></button>}
@@ -1422,7 +1422,7 @@ export default function Studio() {
             <>
               {hasReviewImage && resultPanel}
               {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}><span>Fix it<small className="paid-cue">Uses credits</small></span></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
-              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
+              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={(c,source)=>c.status==="draft"?resume(c):choose(c,source)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               {!hasReviewImage && <p className="studio-help"><a href="mailto:derrickserna.ca@gmail.com">Need help? Email us</a></p>}
               {needsKey && <section className="key-first"><h2>One step before you start</h2><p>Add an AI key. It lets OpenPikzels make images for you.</p><a className="primary-button" href="/connect">Add key</a></section>}
               <section
@@ -2334,12 +2334,12 @@ export default function Studio() {
         <button type="button"
           className="creation-card-image"
           disabled={busy}
-          onClick={() =>
-            item.status === "draft" ? resume(item) : choose(item)
+          onClick={(event) =>
+            item.status === "draft" ? resume(item) : choose(item, event.currentTarget.querySelector("[data-transition-creation]"))
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <ThumbImage creationId={item.id} src={studio.images[item.image_path]} thumbSrc={studio.thumbs[thumbPath(item.image_path)]} alt={item.title} aspect={item.settings?.format === "short" ? "9:16" : "16:9"} />
+            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} placeholderSrc={studio.thumbs[thumbPath(item.image_path)]} data-transition-creation={item.id} alt={item.title} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />
