@@ -12,7 +12,7 @@ export function MediatorDetails({ record }: { record: MediatorRecord }) {
         </div>
       )}
       <dl>
-        <dt>Idea</dt><dd>{e.concept}{e.lever !== "NONE" ? ` · lever: ${e.lever}` : ""}</dd>
+        <dt>Idea</dt><dd>{e.concept}</dd>
         <dt>Text on the image</dt><dd>{e.imageText.length ? e.imageText.map((t) => `“${t}”`).join(" / ") : "None"}</dd>
         <dt>Panels</dt><dd>{e.panels}</dd>
         {e.decisions.length > 0 && <><dt>Decided for you</dt><dd><ul>{e.decisions.map((d) => <li key={d}>{d}</li>)}</ul></dd></>}

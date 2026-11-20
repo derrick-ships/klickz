@@ -135,11 +135,11 @@ const names: Record<Pillar, string> = {
   emotion: "Emotion",
 };
 const definitions: Record<Pillar, string> = {
-  virality: "A visual idea that interrupts the scroll.",
-  clarity: "One clear subject, readable at feed size.",
-  idea: "The specific promise of your video.",
-  curiosity: "A question worth clicking to answer.",
-  emotion: "A clear, relevant feeling.",
+  virality: "Stands out in the feed",
+  clarity: "Easy to read, small",
+  idea: "The idea is clear",
+  curiosity: "Makes people want to click",
+  emotion: "Shows a real feeling",
 };
 export default function Studio() {
   const studio = useStudio();
@@ -977,6 +977,8 @@ export default function Studio() {
   const hasReviewImage = !!(selected?.image_path && studio.images[selected.image_path]);
   const scoreView = score ? scoreStatusFromEvaluation(score) : !canScore(studio.config) ? {kind:"no-jev" as const} : selected && reviewStatuses[selected.id]==="pending" ? {kind:"pending" as const} : selected && reviewStatuses[selected.id]==="failed" ? {kind:"failed" as const} : {kind:"idle" as const};
   const scoreCopy = scoreStatusCopy(scoreView);
+  const weakest = score ? pillars.filter(p=>score.dimensions[p].score!==null).sort((a,b)=>(score.dimensions[a].score??Infinity)-(score.dimensions[b].score??Infinity))[0] : undefined;
+  const verdict: Record<Pillar,string> = {clarity:"The text is hard to read at small size.",curiosity:"It doesn’t make people wonder.",emotion:"It doesn’t show a feeling.",idea:"The idea isn’t clear.",virality:"It won’t stand out in the feed."};
   const showComposer = !hasReviewImage || composerOpen;
   const workspaceReady = !studio.loading && hydratedWorkspace === (studio.user || "local");
   // Living empty state: only for a first-time visitor on an empty Create prompt.
@@ -1078,7 +1080,7 @@ export default function Studio() {
                   {selected.image_path && studio.images[selected.image_path] ? (
                     <>
                       <ReviewCanvas key={studio.images[selected.image_path]} src={studio.images[selected.image_path]} title={title || selected.score?.context?.title || ""} feed={phone} portrait={selected.settings?.format === "short"} onRefresh={() => studio.run("Refreshing preview", studio.load)} creationId={selected.id} arrival={arrivals.arrival(selected.id)} badge={<ScoreBadge score={selected.score} pending={!selected.score&&reviewStatuses[selected.id]==="pending"} onOpen={score?()=>setDialog("analysis"):undefined}/>} uploaded={selected.lineage?.origin === "uploaded"} />
-                      {score&&<div className="mobile-score-summary"><span>{score.overall ?? "Partial"} · weakest: {names[pillars.filter(p=>score.dimensions[p].score!==null).sort((a,b)=>(score.dimensions[a].score??Infinity)-(score.dimensions[b].score??Infinity))[0]] || "Not assessed"}</span><button type="button" className="neutral-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button></div>}
+                      {score && <p className="result-verdict">{weakest ? `Good start. ${verdict[weakest]}` : "Score again for more detail."} {score.overall !== null && <strong>{score.overall}/100</strong>}</p>}
                       <div className="result-actions">
                         {!score && scoreView.kind!=="no-jev" && <button type="button" className="primary-button score-thumbnail-button" disabled={busy} onClick={()=>void submit(true)}><ScanLine size={15}/>Score thumbnail</button>}
                         <button type="button"
@@ -1091,11 +1093,12 @@ export default function Studio() {
                           }
                         >
                           <Download size={15} />
-                          Download image
+                          Download
                         </button>
                         <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
                           <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
+                            {score&&<><button type="button" className="menu-item" onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download PNG (original)</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." onClick={resize}>AI resize to {selected.settings?.format === "short" ? "long-form" : "short-form"} · uses image credits</button>
                             <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
@@ -1104,11 +1107,8 @@ export default function Studio() {
                         </details>
                       </div>
                       {comparisons[selected.id]&&<p className="fix-outcome" data-improved={comparisons[selected.id].improved} role="status">{comparisons[selected.id].improved?<><TrendingUp size={14} aria-hidden="true"/>{comparisons[selected.id].before??"–"} → {comparisons[selected.id].after??"–"}</>:<>No gain ({comparisons[selected.id].after??"–"} vs {comparisons[selected.id].before??"–"}) · Kept the better one</>}</p>}
-                      {score&&<div className="whats-next" role="group" aria-label="What's next?">
-                        <button type="button" className="next-pill" disabled={busy} onClick={() => openReviewEditor("edit")}><Pencil size={15} aria-hidden="true"/>Edit</button>
-                        <button type="button" className="next-pill" disabled={busy} onClick={() => openReviewEditor("analyze")}><RefreshCw size={15} aria-hidden="true"/>Score again</button>
-                      </div>}
-                      <details className="provenance-details"><summary>What you asked vs. what was sent <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
+                      <details className="result-extra"><summary>More details</summary>                      <details className="provenance-details"><summary>What we sent to the AI <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
+</details>
                     </>
                   ) : (
                     <div className="draft-preview">
@@ -1180,7 +1180,7 @@ export default function Studio() {
                             )}
                             {!overallCompare && score.overall !== null && <small>/100</small>}
                           </h2>
-                          <p>{scoreCopy.title}. Thumbnail + title, across five pillars.</p>{scoreView.kind==="scored"&&scoreView.fallback&&<div><span className="score-fallback">{scoreView.fallback}</span>{score.scoring?.route.some(r=>r.scorer==="jev"&&r.outcome==="failed")&&<button type="button" className="neutral-button" disabled={busy} onClick={()=>void retryScore(true)}>Retry with Jev</button>}</div>}<button type="button" className="neutral-button" onClick={()=>setDialog("analysis")}>See full score</button>
+                          <button type="button" className="neutral-button" onClick={()=>setDialog("analysis")}>See full score</button>
                         </div>
                         <div>
                         <button type="button"
@@ -1189,7 +1189,7 @@ export default function Studio() {
                           onClick={() => void runOneClickFix()}
                         >
                           <WandSparkles size={16} />
-                          Fix thumbnail
+                          Fix it
                         </button>
                         <button type="button" className="neutral-button review-first" onClick={()=>void fix()}>Review first</button>
                         {imageModel(settings.model).provider === "google" && <p>{GEMINI_FIX_NOTICE}</p>}
@@ -1214,7 +1214,7 @@ export default function Studio() {
                               onClick={() => setActivePillar(p)}
                               aria-label={pillarCompare?.spoken}
                             >
-                              <span>{names[p]}</span>
+                              <span>{names[p]}<small>{definitions[p]}</small></span>
                               <strong>
                                 {pillarCompare ? pillarCompare.visible : score.dimensions[p].score ?? "Not assessed"}
                                 {!pillarCompare && score.dimensions[p].score !== null && (
@@ -1247,7 +1247,7 @@ export default function Studio() {
                             {!!(score.dimensions[activePillar].fix||"").trim() && <><dt>What to change</dt><dd>{score.dimensions[activePillar].fix}</dd></>}
                           </dl>
                           {(!(score.dimensions[activePillar].weakness||"").trim() || !(score.dimensions[activePillar].fix||"").trim()) && <p>Not assessed in detail. Score again with image review for specific advice.</p>}
-                          <span className="confidence">
+                          <details><summary>Details</summary><span className="confidence">
                             AI confidence:{" "}
                             {score.dimensions[activePillar].confidence >= 0.7
                               ? "high"
@@ -1255,7 +1255,7 @@ export default function Studio() {
                                 ? "medium"
                                 : "low"}{" "}
                             (not a measured probability)
-                          </span>
+                          </span></details>
                         </div>
                       </div>
                       {score.warnings?.map((w) => (
