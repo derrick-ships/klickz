@@ -82,9 +82,7 @@ export function AccountSignIn({
       setRetryAt(Date.now() + 60_000);
       setRemaining(60);
       setCode("");
-      showCode(showEmailLinkHint
-        ? "Open the sign-in link in your email to continue. Prefer to stay here? Enter the code from the same email below."
-        : "Enter the code from your email here to finish connecting this agent. The email link opens the main studio separately.");
+      showCode("");
     } catch {
       setAuthError(true);
       setStatus("Could not send the sign-in email. Check your connection and try again.");
@@ -130,21 +128,15 @@ export function AccountSignIn({
     }
   }
   const sending = step === "entry" && mode === "email";
-  const sendLabel = showEmailLinkHint ? "Email me a sign-in link" : "Email me a sign-in code";
+  const sendLabel = "Send code";
   return (
     <form className="account-form signin-form" aria-busy={busy} onSubmit={e => {
       e.preventDefault();
       void (sending ? sendEmail() : verify());
     }}>
       <h2>{step === "code" ? "Check your email" : mode === "signup" ? "Create your free account" : "Sign in to OpenPikzels"}</h2>
-      <p>{step === "code"
-        ? "Check your inbox and spam folder. Use the newest email; each link or code works once."
-        : mode === "email"
-          ? showEmailLinkHint
-            ? "Enter your email. We’ll send a one-time sign-in link—no password needed. New here? This also creates your free account."
-            : "Enter your email to get a one-time code. You’ll review access before allowing this agent to connect."
-          : "Use your OpenPikzels password, not your AI provider’s password."}</p>
-      <label>Email
+      {step === "entry" && <p>Enter your email to sign in or create an account.</p>}
+      <label hidden={step === "code"}>Email
         <input ref={emailInput} type="email" required autoComplete="email" autoCapitalize="none" spellCheck={false}
           readOnly={step === "code"} disabled={busy} aria-describedby={status ? statusId : undefined}
           value={email} onChange={e => { setEmail(e.target.value); setAuthError(false); setStatus(""); }} />
@@ -164,15 +156,16 @@ export function AccountSignIn({
       <button type="submit" className="primary-button" disabled={busy || (sending && remaining > 0)}>
         {busy ? sending ? "Sending email…" : step === "code" ? "Verifying…" : "Signing in…"
           : sending ? remaining > 0 ? "Request another email shortly" : sendLabel
-          : step === "code" ? "Verify code" : mode === "signup" ? "Create account" : "Sign in with password"}
+          : step === "code" ? "Sign in" : mode === "signup" ? "Create account" : "Sign in with password"}
       </button>
       {step === "code" && <>
         <button type="button" className="neutral-button" disabled={busy || remaining > 0} onClick={() => void sendEmail()}>
-          {remaining > 0 ? "Send again in " + remaining + "s" : "Send a new sign-in email"}
+          {remaining > 0 ? "Send again in " + remaining + "s" : "Send again"}
         </button>
         <button type="button" className="neutral-button" disabled={busy} onClick={() => changeMode("email")}>Change email</button>
       </>}
-      <div className="signin-alternatives">
+      {/* copy-law: advanced */}
+      <details className="signin-alternatives"><summary>More options</summary>
       <button type="button" className="quiet-button" disabled={busy} onClick={() => changeMode(mode === "email" || step === "code" ? "password" : "email")}>
         {mode === "email" || step === "code" ? "Use password instead" : showEmailLinkHint ? "Use an email link instead" : "Use an email code instead"}
       </button>
@@ -184,8 +177,9 @@ export function AccountSignIn({
       {step === "entry" && mode !== "email" && <button type="button" className="quiet-button" disabled={busy} onClick={() => changeMode(mode === "signup" ? "password" : "signup")}>
         {mode === "signup" ? "Already have an account? Sign in" : "Create an account with a password"}
       </button>}
-      </div>
-      {step === "entry" && remaining > 0 && <p>Wait {remaining}s before requesting another email. A code you already received still works until it expires.</p>}
+      </details>
+      {/* copy-law: end */}
+      {step === "entry" && remaining > 0 && <p>Wait {remaining}s before trying again.</p>}
     </form>
   );
 }

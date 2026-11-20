@@ -73,14 +73,6 @@ export function useAccount(isolated = false) {
 }
 export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page. Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Connections. Start with get_workspace. Use list_profiles/get_profile for persona references and list_creations to inspect existing work. Use upload_reference for an image created in ChatGPT, then score_thumbnail with its actual title. Use get_fix_prompt to return a copyable prompt for editing it in ChatGPT without generating another image through an API. Only use generate_thumbnail or one_click_fix when I request an API-rendered image, with my chosen provider, quality and batch. Keep the same requestId across an uncertain retry, and check history after a timeout. Scores are visual rubrics, not a promise of CTR. Use open_studio for the interactive HTML interface when supported.`;
 
-const providerGuides: Record<string, {name:string; purpose:string; url:string; steps:string[]}> = {
-  openai: {name:"OpenAI",purpose:"Create images and title ideas.",url:"https://developers.openai.com/api/docs/quickstart",steps:["Open OpenAI’s official setup guide and sign in to your own API account.","Create an API key in the provider dashboard and review the account’s usage and billing settings.","Copy the key into the private field below, then connect it."]},
-  google: {name:"Google",purpose:"Create images and title ideas with Gemini.",url:"https://ai.google.dev/gemini-api/docs/api-key",steps:["Open Google’s official API-key guide and sign in to Google AI Studio.","Choose your own project, create a Gemini API key and check its quota and billing settings.","Copy the key into the private field below, then connect it."]},
-  jev: {name:"Jev AI",purpose:"Assess a thumbnail and its title across five creative pillars.",url:"https://docs.typesafe.ai/introduction/quickstart",steps:["Open the official TypeSafe guide for Jev and sign in to its console.","Create an API key in your own account and review its available usage.","Copy the key into the private field below, then connect it."]},
-  youtube: {name:"YouTube",purpose:"Find channel details and thumbnail references. This does not generate images.",url:"https://developers.google.com/youtube/data/getting-started",steps:["Open the official YouTube Data API guide and choose your own Google Cloud project.","Enable YouTube Data API v3, create an API key and review its restrictions and quota.","Copy the key into the private field below, then connect it."]},
-  anthropic: {name:"Claude",purpose:"Review images. Preferred when connected.",url:"https://docs.anthropic.com/en/api/getting-started",steps:["Open Anthropic’s official API guide and sign in to your own Claude API account.","Create an API key in the provider console and review the account’s usage and billing settings.","Copy the key into the private field below, then connect it."]}
-};
-
 export function ConnectionsPage() {
   const { db, session, config, error, setError, ready, signInNotice } = useAccount();
   const [connections, setConnections] = useState<
@@ -99,11 +91,12 @@ export function ConnectionsPage() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [showRevoked, setShowRevoked] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [higgsfield, setHiggsfield] = useState(false), [higgsfieldTools, setHiggsfieldTools] = useState<string[]>([]);
   const [connectionRead, setConnectionRead] = useState<"loading" | "succeeded" | "failed">("loading");
   const connectionEpoch = useRef(0), connectionOwner = useRef("");
   connectionOwner.current = session?.user.id || "";
-  const guide = providerGuides[provider];
+
   const callbackHandled = useRef(false);
   async function api(path: string, method = "GET", body?: unknown) {
     const fresh = await db?.auth.getSession();
@@ -178,13 +171,7 @@ export function ConnectionsPage() {
         </a>
         <a href="/studio">Back to studio</a>
       </header>
-      <div className="account-intro">
-        <h1>{session ? "Connect your AI" : "Your studio starts here"}</h1>
-        <p>
-          {session ? "Connect the provider for the job you want to do. Image generation and analysis use your provider account; usage charges may apply." : "Sign in with your email. It’s free, and your thumbnails, faces and styles stay saved."}
-        </p>
-      </div>
-      {session && <nav className="connections-index" aria-label="Connections sections"><a href="#api">API keys</a> · <a href="#models">Models</a> · <a href="#higgsfield">Higgsfield</a> · <a href="#mcp">Connect agent</a> · <a href="#agents">Connected agents</a> · <a href="#chatgpt">ChatGPT</a></nav>}
+      <div className="account-intro"><h1>{session ? "Set up your key" : "Welcome"}</h1></div>
       {!ready ? (
         <p role="status">Loading your connections…</p>
       ) : !db ? (
@@ -193,125 +180,41 @@ export function ConnectionsPage() {
           <a href="/studio">Save drafts in this browser.</a>
         </p>
       ) : !session ? (
-        <section id="api" className="account-panel"><AccountSignIn db={db} initialNotice={signInNotice} /><p className="account-next" id="chatgpt"><span id="mcp"/>After you sign in, you’ll connect your AI account here. Then you can also use OpenPikzels from ChatGPT or Claude.</p></section>
+        <section id="api" className="account-panel"><AccountSignIn db={db} initialNotice={signInNotice} /></section>
       ) : (
         <>
           <section id="api" className="account-panel">
-            <h2>Connect an API provider</h2>
-            {connectionRead === "failed" && <div role="status"><p>Connection status unavailable. Refresh to check.</p><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(refresh)}>Refresh connections</button></div>}
-
-            <div className="provider-setup">
-            <form
-              className="account-form key-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void action(async () => {
-                  const submitted = key;
-                  setKey("");
-                  const result = await api("/api/providers", "POST", {
-                    provider,
-                    key: submitted,
-                  });
-                  await refresh();
-                  setNotice(
-                    result.kept ? "Your saved key is unchanged." : "API key saved securely. No test request was made. Your agent never receives the key.",
-                  );
-                });
-              }}
-            >
-              <label>
-                Provider
-                <select
-                  aria-label="Provider"
-                  value={provider}
-                  onChange={(e) => { setProvider(e.target.value); setKey(""); setNotice(""); }}
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Claude</option>
-                  <option value="google">Google</option><option value="youtube">YouTube Data API</option>
-                  <option value="jev">Jev AI</option>
-                </select>
-              </label>
-              <label>
-                Your API key
-                <input
-                  type="password"
-                  autoComplete="off"
-                  spellCheck={false}
-                  required={!connections.some((c) => c.provider === provider)}
-                  minLength={12}
-                  aria-describedby="provider-purpose provider-key-help provider-key-cost"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value)}
-                  placeholder={connections.some((c) => c.provider === provider) ? "Leave empty to keep current key" : "Paste your key securely"}
-                />
-              </label>
-              <div className="provider-key-guide" key={provider}>
-                <p id="provider-purpose"><strong>{guide.name}</strong> — {guide.purpose}</p>
-                <details><summary>How to get {provider === "openai" ? "an" : "a"} {guide.name} key</summary><p>An API key is private. It is not your password; keep it out of chat.</p><ol>{guide.steps.map(step => <li key={step}>{step}</li>)}</ol><a href={guide.url} target="_blank" rel="noopener noreferrer">Open {guide.name}’s official setup guide (new tab)</a></details>
-                <p id="provider-key-cost">Provider usage may cost money. Check billing before generating. Saving a key makes no billable test request.</p>
-              </div>
-              <p id="provider-key-help">Your key is encrypted for your account and used on the server. Its full value is never shown again. Leave empty to keep current key; paste a new key to replace it.</p>
-              <button type="submit"
-                className="primary-button"
-                disabled={busy || !config?.secureConnections}
-              >
-                {busy ? "Saving…" : connections.some((c) => c.provider === provider) ? "Save connection" : "Connect key"}
-              </button>
-            </form>
-            <div className="provider-grid">
-              {[
-                ["openai", "OpenAI", "Sunburst / Flare, titles and vision"],
-                ["anthropic", "Claude", "image review (preferred when connected)"],
-                ["google", "Google", "Gemini image models, titles and vision"],
-                ["jev", "Jev AI", "Image + title scores across five pillars"],
-                ["youtube", "YouTube", "Channel metadata and thumbnail references · your own Data API key"],
-              ].map(([id, name, detail]) => {
-                const c = connections.find((x) => x.provider === id);
-                return (
-                  <article key={id}>
-                    <h3>{name}</h3>
-                    <p>{detail}</p>
-                    <strong className={connectionRead === "succeeded" && c ? "connection-saved" : "connection-muted"}>
-                      {connectionRead === "loading" ? "Checking connections…" : connectionRead === "failed" ? "Status unavailable" : c
-                        ? "Key saved · ••••" + c.suffix
-                        : "Not connected"}
-                    </strong>
-                    {c && connectionRead === "succeeded" && (
-                      <button type="button"
-                        className="neutral-button"
-                        disabled={busy}
-                        onClick={() =>
-                          void action(async () => {
-                            await api("/api/providers", "DELETE", {
-                              provider: id,
-                            });
-                            await refresh();
-                          })
-                        }
-                      >
-                        Disconnect {name}
-                      </button>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-            </div>
-
-            {!config?.secureConnections && (
-              <p>Key storage is not enabled here yet. You can continue with local drafts.</p>
-            )}
-            <p className="dialog-footnote">
-              Keys are encrypted at rest, isolated to your account and used only
-              on the server. We show only the last four characters. API access
-              and allowances depend on your provider account; check its current
-              terms. Connecting a key makes no billable test request.
-            </p>
-            <a className="neutral-button inline-link" href="/studio">
-              Open studio
-            </a>
+            {saved ? <><h2>You&apos;re ready.</h2><a className="primary-button inline-link" href="/studio">Start creating</a></> : <>
+              <h2>1. Open OpenAI</h2><p>Sign in or create an account.</p>
+              <a className="neutral-button inline-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Open OpenAI</a>
+              <h2>2. Add credit</h2><p>Add $5 or more. You pay OpenAI directly.</p>
+              <a href="https://platform.openai.com/settings/organization/billing" target="_blank" rel="noopener noreferrer">Add credit</a>
+              <h2>3. Paste your key</h2>
+              <form className="account-form key-form" onSubmit={e => { e.preventDefault(); void action(async () => {
+                const submitted = key; setKey("");
+                await api("/api/providers", "POST", { provider: "openai", key: submitted });
+                await refresh(); setSaved(true);
+              }); }}>
+                <label>Key<input type="password" autoComplete="off" spellCheck={false} required minLength={12} value={key} onChange={e => setKey(e.target.value)} /></label>
+                <p>We keep it private. You can remove it anytime.</p>
+                <button type="submit" className="primary-button" disabled={busy || !config?.secureConnections}>{busy ? "Saving…" : "Save"}</button>
+              </form>
+              {!config?.secureConnections && <p>Saving is not available here yet.</p>}
+            </>}
+            {connectionRead === "failed" && <button type="button" className="neutral-button" disabled={busy} onClick={() => void action(refresh)}>Try again</button>}
+            <details><summary>Use a different AI</summary>
+              <form className="account-form" onSubmit={e => { e.preventDefault(); void action(async () => {
+                const submitted = key; setKey(""); await api("/api/providers", "POST", { provider, key: submitted }); await refresh(); setNotice("Key saved.");
+              }); }}>
+                <label>Choose AI<select value={provider} onChange={e => {setProvider(e.target.value); setKey("");}}><option value="openai">OpenAI</option><option value="google">Google</option><option value="anthropic">Claude</option><option value="jev">Jev</option><option value="youtube">YouTube</option></select></label>
+                <label>Key<input type="password" autoComplete="off" required minLength={12} value={key} onChange={e => setKey(e.target.value)} /></label>
+                <button type="submit" className="neutral-button" disabled={busy || !config?.secureConnections}>Save</button>
+              </form>
+            </details>
+            {connections.map(c => <div className="grant-row" key={c.provider}><span>{c.provider} · ••••{c.suffix}</span><button type="button" className="neutral-button" disabled={busy} onClick={() => void action(async () => { await api("/api/providers", "DELETE", {provider:c.provider}); await refresh(); setSaved(false); })}>Remove</button></div>)}
           </section>
+          {/* copy-law: advanced */}
+          <details><summary>For developers</summary>
           <ModelsPanel api={api} connected={{ openai: connections.some((c) => c.provider === "openai"), google: connections.some((c) => c.provider === "google"), anthropic: connections.some((c) => c.provider === "anthropic"), jev: connections.some((c) => c.provider === "jev") }} />
           <section id="higgsfield" className="account-panel">
             <h2>Higgsfield</h2>
@@ -420,10 +323,12 @@ export function ConnectionsPage() {
             )}
             {grants.some(g => g.revoked_at) && <button type="button" className="neutral-button" onClick={() => setShowRevoked(!showRevoked)}>{showRevoked ? "Hide revoked" : `Show revoked (${grants.filter(g => g.revoked_at).length})`}</button>}
           </section>
+          <CodexConnection key={session.user.id} signedIn enabled={!!config?.codexDevice} api={api} />
+          </details>
+          {/* copy-law: end */}
           <section className="account-panel"><h2>Account</h2><p>{session.user.email}</p><button type="button" className="neutral-button" onClick={() => void db.auth.signOut({ scope: "local" })}>Sign out</button></section>
         </>
       )}
-      {session && <CodexConnection key={session.user.id} signedIn enabled={!!config?.codexDevice} api={api} />}
       {error && (
         <p className="dialog-error" role="alert">
           {error}
