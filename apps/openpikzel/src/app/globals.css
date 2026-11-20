@@ -25,6 +25,7 @@ body {
   background: var(--color-ground);
   color: var(--color-ink);
   font: 14px/1.5 var(--font-body);
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 button,
@@ -2541,3 +2542,5 @@ select {
 .signin-form [role="status"]:empty { display: none; }
 .signin-form .signin-footnote { font-size: 14px; }
 .signin-form input[readonly] { color: var(--color-legacy-ink); }
+.signin-form .account-inline-error { color: #ff8585; }
+.signin-form input[aria-invalid="true"] { border-color: #ff8585; }

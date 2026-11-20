@@ -117,7 +117,7 @@ export function AccountSignIn({
           : mode === "signup"
             ? "Could not create your account. Check your details."
             : "Sign-in failed. Check your email and password.");
-        if (step === "code") codeInput.current?.focus();
+        if (step === "code") nextFocus.current = "code";
       } else if (result.data.session) {
         setCode("");
         onSignedIn?.();
@@ -128,6 +128,7 @@ export function AccountSignIn({
       setPassword("");
       setAuthError(true);
       setStatus("Sign-in failed. Check your connection and try again.");
+      if (step === "code") nextFocus.current = "code";
     } finally {
       pending.current = false;
       setBusy(false);
@@ -160,20 +161,21 @@ export function AccountSignIn({
           autoComplete={mode === "signup" ? "new-password" : "current-password"} aria-describedby={status ? statusId : undefined}
           value={password} onChange={e => setPassword(e.target.value)} />
       </label>}
-      <p id={statusId} role="status" className={authError ? "account-inline-error" : "signin-status"}>{status}</p>
+      {step === "entry" && <p id={statusId} role="status" className={authError ? "account-inline-error" : "signin-status"}>{status}</p>}
       {step === "code" && <label>Email sign-in code
         <input ref={codeInput} aria-describedby={status ? statusId : undefined} aria-invalid={authError || undefined}
           inputMode="numeric" autoComplete="one-time-code" pattern="([0-9]{6}|[0-9]{8})" minLength={6} maxLength={8}
           required disabled={busy} autoFocus value={code} onChange={e => { setCode(scheduler.current!.input(e.target.value, false)); setAuthError(false); }} />
       </label>}
+      {step === "code" && <p id={statusId} role="status" className={authError ? "account-inline-error" : "signin-status"}>{status}</p>}
       <button type="submit" className="primary-button" disabled={busy || (sending && remaining > 0)}>
         {busy ? sending ? "Sending email…" : step === "code" ? "Verifying…" : "Signing in…"
           : sending ? remaining > 0 ? "Wait briefly" : sendLabel
           : step === "code" ? "Sign in" : mode === "signup" ? "Create account" : "Use password"}
       </button>
       {step === "code" && <>
-        {remaining > 0 ? <p role="status">Send again in {remaining}s</p> :
-          <button type="button" className="neutral-button" disabled={busy} onClick={() => void sendEmail()}>Send again</button>}
+        {remaining > 0 ? <p>Send again in {remaining}s</p> :
+          <><p role="status">You can send again.</p><button type="button" className="neutral-button" disabled={busy} onClick={() => void sendEmail()}>Send again</button></>}
         <button type="button" className="neutral-button" disabled={busy} onClick={() => changeMode("email")}>Change email</button>
       </>}
       {/* copy-law: advanced */}
