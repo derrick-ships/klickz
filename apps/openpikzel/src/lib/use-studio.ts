@@ -1,6 +1,7 @@
 "use client";
 import {unusedElementImages,type Element,type ElementKind} from "./elements";
 import { optimisticUpdate } from "./optimistic";
+import { createDeleteQueue } from "./delete-queue";
 import { retryAction, retryableAction } from "./retry-action";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -48,8 +49,10 @@ export function useStudio() {
     [loading, setLoading] = useState(true);
   // One delete queue for creations and profiles: each item waits 6 s for Undo, then commits once.
   const [pendingDeletes,setPendingDeletes]=useState<Record<string,{name:string;kind:Collection;committing?:boolean}>>({});
-  const pendingProfileDeletes=Object.fromEntries(Object.entries(pendingDeletes).filter(([,v])=>v.kind!=="creations"));
-  const deleteTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
+  const pendingProfileDeletes=Object.fromEntries(Object.entries(pendingDeletes).filter(([,v])=>v.kind==="personas"||v.kind==="styles"||v.kind==="elements"));
+  const deleteTasks=useRef(new Map<string,()=>void>());
+  const deleteQueue=useRef<ReturnType<typeof createDeleteQueue> | null>(null);
+  if (!deleteQueue.current) deleteQueue.current=createDeleteQueue(id=>{const task=deleteTasks.current.get(id);deleteTasks.current.delete(id);task?.();});
   const [configStatus,setConfigStatus]=useState<"loading"|"ready"|"failed">("loading");
   const [conversations,setConversations]=useState<Conversation[]>([]),[skipPersonaTutorial,setSkipPersonaTutorial]=useState(false);
   const elementsAvailable=useRef(false);
@@ -800,25 +803,24 @@ export function useStudio() {
   const dropPending=(id:string)=>setPendingDeletes(current=>{const next={...current};delete next[id];return next;});
   async function waitForIdle(){for(let i=0;i<600&&lock.current;i++)await new Promise(r=>setTimeout(r,500));}
   function queueDelete(kind:Collection,id:string,name:string){
-    if(deleteTimers.current[id])return; // already queued: one timer per item
+    if(!deleteQueue.current!.add(id))return;
     const epoch=ownerEpoch.current;
     setPendingDeletes(current=>({...current,[id]:{kind,name}}));
-    deleteTimers.current[id]=setTimeout(async()=>{
-      delete deleteTimers.current[id];
+    deleteTasks.current.set(id,async()=>{
       if(epoch!==ownerEpoch.current){dropPending(id);return;}
       setPendingDeletes(current=>current[id]?{...current,[id]:{...current[id],committing:true}}:current);
       await waitForIdle(); // never drop a delete because another action holds the lock
       if(epoch!==ownerEpoch.current){dropPending(id);return;}
-      const done=await run(kind==="creations"?"Deleting creation":"Deleting",async()=>{await remove(kind,id);return true;});
+      const done=await run(kind==="creations"?"Deleting creation":"Deleting",async()=>{if(kind==="conversations")await deleteConversation(id);else await remove(kind,id);return true;});
       if(done){dropPending(id);return;}
       // Not deleted (workspace stayed busy or the request failed): put it back so nothing vanishes silently.
       dropPending(id);setError("That item wasn't deleted. Try again.");
-    },6000);
+    });
   }
   // Leaving the studio (client navigation) cancels waiting deletes: the items stay, nothing half-done.
-  useEffect(()=>()=>{for(const id of Object.keys(deleteTimers.current))clearTimeout(deleteTimers.current[id]);deleteTimers.current={};},[]);
+  useEffect(()=>()=>{deleteQueue.current?.clear();deleteTasks.current.clear();},[]);
   const queueProfileDelete=(kind:"personas"|"styles"|"elements",id:string,name:string)=>queueDelete(kind,id,name);
-  function undoDelete(id:string){if(!deleteTimers.current[id])return;clearTimeout(deleteTimers.current[id]);delete deleteTimers.current[id];dropPending(id);}
+  function undoDelete(id:string){if(!deleteQueue.current?.undo(id))return;deleteTasks.current.delete(id);dropPending(id);}
   const undoProfileDelete=undoDelete;
   // Leaving while a delete waits for Undo: ask, so the delete is neither lost nor silently done.
   useEffect(()=>{
@@ -923,7 +925,7 @@ export function useStudio() {
     await db.current?.auth.signOut({ scope: "local" });
   }
   return {
-    pendingDeletes,pendingProfileDeletes,queueDelete,undoDelete,queueProfileDelete,undoProfileDelete,
+    pendingDeletes,pendingProfileDeletes,queueDelete,undoDelete,queueProfileDelete,undoProfileDelete, pauseDelete:(id:string)=>deleteQueue.current?.pause(id), resumeDelete:(id:string)=>deleteQueue.current?.resume(id), deleteDeadline:(id:string)=>deleteQueue.current?.deadline(id),
     conversations,skipPersonaTutorial,saveConversation,persistConversation,createConversation,deleteConversation,saveTutorialPreference,feedback,importYouTube,
     config,
     retryConnections: () => { if (config) setConnectionRetry(n => n + 1); else location.reload(); },

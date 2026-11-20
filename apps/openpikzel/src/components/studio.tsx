@@ -2,7 +2,9 @@
 import {elementDefinitions} from "@/lib/elements";
 import { plainError } from "@/lib/plain-error";
 import {Box} from "lucide-react";
-import { GridSkeleton, HistorySkeleton, ProfileSkeleton, ScoreSkeleton } from "@/components/skeleton";
+import { GridSkeleton, HistorySkeleton, ProfileSkeleton, ResultSkeleton, ScoreSkeleton } from "@/components/skeleton";
+import { UndoToast } from "@/components/undo-toast";
+import { createDeleteQueue } from "@/lib/delete-queue";
 import {NativeOutputNotice} from "@/components/creative/native-output";
 import {GenerationDelivery} from "@/components/creative/generation-delivery";
 import {deliverImages,type DeliveryState,type ReviewStatus} from "@/lib/generation-delivery";
@@ -157,6 +159,7 @@ export default function Studio() {
   const [pendingResult,setPendingResult]=useState<string|null>(null);
   const [legacyNotice,setLegacyNotice]=useState(false);
   const [chatToDelete,setChatToDelete]=useState<Conversation|null>(null);
+  const deletedChatWorkspace=useRef(new Map<string,{chat:Conversation;selection:string|null}>());
   const [creationToDelete,setCreationToDelete]=useState<Creation|null>(null);
   const deleteCreationDialog=useRef<HTMLDialogElement>(null);
   const pendingDeletes = studio.pendingDeletes;
@@ -204,6 +207,12 @@ export default function Studio() {
   // A fix's re-score says whether it beat its original (engine `comparison`); absent means nothing is shown.
   const [comparisons,setComparisons]=useState<Record<string,{improved:boolean;before:number|null;after:number|null;bestId:string}>>({});
   const [planUndo,setPlanUndo]=useState<{before:string;after:string}|null>(null);
+  const [localUndo,setLocalUndo]=useState<{id:string;message:string;undo:()=>void}|null>(null);
+  const localUndoQueue=useRef<ReturnType<typeof import("@/lib/delete-queue").createDeleteQueue> | null>(null);
+  if(!localUndoQueue.current)localUndoQueue.current=createDeleteQueue(id=>setLocalUndo(current=>current?.id===id?null:current));
+  function offerUndo(message:string,undo:()=>void){localUndoQueue.current!.clear();const id=crypto.randomUUID();localUndoQueue.current!.add(id);setLocalUndo({id,message,undo});}
+  useEffect(()=>()=>localUndoQueue.current?.clear(),[]);
+  useEffect(()=>{const ids=Object.entries(pendingDeletes).filter(([,item])=>item.kind==='creations'||item.kind==='conversations').map(([id])=>id);if(dialog)ids.forEach(id=>studio.pauseDelete(id));else ids.forEach(id=>studio.resumeDelete(id));if(localUndo){if(dialog)localUndoQueue.current?.pause(localUndo.id);else localUndoQueue.current?.resume(localUndo.id);}},[dialog,pendingDeletes,localUndo]);
   const videoUrlOwner=useRef<string|null>(null);
   const deliveryAttempt=useRef(0),selectedIdRef=useRef<string|null>(null),scoreIntent=useRef<Record<string,{title:string;includeVision:boolean;videoUrl:string;critiqueProvider:ReturnType<typeof scorePlan>["critiqueProvider"]}>>({}),oneClickInFlight=useRef<Promise<unknown>|null>(null);selectedIdRef.current=selection;
   const [analysisScan, setAnalysisScan] = useState<{id:number;src:string;phase:ScanPhase;reviewer:string}|null>(null);
@@ -439,9 +448,9 @@ export default function Studio() {
     await studio.run("Deleting chat",async()=>{
       const wasActive=chatIdRef.current===chat.id;
       // Stop autosave from recreating the chat while it is being deleted.
-      if(wasActive){workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);localStorage.removeItem("openpikzels.activeChat."+(studio.user||"local"));}
-      try{await studio.deleteConversation(chat.id);}
-      finally{if(wasActive){startNew();setPersonaIds([]);setElementIds([]);setStyleId("");setPreset("Auto");setDelivery(null);}}
+      if(wasActive){deletedChatWorkspace.current.set(chat.id,{chat:{...chat,draft:chatDraftRef.current},selection});workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);localStorage.removeItem("openpikzels.activeChat."+(studio.user||"local"));}
+      studio.queueDelete("conversations",chat.id,chat.title);
+      if(wasActive){startNew();setPersonaIds([]);setElementIds([]);setStyleId("");setPreset("Auto");setDelivery(null);}
     });
   }
   async function newChat(){if(busy)return;await studio.run("Starting a new chat",async()=>{await flushDraft();workspaceEpoch.current++;chatIdRef.current=null;setActiveChatId(null);localStorage.removeItem("openpikzels.activeChat."+(studio.user||"local"));startNew();});}
@@ -493,6 +502,7 @@ export default function Studio() {
     setProfileFiles([]);
     setDialog(which);
   }
+  function toggleFavorite(item:Creation){void studio.run("Saving favorite",async()=>{await studio.favorite(item);offerUndo(item.favorite?"Removed from favorites.":"Saved.",()=>{void studio.run("Saving favorite",()=>studio.favorite({...item,favorite:!item.favorite}));});});}
   async function choose(item:Creation){
     if(busy)return false;
     const changed=await studio.run("Opening creation",async()=>{
@@ -926,9 +936,9 @@ export default function Studio() {
     });
   }
   const queueCreationDelete=(item: Creation)=>studio.queueDelete("creations",item.id,item.title||"Creation");
-  const undoCreationDelete=(id:string)=>studio.undoDelete(id);
+  const undoCreationDelete=(id:string)=>{studio.undoDelete(id);const previous=deletedChatWorkspace.current.get(id);if(previous){deletedChatWorkspace.current.delete(id);activateChat(previous.chat,false);setSelection(previous.selection);}};
   const filtered = studio.creations.filter(
-    (c) => !pendingDeletes[c.id] &&
+    (c) => !pendingDeletes[c.id] && !(c.conversation_id && pendingDeletes[c.conversation_id]) &&
       (!onlyFavorites || c.favorite) &&
       `${c.title} ${c.prompt}`.toLowerCase().includes(search.toLowerCase()),
   );
@@ -1009,7 +1019,7 @@ export default function Studio() {
                       <button type="button" data-copy-law="allow-long"
                         className={readiness.action==="loading"||readiness.action==="retry"?"neutral-button":"primary-button"}
                         disabled={busy||readiness.action==="unavailable"||readiness.action==="loading"||(tool==="edit"&&!canApplyEdit(prompt,editSource?.prompt))}
-                        aria-describedby="request-ready"
+                        aria-describedby="request-ready" title={tool === "analyze" ? "Score · ⌘↵" : "Create · ⌘↵"}
                         onClick={()=>readiness.action==="signin"?setDialog("login"):readiness.action==="connect"?setDialog("connections"):readiness.action==="retry"?studio.retryConnections():submit()}
                       >
                         {busy ? (
@@ -1060,17 +1070,13 @@ export default function Studio() {
                             ? "icon-button favorited"
                             : "icon-button"
                         }
-                        aria-label="Favorite selected creation" title="Favorite selected creation" aria-pressed={selected.favorite}
-                        onClick={() =>
-                          studio.run("Saving favorite", () =>
-                            studio.favorite(selected),
-                          )
-                        }
+                        aria-label="Save selected creation" title="Save selected creation" aria-pressed={selected.favorite}
+                        onClick={() => toggleFavorite(selected)}
                       >
                         <Star
                           size={16}
                           fill={selected.favorite ? "currentColor" : "none"}
-                        />
+                        /> Save
                       </button>
                     </div>
                   </div>
@@ -1097,12 +1103,12 @@ export default function Studio() {
                         <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
                           {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const movesFocus=!!(e.target as HTMLElement).closest('[data-moves-focus]');const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; if(!movesFocus)requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
-                            {score&&<><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
-                            <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download full size</button>
+                            {score&&<><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("edit")}><Pencil size={15}/> Edit</button><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("analyze")}><ScanLine size={15}/> Score again</button></>}
+                            <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}><Download size={15}/> Download full size</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." data-copy-law="allow-long" onClick={resize}>Make {selected.settings?.format === "short" ? "wide" : "vertical"} version<small> · uses credits</small></button>
-                            <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
-                            {studio.cloud&&selected.image_path&&<button type="button" className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}>Score history</button>}
-                            <button type="button" className="menu-item" aria-pressed={phone} onClick={()=>setPhone(x=>!x)}>Feed preview</button>
+                            <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}><Search size={15}/> Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}><Images size={15}/> Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}><Pencil size={15}/> Leave feedback</button>
+                            {studio.cloud&&selected.image_path&&<button type="button" className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}><RotateCcw size={15}/> Score history</button>}
+                            <button type="button" className="menu-item" aria-pressed={phone} onClick={()=>setPhone(x=>!x)}><Smartphone size={15}/> Feed preview</button>
                             <details className="provenance-details"><summary>What we sent to the AI <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
                           </div>{/* copy-law: end */}
                         </details>
@@ -1334,7 +1340,7 @@ export default function Studio() {
           </button>
         </div>
         <div className="history-list">
-          {studio.loading ? <HistorySkeleton/> : <ChatHistory chats={studio.conversations} creations={studio.creations.filter(c=>!pendingDeletes[c.id])} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
+          {studio.loading ? <HistorySkeleton/> : <ChatHistory chats={studio.conversations.filter(c=>!pendingDeletes[c.id])} creations={studio.creations.filter(c=>!pendingDeletes[c.id] && !(c.conversation_id && pendingDeletes[c.conversation_id]))} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
           {studio.creations.some(c=>!c.conversation_id&&!pendingDeletes[c.id])&&<p className="legacy-history-label">Recent creations</p>}
           {studio.creations.filter(c=>!c.conversation_id&&!pendingDeletes[c.id]).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.thumbs[thumbPath(item.image_path)]||studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
@@ -1403,10 +1409,11 @@ export default function Studio() {
               <a href="/connect">Create an account and connect your keys</a>
             </p>
           )}
-          {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
+          {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");offerUndo("Chat renamed.",()=>{void studio.run("Renaming chat",()=>studio.saveConversation({...activeChat,title:activeChat.title,updated_at:new Date().toISOString()},"title"));});}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
-          {Object.entries(pendingDeletes).filter(([,item])=>item.kind==="creations").map(([id,item])=><div className="result-ready" role="status" key={id}>{item.committing?"Deleting…":"Deleted."}{!item.committing&&<button type="button" className="neutral-button" onClick={()=>undoCreationDelete(id)}>Undo</button>}</div>)}
+          {localUndo && <UndoToast key={localUndo.id} message={localUndo.message} onUndo={()=>{localUndoQueue.current?.undo(localUndo.id);localUndo.undo();setLocalUndo(null);}} onPause={()=>localUndoQueue.current?.pause(localUndo.id)} onResume={()=>localUndoQueue.current?.resume(localUndo.id)}/>}
+          {!localUndo && (()=>{const entries=Object.entries(pendingDeletes).filter(([,item])=>(item.kind==="creations"||item.kind==="conversations")&&!item.committing);if(!entries.length)return null;return <UndoToast message={entries.length===1?"Deleted.":`${entries.length} deleted.`} items={entries.map(([id,item])=>({id,name:item.name,undo:()=>undoCreationDelete(id)}))} onUndo={()=>entries.forEach(([id])=>undoCreationDelete(id))} onPause={()=>entries.forEach(([id])=>studio.pauseDelete(id))} onResume={()=>entries.forEach(([id])=>studio.resumeDelete(id))}/>;})()}
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
@@ -1416,6 +1423,7 @@ export default function Studio() {
           )}
           {tab === "studio" ? (
             <>
+              {studio.loading && <ResultSkeleton/>}
               {hasReviewImage && resultPanel}
               {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" data-copy-law="allow-long" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}><span>Fix it<small className="paid-cue">Uses credits</small></span></button><button type="button" className="neutral-button" onClick={()=>studio.run("Downloading image",()=>studio.download(selected!))}>Download</button></div>}
               {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId&&!pendingDeletes[c.id])} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
@@ -1678,17 +1686,17 @@ export default function Studio() {
                               <button type="button"
                                 aria-label={`Remove reference ${i + 1}`}
                                 onClick={() =>
-                                  setRefs((r) => r.filter((x) => x !== path))
+                                  { setRefs((r) => r.filter((x) => x !== path)); offerUndo("Reference removed.",()=>setRefs(current=>current.includes(path)?current:[...current.slice(0,i),path,...current.slice(i)])); }
                                 }
                               >
                                 <X size={11} />
                               </button>
                             </div>
                           ))}
-                          {studio.elements.filter(e=>elementIds.includes(e.id)).map(e=><div key={e.id} className="selection-chip-group selection-chip-group--persona"><button type="button" className="selection-chip" onClick={()=>openProfiles("elements")} aria-label={"Change element: "+e.name}>{studio.images[e.refs[0]]&&<img src={studio.images[e.refs[0]]} alt=""/>}<span className="selection-name">{e.name} · {elementDefinitions[e.kind].label}</span></button><button type="button" className="selection-remove" aria-label={"Remove element: "+e.name} onClick={()=>{setElementIds(ids=>ids.filter(id=>id!==e.id));setPrompt(text=>unmention(text,e.name));document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[2]?.focus();}}><X size={14}/></button></div>)}
-                          {chosenPersonas.map(p => <div key={p.id} className="selection-chip-group selection-chip-group--persona"><button type="button" className="selection-chip" onClick={()=>openProfiles("personas")} aria-label={"Change person: "+p.name}>{studio.images[p.refs[0]]&&<img src={studio.images[p.refs[0]]} alt=""/>}<span className="selection-name">{p.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove person: "+p.name} onClick={()=>{setPersonaIds(ids=>ids.filter(id=>id!==p.id));setPrompt(text=>unmention(text,p.name));document.querySelector<HTMLButtonElement>('.composer-tool-group button')?.focus();}}><X size={14}/></button></div>)}
-                          {!styleProfile && libraryChoice && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+libraryChoice.name}><img src={libraryChoice.images[0]} alt=""/><span className="selection-name">{libraryChoice.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+libraryChoice.name} onClick={()=>setPreset("Auto")}><X size={11}/></button></div>}
-                          {styleProfile && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+styleProfile.name}><Palette size={13}/><span className="selection-name">{styleProfile.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+styleProfile.name} onClick={()=>{setStyleId("");document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[1]?.focus();}}><X size={14}/></button></div>}
+                          {studio.elements.filter(e=>elementIds.includes(e.id)).map(e=><div key={e.id} className="selection-chip-group selection-chip-group--persona"><button type="button" className="selection-chip" onClick={()=>openProfiles("elements")} aria-label={"Change element: "+e.name}>{studio.images[e.refs[0]]&&<img src={studio.images[e.refs[0]]} alt=""/>}<span className="selection-name">{e.name} · {elementDefinitions[e.kind].label}</span></button><button type="button" className="selection-remove" aria-label={"Remove element: "+e.name} onClick={()=>{setElementIds(ids=>ids.filter(id=>id!==e.id));setPrompt(text=>unmention(text,e.name));offerUndo("Object removed.",()=>{setElementIds(ids=>ids.includes(e.id)?ids:[...ids,e.id]);setPrompt(current=>current===unmention(prompt,e.name)?prompt:current);});document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[2]?.focus();}}><X size={14}/></button></div>)}
+                          {chosenPersonas.map(p => <div key={p.id} className="selection-chip-group selection-chip-group--persona"><button type="button" className="selection-chip" onClick={()=>openProfiles("personas")} aria-label={"Change person: "+p.name}>{studio.images[p.refs[0]]&&<img src={studio.images[p.refs[0]]} alt=""/>}<span className="selection-name">{p.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove person: "+p.name} onClick={()=>{setPersonaIds(ids=>ids.filter(id=>id!==p.id));setPrompt(text=>unmention(text,p.name));offerUndo("Person removed.",()=>{setPersonaIds(ids=>ids.includes(p.id)?ids:[...ids,p.id]);setPrompt(current=>current===unmention(prompt,p.name)?prompt:current);});document.querySelector<HTMLButtonElement>('.composer-tool-group button')?.focus();}}><X size={14}/></button></div>)}
+                          {!styleProfile && libraryChoice && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+libraryChoice.name}><img src={libraryChoice.images[0]} alt=""/><span className="selection-name">{libraryChoice.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+libraryChoice.name} onClick={()=>{setPreset("Auto");offerUndo("Style removed.",()=>setPreset(preset));}}><X size={11}/></button></div>}
+                          {styleProfile && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+styleProfile.name}><Palette size={13}/><span className="selection-name">{styleProfile.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+styleProfile.name} onClick={()=>{setStyleId("");offerUndo("Style removed.",()=>setStyleId(styleProfile.id));document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[1]?.focus();}}><X size={14}/></button></div>}
                         </div>
                         <div className="prompt-tools">
                           <div className="composer-tool-group" role="group" aria-label="Subject and style">
@@ -2303,7 +2311,7 @@ export default function Studio() {
             </div>
           )}
           {dialog==="delete-chat"&&chatToDelete&&(()=>{const count=studio.creations.filter(c=>c.conversation_id===chatToDelete.id&&c.image_path).length;return <section className="delete-chat">
-            <p><strong>{chatToDelete.title}</strong> and {count===0?"its draft":count===1?"its 1 thumbnail":"its "+count+" thumbnails"} will be deleted, including the image files saved in your account. This can’t be undone.</p>
+            <p><strong>{chatToDelete.title}</strong> and {count===0?"its draft":count===1?"its 1 thumbnail":"its "+count+" thumbnails"} will be deleted, including the image files saved in your account. You can undo for six seconds.</p>
             <p className="dialog-footnote">People, styles and images used in another chat are kept.</p>
             <div className="consent-actions"><button type="button" className="quiet-button" onClick={()=>{setDialog(null);setChatToDelete(null);}}>Cancel</button><button type="button" className="danger-button" autoFocus onClick={()=>void deleteChat(chatToDelete)}>Delete chat</button></div>
           </section>;})()}
@@ -2358,13 +2366,11 @@ export default function Studio() {
           </button>
           <button type="button"
             className={item.favorite ? "icon-button favorited" : "icon-button"}
-            aria-label={`Favorite ${item.title}`} title={`Favorite ${item.title}`}
+            aria-label={`Save ${item.title}`} title={`Save ${item.title}`}
             aria-pressed={item.favorite}
-            onClick={() =>
-              studio.run("Saving favorite", () => studio.favorite(item))
-            }
+            onClick={() => toggleFavorite(item)}
           >
-            <Star size={14} fill={item.favorite ? "currentColor" : "none"} />
+            <Star size={14} fill={item.favorite ? "currentColor" : "none"} /> Save
           </button>
           <button type="button"
             className="icon-button"
@@ -2372,7 +2378,7 @@ export default function Studio() {
             disabled={busy}
             onClick={() => queueCreationDelete(item)}
           >
-            <Trash2 size={14} />
+            <Trash2 size={14} /> Delete
           </button>
         </div>
       </article>

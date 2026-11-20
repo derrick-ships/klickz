@@ -13,6 +13,10 @@ export function GridSkeleton() {
   return <div className="creation-grid" role="status" aria-label="Loading creations">{Array.from({ length: 6 }, (_, i) => <div className="creation-card skeleton-card" key={i}><Skeleton className="skeleton-image"/><div className="skeleton-card-info"><Skeleton className="skeleton-line"/><Skeleton className="skeleton-short"/></div></div>)}</div>;
 }
 
+export function ResultSkeleton() {
+  return <section className="result-section review-stage" role="status" aria-label="Loading thumbnail"><div className="review-layout"><div className="review-media"><Skeleton className="skeleton-image"/></div><ScoreSkeleton/></div></section>;
+}
+
 export function ScoreSkeleton() {
   return <aside className="score-panel review-inspector skeleton-score" role="status" aria-label="Scoring thumbnail"><Skeleton className="skeleton-short"/><Skeleton className="skeleton-score-number"/>{Array.from({ length: 5 }, (_, i) => <div className="skeleton-score-row" key={i}><Skeleton className="skeleton-line"/><Skeleton className="skeleton-short"/></div>)}</aside>;
 }
