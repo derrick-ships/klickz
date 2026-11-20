@@ -15,6 +15,8 @@ export function AccountSignIn({
   const emailInput = useRef<HTMLInputElement>(null);
   const codeInput = useRef<HTMLInputElement>(null);
   const pending = useRef(false);
+  const codeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (codeTimer.current) clearTimeout(codeTimer.current); }, []);
   const nextFocus = useRef<"email" | "code" | null>(null);
   const [mode, setMode] = useState<"email" | "password" | "signup">("email");
   const [step, setStep] = useState<"entry" | "code">("entry");
@@ -49,6 +51,7 @@ export function AccountSignIn({
     setStatus(message);
   }
   function changeMode(next: typeof mode) {
+    if (codeTimer.current) clearTimeout(codeTimer.current);
     nextFocus.current = "email";
     setMode(next);
     setStep("entry");
@@ -135,7 +138,7 @@ export function AccountSignIn({
       if (step !== "code" || pending.current) return;
       const value = normalizeOtpCode(e.clipboardData.getData("text"));
       if (!/^(?:\d{6}|\d{8})$/.test(value)) return;
-      e.preventDefault(); setCode(value); setAuthError(false); void verify(value);
+      e.preventDefault(); if (codeTimer.current) clearTimeout(codeTimer.current); setCode(value); setAuthError(false); void verify(value);
     }} onSubmit={e => {
       e.preventDefault();
       void (sending ? sendEmail() : verify());
@@ -157,7 +160,7 @@ export function AccountSignIn({
       {step === "code" && <label>Email sign-in code
         <input ref={codeInput} aria-describedby={status ? statusId : undefined} aria-invalid={authError || undefined}
           inputMode="numeric" autoComplete="one-time-code" pattern="([0-9]{6}|[0-9]{8})" minLength={6} maxLength={8}
-          required disabled={busy} autoFocus value={code} onChange={e => { const value = normalizeOtpCode(e.target.value).replace(/[^0-9]/g, ""); setCode(value); setAuthError(false); if (/^(?:\d{6}|\d{8})$/.test(value)) void verify(value); }} />
+          required disabled={busy} autoFocus value={code} onChange={e => { const value = normalizeOtpCode(e.target.value).replace(/[^0-9]/g, ""); setCode(value); setAuthError(false); if (codeTimer.current) clearTimeout(codeTimer.current); if (/^\d{8}$/.test(value)) void verify(value); else if (/^\d{6}$/.test(value)) codeTimer.current = setTimeout(() => void verify(value), 1500); }} />
       </label>}
       <button type="submit" className="primary-button" disabled={busy || (sending && remaining > 0)}>
         {busy ? sending ? "Sending email…" : step === "code" ? "Verifying…" : "Signing in…"
