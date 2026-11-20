@@ -2084,7 +2084,7 @@ export default function Studio() {
       >
         <div className={"dialog-shell" + (dialog === "help" || dialog === "analysis" ? " swipe-sheet" : "")}>
           {(dialog === "help" || dialog === "analysis") && <div className="swipe-handle" {...dialogSwipe.handlers} aria-hidden="true"/>}
-          <div className={"dialog-heading" + (dialog === "help" || dialog === "analysis" ? " swipe-heading" : "")} {...(dialog === "help" || dialog === "analysis" ? dialogSwipe.handlers : {})}>
+          <div className="dialog-heading">
             <h2 id="studio-dialog-title">
               {dialog==="help"?"Help":dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
                 ? profileDialogTitle || "People"
