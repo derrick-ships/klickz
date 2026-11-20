@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useLayoutEffect, useId, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeOtpCode } from "@/lib/otp-code";
 
 export function AccountSignIn({
   db, onSignedIn, showEmailLinkHint = true, initialNotice = "",
@@ -91,7 +92,7 @@ export function AccountSignIn({
       setBusy(false);
     }
   }
-  async function verify() {
+  async function verify(submittedCode = code) {
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
@@ -99,7 +100,7 @@ export function AccountSignIn({
     setAuthError(false);
     try {
       const result = step === "code"
-        ? await db.auth.verifyOtp({ email: email.trim(), token: code, type: "email" })
+        ? await db.auth.verifyOtp({ email: email.trim(), token: submittedCode, type: "email" })
         : mode === "signup"
           ? await db.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: location.origin + "/connect" } })
           : await db.auth.signInWithPassword({ email: email.trim(), password });
@@ -130,7 +131,12 @@ export function AccountSignIn({
   const sending = step === "entry" && mode === "email";
   const sendLabel = "Send code";
   return (
-    <form className="account-form signin-form" aria-busy={busy} onSubmit={e => {
+    <form className="account-form signin-form" aria-busy={busy} onPaste={e => {
+      if (step !== "code" || pending.current) return;
+      const value = normalizeOtpCode(e.clipboardData.getData("text"));
+      if (!/^(?:\d{6}|\d{8})$/.test(value)) return;
+      e.preventDefault(); setCode(value); setAuthError(false); void verify(value);
+    }} onSubmit={e => {
       e.preventDefault();
       void (sending ? sendEmail() : verify());
     }}>
@@ -151,7 +157,7 @@ export function AccountSignIn({
       {step === "code" && <label>Email sign-in code
         <input ref={codeInput} aria-describedby={status ? statusId : undefined} aria-invalid={authError || undefined}
           inputMode="numeric" autoComplete="one-time-code" pattern="([0-9]{6}|[0-9]{8})" minLength={6} maxLength={8}
-          required disabled={busy} value={code} onChange={e => { setCode(e.target.value.replace(/[^0-9]/g, "")); setAuthError(false); }} />
+          required disabled={busy} autoFocus value={code} onChange={e => { const value = normalizeOtpCode(e.target.value).replace(/[^0-9]/g, ""); setCode(value); setAuthError(false); if (/^(?:\d{6}|\d{8})$/.test(value)) void verify(value); }} />
       </label>}
       <button type="submit" className="primary-button" disabled={busy || (sending && remaining > 0)}>
         {busy ? sending ? "Sending email…" : step === "code" ? "Verifying…" : "Signing in…"
