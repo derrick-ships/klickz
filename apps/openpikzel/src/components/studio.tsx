@@ -86,7 +86,7 @@ import { useSwipeDismiss } from "@/lib/use-swipe-dismiss";
 import { createArrivals, staggerPositions } from "@/lib/image-reveal";
 import {ModelTrigger,ModelPicker} from "@/components/creative/model-picker";
 const AnalysisHistory=dynamic(()=>import("@/components/creative/analysis-history").then(m=>m.AnalysisHistory),{loading:()=> <p role="status">Reading history…</p>});
-const AnalysisPanel=dynamic(()=>import("@/components/creative/analysis").then(m=>m.AnalysisPanel),{loading:()=> <p role="status">Opening…</p>});
+const AnalysisPanel=dynamic(()=>import("@/components/creative/analysis").then(m=>m.AnalysisPanel),{loading:()=> <ScoreSkeleton/>});
 const ImageInspector=dynamic(()=>import("@/components/creative/image-inspector").then(m=>m.ImageInspector),{loading:()=> <p role="status">Opening image…</p>});
 const ProfileManager=dynamic(()=>import("@/components/creative/profiles").then(m=>m.ProfileManager),{loading:()=> <ProfileSkeleton/>});
 const ComparisonSlider=dynamic(()=>import("@/components/creative/comparison").then(m=>m.ComparisonSlider),{loading:()=> <p role="status">Opening…</p>});
@@ -153,6 +153,14 @@ const definitions: Record<Pillar, string> = {
   emotion: "Shows a real feeling",
 };
 export default function Studio() {
+  useEffect(() => {
+    const close = (menu: HTMLDetailsElement, focus = false) => { menu.open = false; if (focus) menu.querySelector<HTMLElement>('summary')?.focus(); };
+    const onToggle = (event: Event) => { const menu = event.target; if (!(menu instanceof HTMLDetailsElement) || !menu.matches('.row-menu') || !menu.open) return; document.querySelectorAll<HTMLDetailsElement>('.row-menu[open]').forEach(other => { if (other !== menu) close(other); }); };
+    const onPointer = (event: PointerEvent) => { document.querySelectorAll<HTMLDetailsElement>('.row-menu[open]').forEach(menu => { if (!menu.contains(event.target as Node)) close(menu); }); };
+    const onKey = (event: KeyboardEvent) => { if (event.key !== 'Escape') return; const menu = document.querySelector<HTMLDetailsElement>('.row-menu[open]'); if (menu) { event.preventDefault(); event.stopPropagation(); close(menu, true); } };
+    document.addEventListener('toggle', onToggle, true); document.addEventListener('pointerdown', onPointer); document.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('toggle', onToggle, true); document.removeEventListener('pointerdown', onPointer); document.removeEventListener('keydown', onKey, true); };
+  }, []);
   const studio = useStudio();
   const activity=useRequestActivity({user:studio.user,cloud:studio.cloud,read:studio.read,onSucceeded:studio.load});
   const jobs=activity.jobs;
@@ -257,7 +265,7 @@ export default function Studio() {
     dialogTriggerRef = useRef<HTMLElement | null>(null),
     reviewHeadingRef = useRef<HTMLHeadingElement>(null),
     draftFingerprintRef = useRef("");
-  const dialogSwipe = useSwipeDismiss<HTMLDialogElement>("y", () => setDialog(null), dialog === "help" || dialog === "analysis");
+  const dialogSwipe = useSwipeDismiss<HTMLDialogElement>("y", () => setDialog(null), dialog === "help" || dialog === "analysis" || dialog === "connections" || dialog === "styles");
   const moreSwipe = useSwipeDismiss<HTMLDivElement>("y", () => { const menu = moreSwipe.ref.current?.parentElement as HTMLDetailsElement | null; if (menu) { menu.open = false; menu.querySelector<HTMLElement>("summary")?.focus(); } });
   const draftFingerprint = JSON.stringify({ prompt, title, tool, personaIds, elementIds, styleId, preset, refs, settings, parentId });
   draftFingerprintRef.current = draftFingerprint;
@@ -1083,13 +1091,13 @@ export default function Studio() {
                             ? "icon-button favorited"
                             : "icon-button"
                         }
-                        aria-label={selected.favorite ? "Unfavorite selected creation" : "Favorite selected creation"} title={selected.favorite ? "Unfavorite" : "Favorite"} aria-pressed={selected.favorite}
+                        aria-label="Favorite selected creation" title={selected.favorite ? "Remove from favorites" : "Favorite"} aria-pressed={selected.favorite}
                         onClick={() => toggleFavorite(selected)}
                       >
                         <Star
                           size={16}
                           fill={selected.favorite ? "currentColor" : "none"}
-                        /> {selected.favorite ? "Unfavorite" : "Favorite"}
+                        /> Favorite
                       </button>
                     </div>
                   </div>
@@ -2076,16 +2084,17 @@ export default function Studio() {
       </dialog>
       <dialog
         aria-labelledby="studio-dialog-title"
+        data-analysis={dialog === "analysis" ? "true" : undefined}
         ref={el=>{dialogRef.current=el; dialogSwipe.ref.current=el;}}
-        className={dialog === "help" || dialog === "analysis" ? "mobile-bottom-sheet" : undefined}
+        className={dialog === "help" || dialog === "analysis" || dialog === "connections" || dialog === "styles" ? "mobile-bottom-sheet" : undefined}
         onCancel={() => setDialog(null)}
         onClose={() => { if (!dialogRef.current?.open) { setDialog(null); restoreDialogFocus(); } }}
         onClick={(e) => {
           if (e.target === e.currentTarget) setDialog(null);
         }}
       >
-        <div className={"dialog-shell" + (dialog === "help" || dialog === "analysis" ? " swipe-sheet" : "")}>
-          {(dialog === "help" || dialog === "analysis") && <div className="swipe-handle" {...dialogSwipe.handlers} aria-hidden="true"/>}
+        <div className={"dialog-shell" + (dialog === "help" || dialog === "analysis" || dialog === "connections" || dialog === "styles" ? " swipe-sheet" : "")}>
+          {(dialog === "help" || dialog === "analysis" || dialog === "connections" || dialog === "styles") && <div className="swipe-handle" {...dialogSwipe.handlers} aria-hidden="true"/>}
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
               {dialog==="help"?"Help":dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
@@ -2321,8 +2330,7 @@ export default function Studio() {
               </a>
               {studio.cloud&&<button type="button" className="neutral-button full-width" onClick={()=>void showJobs()}>View activity</button>}
               <p className="dialog-footnote">
-                Your keys are encrypted and private to your account. Agent tools
-                never receive them.
+                Your keys are encrypted and private to your account.
               </p>
             </div>
           )}
@@ -2382,11 +2390,11 @@ export default function Studio() {
           </button>
           <button type="button"
             className={item.favorite ? "icon-button favorited" : "icon-button"}
-            aria-label={`${item.favorite ? "Unfavorite" : "Favorite"} ${item.title}`} title={item.favorite ? "Unfavorite" : "Favorite"}
+            aria-label={`Favorite ${item.title}`} title={item.favorite ? "Remove from favorites" : "Favorite"}
             aria-pressed={item.favorite}
             onClick={() => toggleFavorite(item)}
           >
-            <Star size={14} fill={item.favorite ? "currentColor" : "none"} /> {item.favorite ? "Unfavorite" : "Favorite"}
+            <Star size={14} fill={item.favorite ? "currentColor" : "none"} /> Favorite
           </button>
           <details className="row-menu"><summary className="icon-button" aria-label={`More options for ${item.title}`}><MoreHorizontal size={18}/></summary><div><button type="button" disabled={busy} onClick={() => queueCreationDelete(item)}><Trash2 size={14} /> Delete</button></div></details>
         </div>

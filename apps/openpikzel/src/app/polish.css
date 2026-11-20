@@ -1,16 +1,10 @@
 /* Keep existing rounded corners in browsers without corner-shape support. */
 @supports (corner-shape: squircle) {
-  :is(dialog, [role="dialog"], .creation-card, .profile-item, .account-panel, .thumb-frame, .result-image, .composer, .review-canvas, .sidebar-bottom, .result-more-menu, .creation-card-image, .chat-timeline .thumb-frame > button) {
-    corner-shape: squircle;
-  }
+  :is(dialog, [role="dialog"], .creation-card, .profile-item, .account-panel, .thumb-frame, .result-image, .composer, .review-canvas, .sidebar-bottom, .result-more-menu, .creation-card-image, .chat-timeline .thumb-frame > button) { corner-shape: squircle; }
 }
-
-/* Numeric labels do not change width as their values update. */
 :root { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
-
 h1, h2, h3, [role="dialog"] h2, .welcome-headline, .profile-empty, .score-verdict, .empty-state, button { text-wrap: balance; }
 p { text-wrap: pretty; }
-
 .row-menu { position: relative; flex: none; }
 .row-menu summary { list-style: none; cursor: pointer; }
 .row-menu summary::-webkit-details-marker { display: none; }
@@ -25,5 +19,11 @@ p { text-wrap: pretty; }
 .chat-row-rename input { width: 100%; min-width: 0; }
 .undo-stack { left: 50%; bottom: 72px; transform: translateX(-50%); align-items: center; }
 @media (min-width: 761px) { .sidebar-open .undo-stack { left: calc(50% + var(--sidebar-width) / 2); } }
-@media (max-width: 640px) { .undo-stack { left: 50%; bottom: calc(112px + env(safe-area-inset-bottom)); } }
+@media (max-width: 640px) {
+  .undo-stack { left: 50%; bottom: calc(112px + env(safe-area-inset-bottom)); }
+  .chat-save-state { margin-top: 0; }
+  .creation-card .score-badge { min-width: 0; min-height: 0; height: 28px; width: auto; }
+  dialog.mobile-bottom-sheet[data-analysis="true"] { height: 90dvh; }
+}
+.composer { min-height: 220px; }
 .account-page .signin-form { margin-top: 24px; }
