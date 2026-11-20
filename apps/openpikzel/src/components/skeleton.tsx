@@ -9,8 +9,8 @@ export function HistorySkeleton() {
   return <div className="skeleton-history" role="status" aria-label="Loading chats"><Skeleton className="skeleton-search" />{Array.from({ length: 5 }, (_, i) => <div className="skeleton-history-row" key={i}><Skeleton className="skeleton-icon"/><Skeleton className="skeleton-line"/></div>)}</div>;
 }
 
-export function GridSkeleton() {
-  return <div className="creation-grid" role="status" aria-label="Loading creations">{Array.from({ length: 6 }, (_, i) => <div className="creation-card skeleton-card" key={i}><Skeleton className="skeleton-image"/><div className="skeleton-card-info"><Skeleton className="skeleton-line"/><Skeleton className="skeleton-short"/></div></div>)}</div>;
+export function GridSkeleton({ count = 6 }: { count?: number } = {}) {
+  return <div className="creation-grid" role="status" aria-label="Loading creations">{Array.from({ length: count }, (_, i) => <div className="creation-card skeleton-card" key={i}><Skeleton className="skeleton-image"/><div className="skeleton-card-info"><Skeleton className="skeleton-line"/><Skeleton className="skeleton-short"/></div></div>)}</div>;
 }
 
 export function ResultSkeleton() {

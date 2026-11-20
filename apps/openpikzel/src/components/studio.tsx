@@ -1368,7 +1368,7 @@ export default function Studio() {
               Styles
             </button>
           </div>
-          <p className="sidebar-workspace-status">{studio.cloud ? "Signed in · saved to your account" : "Saved on this device"}</p>
+          <p className="sidebar-workspace-status">{studio.loading ? " " : studio.cloud ? "Signed in · saved to your account" : "Saved on this device"}</p>
         </div>
       </aside>
       <div className="workspace-main" inert={compactNavigation && sidebar}>
@@ -1397,7 +1397,7 @@ export default function Studio() {
               <SlidersHorizontal size={15} />
               <span>Keys</span>
             </button>
-            {!studio.cloud && (
+            {!studio.loading && !studio.cloud && (
               <button type="button"
                 className="neutral-button login-button"
                 onClick={() => setDialog("login")}
@@ -1991,7 +1991,7 @@ export default function Studio() {
                   </p>
                 </section>
               )}
-              {studio.creations.length > 0 && !selected && (
+              {(studio.loading || studio.creations.length > 0) && !selected && (
                 <section className="result-section recent-creations">
                   <div className="section-heading">
                     <h2>Recent creations</h2>
@@ -2002,9 +2002,9 @@ export default function Studio() {
                       View library
                     </button>
                   </div>
-                  <div className="creation-grid">
+                  {studio.loading ? <GridSkeleton count={3}/> : <div className="creation-grid">
                     {cards(studio.creations.slice(0, 3))}
-                  </div>
+                  </div>}
                 </section>
               )}
             </>
