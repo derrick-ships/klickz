@@ -1,6 +1,6 @@
 "use client";
 import {unusedElementImages,type Element,type ElementKind} from "./elements";
-import { retryAction } from "./retry-action";
+import { retryAction, retryableAction } from "./retry-action";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {thumbPath,worthSaving,type Conversation} from "./workspaces";
@@ -225,7 +225,7 @@ export function useStudio() {
       return result;
     } catch (e) {
       if (startedEpoch !== ownerEpoch.current) return undefined;
-      lastFailedAction.current = e && typeof e === "object" && unknownOutcomes.has(e) ? null : () => { if (startedEpoch === ownerEpoch.current) void run(label, work); };
+      lastFailedAction.current = retryableAction(label, () => { if (startedEpoch === ownerEpoch.current) void run(label, work); }, !!(e && typeof e === "object" && unknownOutcomes.has(e)));
       setError(
         e instanceof Error
           ? e.message
@@ -798,10 +798,14 @@ export function useStudio() {
       setPendingDeletes(current=>current[id]?{...current,[id]:{...current[id],committing:true}}:current);
       await waitForIdle(); // never drop a delete because another action holds the lock
       if(epoch!==ownerEpoch.current){dropPending(id);return;}
-      await run(kind==="creations"?"Deleting creation":"Deleting",()=>remove(kind,id));
-      dropPending(id);
+      const done=await run(kind==="creations"?"Deleting creation":"Deleting",async()=>{await remove(kind,id);return true;});
+      if(done){dropPending(id);return;}
+      // Not deleted (workspace stayed busy or the request failed): put it back so nothing vanishes silently.
+      dropPending(id);setError("That item wasn't deleted. Try again.");
     },6000);
   }
+  // Leaving the studio (client navigation) cancels waiting deletes: the items stay, nothing half-done.
+  useEffect(()=>()=>{for(const id of Object.keys(deleteTimers.current))clearTimeout(deleteTimers.current[id]);deleteTimers.current={};},[]);
   const queueProfileDelete=(kind:"personas"|"styles"|"elements",id:string,name:string)=>queueDelete(kind,id,name);
   function undoDelete(id:string){if(!deleteTimers.current[id])return;clearTimeout(deleteTimers.current[id]);delete deleteTimers.current[id];dropPending(id);}
   const undoProfileDelete=undoDelete;
@@ -921,6 +925,7 @@ export function useStudio() {
     busy,
     error,
     setError,
+    canRetry: () => !!lastFailedAction.current,
     retryLastAction: () => { const action = lastFailedAction.current; lastFailedAction.current = null; retryAction(action); },
     run,
     load,

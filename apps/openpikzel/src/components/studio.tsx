@@ -1095,8 +1095,8 @@ export default function Studio() {
                         </button>
                         <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
-                          {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
-                            {score&&<><button type="button" className="menu-item" onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
+                          {/* copy-law: advanced */}<div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details")){const movesFocus=!!(e.target as HTMLElement).closest('[data-moves-focus]');const menu=e.currentTarget.parentElement as HTMLDetailsElement; menu.open=false; if(!movesFocus)requestAnimationFrame(()=>menu.querySelector<HTMLElement>('summary')?.focus());}}}>
+                            {score&&<><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" data-moves-focus onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download PNG (original)</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." onClick={resize}>AI resize to {selected.settings?.format === "short" ? "long-form" : "short-form"} · uses image credits</button>
                             <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
@@ -1265,7 +1265,7 @@ export default function Studio() {
                         <ul>{pillars.map((pillar) => <li key={pillar}>{names[pillar]}</li>)}</ul>
                       </>}
                       {scoreView.kind==="no-jev"&&<button type="button" className="neutral-button" onClick={()=>setDialog("connections")}>Connections</button>}
-                      {scoreView.kind==="failed"&&<button type="button" className="neutral-button" disabled={busy} onClick={()=>{void retryScore();}}>Retry score</button>}
+                      {scoreView.kind==="failed"&&<button type="button" data-copy-law="allow-long" className="neutral-button" disabled={busy} title="Uses credits" onClick={()=>{void retryScore();}}>Retry score<small> · uses credits</small></button>}
                       <p className="score-disclaimer">Scoring uses your AI account’s credits. Scores estimate how clear and clickable the image looks; they aren’t real click data.</p>
                     </aside>
                   ) : null}
@@ -1405,14 +1405,12 @@ export default function Studio() {
           {tab !== "library"&&activeChat&&<><ChatTitle key={activeChat.id} title={activeChat.title} busy={busy} onDelete={()=>askDeleteChat(activeChat)} onSave={async name=>{await studio.saveConversation({...activeChat,title:name,updated_at:new Date().toISOString()},"title");}}/><span className="chat-save-state" role="status">{chatSaveState}</span></>}
           {busy&&<OperationProgress label={delivery?.stage==="analyzing"?"Analyzing saved thumbnail":studio.busy}/>}
           {delivery&&<GenerationDelivery state={delivery} portrait={settings.format==="short"} images={delivery.stage==="generating"?landedImages:deliveryPlan.landed.length?landedImages:deliveredImages} requested={deliveryPlan.requested} selectedId={selection} onSelect={reviewDelivered} onOpenScore={id=>{const item=studio.creations.find(c=>c.id===id);if(item)openScore(item);}} estimateMs={estimateMs}/>}
-          {Object.entries(pendingDeletes).map(([id,item])=><div className="result-ready" role="status" key={id}>{item.committing?"Deleting…":"Deleted."}{!item.committing&&<button type="button" className="neutral-button" onClick={()=>undoCreationDelete(id)}>Undo</button>}</div>)}
+          {Object.entries(pendingDeletes).filter(([,item])=>item.kind==="creations").map(([id,item])=><div className="result-ready" role="status" key={id}>{item.committing?"Deleting…":"Deleted."}{!item.committing&&<button type="button" className="neutral-button" onClick={()=>undoCreationDelete(id)}>Undo</button>}</div>)}
           {studio.error && (
             <div className="error-banner" role="alert">
               <AlertCircle size={17} />
               <p>{plainError(studio.error).text}</p>
-              <button type="button" className="neutral-button" onClick={() => { const action = plainError(studio.error).action; studio.setError(""); if (action === "Connect") setDialog("connections"); else if (action === "Retry") studio.retryLastAction(); else if (action === "My creations") setTab("library"); }}>
-                {plainError(studio.error).action}
-              </button>
+              {(() => { const shown = plainError(studio.error); const action = shown.action === "Retry" && !studio.canRetry() ? "My creations" : shown.action; return <button type="button" className="neutral-button" onClick={() => { studio.setError(""); if (action === "Connect") setDialog("connections"); else if (action === "Retry") studio.retryLastAction(); else if (action === "My creations") setTab("library"); }}>{action === "My creations" && shown.action === "Retry" ? "Check creations" : action}</button>; })()}
             </div>
           )}
           {tab === "studio" ? (
