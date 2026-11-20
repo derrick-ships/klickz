@@ -1057,15 +1057,6 @@ export default function Studio() {
                     </div>
                     <div className="result-utilities">
 
-                      {hasReviewImage && (
-                      <button type="button"
-                        className={phone ? "icon-button active" : "icon-button"}
-                        aria-label="Toggle phone feed preview" aria-pressed={phone}
-                        onClick={() => setPhone((x) => !x)}
-                      >
-                        <Smartphone size={16} /><span>Feed preview</span>
-                      </button>
-                      )}
                       <button type="button"
                         className={
                           selected.favorite
@@ -1108,18 +1099,18 @@ export default function Studio() {
                         </button>
                         <details className="result-more" onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))e.currentTarget.open=false;}}>
                           <summary className="neutral-button">More</summary>
-                          <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
+                          <div className="result-more-menu" role="group" aria-label="More actions" onClick={e=>{if((e.target as HTMLElement).closest("button") && !(e.target as HTMLElement).closest(".provenance-details"))(e.currentTarget.parentElement as HTMLDetailsElement).open=false;}}>
                             {score&&<><button type="button" className="menu-item" onClick={()=>openReviewEditor("edit")}>Edit</button><button type="button" className="menu-item" onClick={()=>openReviewEditor("analyze")}>Score again</button></>}
                             <button type="button" className="menu-item" disabled={busy} onClick={()=>studio.run("Downloading image",()=>studio.downloadOriginal(selected))}>Download PNG (original)</button>
                         <button type="button" className="menu-item" disabled={busy} title="Makes one new image with your AI account (uses credits). The original stays saved." onClick={resize}>AI resize to {selected.settings?.format === "short" ? "long-form" : "short-form"} · uses image credits</button>
                             <button type="button" className="menu-item" onClick={()=>setDialog("inspect")}>Inspect image</button><button type="button" className="menu-item" disabled={busy||!selected.parent_id} title={!selected.parent_id?"Available on a fixed or edited version":undefined} onClick={()=>setDialog("beforeafter")}>Compare before &amp; after</button><button type="button" className="menu-item" onClick={()=>setDialog("feedback")}>Leave feedback</button>
                             {studio.cloud&&selected.image_path&&<button type="button" className="menu-item" disabled={busy} onClick={()=>setDialog("analysis-history")}>Score history</button>}
+                            <button type="button" className="menu-item" aria-pressed={phone} onClick={()=>setPhone(x=>!x)}>Feed preview</button>
+                            <details className="provenance-details"><summary>What we sent to the AI <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
                           </div>
                         </details>
                       </div>
                       {comparisons[selected.id]&&<p className="fix-outcome" data-improved={comparisons[selected.id].improved} role="status">{comparisons[selected.id].improved?<><TrendingUp size={14} aria-hidden="true"/>{comparisons[selected.id].before??"–"} → {comparisons[selected.id].after??"–"}</>:<>No gain ({comparisons[selected.id].after??"–"} vs {comparisons[selected.id].before??"–"}) · Kept the better one</>}</p>}
-                      <details className="result-extra"><summary>More details</summary>                      <details className="provenance-details"><summary>What we sent to the AI <ChevronDown size={16} aria-hidden="true"/></summary>{selected.lineage?.mediator&&<MediatorDetails record={selected.lineage.mediator}/>}<dl><dt>You wrote</dt><dd>{selected.prompt}</dd><dt>Model / quality / format</dt><dd>{selected.settings?.model||"Uploaded image"} · {selected.settings?.quality||"Original"} · {selected.settings?.format||"Source format"}</dd><dt>References</dt><dd>{selected.reference_paths?.length||0} image references · {selected.persona_id?"Persona selected":"No Persona"} · {selected.style_id?"Private Style selected":selected.style}</dd><dt>Saved</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></dl></details>
-</details>
                     </>
                   ) : (
                     <div className="draft-preview">
