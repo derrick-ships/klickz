@@ -103,7 +103,7 @@ export function usePersonaMentions({ value, setValue, personas, images, selected
       "aria-activedescendant": open ? optionId(index) : undefined,
     },
     list: open ? <>
-      <ul id={listId} className="mention-list" role="listbox" aria-label={personas.some(p=>p.kind==="element")?"Personas and elements":"Personas"}>
+      <ul id={listId} className="mention-list" role="listbox" aria-label={personas.some(p=>p.kind==="element")?"People and elements":"People"}>
         {matches.map((p, i) => <li key={p.id} id={optionId(i)} role="option" aria-selected={i === index} className="mention-option"
           onPointerDown={e => e.preventDefault()} onPointerMove={e => { const at = e.clientX + "," + e.clientY; if (lastPointer.current !== null && lastPointer.current !== at && i !== index) setActive(i); lastPointer.current = at; }} onClick={() => pick(p)}>
           {images[p.refs[0]] ? <img src={images[p.refs[0]]} alt="" width={28} height={28} /> : <span className="mention-avatar" aria-hidden="true">{p.name.slice(0, 1).toUpperCase()}</span>}
@@ -111,7 +111,7 @@ export function usePersonaMentions({ value, setValue, personas, images, selected
           {selectedIds.includes(p.id) && <span className="mention-current">Added</span>}
         </li>)}
       </ul>
-      <span className="sr-only" role="status">{matches.length + (matches.length === 1 ? " persona" : " personas")}. Use arrow keys, then Enter.</span>
+      <span className="sr-only" role="status">{matches.length + (matches.length === 1 ? " person" : " people")}. Use arrow keys, then Enter.</span>
     </> : null,
   };
 }

@@ -285,7 +285,7 @@ export default function Studio() {
   // @mentions: each "@Name" in the prompt adds that persona (up to three), shown in the accent colour.
   const mentions = usePersonaMentions({ value: prompt, setValue: setPrompt, personas: [...studio.personas.map(p=>({...p,kind:"persona" as const})),...studio.elements.map(p=>({...p,kind:"element" as const}))], images: studio.images, selectedIds: [...personaIds,...elementIds], textarea: promptRef,
     onChange: (ids) => { setPersonaIds(ids.filter(id=>studio.personas.some(p=>p.id===id)));setElementIds(ids.filter(id=>studio.elements.some(p=>p.id===id))); void ensureChat().catch((e) => studio.setError(e.message)); },
-    onLimit: () => studio.setError("Mention at most " + MAX_PERSONAS + " personas and 3 elements in one thumbnail.") });
+    onLimit: () => studio.setError("Mention at most " + MAX_PERSONAS + " people and 3 elements in one thumbnail.") });
   const previousScoreRaw =
     selected?.mode === "fix" && selected.parent_id
       ? studio.creations.find((c) => c.id === selected.parent_id)?.score ?? null
@@ -484,7 +484,7 @@ export default function Studio() {
     value: Settings[K],
   ) => setSettings((s) => ({ ...s, [key]: value }));
   function openProfiles(which: "personas" | "styles" | "elements") {
-    setProfileDialogTitle(which==="personas"?"Your personas":which==="elements"?"Your elements":"Your styles");
+    setProfileDialogTitle(which==="personas"?"Your people":which==="elements"?"Your elements":"Your styles");
     setProfileNew(false);
     setProfileName("");
     setProfileNotes("");
@@ -1696,7 +1696,7 @@ export default function Studio() {
                             </div>
                           ))}
                           {studio.elements.filter(e=>elementIds.includes(e.id)).map(e=><div key={e.id} className="selection-chip-group selection-chip-group--persona"><button type="button" className="selection-chip" onClick={()=>openProfiles("elements")} aria-label={"Change element: "+e.name}>{studio.images[e.refs[0]]&&<img src={studio.images[e.refs[0]]} alt=""/>}<span className="selection-name">{e.name} · {elementDefinitions[e.kind].label}</span></button><button type="button" className="selection-remove" aria-label={"Remove element: "+e.name} onClick={()=>{setElementIds(ids=>ids.filter(id=>id!==e.id));setPrompt(text=>unmention(text,e.name));document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[2]?.focus();}}><X size={14}/></button></div>)}
-                          {chosenPersonas.map(p => <div key={p.id} className="selection-chip-group selection-chip-group--persona"><button type="button" className="selection-chip" onClick={()=>openProfiles("personas")} aria-label={"Change persona: "+p.name}>{studio.images[p.refs[0]]&&<img src={studio.images[p.refs[0]]} alt=""/>}<span className="selection-name">{p.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove persona: "+p.name} onClick={()=>{setPersonaIds(ids=>ids.filter(id=>id!==p.id));setPrompt(text=>unmention(text,p.name));document.querySelector<HTMLButtonElement>('.composer-tool-group button')?.focus();}}><X size={14}/></button></div>)}
+                          {chosenPersonas.map(p => <div key={p.id} className="selection-chip-group selection-chip-group--persona"><button type="button" className="selection-chip" onClick={()=>openProfiles("personas")} aria-label={"Change person: "+p.name}>{studio.images[p.refs[0]]&&<img src={studio.images[p.refs[0]]} alt=""/>}<span className="selection-name">{p.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove person: "+p.name} onClick={()=>{setPersonaIds(ids=>ids.filter(id=>id!==p.id));setPrompt(text=>unmention(text,p.name));document.querySelector<HTMLButtonElement>('.composer-tool-group button')?.focus();}}><X size={14}/></button></div>)}
                           {!styleProfile && libraryChoice && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+libraryChoice.name}><img src={libraryChoice.images[0]} alt=""/><span className="selection-name">{libraryChoice.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+libraryChoice.name} onClick={()=>setPreset("Auto")}><X size={11}/></button></div>}
                           {styleProfile && <div className="selection-chip-group"><button type="button" className="selection-chip" onClick={()=>openProfiles("styles")} aria-label={"Change style: "+styleProfile.name}><Palette size={13}/><span className="selection-name">{styleProfile.name}</span></button><button type="button" className="selection-remove" aria-label={"Remove style: "+styleProfile.name} onClick={()=>{setStyleId("");document.querySelectorAll<HTMLButtonElement>('.composer-tool-group button')[1]?.focus();}}><X size={14}/></button></div>}
                         </div>
@@ -2076,7 +2076,7 @@ export default function Studio() {
           <div className="dialog-heading">
             <h2 id="studio-dialog-title">
               {dialog==="help"?"Help":dialog==="models"?"Image models":dialog==="inspect"?"Inspect your thumbnail":dialog==="analysis-history"?"Score history":dialog==="analysis"?"Full score":dialog==="beforeafter"?"Compare before and after":dialog==="feedback"?"Leave feedback":dialog==="delete-chat"?"Delete this chat?":dialog === "personas"
-                ? profileDialogTitle || "Your personas"
+                ? profileDialogTitle || "Your people"
                 : dialog === "elements"
                   ? profileDialogTitle || "Your elements"
                   : dialog === "styles"
