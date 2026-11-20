@@ -3,11 +3,14 @@ import { thumbnailRubric } from "./instructions";
 
 // Old scores may lack advice which newer scores fill during analysis.
 export function pillarAdvice(score: Evaluation, pillar: Pillar) {
-  const dimension = score.dimensions[pillar];
-  const fallback = dimension.score !== null && dimension.score < 70 && (!dimension.weakness.trim() || !dimension.fix.trim());
+  // Stored scores can predate fields, so read every text defensively.
+  const dimension = score.dimensions?.[pillar];
+  if (!dimension) return { weakness: "", fix: "", generalAdvice: false };
+  const weakness = (dimension.weakness || "").trim(), fix = (dimension.fix || "").trim();
+  const fallback = typeof dimension.score === "number" && dimension.score < 70 && (!weakness || !fix);
   return {
-    weakness: dimension.weakness.trim() || (fallback ? "A numeric rubric alone does not identify a specific visible flaw." : ""),
-    fix: dimension.fix.trim() || (fallback ? thumbnailRubric[pillar].instructions + " Aim for: " + thumbnailRubric[pillar].criteria[3] + ". Preserve the truthful video promise." : ""),
+    weakness: weakness || (fallback ? "A numeric rubric alone does not identify a specific visible flaw." : ""),
+    fix: fix || (fallback ? thumbnailRubric[pillar].instructions + " Aim for: " + thumbnailRubric[pillar].criteria[3] + ". Preserve the truthful video promise." : ""),
     generalAdvice: !!dimension.generalAdvice || fallback,
   };
 }

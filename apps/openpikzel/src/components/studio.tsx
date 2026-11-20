@@ -1266,11 +1266,11 @@ export default function Studio() {
                           </p>
                           {score.dimensions[activePillar].generalAdvice && <p>General advice — the image review gave no specific note for this pillar.</p>}
                           <dl>
-                            {!!score.dimensions[activePillar].strength.trim() && <><dt>Working for you</dt><dd>{score.dimensions[activePillar].strength}</dd></>}
-                            {!!score.dimensions[activePillar].weakness.trim() && <><dt>Holding it back</dt><dd>{score.dimensions[activePillar].weakness}</dd></>}
-                            {!!score.dimensions[activePillar].fix.trim() && <><dt>What to change</dt><dd>{score.dimensions[activePillar].fix}</dd></>}
+                            {!!(score.dimensions[activePillar].strength||"").trim() && <><dt>Working for you</dt><dd>{score.dimensions[activePillar].strength}</dd></>}
+                            {!!(score.dimensions[activePillar].weakness||"").trim() && <><dt>Holding it back</dt><dd>{score.dimensions[activePillar].weakness}</dd></>}
+                            {!!(score.dimensions[activePillar].fix||"").trim() && <><dt>What to change</dt><dd>{score.dimensions[activePillar].fix}</dd></>}
                           </dl>
-                          {(!score.dimensions[activePillar].weakness.trim() || !score.dimensions[activePillar].fix.trim()) && <p>Not assessed in detail. Score again with image review for specific advice.</p>}
+                          {(!(score.dimensions[activePillar].weakness||"").trim() || !(score.dimensions[activePillar].fix||"").trim()) && <p>Not assessed in detail. Score again with image review for specific advice.</p>}
                           <span className="confidence">
                             AI confidence:{" "}
                             {score.dimensions[activePillar].confidence >= 0.7
