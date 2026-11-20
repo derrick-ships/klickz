@@ -1,5 +1,6 @@
 "use client";
 import {unusedElementImages,type Element,type ElementKind} from "./elements";
+import {makeThumb,selectThumbBackfill} from './thumb-backfill';
 import { optimisticUpdate } from "./optimistic";
 import { createDeleteQueue } from "./delete-queue";
 import { retryAction, retryableAction } from "./retry-action";
@@ -66,6 +67,7 @@ export function useStudio() {
     userRef = useRef<string | null>(null),
     pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const lastFailedAction = useRef<(() => void) | null>(null);
+  const backfillSeen = useRef(new Set<string>()), backfillQueue = useRef<Array<{path:string;url:string;portrait:boolean;owner:string}>>([]), backfillRunning = useRef(0), backfillLogged = useRef(false);
   const pendingAnalysis = useRef(new Map<string, string>());
   const pendingFix = useRef(new Map<string, Promise<unknown>>());
   const pendingFixJobs = useRef(new Map<string, {requestId:string;fixPlanToken:string;plan:{title:string;sourceId:string;settings:Settings};notice?:string}>());
@@ -73,6 +75,27 @@ export function useStudio() {
   const definiteFailures = useRef(new WeakSet<object>()).current;
   const cloud = !!user && !!db.current,
     live = cloud && !!config?.ai && (!!config?.openai || !!config?.google);
+  const pumpBackfill = useCallback(function pump() {
+    if (document.visibilityState !== 'visible') return;
+    while (backfillRunning.current < 2 && backfillQueue.current.length) {
+      const task = backfillQueue.current.shift()!;
+      if (userRef.current !== task.owner || !db.current) continue;
+      backfillRunning.current++;
+      void (async () => {
+        try {
+          const blob = await makeThumb(task.url, task.portrait);
+          if (document.visibilityState !== 'visible' || userRef.current !== task.owner || !db.current) return;
+          const storage = db.current.storage.from('studio-assets'), path = thumbPath(task.path);
+          const result = await storage.upload(path, blob, {contentType:'image/jpeg', upsert:false});
+          if (result.error || userRef.current !== task.owner) return;
+          const signed = await storage.createSignedUrl(path, 300);
+          if (!signed.error && signed.data?.signedUrl && userRef.current === task.owner) setThumbs(old => ({...old, [path]:signed.data.signedUrl}));
+        } catch { /* Background conversion must never interrupt the workspace. */ }
+        finally { backfillRunning.current--; setTimeout(pump, 500); }
+      })();
+    }
+  }, []);
+  useEffect(() => { document.addEventListener('visibilitychange', pumpBackfill); return () => document.removeEventListener('visibilitychange', pumpBackfill); }, [pumpBackfill]);
   const load = useCallback(async () => {
     if(userRef.current!==user)return;
     const current = ++version.current;
@@ -101,25 +124,26 @@ export function useStudio() {
       elementsAvailable.current = !rows[4].error;
       const pref=await db.current.from("studio_preferences").select("skip_persona_tutorial").eq("user_id",user).maybeSingle();if(current!==version.current||userRef.current!==user)return;setSkipPersonaTutorial(pref.data?.skip_persona_tutorial===true);
       const paths = libraryPaths(rows);
+      let imageUrls:Record<string,string> = {};
       if (paths.length) {
         const signed = await db.current.storage
           .from("studio-assets")
           .createSignedUrls(paths, 300);
         if (current !== version.current || userRef.current!==user) return;
         if (signed.error) throw new Error("Your private images could not load. Refresh the page to try again.");
-        setImages(
-          Object.fromEntries(
-            (signed.data || [])
-              .filter((x) => x.signedUrl)
-              .map((x) => [x.path!, x.signedUrl!]),
-          ),
-        );
+        imageUrls = Object.fromEntries((signed.data || []).filter(x => x.signedUrl).map(x => [x.path!, x.signedUrl!]));
+        setImages(imageUrls);
       } else setImages({});
       const thumbPaths=[...new Set((rows[0].data || []).map((c:Creation)=>c.image_path).filter((path:string|null):path is string=>!!path && path.endsWith('.png')).map(thumbPath))];
       if(thumbPaths.length){
         const signed=await db.current.storage.from("studio-assets").createSignedUrls(thumbPaths,300);
         if(current!==version.current||userRef.current!==user)return;
         setThumbs(Object.fromEntries((signed.data||[]).filter(x=>!x.error&&x.path&&x.signedUrl).map(x=>[x.path!,x.signedUrl!])));
+        const missing = new Set((signed.data || []).filter(x => x.error && x.path).map(x => x.path!));
+        const candidates = selectThumbBackfill((rows[0].data || []) as Creation[], user, missing, backfillSeen.current, Math.max(0, 40 - backfillSeen.current.size));
+        for (const item of candidates) { const path = item.image_path!; if (!imageUrls[path]) continue; backfillSeen.current.add(path); backfillQueue.current.push({path,url:imageUrls[path],portrait:item.settings?.format==='short',owner:user}); }
+        if (backfillQueue.current.length && !backfillLogged.current) { backfillLogged.current = true; console.info('Preparing missing creation thumbnails in the background.'); }
+        setTimeout(pumpBackfill, 500);
       }else setThumbs({});
     } else {
       setThumbs({});
@@ -147,7 +171,7 @@ export function useStudio() {
       setImages(Object.fromEntries(entries));
     }
     if(userRef.current===user)loadedOwner.current=user;
-  }, [user]);
+  }, [user, pumpBackfill]);
   useEffect(() => {
     let stop = () => {};
     fetch("/api/config")
