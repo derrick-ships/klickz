@@ -85,7 +85,7 @@ import {OperationProgress} from "@/components/creative/progress";
 import {usePersonaMentions,MentionMirror,MAX_PERSONAS,unmention} from "@/components/creative/mention-list";
 import {ChatHistory,ChatTitle,ChatTimeline} from "@/components/creative/chat";
 import { readDraftCheckpoint, writeDraftCheckpoint } from "@/lib/draft-checkpoint";
-import {automaticChatTitle, type Conversation, type WorkspaceDraft} from "@/lib/workspaces";
+import {automaticChatTitle,thumbPath,worthSaving, type Conversation, type WorkspaceDraft} from "@/lib/workspaces";
 import { useStudio } from "@/lib/use-studio";
 import { DialogOverflowCue } from "@/components/dialog-overflow-cue";
 import { TypingExamples } from "@/components/creative/typing-examples";
@@ -459,7 +459,7 @@ export default function Studio() {
     const owner=studio.user,key=owner||"local";
     if(studio.loading||hydratedWorkspace!==key)return;
     const draft={...JSON.parse(chatDraftJSON),draftSavedAt:Date.now()} as WorkspaceDraft;
-    const meaningful=!!(draft.prompt?.trim()||draft.title?.trim()||(draft.videoBrief?.trim()||draft.videoUrl?.trim())||draft.refs?.length||draft.personaIds?.length||draft.elementIds?.length||draft.personaId||draft.styleId||draft.selection||draft.preset!=="Auto"||JSON.stringify(draft.settings)!==JSON.stringify(defaultSettings));
+    const meaningful=worthSaving({id:activeChatId||"",title:activeChat?.title||"New chat",draft,created_at:"",updated_at:""},!!activeChatId&&studio.creations.some(c=>c.conversation_id===activeChatId));
     if(!activeChatId&&!meaningful)return;
     const checkpointSaved=writeDraftCheckpoint(localStorage,key,{chatId:activeChatId,draft});
     setChatSaveState(checkpointSaved?"Saved on this device · syncing…":"Saving draft…");
@@ -1327,9 +1327,9 @@ export default function Studio() {
       )}
       <aside ref={navigationRef} className="sidebar" inert={!sidebar} aria-label="Workspace navigation">
         <div className="sidebar-heading">
-          <a className="wordmark" href="/studio">
+          <a className="brand" href="/studio">
             OpenPikzels
-            <span className="wordmark-pixel" />
+            <span className="wordmark-pixel" aria-hidden="true" />
           </a>
           <button type="button"
             className="icon-button"
@@ -1369,7 +1369,7 @@ export default function Studio() {
         <div className="history-list">
           {!studio.loading && <ChatHistory chats={studio.conversations} creations={studio.creations} active={activeChatId} busy={busy} onOpen={chat=>{void openChat(chat);}} onDelete={askDeleteChat}/>}
           {studio.creations.some(c=>!c.conversation_id)&&<p className="legacy-history-label">Recent creations</p>}
-          {studio.creations.filter(c=>!c.conversation_id).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.images[item.image_path]} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
+          {studio.creations.filter(c=>!c.conversation_id).slice(0,8).map(item=><button type="button" key={item.id} className={"history-item "+(selection===item.id?"selected":"")} disabled={busy} onClick={()=>item.status==="draft"?resume(item):choose(item)}>{item.image_path&&studio.images[item.image_path]?<img src={studio.thumbs[thumbPath(item.image_path)]||studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt=""/>:<ImagePlus size={16}/>}<span>{item.title}</span></button>)}
         </div>
         <div className="sidebar-bottom">
 
@@ -1455,7 +1455,7 @@ export default function Studio() {
             <>
               {hasReviewImage && resultPanel}
               {hasReviewImage && score && <div className="mobile-result-actions"><button type="button" className="primary-button" disabled={busy || (!!score.fixBlocked && !needsImageReview(score)) || fixReview?.kind === "blocked" || fixReview?.kind === "noop"} onClick={()=>void runOneClickFix()}>Fix</button><button type="button" className="neutral-button" onClick={()=>{setTool("generate");setComposerOpen(true);requestAnimationFrame(()=>document.querySelector(".creation-workbench")?.scrollIntoView({block:"start"}));}}>Make another</button></div>}
-              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
+              {activeChatId&&<ChatTimeline items={studio.creations.filter(c=>c.conversation_id===activeChatId)} images={studio.images} thumbs={studio.thumbs} active={selection} onChoose={c=>c.status==="draft"?resume(c):choose(c)} onOpenScore={openScore} arrivalOf={arrivals.arrival}/>}
               <section
                 className={`creation-workbench ${hasReviewImage ? "creation-workbench--review" : ""}`}
                 aria-label="Thumbnail workspace"
@@ -2348,7 +2348,7 @@ export default function Studio() {
           }
         >
           {item.image_path && studio.images[item.image_path] ? (
-            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.images[item.image_path]} alt={item.title} />
+            <RevealImage loading="lazy" decoding="async" surface="card" index={stagger.get(item.id)} creationId={item.id} arrival={arrivals.arrival(item.id)} uploaded={item.lineage?.origin === "uploaded"} src={studio.thumbs[thumbPath(item.image_path)] || studio.images[item.image_path]} onError={e=>{if(e.currentTarget.src!==studio.images[item.image_path!])e.currentTarget.src=studio.images[item.image_path!];}} alt={item.title} />
           ) : (
             <div className="concept-thumbnail">
               <ImagePlus size={22} />

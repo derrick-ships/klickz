@@ -1,5 +1,21 @@
 import {describe,it,expect} from 'vitest';
 describe('creative workspace contracts',()=>{
+ it('derives JPG thumbnail paths without changing other assets',async()=>{
+  const {thumbPath}=await import('../src/lib/workspaces');
+  expect(thumbPath('user/creations/id.png')).toBe('user/creations/id.jpg');
+  expect(thumbPath('user/creations/id.webp')).toBe('user/creations/id.webp');
+ });
+ it('only saves chats with meaningful content',async()=>{
+  const {worthSaving}=await import('../src/lib/workspaces');
+  const chat={id:'a',title:'New chat',draft:{},created_at:'',updated_at:''};
+  expect(worthSaving(chat)).toBe(false);
+  expect(worthSaving({...chat,draft:{prompt:'  ',personaIds:['p']}})).toBe(false);
+  expect(worthSaving({...chat,draft:{prompt:' idea '}})).toBe(true);
+  expect(worthSaving({...chat,draft:{title:' title '}})).toBe(true);
+  expect(worthSaving({...chat,title:'Custom'})).toBe(true);
+  expect(worthSaving({...chat,draft:{refs:['ref']}})).toBe(true);
+  expect(worthSaving(chat,true)).toBe(true);
+ });
  it('names chats from meaningful video or creation titles, never fragments',async()=>{
   const {automaticChatTitle}=await import('../src/lib/workspaces');
   expect(automaticChatTitle('@','A real concept')).toBe('A real concept');

@@ -2,7 +2,7 @@
 import {unusedElementImages,type Element,type ElementKind} from "./elements";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {type Conversation} from "./workspaces";
+import {thumbPath,worthSaving,type Conversation} from "./workspaces";
 import { localAll, localPut, localDelete, localProfileTransaction, localCreateProfile, localRenameProfile } from "./local-db";
 import {
   defaultSettings,
@@ -40,6 +40,7 @@ export function useStudio() {
     [styles, setStyles] = useState<Style[]>([]),
     [elements, setElements] = useState<Element[]>([]),
     [images, setImages] = useState<Record<string, string>>({}),
+    [thumbs, setThumbs] = useState<Record<string, string>>({}),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
@@ -47,7 +48,7 @@ export function useStudio() {
   const [conversations,setConversations]=useState<Conversation[]>([]),[skipPersonaTutorial,setSkipPersonaTutorial]=useState(false);
   const elementsAvailable=useRef(false);
   const loadedOwner=useRef<string|null|undefined>(undefined);
-  const ownerEpoch=useRef(0),chatWrites=useRef(Promise.resolve());
+  const ownerEpoch=useRef(0),chatWrites=useRef(Promise.resolve()),pendingChats=useRef(new Map<string,Conversation>());
   const db = useRef<SupabaseClient | null>(null),
     urls = useRef<string[]>([]),
     lock = useRef(false),
@@ -84,7 +85,7 @@ export function useStudio() {
       setCreations(rows[0].data as Creation[]);
       setPersonas((rows[1].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Persona[]);
       setStyles((rows[2].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Style[]);
-      setConversations(rows[3].data as Conversation[]);
+      setConversations([...(rows[3].data as Conversation[]),...pendingChats.current.values()]);
       setElements((rows[4].error ? [] : rows[4].data || []).map((x) => ({ ...x, refs: x.refs || [] })) as Element[]);
       elementsAvailable.current = !rows[4].error;
       const pref=await db.current.from("studio_preferences").select("skip_persona_tutorial").eq("user_id",user).maybeSingle();if(current!==version.current||userRef.current!==user)return;setSkipPersonaTutorial(pref.data?.skip_persona_tutorial===true);
@@ -103,7 +104,14 @@ export function useStudio() {
           ),
         );
       } else setImages({});
+      const thumbPaths=[...new Set((rows[0].data || []).map((c:Creation)=>c.image_path).filter((path:string|null):path is string=>!!path && path.endsWith('.png')).map(thumbPath))];
+      if(thumbPaths.length){
+        const signed=await db.current.storage.from("studio-assets").createSignedUrls(thumbPaths,300);
+        if(current!==version.current||userRef.current!==user)return;
+        setThumbs(Object.fromEntries((signed.data||[]).filter(x=>!x.error&&x.path&&x.signedUrl).map(x=>[x.path!,x.signedUrl!])));
+      }else setThumbs({});
     } else {
+      setThumbs({});
       const [c, a, chats, preferences] = await Promise.all([
         localAll<Creation>("creations"),
         localAll<Asset>("assets"),
@@ -118,7 +126,7 @@ export function useStudio() {
       setStyles(stylesNext);
       const elementsNext=await localProfileTransaction<Element>("element",{repair:true}) as Element[];
       if(current!==version.current||userRef.current!==user)return;setElements(elementsNext);elementsAvailable.current=true;
-      setConversations(chats);setSkipPersonaTutorial(preferences.find(p=>p.id==="local")?.skip_persona_tutorial===true);
+      setConversations([...chats,...pendingChats.current.values()]);setSkipPersonaTutorial(preferences.find(p=>p.id==="local")?.skip_persona_tutorial===true);
       urls.current.forEach(URL.revokeObjectURL);
       const entries = a.map((x) => {
         const url = URL.createObjectURL(x.blob);
@@ -146,7 +154,7 @@ export function useStudio() {
             if (next !== userRef.current) {
               userRef.current = next;
               setConfig(current=>current?{...current,openai:false,google:false,jev:false,youtube:false,connectionStatus:next?"loading":"ready"}:current);
-              elementsAvailable.current=false;ownerEpoch.current++;setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();pendingFixJobs.current.clear();
+              elementsAvailable.current=false;ownerEpoch.current++;pendingChats.current.clear();setError("");setConversations([]);setSkipPersonaTutorial(false);pendingRequest.current=null;pendingAnalysis.current.clear();pendingFix.current.clear();pendingFixJobs.current.clear();
               version.current++;
               setCreations([]);
               setPersonas([]);
@@ -638,14 +646,18 @@ export function useStudio() {
       if(epoch!==ownerEpoch.current||userRef.current!==user)throw new Error("Your account changed.");
       let next=chat;
       if(mode!=="full"){
-       const current=cloud?(await db.current!.from("studio_conversations").select("*").eq("id",chat.id).eq("user_id",user).single()).data:(await localAll<Conversation>("conversations")).find(c=>c.id===chat.id);
+       const current=pendingChats.current.get(chat.id)||(cloud?(await db.current!.from("studio_conversations").select("*").eq("id",chat.id).eq("user_id",user).single()).data:(await localAll<Conversation>("conversations")).find(c=>c.id===chat.id));
        if(!current)throw new Error("This chat is no longer available.");
        if(mode==="title")next={...current,title:chat.title,draft:{...current.draft,manualTitle:true},updated_at:chat.updated_at};
        else if(mode==="selection")next={...current,draft:{...current.draft,selection:chat.draft.selection},updated_at:chat.updated_at};
        else next={...current,draft:{...chat.draft,manualTitle:current.draft.manualTitle},title:current.title==="New chat"&&!current.draft.manualTitle&&chat.draft.prompt?.trim()?chat.draft.prompt.trim().slice(0,80):current.title,updated_at:chat.updated_at};
       }
       if(mode==="draft"||mode==="full")next={...next,draft:{...next.draft,draftSavedAt:chat.draft.draftSavedAt??Date.parse(chat.updated_at)}};
+      if(pendingChats.current.has(next.id)||mode==="full"){
+        if(!worthSaving(next,creations.some(c=>c.conversation_id===next.id))){pendingChats.current.set(next.id,next);setConversations(items=>[next,...items.filter(c=>c.id!==next.id)]);return next;}
+      }
       await put("conversations",next);
+      pendingChats.current.delete(next.id);
       if(epoch!==ownerEpoch.current)throw new Error("Your account changed. This chat stays in its original workspace.");
       setConversations(items=>[next,...items.filter(c=>c.id!==next.id)].sort((a,b)=>b.updated_at.localeCompare(a.updated_at)));return next;
     });
@@ -760,6 +772,7 @@ export function useStudio() {
    */
   async function deleteConversation(chatId: string) {
     const epoch = ownerEpoch.current; ensureCurrentOwner();
+    if(pendingChats.current.delete(chatId)){setConversations(items=>items.filter(c=>c.id!==chatId));return chatDeletionPlan(chatId, creations, []);}
     const plan = chatDeletionPlan(chatId, creations, [...personas.flatMap((p) => p.refs), ...styles.flatMap((s) => s.refs), ...elements.flatMap(e=>e.refs),...creations.filter(c=>c.conversation_id!==chatId).flatMap(c=>c.lineage?.elementReferencePaths||[])]);
     if (cloud) {
       if (plan.creationIds.length) {
@@ -855,7 +868,7 @@ export function useStudio() {
     creations,
     personas,
     styles,
-    images,
+    images, thumbs,
     busy,
     error,
     setError,

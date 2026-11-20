@@ -2,6 +2,10 @@ import type {CreativeDraft} from "../components/creative/creative-partner";
 import type {Creation,Settings} from './types';
 export type WorkspaceDraft={textProvider?:"openai"|"google";autoReview?:boolean;creativeDraft?:CreativeDraft;manualTitle?:boolean;draftSavedAt?:number;prompt?:string;title?:string;tool?:string;settings?:Settings;refs?:string[];personaId?:string;personaIds?:string[];elementIds?:string[];styleId?:string;preset?:string;videoBrief?:string;videoUrl?:string;selection?:string|null;parentId?:string|null;titleAction?:"image"|"ideas";includeVision?:boolean};
 export type Conversation={id:string;title:string;draft:WorkspaceDraft;created_at:string;updated_at:string};
+export function worthSaving(chat:Conversation, hasCreation=false):boolean {
+ return !!(chat.draft.prompt?.trim() || chat.draft.title?.trim() || (chat.title !== 'New chat' && chat.title.trim()) || chat.draft.refs?.length || hasCreation);
+}
+export function thumbPath(path:string):string { return path.replace(/\.png$/, '.jpg'); }
 export function automaticChatTitle(videoTitle?:string, creationTitle?:string):string {
  for(const candidate of [videoTitle,creationTitle]){const name=candidate?.trim().replace(/\s+/g,' ')||'';if(name.replace(/[^\p{L}\p{N}]/gu,'').length>=3&&!/^@\s*$/.test(name))return name.slice(0,80);}
  return 'New chat';
