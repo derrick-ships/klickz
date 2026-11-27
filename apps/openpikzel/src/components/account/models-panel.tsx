@@ -2,7 +2,14 @@
 import { useEffect, useState } from "react";
 import { textChoices } from "@/lib/model-choice";
 
-type Models = { reviewer: string; scorer: "jev" | "model"; mediator: string; image: string };
+type Models = {
+  reviewer: string;
+  scorer: "jev" | "model";
+  mediator: string;
+  image: string;
+  minds?: string;
+  strategist?: string;
+};
 type Api = (path: string, method?: string, body?: unknown) => Promise<any>;
 type Connected = { openai: boolean; google: boolean; anthropic: boolean; jev: boolean };
 
@@ -72,6 +79,14 @@ export function ModelsPanel({ api, connected }: { api: Api; connected: Connected
       <label htmlFor="model-image">Image</label>
         <select id="model-image" value={models.image} onChange={(e) => void save({ ...models, image: e.target.value })}>
           {imageChoices.map((c) => <option key={c.id} value={c.id} disabled={c.id.startsWith("gemini") ? !connected.google : !connected.openai}>{c.label}</option>)}
+        </select>
+      <label htmlFor="model-minds">Audience Minds (Leg B)</label>
+        <select id="model-minds" value={models.minds || "gemini-flash-latest"} onChange={(e) => void save({ ...models, minds: e.target.value })}>
+          {textChoices.map((c) => option(c.id, c.label, c.provider))}
+        </select>
+      <label htmlFor="model-strategist">Editorial Strategist (Leg C)</label>
+        <select id="model-strategist" value={models.strategist || "sonnet-latest"} onChange={(e) => void save({ ...models, strategist: e.target.value })}>
+          {textChoices.map((c) => option(c.id, c.label, c.provider))}
         </select>
       </div>
       <p className="models-status" role="status">{status}</p>

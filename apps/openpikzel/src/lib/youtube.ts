@@ -31,3 +31,251 @@ export async function channelVideos(key:string,identifier:string,order:'recent'|
  const avatar=c.snippet?.thumbnails?.default?.url||'',safeAvatar=/^https:\/\/yt3\.(?:ggpht\.com|googleusercontent\.com)\//.test(avatar)?avatar:'';
  return {channel:{id:c.id,name:c.snippet?.title||c.id,avatar:safeAvatar,subscribers:c.statistics?.hiddenSubscriberCount?null:Number(c.statistics?.subscriberCount)||0,videos:Number(c.statistics?.videoCount)||0} satisfies Channel,videos:ids.map((id:string)=>byId.get(id)).filter(Boolean),nextPageToken:results.nextPageToken||null,notice:'Public channel data from YouTube. Selecting references does not grant rights to reuse their contents.'};
 }
+
+
+export type IngestedChannelVideo = {
+  youtubeVideoId: string;
+  title: string;
+  description: string;
+  viewCount: number;
+  likeCount: number | null;
+  commentCount: number | null;
+  durationSec: number;
+  publishedAt: string | null;
+  outlierRatio: number;
+  thumbnailUrl: string;
+};
+
+export function parseIsoDurationSec(value: string): number {
+  const m =
+    typeof value === "string" &&
+    value.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!m) return 0;
+  return Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0);
+}
+
+/**
+ * Quota-smart channel ingestion: uses uploads playlist (1 unit) + videos.list (1 unit)
+ * instead of search.list (100 units), computing median views and outlier ratios.
+ */
+export async function ingestChannelSnapshot(
+  key: string,
+  identifier: string,
+  maxVideos = 40,
+  fetcher: typeof fetch = fetch,
+) {
+  const channels = await youtubeRead(
+    key,
+    "channels",
+    {
+      part: "snippet,statistics,contentDetails",
+      ...channelIdentifier(identifier),
+    },
+    fetcher,
+  );
+  const c = channels.items?.[0];
+  if (!c || !/^UC[\w-]{22}$/.test(c.id || "")) {
+    throw new AppError(
+      404,
+      "No YouTube channel found. Try its @handle or /channel/ URL.",
+    );
+  }
+  const uploadsPlaylistId: string | undefined =
+    c.contentDetails?.relatedPlaylists?.uploads;
+  if (!uploadsPlaylistId) {
+    throw new AppError(404, "This channel has no public uploads playlist.");
+  }
+
+  const playlist = await youtubeRead(
+    key,
+    "playlistItems",
+    {
+      part: "contentDetails",
+      playlistId: uploadsPlaylistId,
+      maxResults: String(Math.min(50, Math.max(10, maxVideos))),
+    },
+    fetcher,
+  );
+  const videoIds: string[] = (
+    Array.isArray(playlist.items) ? playlist.items : []
+  )
+    .map((item: { contentDetails?: { videoId?: string } }) =>
+      item?.contentDetails?.videoId,
+    )
+    .filter((id: unknown): id is string =>
+      typeof id === "string" && /^[\w-]{11}$/.test(id),
+    );
+
+  const detailsPayload = videoIds.length
+    ? await youtubeRead(
+        key,
+        "videos",
+        {
+          part: "snippet,statistics,contentDetails",
+          id: videoIds.join(","),
+        },
+        fetcher,
+      )
+    : { items: [] };
+
+  const rawVideos = (
+    Array.isArray(detailsPayload.items) ? detailsPayload.items : []
+  )
+    .filter(
+      (v: { id?: string; snippet?: { title?: string } }) =>
+        v && /^[\w-]{11}$/.test(v.id || "") && typeof v.snippet?.title === "string",
+    )
+    .map(
+      (v: {
+        id: string;
+        snippet: {
+          title: string;
+          description?: string;
+          publishedAt?: string;
+          defaultAudioLanguage?: string;
+          defaultLanguage?: string;
+        };
+        statistics?: {
+          viewCount?: string;
+          likeCount?: string;
+          commentCount?: string;
+        };
+        contentDetails?: { duration?: string };
+      }) => ({
+        youtubeVideoId: v.id,
+        title: v.snippet.title,
+        description: (v.snippet.description || "").slice(0, 1800),
+        viewCount: Number(v.statistics?.viewCount) || 0,
+        likeCount:
+          v.statistics?.likeCount !== undefined
+            ? Number(v.statistics.likeCount)
+            : null,
+        commentCount:
+          v.statistics?.commentCount !== undefined
+            ? Number(v.statistics.commentCount)
+            : null,
+        durationSec: parseIsoDurationSec(v.contentDetails?.duration || ""),
+        publishedAt: v.snippet.publishedAt || null,
+        thumbnailUrl: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
+        langHint:
+          v.snippet.defaultAudioLanguage || v.snippet.defaultLanguage || "",
+      }),
+    );
+
+  const sortedViews = rawVideos
+    .map((v: { viewCount: number }) => v.viewCount)
+    .sort((a: number, b: number) => a - b);
+  const medianViews = sortedViews.length
+    ? sortedViews[Math.floor(sortedViews.length / 2)]
+    : 0;
+
+  const videos: IngestedChannelVideo[] = rawVideos.map(
+    (v: Omit<IngestedChannelVideo, "outlierRatio"> & { langHint: string }) => ({
+      youtubeVideoId: v.youtubeVideoId,
+      title: v.title,
+      description: v.description,
+      viewCount: v.viewCount,
+      likeCount: v.likeCount,
+      commentCount: v.commentCount,
+      durationSec: v.durationSec,
+      publishedAt: v.publishedAt,
+      outlierRatio:
+        medianViews > 0
+          ? Math.round((v.viewCount / medianViews) * 100) / 100
+          : 1,
+      thumbnailUrl: v.thumbnailUrl,
+    }),
+  );
+
+  const rawLang =
+    c.snippet?.defaultLanguage ||
+    rawVideos.find((v: { langHint: string }) => v.langHint)?.langHint ||
+    "";
+  const combinedTitles = videos.map((v) => v.title).join(" ");
+  const spanishHits = (
+    combinedTitles.match(
+      /[áéíóúñ¿¡]|\b(cómo|por qué|para|esto|está|todo|sobre|sin|con|pero|más)\b/gi,
+    ) || []
+  ).length;
+  const primaryLanguage = rawLang
+    ? rawLang.split("-")[0].toLowerCase()
+    : spanishHits >= 4
+      ? "es"
+      : "en";
+
+  const avatar = c.snippet?.thumbnails?.default?.url || "";
+  const safeAvatar =
+    /^https:\/\/yt3\.(?:ggpht\.com|googleusercontent\.com)\//.test(avatar)
+      ? avatar
+      : "";
+
+  return {
+    channel: {
+      youtubeChannelId: c.id as string,
+      handle: (c.snippet?.customUrl as string | undefined) || null,
+      title: (c.snippet?.title as string | undefined) || (c.id as string),
+      description: ((c.snippet?.description as string | undefined) || "").slice(
+        0,
+        2000,
+      ),
+      primaryLanguage,
+      avatarUrl: safeAvatar,
+      subscriberCount: c.statistics?.hiddenSubscriberCount
+        ? null
+        : Number(c.statistics?.subscriberCount) || 0,
+      videoCount: Number(c.statistics?.videoCount) || 0,
+      uploadsPlaylistId,
+      medianViews,
+    },
+    videos,
+  };
+}
+
+/**
+ * Fetches top relevant public comments for a video (1 YouTube quota unit).
+ */
+export async function videoCommentThreads(
+  key: string,
+  videoId: string,
+  maxResults = 25,
+  fetcher: typeof fetch = fetch,
+): Promise<{ author: string; text: string; likes: number }[]> {
+  try {
+    const payload = await youtubeRead(
+      key,
+      "commentThreads",
+      {
+        part: "snippet",
+        videoId,
+        order: "relevance",
+        textFormat: "plainText",
+        maxResults: String(Math.min(50, maxResults)),
+      },
+      fetcher,
+    );
+    return (Array.isArray(payload.items) ? payload.items : [])
+      .map(
+        (item: {
+          snippet?: {
+            topLevelComment?: {
+              snippet?: {
+                authorDisplayName?: string;
+                textDisplay?: string;
+                likeCount?: number;
+              };
+            };
+          };
+        }) => {
+          const s = item?.snippet?.topLevelComment?.snippet;
+          return {
+            author: (s?.authorDisplayName || "Viewer").slice(0, 60),
+            text: (s?.textDisplay || "").trim().slice(0, 400),
+            likes: Number(s?.likeCount) || 0,
+          };
+        },
+      )
+      .filter((c: { text: string }) => c.text.length > 0);
+  } catch {
+    return [];
+  }
+}

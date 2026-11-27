@@ -168,10 +168,13 @@ export function ConnectionsPage() {
   return (
     <main className="account-page">
       <header className="account-header">
-        <a href="/studio" className="brand">
+        <a href="/" className="brand">
           OpenPikzels<span className="wordmark-pixel" aria-hidden="true" />
         </a>
-        <a href="/studio">Back to studio</a>
+        <div style={{ display: "flex", gap: "1rem" }}>
+          <a href="/">Pre-Flight Studies</a>
+          <a href="/studio">Quick Studio</a>
+        </div>
       </header>
       <div className="account-intro"><h1>Your keys</h1></div>
       {!ready ? (
@@ -214,7 +217,7 @@ export function ConnectionsPage() {
               <form className="account-form" onSubmit={e => { e.preventDefault(); void action(async () => {
                 const submitted = key; setKey(""); await api("/api/providers", "POST", { provider, key: submitted }); await refresh(); setNotice("Key saved.");
               }); }}>
-                <label>Choose AI<select value={provider} onChange={e => {setProvider(e.target.value); setKey("");}}><option value="openai">OpenAI</option><option value="google">Google</option><option value="anthropic">Claude</option><option value="jev">Jev</option><option value="youtube">YouTube</option></select></label>
+                <label>Choose AI<select value={provider} onChange={e => {setProvider(e.target.value); setKey("");}}><option value="openai">OpenAI</option><option value="google">Google (Gemini — also handles YouTube transcripts)</option><option value="anthropic">Claude</option><option value="jev">Jev</option><option value="youtube">YouTube Data API</option><option value="transcript">Transcript API (optional fast-lane)</option></select></label>
                 <label>Key<input type="password" autoComplete="off" required minLength={12} value={key} onChange={e => setKey(e.target.value)} /></label>
                 <button type="submit" className="neutral-button" disabled={busy || !config?.secureConnections}>Save</button>
               </form>

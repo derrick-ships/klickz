@@ -32,12 +32,23 @@ export async function authenticated(request: Request) {
       403,
       "Connect through the OpenPikzels OAuth consent flow.",
     );
-  if (process.env.OWNER_GATE !== "false") {
-    const access = await db.rpc("app_web_access");
-    if (access.error || access.data !== true)
+  const accessMode =
+    process.env.ACCESS_MODE ||
+    (process.env.OWNER_GATE === "false" ? "public" : "invite_only");
+  if (accessMode !== "public") {
+    const invite = await db.rpc("app_invite_access");
+    const allowed =
+      !invite.error && invite.data === true
+        ? true
+        : invite.error
+          ? await db
+              .rpc("app_web_access")
+              .then((r) => !r.error && r.data === true)
+          : false;
+    if (!allowed)
       throw new AppError(
         403,
-        "This private studio is available to its owner only.",
+        "This workspace is currently invite-only. Ask the owner to add your email.",
       );
   }
   return { db, user: data.user, oauth: undefined };

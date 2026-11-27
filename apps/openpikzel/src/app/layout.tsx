@@ -7,10 +7,11 @@ import "./welcome.css";
 import "./polish.css";
 import "./media.css";
 import "./gestures.css";
+import "./preflight.css";
 export const metadata: Metadata = {
-  title: "OpenPikzels",
+  title: "OpenPikzels — Pre-Flight Packaging & Audience Intelligence",
   description:
-    "Create, recreate and improve thumbnails with your personas, references and five-pillar image analysis.",
+    "Pre-production YouTube packaging triangulation, synthetic 16-Mind audience simulation, and executive pre-flight reports.",
 };
 export default function RootLayout({
   children,

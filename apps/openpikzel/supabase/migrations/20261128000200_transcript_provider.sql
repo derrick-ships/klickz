@@ -1,0 +1,4 @@
+-- KLZ-03: Add optional 'transcript' BYOK provider slot (transcriptapi.com) alongside native Gemini transcription.
+alter table public.studio_provider_keys drop constraint if exists studio_provider_keys_provider_check;
+alter table public.studio_provider_keys add constraint studio_provider_keys_provider_check
+  check(provider in ('openai', 'jev', 'google', 'youtube', 'anthropic', 'transcript'));

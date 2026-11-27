@@ -45,6 +45,10 @@ export const modelPreferencesSchema = z.object({
   mediator: z.string().max(40).default("gpt-6.2-sol"),
   /** Default image model for Create. */
   image: z.enum(imageGenerators).default("flare"),
+  /** Model running the 12-16 synthetic Minds simulation (Leg B). */
+  minds: z.string().max(40).default("gemini-flash-latest"),
+  /** Model running the full-script Editorial Angle Strategist (Leg C). */
+  strategist: z.string().max(40).default("sonnet-latest"),
 });
 export type ModelPreferences = z.infer<typeof modelPreferencesSchema>;
 export const defaultModelPreferences: ModelPreferences = modelPreferencesSchema.parse({});
