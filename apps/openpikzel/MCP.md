@@ -1,79 +1,78 @@
-# OpenPikzels MCP
+# OpenPikzels Remote MCP Server (v2.0.0)
 
-The public-domain target is `https://openpikzels.com/mcp`. Domain connection and HTTPS are complete, and non-custom previews retain Vercel Authentication. **A real authenticated MCP Allow/refresh/tool sequence has not been verified, and hosted studio access is still restricted to the owner.** Do not treat domain routing as proof of a completed public multiuser release.
+OpenPikzels exposes a remote Streamable HTTP MCP server at `https://openpikzels.com/mcp` with OAuth 2.1 + PKCE and Dynamic Client Registration. Connected agents (Claude, ChatGPT, Codex, Cursor, Antigravity, or custom MCP clients) can operate the entire **Pre-Production Packaging & Audience Intelligence Platform** and **Quick Thumbnail Studio** end to end.
 
-## Connect after public release
+## Endpoints
 
-1. Open `/connect`, create/sign into your account, and connect your own provider keys. OpenAI or Google powers creation/vision/titles; Jev powers scores. API credits are separate from consumer chat subscriptions.
-2. Paste the MCP URL into a client supporting Streamable HTTP and OAuth. Examples include compatible Claude, Cursor and Codex configurations; client-specific UI and MCP Apps support vary.
-3. Sign into the branded consent page and choose Allow or Deny. This sign-in creates a separate account session for that agent, so its refreshes do not interfere with the studio or other agents.
-4. Revoke the agent from `/connect` anytime. No provider key is sent to an agent or embedded in the HTML widget.
+- MCP endpoint: `https://openpikzels.com/mcp`
+- Protected Resource Metadata: `/.well-known/oauth-protected-resource/mcp`
+- OAuth Authorization Server Metadata: `/.well-known/oauth-authorization-server`
+- OAuth registration: `/oauth/register`
+- OAuth consent screen: `/oauth/authorize`
+- OAuth token & refresh: `/oauth/token`
+- Keys, per-leg models, and connected agent grants: `/connect`
 
-## Copy these instructions into your agent
+## OAuth Scopes
 
-> Connect to the OpenPikzels remote MCP URL. Never request API keys in chat; direct me to the app's Connections page. Start with `get_workspace`. Use `list_profiles` and `get_profile` for my consistent persona/character pictures and styles. Upload an image made in ChatGPT with `upload_reference`, then `score_thumbnail` with a stable request ID, actual title and factual video brief. Vision critique is an explicit optional extra provider call. Use `get_fix_prompt` to return an editing prompt I can copy into ChatGPT without making a new image API request. Use `create_fix_plan` to review at most three supported changes and preservation constraints; apply its exact token through `one_click_fix` only when I request the one-image API render. Use `generate_thumbnail` for requested fresh images with my chosen provider, quality and batch. Use `compare_variants` and `record_comparison` for a blinded human review; retain both images. Preserve the request ID after a timeout and check `list_jobs` and provider history before a new paid attempt. Never automatically retry uncertain outcomes. Scores are five visual rubrics, not promised CTR. Use `open_studio` for the interactive HTML workspace when the host supports MCP Apps.
+- `studio:read` — Read channels, 16 Minds, Pre-Flight Studies, Executive Reports, personas, styles, creations, and scores.
+- `studio:write` — Edit Minds and Creator Personas, configure per-leg models, toggle report sharing, email reports, upload references, promote report winners to Studio, and resize thumbnails.
+- `studio:ai` — Run channel ingestion, launch async 3-leg Pre-Flight Studies, generate/recompose thumbnails, and score or fix packaging using your own connected BYOK API keys.
+- `studio:agent` — Local companion persistent memory (`remember_fact`, `recall_facts`, `forget_fact`).
 
-## Tools
+## Complete Toolset (50 Tools)
 
-| Tool | Purpose | Required permission |
-| --- | --- | --- |
-| `get_workspace`, `open_studio` | Capabilities, guide, HTML app | Read |
-| `list_creations`, `get_creation` | Saved work, scores, 5-minute private previews | Read |
-| `list_profiles`, `get_profile` | Persona/character and style references | Read |
-| `upload_reference`, `save_profile` | Private uploads and profiles | Write |
-| `prepare_profile` | Reference-guided identity/style brief | Write + AI |
-| `suggest_titles` | Five title ideas | AI |
-| `generate_thumbnail` | Prompt, title, recreate or edit | Write + AI |
-| `score_thumbnail` | Actual image/title Jev evaluation | Write + AI |
-| `analyze_thumbnail` | OpenPikzels Analyze: score a creation, uploaded path, or small base64 image, then return a fix plan | Write + AI |
-| `create_upload_url` | Short-lived signed upload URL; pass the returned imagePath to analyze_thumbnail | Write |
-| `get_fix_prompt` | Copyable improvement prompt from a saved score | Read |
-| `create_fix_plan` | Review evidence-backed changes and preservation constraints; no AI call | Write |
-| `one_click_fix` | Apply a reviewed plan token as one new image; original preserved | Write + AI |
-| `compare_variants`, `record_comparison` | Randomized human A/B comparison; no AI call | Read / Write |
-| `list_jobs` | Persistent request state and timeout reconciliation; no retry | Read |
-| `resize_thumbnail` | Contain/blur horizontal↔vertical resize, no image API | Write |
+### 1. Workspace & Per-Leg Model Routing
+- `get_workspace` — Full readiness snapshot (connected keys, per-leg models, linked channels, ready audiences, Creator Personas, active/completed studies, Resend/Inngest availability, and agent guide).
+- `get_model_preferences` / `set_model_preferences` — Inspect and configure which models power `image`, `mediator`, `reviewer`, `scorer`, `minds` (Leg B), and `strategist` (Leg C).
 
-Generation uses one Low image by default. Batches are capped at four. MCP inline uploads accept PNG/JPEG/WebP up to 2 MB, browser storage uploads up to 5 MB. Images must decode within 40 megapixels. Google renders native 1K; OpenAI quality/intelligence controls do not apply to Google.
+### 2. YouTube Channels & 12–16 Synthetic Minds
+- `connect_channel` — Ingest or refresh a YouTube channel (URL, `@handle`, or `UC...` ID) via Inngest to extract outliers, comments, transcripts (native Gemini or Transcript API), audience distributions, and 16 persistent Minds.
+- `get_channel_ingestion_status` — Track live ingestion phases, percent complete, and timeline events.
+- `list_channels` / `get_channel` — Inspect linked channels, audience distributions, outlier patterns, top 20 videos, and all 12–16 Minds.
+- `update_mind` — Edit any Mind's `name`, `role`, `click_bar`, `skepticism_triggers`, `thinking_patterns`, or `active` toggle (enforces at least 12 active Minds).
+- `delete_channel` — Permanently delete a linked channel and its audiences.
 
-Jev-only scoring makes a single Jev request and returns rubric-based edit guidance. Only when `includeVision=true`, a separate connected OpenAI or Google vision request adds image-specific observations. Missing title/factual brief leaves idea and curiosity unassessed and the overall score null. API fix plans require a complete signed diagnostic with supported evidence. The UI does not claim real analytics, measured CTR or fine-tuning.
+### 3. Creator Personas & Styles
+- `update_persona` — Set `tone_of_voice`, `visual_style_rules`, `defaultStyle`, `notes`, and `name`.
+- `list_profiles` / `get_profile` / `get_profile_refs` / `save_profile` / `prepare_profile` / `study_style` / `browse_style_channel`.
 
-## Mode B: named profile references (`get_profile_refs`)
+### 4. Pre-Flight Studies & Async Triangulation Engine
+- `get_default_questions` — Fetch the bilingual (`en` / `es`) 8-question diagnostic set.
+- `estimate_study_cost` — Upfront honest `Minds × Questions`, AI thumbnail render count, and BYOK USD estimate.
+- `launch_preflight_study` — Fire-and-forget 3-leg triangulation study (`pre_shoot` or `footage_locked`), with optional `draftImage` / `draftThumbnailPath` / `draftImageUrl` for a blind Option A head-to-head battle against 2 AI challengers, plus optional `notifyEmails` for team CC.
+- `list_studies` / `get_study_status` — Track live study runs, pipeline audit events, partial Leg A thumbnails, and final report links (renders live card in MCP Apps hosts).
 
-`get_profile_refs` requires `studio:read` and existing authentication and revalidation. Mode A generation by profile name is not claimed available.
+### 5. Executive Reports, Team Handoff & Quick Studio Bridge
+- `get_preflight_report` — Full Executive Verdict (`SHIP` / `ITERATE` / `RETHINK`), Click Share (including `none_keep_scrolling`), Retention Cliff warning, Angle Diagnosis, Packaging Matrix with Designer Redlines, and filterable Voice of the Minds (renders interactive Executive Report card in MCP Apps hosts).
+- `get_report_markdown` — Clean bilingual Markdown (`.md`) brief for Notion, Docs, or Slack.
+- `get_report_deliverables` — Fresh 1-hour signed download URLs for the PDF, Markdown, and all 3 high-res thumbnails.
+- `set_report_visibility` — Toggle unlisted public sharing (`/reports/:slug`) vs private owner-only.
+- `email_preflight_report` — Send or resend the Executive Report email with PDF + Markdown attachments via Resend to any team emails.
+- `promote_option_to_studio` — Import any Option A/B/C from a Pre-Flight Report directly into Quick Studio (`studio_creations`) so the agent can immediately run `one_click_fix`, `get_fix_prompt`, or `recompose_thumbnail` (`9:16` Shorts).
 
-Provide up to three persona names in `personas` and optionally one private style name in `style`; supply at least one. Names must not be blank; persona names must be distinct after trimming and case normalization. Resolution searches the caller-owned profiles, not public presets. Ambiguous names require a rename. No `@` parsing is performed. Results preserve persona request order, followed by style. Profiles without references have an empty list; only the first three stored references per profile are included.
+### 6. Quick Thumbnail Studio & Memory
+- `generate_thumbnail`, `analyze_thumbnail`, `score_thumbnail`, `create_fix_plan`, `one_click_fix`, `get_fix_prompt`, `recompose_thumbnail`, `resize_thumbnail`, `compare_variants`, `record_comparison`, `enhance_prompt`, `upload_reference`, `create_upload_url`, `list_creations`, `get_creation`, `list_jobs`, `list_conversations`, `get_conversation`, `create_conversation`, `open_studio`, `remember_fact`, `recall_facts`, `forget_fact`.
 
-Successful results contain profile kind, name, ID, brief and notes, plus paths and signed URLs associated with inline JPEG blocks by `imageIndex` (zero-based among image blocks). There can be at most 12 images, resized inside 768 pixels without enlargement, JPEG quality 80. Links are intended to expire after 300 seconds. If any selected reference cannot be used, the entire call fails rather than returning partial metadata or images.
+## MCP Resources & Resource Templates
 
-This tool discloses private images, identity briefs, notes and bearer URLs to the requesting MCP host and model. Hosts may omit image blocks, retain or forward data. URL expiry cannot revoke copies already received. Use only with a trusted host. Actual storage signing and expiry require isolated non-production verification.
+- `openpikzels://agent-guide` — Full agent operating playbook.
+- `openpikzels://workspace/overview` — Live JSON workspace readiness snapshot.
+- `openpikzels://channels` — Linked channels and audience readiness index.
+- `openpikzels://studies` — Recent Pre-Flight Studies and report slugs.
+- `openpikzels://channels/{channelId}` — Full channel metadata, distributions, outlier videos, and 12–16 Minds.
+- `openpikzels://reports/{slug}` — Structured Executive Pre-Flight Report JSON.
+- `openpikzels://reports/{slug}/markdown` — Clean Markdown Executive Brief.
+- `ui://openpikzels/analysis.html` — Interactive MCP Apps widget (supports both Single-Thumbnail Analysis cards and Executive Pre-Flight Report / Live Progress cards).
 
-## Personas, styles and the analyze → fix loop
+## MCP Workflow Prompts
 
-- **Personas:** `save_profile` with `kind:"persona"` takes 2 or 3 of your own uploaded photo paths (at most 3) and `permission:true`. Upload photos first with `upload_reference`.
-- **Styles from YouTube:** `study_style` takes a YouTube video link (no YouTube key needed; saves that thumbnail) or a channel link (uses your own YouTube Data API key; saves its 3 most popular or recent thumbnails). It measures the colour palette from the pixels and saves both to a private style. No AI provider is charged. Call `prepare_profile` afterwards for a written style brief. Styles can also be made with 1 to 3 uploads via `save_profile`.
-- **Use by name:** `generate_thumbnail` accepts `persona` and `style` by saved name (a leading `@` is ignored), resolved only within your own profiles. `get_profile_refs` returns the saved photos by name for hosts that should see them. In ChatGPT, write for example “make a thumbnail with persona Derrick and style Noticias”; the model passes those names to the tools. A host's own `@` mention menu is not controlled by OpenPikzels.
-- **Analysis:** `analyze_thumbnail` scores with Jev and reviews the image with your vision provider (Claude first, then OpenAI, then Google, whichever is connected). Every reviewer reads the OpenPikzels soul (`openpikzels://agent-guide`) before the image. The result already includes `fix.prompt` (a copyable edit prompt, weakest pillar first) and, when supported by evidence, `fix.token`.
-- **Loop:** `one_click_fix` with `planToken: fix.token` and `rescore:true` renders the fix, re-analyzes it and returns `before`, `after`, `delta`, the new score and the next `fix`. Repeat while the score keeps rising; stop when it doesn't. Each round uses your image and scoring credits.
+- `onboard_channel` — Guided end-to-end YouTube channel ingestion and 16 Minds calibration.
+- `run_preflight_study` — Guided end-to-end 4-stage Pre-Flight Study intake, cost check, launch, and Executive Report handoff.
+- `footage_locked_rescue` — Zero-reshoot cold-open pull quote and 3 packaging pivots workflow.
+- `head_to_head_thumbnail_battle` — Blind Option A draft thumbnail vs 2 AI challengers battle, then promote winner to Studio.
 
-## Protocol and security
+## Security Rules
 
-- Streamable HTTP POST `/mcp`; JSON responses; stateless serverless transport, no persistent SSE connection required. GET/DELETE return 405 after authentication. OPTIONS supports preflight. Unauthenticated requests return a Bearer challenge with resource metadata.
-- Protected resource metadata at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp`; authorization server discovery at `/.well-known/oauth-authorization-server`.
-- Dynamic public client registration `/oauth/register` (RFC 7591); exact HTTPS redirect matching with HTTP loopback exceptions, public clients with token auth `none`. DCR client IDs are authenticated encrypted metadata documents, so registration does not require a database write. CIMD is not implemented because DCR satisfies discovery requirements.
-- `/oauth/authorize`, `/oauth/token`, `/oauth/revoke`; authorization code with mandatory S256 PKCE, exact resource parameter binding, 90-second single-use codes, 15-minute access tokens, rotating refresh tokens, 30-day grant expiry, grant revocation and replay tracking.
-- Authenticated encrypted opaque tokens are bound to `APP_ORIGIN/mcp`, client, account, grant and permission scopes. Raw Supabase session tokens and provider secrets are never returned to an MCP client. Native Supabase OAuth tokens are rejected by the app.
-- Consent requests are time-limited, authenticated and bound to an HttpOnly SameSite cookie plus exact app Origin. Unregistered redirects never receive codes. Third-party client names are explicitly identified as self-supplied.
-- AES-256-GCM per-user provider ciphertext is bound to user ID and provider; a 32-byte server key also seals purpose-separated OAuth payloads. Keep this key stable and backed up in a secret manager. Rotating it invalidates connections and requires re-entering encrypted provider keys.
-- All app data stays behind RLS and private storage. No service-role credential is used. Backend routes enforce scopes independently of tool wrappers. Unrelated existing app/notes policies and private allowlists are unchanged.
-- MCP Apps resource `ui://openpikzels/studio.html`, MIME `text/html;profile=mcp-app`, uses the official bundled Apps SDK bridge. CSP permits only the configured Supabase image origin; no external scripts or direct API calls. Compatible hosts proxy tool requests with their user grant. Text-only clients still get every tool.
-
-Supabase's native OAuth server currently does not bind tokens to RFC 8707 resource audiences ([upstream issue](https://github.com/supabase/auth/issues/2610)); this app implements its own resource-bound authorization layer over Supabase accounts. Production requires real-client OAuth verification before claiming interoperability with a particular host.
-
-## Free-tier considerations
-
-No extra always-on server, paid OAuth service, Supabase branch, Redis or billing upgrade is required. Vercel/Supabase still have usage quotas; hosting, storage, email delivery and provider APIs are not unlimited. Before a broad launch, configure suitable Supabase email delivery/rate limits, monitor quotas, and apply project-level abuse controls. DCR is stateless and request-body bounded, but edge rate limiting remains an operator deployment setting.
-
-## Optional official local CLI companion
-
-The setup page is /local-companion. The downloaded companion runs separately on the user's own computer. It launches unmodified official Claude Code/Codex processes after their own sign-in. Their subscription credentials are not collected by OpenPikzels. Local text tasks can use the CLI's eligible active plan; an API-key login uses API credits instead. This optional flow is separate from remote MCP and hosted provider execution. The companion does not expose the local CLI to remote MCP clients or perform visual scores/image generation.
+- API keys are never passed through MCP tools or chat. Users save encrypted keys in `/connect`.
+- Access respects `ACCESS_MODE` (`invite_only` via `studio_invites` or `public`), enforced identically across web auth and OAuth consent.
+- OAuth grants are revocable anytime in `/connect`.

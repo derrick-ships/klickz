@@ -4,17 +4,17 @@ export const scopeCopy: Record<Scope, { heading: string; detail: string }> = {
   "studio:read": {
     heading: "Read your workspace",
     detail:
-      "Access your thumbnails, scores, persona pictures and style references.",
+      "Access your YouTube channels, 16 synthetic Minds, Pre-Flight Studies, Executive Reports, personas, styles, and thumbnails.",
   },
   "studio:write": {
     heading: "Save and edit your work",
     detail:
-      "Upload references, create profiles, save scores and resize thumbnails. Originals are preserved.",
+      "Edit Minds and Creator Personas, upload references, configure models, manage report sharing, email reports, and organize creations.",
   },
   "studio:ai": {
     heading: "Use your connected AI providers",
     detail:
-      "Generate images, suggest titles, score and fix thumbnails using credits on your own API accounts.",
+      "Ingest YouTube channels, run async Pre-Flight Studies, generate thumbnails, and score or fix packaging using credits on your own API accounts.",
   },
   "studio:agent": {
     heading: "Let your local agent keep memory and send you cards",

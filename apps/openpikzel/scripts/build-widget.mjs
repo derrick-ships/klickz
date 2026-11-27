@@ -63,7 +63,15 @@ h2,h3,p{margin:0}
 .actions{display:flex;gap:8px;align-items:stretch}
 .btn{appearance:none;min-height:44px;border:0;border-radius:12px;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:600;line-height:1.3;cursor:pointer;flex:1 1 auto;min-width:0;text-align:center}
 .btn.primary{background:var(--primary-bg);color:var(--primary-fg)}
+.btn.secondary{background:var(--surface-2);color:var(--fg);text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .btn.icon{flex:none;width:44px;height:44px;padding:0;display:grid;place-items:center;background:var(--surface-2);color:var(--fg);border-radius:12px}.btn.icon:focus-visible{border-radius:12px}
+.pf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.pf-opt{background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--line);display:flex;flex-direction:column}
+.pf-opt.win{border-color:var(--high);box-shadow:0 0 0 1px var(--high)}
+.pf-opt-meta{padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.pf-share-row{display:grid;grid-template-columns:112px 1fr 44px;align-items:center;gap:10px;padding:8px 14px}
+.pf-share-row+.pf-share-row{border-top:1px solid var(--line)}
+.pf-quote{background:var(--surface);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line)}
 .btn:hover:not(:disabled){filter:brightness(.94)}
 [data-theme=dark] .btn:hover:not(:disabled){filter:brightness(1.12)}
 .btn:disabled{opacity:.55;cursor:default}
@@ -83,7 +91,7 @@ h2,h3,p{margin:0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `.replace(/\n/g, "");
 
-const html = `<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenPikzels thumbnail analysis</title><style>${css}</style></head><body><main id="root"></main><p id="live" class="sr" role="status" aria-live="polite"></p><script>${built.outputFiles[0].text.replaceAll("</script", "<\\/script")}</script></body></html>`;
+const html = `<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenPikzels Workspace</title><style>${css}</style></head><body><main id="root"></main><p id="live" class="sr" role="status" aria-live="polite"></p><script>${built.outputFiles[0].text.replaceAll("</script", "<\\/script")}</script></body></html>`;
 
 await writeFile(
   "src/lib/widget.generated.ts",

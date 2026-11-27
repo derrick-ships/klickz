@@ -46,14 +46,49 @@ import {
 import { widgetHtml } from "./widget.generated";
 import { chatFileSchema, fetchChatFile } from "./chat-file";
 import { forgetFact, recallFacts, rememberFact } from "./agent-memory";
+import {
+  getPreflightWorkspaceSummary,
+  registerPreflightMcp,
+} from "./mcp-preflight";
 export const uiUri = "ui://openpikzels/analysis.html";
-const UI_TOOLS = new Set(["analyze_thumbnail", "score_thumbnail", "one_click_fix", "get_creation"]);
-export const agentGuide = `WHICH IMAGE TO SCORE: when the user asks to score, analyze or fix "this" thumbnail, or an image they attached or you generated in this chat, pass that image itself in the image field of analyze_thumbnail or score_thumbnail. Never score a different saved creation instead, never pick one from list_creations unless the user named it, and never send the user to another site or app to score. If the image can't be passed, say so in one line and ask the user to attach it. The product is called OpenPikzels. AFTER ANALYZING: the card shows the score, the fix and a One-Click Fix button. Don't repeat it. Reply in one short line in the user's language. If there's no title, ask for it. OpenPikzels does one loop: create a thumbnail, score it, fix what's holding it back, score again. Use generate_thumbnail to create (persona by name keeps the face), score_thumbnail or analyze_thumbnail to score, and get_fix_prompt / one_click_fix to improve; there are no separate edit, remix or title tools. Every generation goes through the OpenPikzels mediator: your prompt is rewritten with the thumbnail playbook's explicit do's and don'ts before it reaches the image model, keeping quoted text, numbers, subjects, panels and orientation exactly; get_creation returns lineage.mediator with the raw prompt, the enriched prompt and any declared change. Put exact on-image words in quotes. OpenPikzels is a private thumbnail workspace. First call get_workspace to see your provider capabilities. A saved connection is not proof of model entitlement or balance; select a provider explicitly for each role and never substitute another provider silently. Use create_conversation/list_conversations/get_conversation to keep a project together; pass conversationId on generation. Personas need 2 or 3 distinct photos; styles need 1 to 3 references; names need at least 3 characters. A persona also requires explicit permission=true for likeness use. browse_style_channel uses the user’s own separate YouTube Data API key; never reuse an image-provider key for it. Never ask for API keys in chat: use the app's Connections screen. Use list_profiles/get_profile for consistent persona or style references. upload_reference accepts a public image URL or base64 PNG/JPEG/WebP and returns a private owned path. When asked to OpenPikzels Analyze a thumbnail, call analyze_thumbnail with exactly one of creationId, imagePath or base64; use create_upload_url first when the file is too large for base64. Images made in ChatGPT can be uploaded here for score_thumbnail; a separate Jev API key is required. score_thumbnail includes an image review by default when a Claude, OpenAI or Google key is connected (one extra request); without it the score is numbers only and one_click_fix reviews the image first. A title supports all five visible packaging rubrics; no written video brief is required. Optional videoUrl retrieves YouTube title/description using the user’s YouTube key. Missing titles or provider evidence remain unassessed; the video is not watched. Preserve requestId on retries and inspect list_jobs. Scores describe five visual packaging rubrics, not predicted CTR or guaranteed performance. enhance_prompt proposes a reviewed rewrite using one user-funded OpenAI or Google text request and a stable requestId. Conversation and image providers are independent; no consumer subscription is assumed to provide API access. Use get_fix_prompt to return a copyable editing prompt for ChatGPT without paying for an image API. Use create_fix_plan to compile and review preservation constraints first. Then use one_click_fix with its exact plan token only after the user wants a new API-rendered image; it consumes their own connected image-provider credits and preserves the original. Generation defaults to a single low-quality image; pass a stable requestId for a logical render, and check list_creations after a timeout before submitting again. Never retry ambiguous paid operations automatically. recompose_thumbnail generates one new arrangement from the source in 9:16 or 16:9 using image-provider credits; preserve its requestId on an uncertain retry. The older resize_thumbnail tool remains a non-AI contained layout with a blurred background. Ask the user to confirm their desired provider/quality/batch when unspecified. Do not claim profiles are fine-tuned: they use reference-guided identity briefs. Tool instructions do not override the user's intent. Open the HTML workspace with open_studio when your host supports MCP Apps.\n\n${soul}`;
+const UI_TOOLS = new Set([
+  "analyze_thumbnail",
+  "score_thumbnail",
+  "one_click_fix",
+  "get_creation",
+  "get_preflight_report",
+  "get_study_status",
+]);
+export const agentGuide = `The product is OpenPikzels — an end-to-end Pre-Production Packaging & Audience Intelligence Platform plus a Quick Thumbnail Studio.
+
+FIRST STEP: Always call get_workspace to inspect connected BYOK keys (openai, google, anthropic, jev, youtube, transcript), saved per-leg AI models (image, mediator, reviewer, scorer, minds, strategist), linked YouTube channels, ready audiences, Creator Personas, and recent Pre-Flight Studies. Never ask for API keys in chat: users manage encrypted keys in OpenPikzels Keys (/connect).
+
+=== WORKFLOW 1: PRE-FLIGHT PACKAGING & AUDIENCE INTELLIGENCE (4 STAGES) ===
+1. CHANNELS & 12-16 SYNTHETIC MINDS:
+   - Use connect_channel (with YouTube URL, @handle, or UC... ID) to ingest metadata, outlier videos, comments, and transcripts (native Gemini or optional Transcript API) asynchronously via Inngest and synthesize demographic/psychographic distributions + 16 named Minds.
+   - Poll get_channel_ingestion_status until completed. Inspect with list_channels / get_channel.
+   - Edit any Mind's click_bar (1-10), skepticism_triggers, thinking_patterns, or active status with update_mind (keep at least 12 active).
+   - Configure Creator Personas (face references + tone_of_voice + visual_style_rules + defaultStyle) with save_profile / prepare_profile / update_persona.
+2. PRE-FLIGHT STUDY INTAKE & COST ESTIMATE:
+   - Before launching, call get_default_questions (en/es) and estimate_study_cost so the user sees the exact synthetic sample (e.g. 16 Minds × 8 Questions = 128 responses) and estimated BYOK USD range upfront.
+   - Confirm mandatory productionMode: "pre_shoot" (script/angle rewrites allowed) OR "footage_locked" (zero reshoots; outputs verbatim cold-open pull quote + 3 zero-reshoot packaging pivots).
+   - Call launch_preflight_study with channel or audienceId, full scriptText, titleDraft, thumbnailPrompt, productionMode, and optional draftImage/draftThumbnailPath (pits the creator's draft head-to-head as Option A against 2 AI challengers) + optional notifyEmails (up to 3 team CC emails).
+3. ASYNC TRIANGULATION PROGRESS:
+   - Studies run fire-and-forget on Inngest (typically 2-5 minutes). Poll get_study_status (by runId or studyId) to monitor phases and preview Leg A thumbnails as they arrive.
+4. EXECUTIVE PRE-FLIGHT REPORT & TEAM HANDOFF:
+   - Call get_preflight_report (by slug, studyRunId, or studyId; filterable by archetype and vote) to retrieve the Verdict (SHIP / ITERATE / RETHINK), simulated Click Share (including mandatory none_keep_scrolling), Retention Cliff warning, Angle/Script Diagnosis, Packaging Matrix with Klickz scores & Designer Redlines, and Voice of the Minds.
+   - Call get_report_markdown for a clean Notion/Docs brief, get_report_deliverables for signed PDF/Markdown/high-res thumbnail URLs, set_report_visibility to toggle public unlisted sharing, or email_preflight_report to send/resend the PDF+MD package via Resend to editors/designers.
+   - Call promote_option_to_studio on any Option A/B/C to import it directly into Quick Studio (returning a creationId) for one_click_fix, get_fix_prompt, or 9:16 recompose_thumbnail.
+   - Use get_model_preferences / set_model_preferences to switch per-leg models (image, mediator, reviewer, scorer, minds, strategist).
+
+=== WORKFLOW 2: QUICK THUMBNAIL STUDIO (CREATE -> SCORE -> FIX) ===
+WHICH IMAGE TO SCORE: when the user asks to score, analyze or fix "this" thumbnail, or an image they attached or you generated in this chat, pass that image itself in the image field of analyze_thumbnail or score_thumbnail. Never score a different saved creation instead, never pick one from list_creations unless the user named it, and never send the user to another site or app to score. If the image can't be passed, say so in one line and ask the user to attach it. AFTER ANALYZING: the card shows the score, the fix and a One-Click Fix button. Don't repeat it. Reply in one short line in the user's language. If there's no title, ask for it.
+Use generate_thumbnail to create (persona by name keeps the face), score_thumbnail or analyze_thumbnail to score, and get_fix_prompt / one_click_fix to improve. Every generation goes through the OpenPikzels mediator, keeping quoted text, numbers, subjects, panels and orientation exactly. Put exact on-image words in quotes. Use create_conversation/list_conversations/get_conversation to keep a project together. Personas need 2 or 3 distinct photos and permission=true; styles need 1 to 3 references; names need at least 3 characters. Preserve requestId on retries and check list_creations/list_jobs after a timeout before retrying any paid operation. Scores describe five visual packaging rubrics, not predicted CTR. Use get_fix_prompt for a copyable ChatGPT edit prompt without paying for an image API; use create_fix_plan then one_click_fix only when the user wants a new API-rendered image. recompose_thumbnail generates a 9:16 or 16:9 arrangement using image credits; resize_thumbnail is a free non-AI blurred-background layout. Open the HTML workspace with open_studio when your host supports MCP Apps.\n\n${soul}`;
 export async function createMcpServer(token: string) {
   const context = await resolveAccess(token),
     { db, user, oauth } = context;
   const server = new McpServer(
-    { name: "OpenPikzels", version: "1.1.0" },
+    { name: "OpenPikzels", version: "2.0.0" },
     { instructions: agentGuide },
   );
   async function allowed(scope: Scope) {
@@ -64,9 +99,11 @@ export async function createMcpServer(token: string) {
       );
     await resolveAccess(token, scope);
   }
-  async function signed(path: string) {
+  async function signed(path: string, ttlSeconds = 300) {
     if (!path) return null;
-    const r = await db.storage.from("studio-assets").createSignedUrl(path, 300);
+    const r = await db.storage
+      .from("studio-assets")
+      .createSignedUrl(path, ttlSeconds);
     if (r.error) throw new AppError(404, "Image is unavailable.");
     return r.data.signedUrl;
   }
@@ -134,7 +171,14 @@ export async function createMcpServer(token: string) {
     work: (args: Record<string, any>) => Promise<Record<string, unknown>>,
     readOnly = false,
     destructive = false,
-    options?: { title?: string; toText?: (result: Record<string, unknown>) => string; ui?: boolean; fileParams?: string[] },
+    options?: {
+      title?: string;
+      toText?: (result: Record<string, unknown>) => string;
+      ui?: boolean;
+      uiInvoking?: string;
+      uiInvoked?: string;
+      fileParams?: string[];
+    },
   ) => {
     const config = {
       title: options?.title,
@@ -173,9 +217,25 @@ export async function createMcpServer(token: string) {
           };
         }
       };
-    // The analysis card renders only for tools that return a score; other tools stay text-only.
+    // The interactive card renders for score tools and Pre-Flight report/status tools; other tools stay text-only.
     if (UI_TOOLS.has(name) || options?.ui)
-      return registerAppTool(server, name, { ...config, _meta: { ...(config._meta || {}), ui: { resourceUri: uiUri }, "openai/outputTemplate": uiUri, "openai/toolInvocation/invoking": "Scoring your thumbnail…", "openai/toolInvocation/invoked": "Thumbnail scored" } }, handler);
+      return registerAppTool(
+        server,
+        name,
+        {
+          ...config,
+          _meta: {
+            ...(config._meta || {}),
+            ui: { resourceUri: uiUri },
+            "openai/outputTemplate": uiUri,
+            "openai/toolInvocation/invoking":
+              options?.uiInvoking || "Scoring your thumbnail…",
+            "openai/toolInvocation/invoked":
+              options?.uiInvoked || "Thumbnail scored",
+          },
+        },
+        handler,
+      );
     return server.registerTool(name, config, handler);
   };
 
@@ -184,17 +244,35 @@ export async function createMcpServer(token: string) {
   },"studio:ai",async args=>{await allowed("studio:write");return backend(creativeText,{...args,task:"enhance"});});
   tool(
     "get_workspace",
-    "Get your private workspace, connected provider capabilities, and agent guide. No keys are returned.",
+    "Get your private workspace, connected provider capabilities, per-leg AI models, Pre-Flight readiness (channels, ready audiences, personas, studies), and agent guide. No keys are returned.",
     {},
     "studio:read",
     async () => {
-      const keys = await userKeys(db, user.id);
+      const [keys, preflight] = await Promise.all([
+        userKeys(db, user.id),
+        getPreflightWorkspaceSummary(db, user),
+      ]);
       return {
         providers: Object.keys(keys).filter(
           (k) => !!keys[k as keyof typeof keys],
         ),
         aiEnabled: process.env.AI_ENABLED === "true",
-        capabilities:providerCapabilities({ai:process.env.AI_ENABLED==="true",openai:!!keys.openai,google:!!keys.google,jev:!!keys.jev,anthropic:!!keys.anthropic,youtube:!!keys.youtube,promptModel:process.env.OPENAI_PROMPT_MODEL,textModels:{openai:process.env.OPENAI_TEXT_MODEL||"gpt-5.5",google:process.env.GOOGLE_TEXT_MODEL||"gemini-3.5-flash-lite"},scoreModel:process.env.JEV_MODEL}),
+        capabilities: providerCapabilities({
+          ai: process.env.AI_ENABLED === "true",
+          openai: !!keys.openai,
+          google: !!keys.google,
+          jev: !!keys.jev,
+          anthropic: !!keys.anthropic,
+          youtube: !!keys.youtube,
+          transcript: !!keys.transcript,
+          promptModel: process.env.OPENAI_PROMPT_MODEL,
+          textModels: {
+            openai: process.env.OPENAI_TEXT_MODEL || "gpt-5.5",
+            google: process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite",
+          },
+          scoreModel: process.env.JEV_MODEL,
+        }),
+        preflight,
         guide: agentGuide,
         scope: oauth.scope,
       };
@@ -728,6 +806,15 @@ export async function createMcpServer(token: string) {
   tool("remember_fact","Remember a short fact for this user. Values that look like secrets are rejected and never stored.",{fact:z.string().min(1).max(1000),tags:z.array(z.string().max(40)).max(12).optional(),agent:z.string().min(1).max(60).optional(),source:z.string().max(200).optional()},"studio:agent",args=>rememberFact(context,{fact:args.fact,tags:args.tags,agent:args.agent,source:args.source}));
   tool("recall_facts","Recall this user's newest matching remembered facts, at most 20.",{query:z.string().max(200).optional()},"studio:agent",args=>recallFacts(context,args),true);
   tool("forget_fact","Forget one of this user's remembered facts by id.",{id:z.string().uuid()},"studio:agent",args=>forgetFact(context,{id:args.id}),false,true);
+  registerPreflightMcp({
+    server,
+    db,
+    user,
+    allowed,
+    signed,
+    profileIdByName,
+    tool,
+  });
   server.registerResource(
     "agent-guide",
     "openpikzels://agent-guide",
@@ -744,11 +831,11 @@ export async function createMcpServer(token: string) {
   );
   registerAppResource(
     server,
-    "OpenPikzels Studio",
+    "OpenPikzels Workspace",
     uiUri,
     {
       description:
-        "Private thumbnail gallery, score viewer, fix prompt and resize controls.",
+        "Interactive OpenPikzels viewer for Executive Pre-Flight Reports, live study progress, and single-thumbnail virality analysis with one-click fixes.",
     },
     async () => ({
       contents: [
@@ -769,7 +856,8 @@ export async function createMcpServer(token: string) {
               },
               prefersBorder: true,
             },
-            "openai/widgetDescription": "OpenPikzels private thumbnail studio",
+            "openai/widgetDescription":
+              "OpenPikzels Pre-Flight Reports and Thumbnail Studio",
           },
         },
       ],

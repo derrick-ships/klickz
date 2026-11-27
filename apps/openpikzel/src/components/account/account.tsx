@@ -72,7 +72,19 @@ export function useAccount(isolated = false) {
   }, [isolated]);
   return { db, session, config, error, setError, ready, signInNotice };
 }
-export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page. Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Keys. Start with get_workspace. Use list_profiles/get_profile for persona references and list_creations to inspect existing work. Use upload_reference for an image created in ChatGPT, then score_thumbnail with its actual title. Use get_fix_prompt to return a copyable prompt for editing it in ChatGPT without generating another image through an API. Only use generate_thumbnail or one_click_fix when I request an API-rendered image, with my chosen provider, quality and batch. Keep the same requestId across an uncertain retry, and check history after a timeout. Scores are visual rubrics, not a promise of CTR. Use open_studio for the interactive HTML interface when supported.`;
+export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page (https://openpikzels.com/mcp). Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Keys (/connect).
+
+Start every session with get_workspace to check connected providers, per-leg AI models, linked YouTube channels, Creator Personas, and Pre-Flight Studies.
+
+Pre-Flight Packaging & Audience Intelligence (End-to-End):
+1. Link & manage YouTube channels with connect_channel, get_channel_ingestion_status, list_channels, get_channel, and update_mind (12–16 persistent Minds).
+2. Configure Creator Personas (tone_of_voice, visual_style_rules, defaultStyle) with save_profile, prepare_profile, and update_persona.
+3. Before launching a Pre-Flight Study, call get_default_questions and estimate_study_cost, confirm pre_shoot vs footage_locked mode, then call launch_preflight_study (optionally attaching draftImage for a blind Option A head-to-head battle).
+4. Monitor live triangulation with get_study_status, then deliver the full Executive Report with get_preflight_report, get_report_markdown, get_report_deliverables, set_report_visibility, and email_preflight_report.
+5. Use promote_option_to_studio to send any winning Option A/B/C straight into Quick Studio for one_click_fix or 9:16 recomposition, and use get_model_preferences / set_model_preferences to switch per-leg models.
+
+Quick Thumbnail Studio:
+Use list_profiles/get_profile for references, generate_thumbnail to create, analyze_thumbnail/score_thumbnail to score, get_fix_prompt for a copyable edit prompt, and create_fix_plan + one_click_fix when I want an API-rendered fix. Preserve requestId on retries and check list_creations/list_jobs after a timeout.`;
 
 export function ConnectionsPage() {
   const { db, session, config, error, setError, ready, signInNotice } = useAccount();
@@ -261,8 +273,8 @@ export function ConnectionsPage() {
             </p>
             {config?.ownerGate && (
               <p>
-                This preview is owner-only. Connections for other accounts are
-                not enabled yet.
+                This workspace is invite-only. Invited accounts can authorize
+                and connect their agents here.
               </p>
             )}
             <code className="copy-url">

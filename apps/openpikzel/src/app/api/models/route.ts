@@ -26,14 +26,22 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { db, user, oauth } = await authenticated(request);
-    if (oauth) throw new AppError(403, "Change models in OpenPikzels Settings.");
-    sameOrigin(request);
+    const { db, oauth } = await authenticated(request);
+    if (!oauth) sameOrigin(request);
+    if (oauth && !oauth.scope.includes("studio:write"))
+      throw new AppError(403, "Allow write access to update model preferences.");
     const models = modelPreferencesSchema.parse(await request.json());
     const known = new Set(["auto", ...textAliases.map((a) => a.id)]);
-    if (!known.has(models.reviewer) || !known.has(models.mediator)) throw new AppError(400, "Unknown model.");
+    if (
+      !known.has(models.reviewer) ||
+      !known.has(models.mediator) ||
+      !known.has(models.minds) ||
+      !known.has(models.strategist)
+    )
+      throw new AppError(400, "Unknown model.");
     const mediator = textAliases.find((a) => a.id === models.mediator);
-    if (mediator && mediator.provider === "anthropic") throw new AppError(400, "The prompt writer needs an OpenAI or Google model.");
+    if (mediator && mediator.provider === "anthropic")
+      throw new AppError(400, "The prompt writer needs an OpenAI or Google model.");
     const saved = await db.auth.updateUser({ data: { openpikzels_models: models } });
     if (saved.error) throw new AppError(503, "Could not save your models. Try again.");
     return NextResponse.json({ models });

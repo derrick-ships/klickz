@@ -13,8 +13,15 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    sameOrigin(request);
-    const { db, user } = await authenticated(request);
+    const { db, user, oauth } = await authenticated(request);
+    if (!oauth) sameOrigin(request);
+    if (
+      oauth &&
+      (!oauth.scope.includes("studio:write") ||
+        !oauth.scope.includes("studio:ai"))
+    ) {
+      throw new AppError(403, "Allow write and AI access to ingest a channel.");
+    }
     const input = bodySchema.parse(await request.json());
     // Validate handle/URL format before dispatching
     channelIdentifier(input.channel);

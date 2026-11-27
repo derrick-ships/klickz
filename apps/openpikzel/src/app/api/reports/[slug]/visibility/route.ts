@@ -9,9 +9,15 @@ export async function PATCH(
   context: { params: Promise<{ slug: string }> },
 ) {
   try {
-    sameOrigin(request);
     const { slug } = await context.params;
-    const { db, user } = await authenticated(request);
+    const { db, user, oauth } = await authenticated(request);
+    if (!oauth) sameOrigin(request);
+    if (oauth && !oauth.scope.includes("studio:write")) {
+      throw new AppError(
+        403,
+        "Allow write access to change report visibility.",
+      );
+    }
     const { isPublic } = z
       .object({ isPublic: z.boolean() })
       .parse(await request.json());

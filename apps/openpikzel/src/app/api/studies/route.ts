@@ -84,8 +84,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    sameOrigin(request);
-    const { db, user } = await authenticated(request);
+    const { db, user, oauth } = await authenticated(request);
+    if (!oauth) sameOrigin(request);
+    if (
+      oauth &&
+      (!oauth.scope.includes("studio:write") ||
+        !oauth.scope.includes("studio:ai"))
+    ) {
+      throw new AppError(
+        403,
+        "Allow write and AI access to launch a Pre-Flight Study.",
+      );
+    }
     const input = createStudySchema.parse(await request.json());
 
     const keys = await userKeys(db, user.id);

@@ -8,7 +8,9 @@ export async function GET(request: Request) {
   let openai = false,
     jev = false,
     google = false,
-    anthropic = false;
+    anthropic = false,
+    youtube = false,
+    transcript = false;
   let models = defaultModelPreferences;
   let connectionStatus: "ready" | "failed" = "ready";
   if (request.headers.get("authorization")) {
@@ -25,6 +27,8 @@ export async function GET(request: Request) {
         if (row.provider === "jev") jev = true;
         if (row.provider === "google") google = true;
         if (row.provider === "anthropic") anthropic = true;
+        if (row.provider === "youtube") youtube = true;
+        if (row.provider === "transcript") transcript = true;
       }
       if (process.env.OWNER_PROVIDER_KEYS === "true") {
         const owner = await context.db.rpc("app_web_access");
@@ -38,6 +42,9 @@ export async function GET(request: Request) {
       connectionStatus = "failed";
     }
   }
+  const accessMode =
+    process.env.ACCESS_MODE ||
+    (process.env.OWNER_GATE === "false" ? "public" : "invite_only");
   return Response.json(
     {
       mcpUrl: mcpResource(),
@@ -47,12 +54,14 @@ export async function GET(request: Request) {
       codexDevice: process.env.CODEX_DEVICE_ENABLED === "true",
       higgsfield: process.env.HIGGSFIELD_ENABLED === "true",
       cloud: !!db,
-      ownerGate: process.env.OWNER_GATE !== "false",
+      ownerGate: accessMode !== "public",
       ai: process.env.AI_ENABLED === "true",
       openai,
       jev,
       google,
       anthropic,
+      youtube,
+      transcript,
       models,
       connectionStatus,
       secureConnections: /^[a-f0-9]{64}$/i.test(

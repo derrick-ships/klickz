@@ -81,9 +81,12 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    sameOrigin(request);
     await context.params;
-    const { db, user } = await authenticated(request);
+    const { db, user, oauth } = await authenticated(request);
+    if (!oauth) sameOrigin(request);
+    if (oauth && !oauth.scope.includes("studio:write")) {
+      throw new AppError(403, "Allow write access to edit Minds.");
+    }
     const input = mindPatchSchema.parse(await request.json());
 
     const patch: Record<string, unknown> = {};
@@ -117,9 +120,12 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    sameOrigin(request);
     const { id } = await context.params;
-    const { db, user } = await authenticated(request);
+    const { db, user, oauth } = await authenticated(request);
+    if (!oauth) sameOrigin(request);
+    if (oauth && !oauth.scope.includes("studio:write")) {
+      throw new AppError(403, "Allow write access to delete a channel.");
+    }
     const del = await db
       .from("channels")
       .delete()

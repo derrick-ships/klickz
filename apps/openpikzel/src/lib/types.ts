@@ -33,6 +33,9 @@ export type Persona = {
   created_at: string;
   profile_status?: "draft" | "ready";
   identity_brief?: string;
+  tone_of_voice?: string;
+  visual_style_rules?: string;
+  default_style_id?: string | null;
 };
 export type Style = {
   id: string;
@@ -185,6 +188,7 @@ export type Config = {
   anthropic: boolean;
   google?: boolean;
   youtube?: boolean;
+  transcript?: boolean;
   secureConnections?: boolean;
   higgsfield?: boolean;
   codexDevice?: boolean;

@@ -10,6 +10,7 @@ const updateSchema = z.object({
   notes: z.string().max(800).optional(),
   tone_of_voice: z.string().max(1200).optional(),
   visual_style_rules: z.string().max(1200).optional(),
+  default_style_id: z.string().uuid().nullable().optional(),
 });
 
 export async function GET(request: Request) {
@@ -52,8 +53,11 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    sameOrigin(request);
-    const { db, user } = await authenticated(request);
+    const { db, user, oauth } = await authenticated(request);
+    if (!oauth) sameOrigin(request);
+    if (oauth && !oauth.scope.includes("studio:write")) {
+      throw new AppError(403, "Allow write access to update a persona.");
+    }
     const input = updateSchema.parse(await request.json());
     const patch: Record<string, unknown> = {};
     if (input.name !== undefined) patch.name = input.name;
@@ -62,6 +66,8 @@ export async function PATCH(request: Request) {
       patch.tone_of_voice = input.tone_of_voice;
     if (input.visual_style_rules !== undefined)
       patch.visual_style_rules = input.visual_style_rules;
+    if (input.default_style_id !== undefined)
+      patch.default_style_id = input.default_style_id;
 
     const res = await db
       .from("studio_personas")
@@ -79,8 +85,11 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    sameOrigin(request);
-    const { db, user } = await authenticated(request);
+    const { db, user, oauth } = await authenticated(request);
+    if (!oauth) sameOrigin(request);
+    if (oauth && !oauth.scope.includes("studio:write")) {
+      throw new AppError(403, "Allow write access to delete a persona.");
+    }
     const { id } = z.object({ id: z.string().uuid() }).parse(await request.json());
     const res = await db
       .from("studio_personas")

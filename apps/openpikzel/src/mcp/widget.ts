@@ -394,15 +394,306 @@ function pushContext(v: View) {
   }
 }
 
+function renderStudyStatus(data: any) {
+  const card = el("article", "card");
+  const head = el("header", "head", undefined, card);
+  const brand = el("div", "brand", undefined, head);
+  el("span", "mark", undefined, brand).setAttribute("aria-hidden", "true");
+  el("span", undefined, "OpenPikzels Pre-Flight", brand);
+
+  const modeLabel =
+    data.productionMode === "footage_locked" ? "FOOTAGE LOCKED" : "PRE-SHOOT";
+  el("span", "pill", modeLabel, head);
+
+  el(
+    "h2",
+    "msg-title",
+    str(data.titleDraft) || "Pre-Flight Study",
+    card,
+  );
+
+  const pct = Math.max(0, Math.min(100, Number(data.progressPct) || 0));
+  const statusBox = el("section", "holding mid", undefined, card);
+  const top = el("div", "holding-top", undefined, statusBox);
+  el("span", "eyebrow", `${str(data.status || "running").toUpperCase()} · ${pct}%`, top);
+  el("p", "holding-fix", str(data.currentMessage) || "Running triangulation…", statusBox);
+
+  const barWrap = el("div", "bar mid", undefined, statusBox);
+  const fill = el("span", "fill", undefined, barWrap);
+  fill.style.width = `${pct}%`;
+
+  if (str(data.errorMessage)) {
+    el("p", "err", str(data.errorMessage), card);
+  }
+
+  const opts = Array.isArray(data.options) ? data.options : [];
+  if (opts.length) {
+    const grid = el("div", "pf-grid", undefined, card);
+    for (const o of opts) {
+      const item = el("div", "pf-opt", undefined, grid);
+      if (str(o.imageUrl)) {
+        const media = el("div", "media", undefined, item);
+        const img = el("img", undefined, undefined, media);
+        img.src = str(o.imageUrl);
+        img.alt = `Option ${str(o.optionKey)}`;
+      }
+      const meta = el("div", "pf-opt-meta", undefined, item);
+      el(
+        "strong",
+        undefined,
+        `Option ${str(o.optionKey)}${o.isUserDraft ? " (Draft)" : ""}${o.overallScore != null ? ` · ${o.overallScore}/100` : ""}`,
+        meta,
+      );
+      el("p", "small muted", str(o.title), meta);
+    }
+  }
+
+  const actions = el("div", "actions", undefined, card);
+  if (data.report?.slug) {
+    const openRep = el("button", "btn primary", "Load Executive Report", actions);
+    openRep.type = "button";
+    openRep.onclick = async () => {
+      openRep.disabled = true;
+      openRep.textContent = "Loading…";
+      try {
+        const res: any = await app.callServerTool({
+          name: "get_preflight_report",
+          arguments: { slug: data.report.slug },
+        });
+        if (!res?.isError && res?.structuredContent) {
+          handleResult(res.structuredContent, false, textOf(res));
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+      openRep.disabled = false;
+      openRep.textContent = "Load Executive Report";
+    };
+  } else {
+    const refreshBtn = el("button", "btn primary", "Refresh status", actions);
+    refreshBtn.type = "button";
+    refreshBtn.onclick = async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = "Refreshing…";
+      try {
+        const res: any = await app.callServerTool({
+          name: "get_study_status",
+          arguments: { id: str(data.runId) || str(data.studyId) },
+        });
+        if (!res?.isError && res?.structuredContent) {
+          handleResult(res.structuredContent, false, textOf(res));
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = "Refresh status";
+    };
+  }
+
+  el("p", "err", "", card).id = "action-error";
+  root.replaceChildren(card);
+}
+
+function renderPreflightReport(data: any) {
+  const rep = data.report;
+  if (!rep || typeof rep !== "object") {
+    return renderMessage("Report unavailable", "Could not read report data.");
+  }
+  const v = rep.verdict || {};
+  const verdictCode = str(v.code) || "ITERATE";
+  const verdictTone =
+    verdictCode === "SHIP" ? "high" : verdictCode === "RETHINK" ? "low" : "mid";
+
+  const card = el("article", "card");
+  const head = el("header", "head", undefined, card);
+  const brand = el("div", "brand", undefined, head);
+  el("span", "mark", undefined, brand).setAttribute("aria-hidden", "true");
+  el("span", undefined, "OpenPikzels Pre-Flight", brand);
+  el(
+    "span",
+    "pill",
+    rep.productionMode === "footage_locked" ? "FOOTAGE LOCKED" : "PRE-SHOOT",
+    head,
+  );
+
+  // Verdict Banner
+  const verdictBox = el("section", `holding ${verdictTone}`, undefined, card);
+  const vTop = el("div", "holding-top", undefined, verdictBox);
+  el("span", "eyebrow", `${verdictCode} · ${str(rep.channelTitle)}`, vTop);
+  el(
+    "span",
+    "pill",
+    v.winningOptionKey ? `Winner: Option ${v.winningOptionKey}` : "No Winner",
+    vTop,
+  );
+  el("p", "holding-fix", str(v.headline) || str(rep.studyTitleDraft), verdictBox);
+
+  // Click Share Bars
+  const share = v.clickShare || {};
+  const shareSection = el("section", "pillars", undefined, card);
+  const shareRows: [string, number, string][] = [
+    ["Option A", Number(share.A?.pct) || 0, v.winningOptionKey === "A" ? "high" : "mid"],
+    ["Option B", Number(share.B?.pct) || 0, v.winningOptionKey === "B" ? "high" : "mid"],
+    ["Option C", Number(share.C?.pct) || 0, v.winningOptionKey === "C" ? "high" : "mid"],
+    ["Keep Scrolling", Number(share.none_keep_scrolling?.pct) || 0, "low"],
+  ];
+  for (const [label, pct, t] of shareRows) {
+    const row = el("div", "pf-share-row", undefined, shareSection);
+    el("span", "p-name small", label, row);
+    const bar = el("div", `bar ${t}`, undefined, row);
+    const fill = el("span", "fill", undefined, bar);
+    fill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    el("span", `p-num small ${t}`, `${pct}%`, row);
+  }
+
+  // Retention Cliff Warning
+  if (v.retentionCliff?.summary) {
+    const sev = str(v.retentionCliff.severity).toLowerCase();
+    const sevTone = sev === "high" ? "low" : sev === "low" ? "high" : "mid";
+    const cliff = el("section", `holding ${sevTone}`, undefined, card);
+    el(
+      "span",
+      "eyebrow",
+      `Retention Cliff (${sev.toUpperCase() || "MEDIUM"})`,
+      cliff,
+    );
+    el("p", "small", str(v.retentionCliff.summary), cliff);
+  }
+
+  // 3-Option Side-by-Side Packaging Matrix
+  const matrix = Array.isArray(rep.packagingMatrix) ? rep.packagingMatrix : [];
+  if (matrix.length) {
+    const grid = el("div", "pf-grid", undefined, card);
+    for (const opt of matrix) {
+      const isWin = v.winningOptionKey === opt.optionKey;
+      const box = el("div", `pf-opt${isWin ? " win" : ""}`, undefined, grid);
+      if (str(opt.imageUrl)) {
+        const media = el("div", "media", undefined, box);
+        const img = el("img", undefined, undefined, media);
+        img.src = str(opt.imageUrl);
+        img.alt = `Option ${str(opt.optionKey)}: ${str(opt.title)}`;
+      }
+      const meta = el("div", "pf-opt-meta", undefined, box);
+      el(
+        "strong",
+        "small",
+        `Option ${str(opt.optionKey)}${opt.isUserDraft ? " · Draft" : ""}${isWin ? " ★" : ""}`,
+        meta,
+      );
+      el("p", "small", str(opt.title), meta);
+      const scoreVal = opt.klickzScore?.overall;
+      el(
+        "p",
+        "small muted",
+        `Minds: ${Number(opt.voteSharePct) || 0}% · Klickz: ${scoreVal != null ? `${scoreVal}/100` : "N/A"}`,
+        meta,
+      );
+      if (str(opt.designerRedline?.primaryFix)) {
+        el(
+          "p",
+          "small muted",
+          `Redline: ${str(opt.designerRedline.primaryFix)}`,
+          meta,
+        );
+      }
+    }
+  }
+
+  // Angle / Script Diagnosis highlight
+  const fl = rep.angleDiagnosis?.footageLockedPlan;
+  const ps = rep.angleDiagnosis?.preShootPlan;
+  if (fl?.cold_open_pull_quote?.verbatim_quote) {
+    const q = el("section", "pf-quote", undefined, card);
+    el("span", "eyebrow", "Cold-Open Pull Quote (Zero-Reshoot)", q);
+    el("p", "small", `"${str(fl.cold_open_pull_quote.verbatim_quote)}"`, q);
+    if (str(fl.cold_open_pull_quote.editor_cut_instruction)) {
+      el(
+        "p",
+        "small muted",
+        `Cut: ${str(fl.cold_open_pull_quote.editor_cut_instruction)}`,
+        q,
+      );
+    }
+  } else if (ps?.rewritten_title) {
+    const q = el("section", "pf-quote", undefined, card);
+    el("span", "eyebrow", "Proposed Angle Rewrite (Pre-Shoot)", q);
+    el("p", "small", str(ps.rewritten_title), q);
+    if (str(ps.proposed_angle_thesis)) {
+      el("p", "small muted", str(ps.proposed_angle_thesis), q);
+    }
+  }
+
+  // Action buttons
+  const actions = el("div", "actions", undefined, card);
+  const winKey = v.winningOptionKey || "A";
+  const promoteBtn = el(
+    "button",
+    "btn primary",
+    `Promote Option ${winKey} to Studio`,
+    actions,
+  );
+  promoteBtn.type = "button";
+  promoteBtn.onclick = async () => {
+    promoteBtn.disabled = true;
+    promoteBtn.textContent = "Promoting…";
+    try {
+      const res: any = await app.callServerTool({
+        name: "promote_option_to_studio",
+        arguments: { slug: str(data.slug), optionKey: winKey },
+      });
+      if (res?.isError) throw new Error(textOf(res) || "Could not promote.");
+      promoteBtn.textContent = "Promoted to Studio ✓";
+      say(`Option ${winKey} promoted to Quick Studio.`);
+    } catch (e) {
+      promoteBtn.disabled = false;
+      promoteBtn.textContent = `Promote Option ${winKey} to Studio`;
+      setError((e as Error)?.message || "Could not promote option.");
+    }
+  };
+
+  if (str(data.reportUrl)) {
+    const link = el("a", "btn secondary", "Open Report", actions);
+    link.href = str(data.reportUrl);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
+
+  el("p", "err", "", card).id = "action-error";
+  root.replaceChildren(card);
+
+  try {
+    const ctxLines = [
+      `## OpenPikzels Executive Pre-Flight Report (${str(data.slug)})`,
+      `Verdict: ${verdictCode} — ${str(v.headline)}`,
+      `Click Share: A ${share.A?.pct ?? 0}%, B ${share.B?.pct ?? 0}%, C ${share.C?.pct ?? 0}%, Keep Scrolling ${share.none_keep_scrolling?.pct ?? 0}%`,
+      `Report URL: ${str(data.reportUrl)}`,
+    ];
+    void app
+      .updateModelContext({ content: [{ type: "text", text: ctxLines.join("\n") }] })
+      .catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
 function handleResult(sc: unknown, isError?: boolean, fallbackText = "") {
+  const anySc = sc as any;
+  if (!isError && anySc?.kind === "preflight_report" && anySc?.report) {
+    return renderPreflightReport(anySc);
+  }
+  if (!isError && anySc?.kind === "study_status") {
+    return renderStudyStatus(anySc);
+  }
   const v = normalize(sc);
   if (!isError && v?.score && typeof v.score === "object") return render(v);
-  const anySc = sc as any;
   if (!isError && anySc?.jobId && anySc?.creation)
     return renderMessage("Fix started", "Ask ChatGPT to score it when ready.", v);
   renderMessage(
-    isError ? "Couldn't score this thumbnail" : "No score yet",
-    fallbackText || v?.next || "Try again with the image and title.",
+    isError ? "Couldn't complete this action" : "No result yet",
+    fallbackText || v?.next || "Try again.",
     v,
   );
 }
