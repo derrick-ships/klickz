@@ -1112,7 +1112,13 @@ export function registerPreflightMcp(deps: PreflightMcpDeps) {
           await fetchReference(args.draftImageUrl),
         );
       } else if (args.draftThumbnailPath) {
-        draftThumbnailPath = ownedPath(args.draftThumbnailPath, user.id);
+        if (!ownedPath(args.draftThumbnailPath, user.id)) {
+          throw new AppError(
+            403,
+            "draftThumbnailPath must be an owned studio-assets path.",
+          );
+        }
+        draftThumbnailPath = args.draftThumbnailPath;
       }
 
       const language =
