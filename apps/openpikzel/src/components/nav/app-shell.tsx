@@ -1,10 +1,20 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { useCallback } from "react";
+import { createContext, useCallback, useContext, useMemo } from "react";
 import { AccountSignIn, useAccount } from "@/components/account/account";
 
-export function useAuthApi() {
-  const account = useAccount();
+type AuthApiValue = ReturnType<typeof useAccount> & {
+  api: <T = unknown>(
+    path: string,
+    method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+    body?: unknown,
+  ) => Promise<T>;
+};
+
+const AuthApiContext = createContext<AuthApiValue | null>(null);
+
+function useAccountWithApi(enabled = true): AuthApiValue {
+  const account = useAccount(false, enabled);
 
   const api = useCallback(
     async <T = unknown,>(
@@ -34,7 +44,13 @@ export function useAuthApi() {
     [account.db],
   );
 
-  return { ...account, api };
+  return useMemo(() => ({ ...account, api }), [account, api]);
+}
+
+export function useAuthApi(): AuthApiValue {
+  const ctx = useContext(AuthApiContext);
+  const standalone = useAccountWithApi(!ctx);
+  return ctx ?? standalone;
 }
 
 const NAV_ITEMS = [
@@ -53,58 +69,62 @@ export function AppShell({
   requireAuth?: boolean;
 }) {
   const pathname = usePathname();
-  const { db, session, ready, signInNotice } = useAccount();
+  const authApi = useAccountWithApi();
+  const { db, session, ready, signInNotice } = authApi;
 
   return (
-    <div className="pf-shell">
-      <header className="pf-nav">
-        <a href="/" className="pf-nav-brand">
-          <span className="pf-nav-dot" aria-hidden="true" />
-          OpenPikzels
-        </a>
-        <nav className="pf-nav-links" aria-label="Primary navigation">
-          {NAV_ITEMS.map((item) => {
-            const active =
-              item.href === "/"
-                ? pathname === "/" || pathname.startsWith("/studies")
-                : pathname.startsWith(item.href);
-            return (
-              <a
-                key={item.href}
-                href={item.href}
-                className="pf-nav-link"
-                data-active={active}
-              >
-                {item.label}
-              </a>
-            );
-          })}
-        </nav>
-      </header>
+    <AuthApiContext.Provider value={authApi}>
+      <div className="pf-shell">
+        <header className="pf-nav">
+          <a href="/" className="pf-nav-brand">
+            <span className="pf-nav-dot" aria-hidden="true" />
+            OpenPikzels
+          </a>
+          <nav className="pf-nav-links" aria-label="Primary navigation">
+            {NAV_ITEMS.map((item) => {
+              const active =
+                item.href === "/"
+                  ? pathname === "/" || pathname.startsWith("/studies")
+                  : pathname.startsWith(item.href);
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="pf-nav-link"
+                  data-active={active}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {item.label}
+                </a>
+              );
+            })}
+          </nav>
+        </header>
 
-      <main className="pf-main">
-        {requireAuth && !ready ? (
-          <p className="pf-muted">Loading workspace…</p>
-        ) : requireAuth && !db ? (
-          <div className="pf-card">
-            <h2>Cloud setup pending</h2>
-            <p className="pf-muted">
-              Supabase environment variables are not configured yet. You can still
-              use <a href="/studio">Quick Studio</a> locally.
-            </p>
-          </div>
-        ) : requireAuth && !session && db ? (
-          <div className="pf-card" style={{ maxWidth: 460, margin: "2rem auto" }}>
-            <h1 style={{ marginTop: 0 }}>Sign in to OpenPikzels</h1>
-            <p className="pf-muted" style={{ marginBottom: "1rem" }}>
-              Pre-Flight Packaging &amp; Audience Intelligence Platform.
-            </p>
-            <AccountSignIn db={db} initialNotice={signInNotice} />
-          </div>
-        ) : (
-          children
-        )}
-      </main>
-    </div>
+        <main className="pf-main">
+          {requireAuth && !ready ? (
+            <p className="pf-muted">Loading workspace…</p>
+          ) : requireAuth && !db ? (
+            <div className="pf-card">
+              <h2>Cloud setup pending</h2>
+              <p className="pf-muted">
+                Supabase environment variables are not configured yet. You can
+                still use <a href="/studio">Quick Studio</a> locally.
+              </p>
+            </div>
+          ) : requireAuth && !session && db ? (
+            <div className="pf-card" style={{ maxWidth: 460, margin: "2rem auto" }}>
+              <h1 style={{ marginTop: 0 }}>Sign in to OpenPikzels</h1>
+              <p className="pf-muted" style={{ marginBottom: "1rem" }}>
+                Pre-Flight Packaging &amp; Audience Intelligence Platform.
+              </p>
+              <AccountSignIn db={db} initialNotice={signInNotice} />
+            </div>
+          ) : (
+            children
+          )}
+        </main>
+      </div>
+    </AuthApiContext.Provider>
   );
 }

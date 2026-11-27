@@ -638,7 +638,7 @@ fieldset.composer-inner { border:0; margin:0; min-width:0; }
 
 /* Settings → Models */
 .models-panel { display: grid; gap: var(--space-3); }
-.models-grid { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.models-grid { display: grid; grid-template-columns: minmax(150px, 215px) minmax(0, 1fr); align-items: center; gap: var(--space-3); }
 .models-grid label { font-size: 14px; }
 .models-panel select { min-height: 44px; min-width: 0; }
 .models-status { min-height: 1.5em; margin: 0; font-size: 13px; color: var(--color-placeholder); }

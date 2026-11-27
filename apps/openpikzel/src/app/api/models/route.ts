@@ -4,6 +4,7 @@ import { sameOrigin } from "@/lib/crypto";
 import { userKeys } from "@/lib/provider-context";
 import { AppError } from "@/lib/validation";
 import { modelPreferencesSchema, readModelPreferences, resolveAlias, textAliases } from "@/lib/model-preferences";
+import { saveUserModelPreferences } from "@/lib/save-model-preferences";
 
 // Settings → Models. Choices live in the user's auth metadata (no table needed).
 // GET also reports what each "latest" choice resolves to with the user's own keys.
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { db, oauth } = await authenticated(request);
+    const { user, oauth } = await authenticated(request);
     if (!oauth) sameOrigin(request);
     if (oauth && !oauth.scope.includes("studio:write"))
       throw new AppError(403, "Allow write access to update model preferences.");
@@ -42,8 +43,8 @@ export async function PUT(request: Request) {
     const mediator = textAliases.find((a) => a.id === models.mediator);
     if (mediator && mediator.provider === "anthropic")
       throw new AppError(400, "The prompt writer needs an OpenAI or Google model.");
-    const saved = await db.auth.updateUser({ data: { openpikzels_models: models } });
-    if (saved.error) throw new AppError(503, "Could not save your models. Try again.");
+    const token = request.headers.get("Authorization")?.match(/^Bearer (.+)$/)?.[1];
+    await saveUserModelPreferences(user, models, token);
     return NextResponse.json({ models });
   } catch (e) {
     return failure(e);

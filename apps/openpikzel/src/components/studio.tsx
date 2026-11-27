@@ -1325,7 +1325,7 @@ export default function Studio() {
       )}
       <aside ref={navigationRef} className="sidebar" inert={!sidebar} aria-label="Workspace navigation">
         <div className="sidebar-heading">
-          <a className="brand" href="/studio">
+          <a className="brand" href="/" title="Back to Pre-Flight Studies">
             OpenPikzels
             <span className="wordmark-pixel" aria-hidden="true" />
           </a>
@@ -1402,6 +1402,10 @@ export default function Studio() {
             {!sidebar && <span className="workspace-name">OpenPikzels</span>}
           </div>
           <div className="topbar-actions">
+            <a href="/" className="quiet-button" style={{ textDecoration: "none" }}>
+              <ArrowLeft size={15} />
+              <span>Pre-Flight</span>
+            </a>
             <button type="button" className="icon-button" aria-label="Help" title="Help" onClick={()=>setDialog("help")}>?</button>
             <button type="button"
               className="quiet-button"

@@ -27,38 +27,64 @@ type RunRow = {
   input_identifier: string;
 };
 
+function isLikelyYouTubeChannel(raw: string): boolean {
+  const s = raw.trim();
+  if (!s) return false;
+  if (/^@[\w.-]{2,60}$/.test(s)) return true;
+  if (/^UC[\w-]{22}$/.test(s)) return true;
+  try {
+    const u = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`);
+    return /(^|\.)youtube\.com$/i.test(u.hostname) && u.pathname.length > 1;
+  } catch {
+    return false;
+  }
+}
+
 function ChannelsInner() {
   const router = useRouter();
   const { db, session, api } = useAuthApi();
   const [channels, setChannels] = useState<ChannelRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [channelInput, setChannelInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const res = await api<{ channels: ChannelRow[]; recentRuns: RunRow[] }>(
-      "/api/channels",
-    );
-    setChannels(res.channels || []);
-    const running = (res.recentRuns || []).find(
-      (r) => !["completed", "failed"].includes(r.status),
-    );
-    if (running) setActiveRunId(running.id);
+    setLoading(true);
+    try {
+      const res = await api<{ channels: ChannelRow[]; recentRuns: RunRow[] }>(
+        "/api/channels",
+      );
+      setChannels(res.channels || []);
+      const running = (res.recentRuns || []).find(
+        (r) => !["completed", "failed"].includes(r.status),
+      );
+      if (running) setActiveRunId(running.id);
+    } finally {
+      setLoading(false);
+    }
   }, [api]);
 
+  const userId = session?.user.id ?? null;
   useEffect(() => {
-    if (session) void load().catch((e) => setError(e.message));
-  }, [session, load]);
+    if (userId) void load().catch((e) => setError(e.message));
+  }, [userId, load]);
+
+  const trimmedInput = channelInput.trim();
+  const inputInvalid = trimmedInput.length > 0 && !isLikelyYouTubeChannel(trimmedInput);
 
   async function startIngest(e: React.FormEvent) {
     e.preventDefault();
-    if (!channelInput.trim()) return;
+    if (!trimmedInput || inputInvalid) {
+      setError("Enter a valid YouTube channel URL (youtube.com/@handle), @handle, or UC... channel ID.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const res = await api<{ runId: string }>("/api/channels/ingest", "POST", {
-        channel: channelInput.trim(),
+        channel: trimmedInput,
       });
       setActiveRunId(res.runId);
       setChannelInput("");
@@ -91,20 +117,30 @@ function ChannelsInner() {
               style={{ flex: 1, minWidth: 240 }}
               placeholder="https://youtube.com/@creator or @creator"
               value={channelInput}
-              onChange={(e) => setChannelInput(e.target.value)}
+              aria-invalid={inputInvalid}
+              onChange={(e) => {
+                setChannelInput(e.target.value);
+                if (error) setError("");
+              }}
             />
             <button
               type="submit"
               className="pf-btn-primary"
-              disabled={busy || !channelInput.trim()}
+              disabled={busy || !trimmedInput || inputInvalid}
             >
               {busy ? "Starting…" : "Extract Audience & Build 16 Minds"}
             </button>
           </div>
-          <p className="pf-muted" style={{ fontSize: "0.8rem" }}>
-            Uses your YouTube Data API key + Google Gemini (native YouTube
-            transcripts, zero extra keys).
-          </p>
+          {inputInvalid ? (
+            <p className="pf-error" style={{ marginTop: "0.4rem", marginBottom: 0 }}>
+              Use a YouTube URL (https://youtube.com/@handle), an @handle, or a UC... channel ID.
+            </p>
+          ) : (
+            <p className="pf-muted" style={{ fontSize: "0.8rem" }}>
+              Uses your YouTube Data API key + Google Gemini (native YouTube
+              transcripts, zero extra keys).
+            </p>
+          )}
         </div>
         {error && <div className="pf-error">{error}</div>}
       </form>
@@ -121,6 +157,20 @@ function ChannelsInner() {
         />
       )}
 
+      {loading ? (
+        <p className="pf-muted">Loading linked channels…</p>
+      ) : channels.length === 0 ? (
+        <div className="pf-card">
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>
+            No YouTube channels linked yet
+          </h2>
+          <p className="pf-muted" style={{ marginBottom: 0 }}>
+            Paste any YouTube channel URL or @handle above to extract recent
+            videos, outlier performance, comments, and transcripts into 16
+            persistent Minds.
+          </p>
+        </div>
+      ) : (
       <div className="pf-grid-2">
         {channels.map((ch) => (
           <article key={ch.id} className="pf-card">
@@ -174,6 +224,7 @@ function ChannelsInner() {
           </article>
         ))}
       </div>
+      )}
     </>
   );
 }

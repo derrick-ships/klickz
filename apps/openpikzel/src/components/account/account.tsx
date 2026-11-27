@@ -15,7 +15,31 @@ import { takeSignInLinkError } from "@/lib/sign-in-link";
 
 import type { Config } from "@/lib/types";
 import { localAgentLinked } from "../../lib/oauth/scopes";
-export function useAccount(isolated = false) {
+
+const sharedBrowserClients = new Map<string, SupabaseClient>();
+function browserSupabaseClient(url: string, key: string, isolated: boolean) {
+  if (isolated) {
+    return createClient(url, key, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+  const cacheKey = `${url}:${key}`;
+  const existing = sharedBrowserClients.get(cacheKey);
+  if (existing) return existing;
+  const created = createClient(url, key, {
+    auth: {
+      detectSessionInUrl: !new URL(location.href).searchParams.has("state"),
+    },
+  });
+  sharedBrowserClients.set(cacheKey, created);
+  return created;
+}
+
+export function useAccount(isolated = false, enabled = true) {
   const [db, setDb] = useState<SupabaseClient | null>(null),
     [session, setSession] = useState<Session | null>(null),
     [config, setConfig] = useState<Config | null>(null),
@@ -23,6 +47,7 @@ export function useAccount(isolated = false) {
     [ready, setReady] = useState(false),
     [signInNotice, setSignInNotice] = useState("");
   useEffect(() => {
+    if (!enabled) return;
     let active = true,
       unsubscribe = () => {};
     void fetch("/api/config")
@@ -38,18 +63,10 @@ export function useAccount(isolated = false) {
               history.replaceState(history.state, "", failedLink.cleanUrl);
             }
           }
-          const client = createClient(
+          const client = browserSupabaseClient(
             c.supabaseUrl,
             c.supabaseKey,
-            isolated
-              ? {
-                  auth: {
-                    persistSession: false,
-                    autoRefreshToken: false,
-                    detectSessionInUrl: false,
-                  },
-                }
-              : { auth: { detectSessionInUrl: !new URL(location.href).searchParams.has("state") } },
+            isolated,
           );
           setDb(client);
           const { data, error: sessionError } = await client.auth.getSession();
@@ -69,7 +86,7 @@ export function useAccount(isolated = false) {
       active = false;
       unsubscribe();
     };
-  }, [isolated]);
+  }, [isolated, enabled]);
   return { db, session, config, error, setError, ready, signInNotice };
 }
 export const copyInstructions = `Connect to OpenPikzels using the remote MCP URL shown on this page (https://openpikzels.com/mcp). Sign in and review the Allow/Deny consent screen. Never put API keys in chat; connect them in OpenPikzels Keys (/connect).
@@ -96,6 +113,8 @@ export function ConnectionsPage() {
         id: string;
         client_name: string;
         scope: string[];
+        created_at?: string;
+        expires_at?: string;
         revoked_at: string | null;
       }[]
     >([]),
@@ -329,8 +348,17 @@ export function ConnectionsPage() {
               grants.filter(g => !g.revoked_at || showRevoked).map((g) => (
                 <div className="grant-row" key={g.id}>
                   <div>
-                    <strong>{g.client_name}</strong>
-                    <p>{!g.revoked_at && localAgentLinked([g]) ? "Local agent linked" : g.scope.join(" · ")}</p>
+                    <strong>
+                      {g.client_name} · ••••{g.id.slice(-4)}
+                    </strong>
+                    <p>
+                      {g.created_at
+                        ? `Connected ${new Date(g.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · `
+                        : ""}
+                      {!g.revoked_at && localAgentLinked([g])
+                        ? `Local agent (${g.scope.join(", ")})`
+                        : g.scope.join(" · ")}
+                    </p>
                   </div>
                   <button type="button"
                     className="neutral-button"

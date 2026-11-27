@@ -20,6 +20,7 @@ import {
   scorers,
   textAliases,
 } from "./model-preferences";
+import { saveUserModelPreferences } from "./save-model-preferences";
 import type { Scope } from "./oauth/core";
 import type { ProfileKind } from "./profile-name";
 import { userKeys } from "./provider-context";
@@ -473,12 +474,7 @@ export function registerPreflightMcp(deps: PreflightMcpDeps) {
           "The prompt mediator requires an OpenAI or Google model.",
         );
       }
-      const saved = await db.auth.updateUser({
-        data: { openpikzels_models: merged },
-      });
-      if (saved.error) {
-        throw new AppError(503, "Could not save model preferences. Try again.");
-      }
+      await saveUserModelPreferences(user, merged);
       return { models: merged, saved: true };
     },
   );

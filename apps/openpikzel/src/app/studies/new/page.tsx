@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell, useAuthApi } from "@/components/nav/app-shell";
 import { defaultDiagnosticQuestions } from "@/lib/default-questions";
@@ -55,6 +55,7 @@ function StudyIntakeInner() {
   );
   const [draftPreviewUrl, setDraftPreviewUrl] = useState<string | null>(null);
   const [uploadingDraft, setUploadingDraft] = useState(false);
+  const draftInputRef = useRef<HTMLInputElement | null>(null);
   const [questions, setQuestions] = useState<
     (DiagnosticQuestion & { enabled: boolean })[]
   >(() =>
@@ -64,8 +65,9 @@ function StudyIntakeInner() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  const userId = session?.user.id ?? null;
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
     Promise.all([
       api<{ channels: ChannelOption[] }>("/api/channels"),
       api<{ personas: PersonaOption[] }>("/api/personas"),
@@ -76,12 +78,12 @@ function StudyIntakeInner() {
         );
         setChannels(ready);
         setPersonas(pRes.personas || []);
-        if (!selectedAudienceId && ready[0]?.latestAudience?.id) {
-          setSelectedAudienceId(ready[0].latestAudience.id);
-        }
+        setSelectedAudienceId((prev) =>
+          prev || ready[0]?.latestAudience?.id || "",
+        );
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Could not load setup."));
-  }, [session, api, selectedAudienceId]);
+  }, [userId, api]);
 
   useEffect(() => {
     if (!db || !selectedAudienceId) return;
@@ -113,18 +115,23 @@ function StudyIntakeInner() {
     () => questions.filter((q) => q.enabled),
     [questions],
   );
+  const invalidEnabledQuestions = useMemo(
+    () => enabledQuestions.filter((q) => q.prompt.trim().length < 8),
+    [enabledQuestions],
+  );
+  const validEnabledCount = enabledQuestions.length - invalidEnabledQuestions.length;
 
   const cost = useMemo(
     () =>
       estimateStudyCost({
         mindsCount: activeMindIds.length || 16,
-        questionsCount: enabledQuestions.length || 8,
+        questionsCount: Math.max(6, Math.min(8, validEnabledCount || 8)),
         hasDraftThumbnail: !!draftThumbnailPath,
         scriptChars: scriptText.length,
       }),
     [
       activeMindIds.length,
-      enabledQuestions.length,
+      validEnabledCount,
       draftThumbnailPath,
       scriptText.length,
     ],
@@ -135,25 +142,88 @@ function StudyIntakeInner() {
     [scriptText],
   );
 
+  async function verifyDecodableImage(file: File): Promise<void> {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      throw new Error("Upload a valid PNG, JPEG, or WebP image.");
+    }
+    if (file.size < 64 || file.size > 10 * 1024 * 1024) {
+      throw new Error("Thumbnail image must be a valid file under 10 MB.");
+    }
+    if (typeof createImageBitmap === "function") {
+      try {
+        const bmp = await createImageBitmap(file);
+        const ok = bmp.width >= 16 && bmp.height >= 16;
+        bmp.close();
+        if (!ok) throw new Error("Image dimensions are too small.");
+        return;
+      } catch {
+        throw new Error("Could not decode that image file. Choose a valid PNG, JPEG, or WebP.");
+      }
+    }
+    const url = URL.createObjectURL(file);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () =>
+          img.naturalWidth >= 16 && img.naturalHeight >= 16
+            ? resolve()
+            : reject(new Error("Image dimensions are too small."));
+        img.onerror = () =>
+          reject(new Error("Could not decode that image file. Choose a valid PNG, JPEG, or WebP."));
+        img.src = url;
+      });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
   async function handleDraftUpload(file: File | null) {
     if (!file || !db || !session) return;
     setUploadingDraft(true);
     setError("");
     try {
-      const ext = file.type === "image/png" ? "png" : "jpg";
+      await verifyDecodableImage(file);
+      const ext =
+        file.type === "image/png"
+          ? "png"
+          : file.type === "image/webp"
+            ? "webp"
+            : "jpg";
       const path = `${session.user.id}/study-drafts/${crypto.randomUUID()}.${ext}`;
       const up = await db.storage
         .from("studio-assets")
         .upload(path, file, { contentType: file.type || "image/jpeg" });
       if (up.error) throw up.error;
+      if (draftThumbnailPath) {
+        void db.storage.from("studio-assets").remove([draftThumbnailPath]);
+      }
+      if (draftPreviewUrl) {
+        URL.revokeObjectURL(draftPreviewUrl);
+      }
       setDraftThumbnailPath(path);
       setDraftPreviewUrl(URL.createObjectURL(file));
     } catch (e) {
+      if (draftInputRef.current) draftInputRef.current.value = "";
       setError(
         e instanceof Error ? e.message : "Could not upload draft thumbnail.",
       );
     } finally {
       setUploadingDraft(false);
+    }
+  }
+
+  async function handleRemoveDraft() {
+    const prevPath = draftThumbnailPath;
+    const prevUrl = draftPreviewUrl;
+    setDraftThumbnailPath(null);
+    setDraftPreviewUrl(null);
+    if (draftInputRef.current) draftInputRef.current.value = "";
+    if (prevUrl) URL.revokeObjectURL(prevUrl);
+    if (prevPath && db) {
+      await db.storage
+        .from("studio-assets")
+        .remove([prevPath])
+        .catch(() => {});
     }
   }
 
@@ -171,6 +241,12 @@ function StudyIntakeInner() {
     if (!productionMode) {
       setError(
         "Choose a Production Mode (Pre-Shoot or Footage Locked) before launching.",
+      );
+      return;
+    }
+    if (invalidEnabledQuestions.length > 0) {
+      setError(
+        "Every enabled diagnostic question needs at least 8 characters, or uncheck it.",
       );
       return;
     }
@@ -283,6 +359,7 @@ function StudyIntakeInner() {
             type="button"
             className="pf-mode-option"
             data-selected={productionMode === "pre_shoot"}
+            aria-pressed={productionMode === "pre_shoot"}
             onClick={() => setProductionMode("pre_shoot")}
           >
             <div style={{ marginBottom: "0.35rem" }}>
@@ -299,6 +376,7 @@ function StudyIntakeInner() {
             type="button"
             className="pf-mode-option"
             data-selected={productionMode === "footage_locked"}
+            aria-pressed={productionMode === "footage_locked"}
             onClick={() => setProductionMode("footage_locked")}
           >
             <div style={{ marginBottom: "0.35rem" }}>
@@ -319,7 +397,12 @@ function StudyIntakeInner() {
           3. Script, Draft Title &amp; Thumbnail Direction
         </h2>
         <div className="pf-field">
-          <label htmlFor="title-draft">Draft Title</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <label htmlFor="title-draft">Draft Title</label>
+            <span className="pf-muted" style={{ fontSize: "0.78rem" }}>
+              {titleDraft.length}/160
+            </span>
+          </div>
           <input
             id="title-draft"
             className="pf-input"
@@ -377,6 +460,7 @@ function StudyIntakeInner() {
               Upload Your Draft Thumbnail (Optional — Head-to-Head as Option A)
             </label>
             <input
+              ref={draftInputRef}
               id="draft-thumb"
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -400,10 +484,7 @@ function StudyIntakeInner() {
                   type="button"
                   className="pf-btn-ghost"
                   style={{ marginTop: "0.5rem" }}
-                  onClick={() => {
-                    setDraftThumbnailPath(null);
-                    setDraftPreviewUrl(null);
-                  }}
+                  onClick={() => void handleRemoveDraft()}
                 >
                   Remove Draft (Generate 3 Fresh AI Options)
                 </button>
@@ -430,8 +511,7 @@ function StudyIntakeInner() {
           }}
         >
           <h2 style={{ margin: 0, fontSize: "1.1rem" }}>
-            4. Diagnostic Question Set ({enabledQuestions.length}/8 active · min
-            6)
+            4. Diagnostic Question Set ({validEnabledCount}/8 active · min 6)
           </h2>
           <span className="pf-badge pf-badge-neutral">
             Language: {language.toUpperCase()}
@@ -439,42 +519,54 @@ function StudyIntakeInner() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-          {questions.map((q, idx) => (
-            <div
-              key={q.id}
-              style={{
-                display: "flex",
-                gap: "0.6rem",
-                alignItems: "center",
-                opacity: q.enabled ? 1 : 0.45,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={q.enabled}
-                disabled={q.locked || (q.enabled && enabledQuestions.length <= 6)}
-                onChange={(e) =>
-                  setQuestions((prev) =>
-                    prev.map((item, i) =>
-                      i === idx ? { ...item, enabled: e.target.checked } : item,
-                    ),
-                  )
-                }
-              />
-              <input
-                className="pf-input"
-                value={q.prompt}
-                disabled={q.locked}
-                onChange={(e) =>
-                  setQuestions((prev) =>
-                    prev.map((item, i) =>
-                      i === idx ? { ...item, prompt: e.target.value } : item,
-                    ),
-                  )
-                }
-              />
-            </div>
-          ))}
+          {questions.map((q, idx) => {
+            const tooShort = q.enabled && q.prompt.trim().length < 8;
+            return (
+              <div key={q.id}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.6rem",
+                    alignItems: "center",
+                    opacity: q.enabled ? 1 : 0.45,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Include diagnostic question ${idx + 1} (${q.category})`}
+                    checked={q.enabled}
+                    disabled={q.locked || (q.enabled && enabledQuestions.length <= 6)}
+                    onChange={(e) =>
+                      setQuestions((prev) =>
+                        prev.map((item, i) =>
+                          i === idx ? { ...item, enabled: e.target.checked } : item,
+                        ),
+                      )
+                    }
+                  />
+                  <input
+                    className="pf-input"
+                    aria-label={`Diagnostic question ${idx + 1} (${q.category})`}
+                    aria-invalid={tooShort}
+                    value={q.prompt}
+                    disabled={q.locked}
+                    onChange={(e) =>
+                      setQuestions((prev) =>
+                        prev.map((item, i) =>
+                          i === idx ? { ...item, prompt: e.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+                {tooShort && (
+                  <p className="pf-error" style={{ margin: "0.25rem 0 0 1.8rem", fontSize: "0.78rem" }}>
+                    Question {idx + 1} needs at least 8 characters, or uncheck it.
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
 

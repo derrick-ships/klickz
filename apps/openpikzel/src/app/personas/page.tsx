@@ -20,6 +20,7 @@ function PersonasInner() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tone, setTone] = useState("");
   const [visualRules, setVisualRules] = useState("");
+  const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,12 +30,13 @@ function PersonasInner() {
       imageUrls: Record<string, string>;
     }>("/api/personas");
     setPersonas(res.personas || []);
-    setImageUrls(res.imageUrls || []);
+    setImageUrls(res.imageUrls || {});
   }, [api]);
 
+  const userId = session?.user.id ?? null;
   useEffect(() => {
-    if (session) void load().catch((e) => setError(e.message));
-  }, [session, load]);
+    if (userId) void load().catch((e) => setError(e.message));
+  }, [userId, load]);
 
   async function saveRules(id: string) {
     setBusy(true);
@@ -44,6 +46,7 @@ function PersonasInner() {
         id,
         tone_of_voice: tone,
         visual_style_rules: visualRules,
+        notes,
       });
       setEditingId(null);
       await load();
@@ -134,6 +137,15 @@ function PersonasInner() {
                       onChange={(e) => setVisualRules(e.target.value)}
                     />
                   </div>
+                  <div className="pf-field">
+                    <label>Identity Notes (Studio reference notes)</label>
+                    <textarea
+                      className="pf-textarea"
+                      placeholder="Optional likeness or expression notes imported from Quick Studio…"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </div>
                   <div style={{ display: "flex", gap: "0.5rem" }}>
                     <button
                       type="button"
@@ -160,12 +172,18 @@ function PersonasInner() {
                       {p.tone_of_voice || "Not configured yet"}
                     </span>
                   </div>
-                  <div style={{ fontSize: "0.86rem", marginBottom: "0.85rem" }}>
+                  <div style={{ fontSize: "0.86rem", marginBottom: "0.5rem" }}>
                     <strong>Visual Style Rules:</strong>{" "}
                     <span className="pf-muted">
-                      {p.visual_style_rules || p.notes || "Not configured yet"}
+                      {p.visual_style_rules || "Not configured yet"}
                     </span>
                   </div>
+                  {p.notes && (
+                    <div style={{ fontSize: "0.84rem", marginBottom: "0.85rem" }}>
+                      <strong>Identity Notes:</strong>{" "}
+                      <span className="pf-muted">{p.notes}</span>
+                    </div>
+                  )}
                   <button
                     type="button"
                     className="pf-btn-ghost"
@@ -173,9 +191,10 @@ function PersonasInner() {
                       setEditingId(p.id);
                       setTone(p.tone_of_voice || "");
                       setVisualRules(p.visual_style_rules || "");
+                      setNotes(p.notes || "");
                     }}
                   >
-                    Edit Tone &amp; Visual Rules
+                    Edit Persona Rules
                   </button>
                 </>
               )}
