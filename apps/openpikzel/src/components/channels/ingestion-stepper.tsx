@@ -21,10 +21,12 @@ export function IngestionStepper({
   db,
   runId,
   onCompleted,
+  onDismiss,
 }: {
   db: SupabaseClient | null;
   runId: string;
   onCompleted?: (channelId?: string | null) => void;
+  onDismiss?: () => void;
 }) {
   const { run, events } = useRunProgress(db, "channel_ingestion_runs", runId);
   const currentIdx = ORDER.indexOf(run?.status || "queued");
@@ -75,8 +77,15 @@ export function IngestionStepper({
       </div>
 
       {run?.status === "failed" && (
-        <div className="pf-error">
-          {run.error_message || "Channel ingestion failed. Check your keys and try again."}
+        <div className="pf-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <span>
+            {run.error_message || "Channel ingestion failed. Check your keys and try again."}
+          </span>
+          {onDismiss && (
+            <button type="button" className="pf-btn-ghost" onClick={onDismiss}>
+              Dismiss
+            </button>
+          )}
         </div>
       )}
 

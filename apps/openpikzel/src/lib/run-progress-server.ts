@@ -35,7 +35,7 @@ export async function emitRunProgress(
   if (runType === "study_triangulation" && update.status === "completed") {
     patch.completed_at = now;
   }
-  await Promise.all([
+  const [runRes, evRes] = await Promise.all([
     db.from(table).update(patch).eq("id", runId).eq("user_id", userId),
     db.from("async_run_events").insert({
       run_type: runType,
@@ -47,4 +47,16 @@ export async function emitRunProgress(
       metadata: update.metadata ?? {},
     }),
   ]);
+  if (runRes.error) {
+    console.error(`[run-progress] failed updating ${table}:`, {
+      code: runRes.error.code,
+      message: runRes.error.message,
+    });
+  }
+  if (evRes.error) {
+    console.error("[run-progress] failed inserting async_run_events:", {
+      code: evRes.error.code,
+      message: evRes.error.message,
+    });
+  }
 }

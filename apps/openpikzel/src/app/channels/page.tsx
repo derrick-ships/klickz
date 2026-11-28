@@ -149,6 +149,7 @@ function ChannelsInner() {
         <IngestionStepper
           db={db}
           runId={activeRunId}
+          onDismiss={() => setActiveRunId(null)}
           onCompleted={(channelId) => {
             setActiveRunId(null);
             void load();

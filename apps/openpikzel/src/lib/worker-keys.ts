@@ -31,7 +31,14 @@ export async function loadWorkerUserContext(userId: string): Promise<{
     db.auth.admin.getUserById(userId),
   ]);
   if (keysRes.error) {
-    throw new AppError(503, "Could not load user provider keys in worker.");
+    console.error("[worker-keys] studio_provider_keys query failed:", {
+      code: keysRes.error.code,
+      message: keysRes.error.message,
+    });
+    throw new AppError(
+      503,
+      `Could not load user provider keys in worker (${keysRes.error.code || "db_error"}).`,
+    );
   }
   const keys: ProviderKeys = {};
   for (const row of keysRes.data || []) {
