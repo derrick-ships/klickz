@@ -13,8 +13,8 @@ import { anthropicVisionModel, type VisionProvider } from "./vision-provider";
 
 export type LlmRole = "minds" | "strategist" | "ingestion";
 
-function pickProviderForRole(role: LlmRole): {
-  provider: VisionProvider;
+function candidateProvidersForRole(role: LlmRole): {
+  providers: VisionProvider[];
   choice: string;
 } {
   const keys = providerContext.getStore() || {};
@@ -27,20 +27,23 @@ function pickProviderForRole(role: LlmRole): {
         : prefs.strategist || "gemini-flash-latest";
 
   const preferred = providerOfChoice(choice);
-  if (preferred && keys[preferred]) {
-    return { provider: preferred, choice };
-  }
-  const order: VisionProvider[] =
+  const fallbackOrder: VisionProvider[] =
     role === "minds"
       ? ["google", "openai", "anthropic"]
-      : ["anthropic", "openai", "google"];
-  for (const p of order) {
-    if (keys[p]) return { provider: p, choice };
+      : ["openai", "google", "anthropic"];
+
+  const ordered: VisionProvider[] = [];
+  if (preferred && keys[preferred]) ordered.push(preferred);
+  for (const p of fallbackOrder) {
+    if (keys[p] && !ordered.includes(p)) ordered.push(p);
   }
-  throw new AppError(
-    403,
-    "Connect at least one AI key (OpenAI, Google Gemini, or Claude) in Keys to run Pre-Flight Studies.",
-  );
+  if (!ordered.length) {
+    throw new AppError(
+      403,
+      "Connect at least one AI key (OpenAI, Google Gemini, or Claude) in Keys to run Pre-Flight Studies.",
+    );
+  }
+  return { providers: ordered, choice };
 }
 
 function stripJsonFences(text: string): string {
@@ -55,7 +58,7 @@ function stripJsonFences(text: string): string {
 
 /**
  * Unified BYOK structured JSON caller supporting OpenAI, Anthropic, and Google Gemini
- * (with optional multimodal JPEG buffers and automatic 2-attempt schema self-repair).
+ * with schema self-repair and automatic cross-provider fallback across connected keys.
  */
 export async function callStructuredJson<T>(params: {
   role: LlmRole;
@@ -66,130 +69,149 @@ export async function callStructuredJson<T>(params: {
   maxTokens?: number;
   timeoutMs?: number;
 }): Promise<{ data: T; provider: VisionProvider; model: string }> {
-  const { provider, choice } = pickProviderForRole(params.role);
+  const { providers, choice } = candidateProvidersForRole(params.role);
   const store = providerContext.getStore() || {};
   const images = params.images ?? [];
-  const maxTokens = params.maxTokens ?? 4096;
+  const maxTokens = Math.max(params.maxTokens ?? 4096, 6144);
   const timeoutMs = params.timeoutMs ?? 90_000;
 
-  let feedback = "";
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const promptWithRepair = feedback
-      ? `${params.userPrompt}\n\nPREVIOUS OUTPUT FAILED VALIDATION. Return ONLY valid JSON fixing:\n${feedback}`
-      : params.userPrompt;
+  // Build attempt sequence: primary gets 2 tries (1 initial + 1 schema/JSON repair),
+  // then each fallback provider gets 1 clean attempt (OpenAI/Gemini native JSON mode).
+  const plan: { provider: VisionProvider; repair: boolean }[] = [
+    { provider: providers[0], repair: false },
+    { provider: providers[0], repair: true },
+    ...providers.slice(1).map((p) => ({ provider: p, repair: false })),
+  ];
+
+  let feedback = "";
+
+  for (const step of plan) {
+    const provider = step.provider;
+    const promptWithRepair =
+      step.repair && feedback
+        ? `${params.userPrompt}\n\nPREVIOUS OUTPUT FAILED VALIDATION. Return ONLY a single valid JSON object (escape any quotes inside strings or use single quotes) fixing:\n${feedback}`
+        : params.userPrompt;
 
     let rawText = "";
     let model = "";
 
-    if (provider === "google") {
-      model = await modelFor(
-        choice,
-        "google",
-        store.google,
-        params.role === "minds"
-          ? process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite"
-          : "gemini-3.5-flash",
-      );
-      rawText = await googleText(
-        params.system + "\nReturn ONLY valid JSON with no markdown fences.",
-        promptWithRepair,
-        images,
-        true,
-        model,
-        { maxOutputTokens: maxTokens, timeoutMs },
-      );
-    } else if (provider === "anthropic") {
-      model = await modelFor(
-        choice,
-        "anthropic",
-        store.anthropic,
-        anthropicVisionModel(),
-      );
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": providerKey("anthropic"),
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
+    try {
+      if (provider === "google") {
+        model = await modelFor(
+          choice,
+          "google",
+          store.google,
+          params.role === "minds"
+            ? process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash-lite"
+            : "gemini-3.5-flash",
+        );
+        rawText = await googleText(
+          params.system +
+            "\nReturn ONLY a single valid JSON object with no markdown fences. Never put unescaped double quotes inside string values.",
+          promptWithRepair,
+          images,
+          true,
           model,
-          max_tokens: maxTokens,
-          system:
+          { maxOutputTokens: Math.max(maxTokens, 8192), timeoutMs },
+        );
+      } else if (provider === "anthropic") {
+        model = await modelFor(
+          choice,
+          "anthropic",
+          store.anthropic,
+          anthropicVisionModel(),
+        );
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "x-api-key": providerKey("anthropic"),
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: Math.max(maxTokens, 8192),
+            temperature: 0.2,
+            system:
+              params.system +
+              "\nReturn ONLY a single valid RFC 8259 JSON object. No markdown fences or prose. Inside string values, use single quotes instead of double quotes (or properly escape \\\").",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  ...images.map((buf) => ({
+                    type: "image" as const,
+                    source: {
+                      type: "base64" as const,
+                      media_type: "image/jpeg" as const,
+                      data: buf.toString("base64"),
+                    },
+                  })),
+                  { type: "text" as const, text: promptWithRepair },
+                ],
+              },
+              {
+                role: "assistant",
+                content: "{",
+              },
+            ],
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        if (!response.ok) {
+          throw new AppError(
+            502,
+            `Claude returned HTTP ${response.status} during ${params.role}.`,
+          );
+        }
+        const payload = await response.json();
+        const body = (payload.content || [])
+          .filter((b: { type?: string }) => b.type === "text")
+          .map((b: { text?: string }) => b.text || "")
+          .join("");
+        rawText = body.trimStart().startsWith("{") ? body : "{" + body;
+      } else {
+        model = await modelFor(
+          choice,
+          "openai",
+          store.openai,
+          process.env.OPENAI_TEXT_MODEL || "gpt-5.5",
+        );
+        const api = new OpenAI({
+          apiKey: providerKey("openai"),
+          maxRetries: 0,
+          timeout: timeoutMs,
+        });
+        const response = await api.responses.create({
+          model,
+          store: false,
+          instructions:
             params.system +
-            "\nReturn ONLY a single valid JSON object. No markdown fences or commentary.",
-          messages: [
+            "\nReturn ONLY a single valid JSON object matching the requested shape.",
+          input: [
             {
               role: "user",
               content: [
+                {
+                  type: "input_text",
+                  text: "Answer in JSON.\n" + promptWithRepair,
+                },
                 ...images.map((buf) => ({
-                  type: "image" as const,
-                  source: {
-                    type: "base64" as const,
-                    media_type: "image/jpeg" as const,
-                    data: buf.toString("base64"),
-                  },
+                  type: "input_image" as const,
+                  image_url: `data:image/jpeg;base64,${buf.toString("base64")}`,
+                  detail: "auto" as const,
                 })),
-                { type: "text" as const, text: promptWithRepair },
               ],
             },
           ],
-        }),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      if (!response.ok) {
-        throw new AppError(
-          502,
-          `Claude returned HTTP ${response.status} during ${params.role}. Check your Anthropic key and balance.`,
-        );
+          text: { format: { type: "json_object" } },
+          max_output_tokens: Math.max(maxTokens, 8192),
+        });
+        rawText = response.output_text || "";
       }
-      const payload = await response.json();
-      rawText = (payload.content || [])
-        .filter((b: { type?: string }) => b.type === "text")
-        .map((b: { text?: string }) => b.text || "")
-        .join("");
-    } else {
-      model = await modelFor(
-        choice,
-        "openai",
-        store.openai,
-        process.env.OPENAI_TEXT_MODEL || "gpt-5.5",
-      );
-      const api = new OpenAI({
-        apiKey: providerKey("openai"),
-        maxRetries: 0,
-        timeout: timeoutMs,
-      });
-      const response = await api.responses.create({
-        model,
-        store: false,
-        instructions:
-          params.system + "\nReturn ONLY valid JSON matching the requested shape.",
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: "Answer in JSON.\n" + promptWithRepair,
-              },
-              ...images.map((buf) => ({
-                type: "input_image" as const,
-                image_url: `data:image/jpeg;base64,${buf.toString("base64")}`,
-                detail: "auto" as const,
-              })),
-            ],
-          },
-        ],
-        text: { format: { type: "json_object" } },
-        max_output_tokens: maxTokens,
-      });
-      rawText = response.output_text || "";
-    }
 
-    try {
       const parsedJson = JSON.parse(stripJsonFences(rawText));
       const validated = params.schema.safeParse(parsedJson);
       if (validated.success) {
@@ -202,7 +224,11 @@ export async function callStructuredJson<T>(params: {
       lastError = validated.error;
     } catch (err) {
       feedback =
-        "Response was not valid JSON. Return a single JSON object with no surrounding prose.";
+        err instanceof SyntaxError
+          ? `Invalid JSON syntax (${err.message}). Return strictly valid JSON and use single quotes inside text strings.`
+          : err instanceof Error
+            ? err.message
+            : "Response failed.";
       lastError = err;
     }
   }

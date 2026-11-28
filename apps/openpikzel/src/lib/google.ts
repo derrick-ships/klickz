@@ -32,7 +32,11 @@ async function generate(
     );
   const data = await response.json();
   return data.candidates?.[0]?.content?.parts as
-    | { text?: string; inlineData?: { mimeType: string; data: string } }[]
+    | {
+        text?: string;
+        thought?: boolean;
+        inlineData?: { mimeType: string; data: string };
+      }[]
     | undefined;
 }
 export async function googleText(
@@ -56,15 +60,16 @@ export async function googleText(
     ],
     {
       ...(json ? { responseMimeType: "application/json" } : {}),
-      maxOutputTokens: options.maxOutputTokens ?? 3000,
+      maxOutputTokens: json
+        ? Math.max(options.maxOutputTokens ?? 4096, 8192)
+        : (options.maxOutputTokens ?? 3000),
     },
-    options.timeoutMs ?? 45000,
+    options.timeoutMs ?? 60000,
     instructions,
   );
-  const text = parts
-    ?.filter((p) => p.text)
-    .map((p) => p.text)
-    .join("");
+  const nonThought = parts?.filter((p) => p.text && !p.thought) || [];
+  const source = nonThought.length ? nonThought : parts?.filter((p) => p.text) || [];
+  const text = source.map((p) => p.text).join("");
   if (!text) throw new AppError(502, "Google returned no text.");
   return text;
 }

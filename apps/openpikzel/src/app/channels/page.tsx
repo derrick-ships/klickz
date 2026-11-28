@@ -6,6 +6,7 @@ import { IngestionStepper } from "@/components/channels/ingestion-stepper";
 
 type ChannelRow = {
   id: string;
+  youtube_channel_id: string;
   title: string;
   handle: string | null;
   avatar_url: string;
@@ -90,6 +91,23 @@ function ChannelsInner() {
       setChannelInput("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start ingestion.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retryChannel(ch: ChannelRow) {
+    const target = ch.handle || ch.youtube_channel_id;
+    if (!target) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api<{ runId: string }>("/api/channels/ingest", "POST", {
+        channel: target,
+      });
+      setActiveRunId(res.runId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not retry ingestion.");
     } finally {
       setBusy(false);
     }
@@ -205,22 +223,42 @@ function ChannelsInner() {
                 flexWrap: "wrap",
               }}
             >
-              <span className="pf-badge pf-badge-ship">
-                {ch.latestAudience
-                  ? `${ch.latestAudience.activeMinds}/${ch.latestAudience.totalMinds} Minds Ready`
-                  : "Pending"}
-              </span>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <a href={`/channels/${ch.id}`} className="pf-btn-ghost">
-                  Inspect Minds
-                </a>
-                <a
-                  href={`/studies/new?audienceId=${ch.latestAudience?.id || ""}`}
-                  className="pf-btn-primary"
-                >
-                  New Study
-                </a>
-              </div>
+              {(() => {
+                const isReady = ch.latestAudience?.status === "ready";
+                return (
+                  <>
+                    <span
+                      className={`pf-badge ${isReady ? "pf-badge-ship" : "pf-badge-iterate"}`}
+                    >
+                      {isReady
+                        ? `${ch.latestAudience!.activeMinds}/${ch.latestAudience!.totalMinds} Minds Ready`
+                        : "Pending — Needs Build"}
+                    </span>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <a href={`/channels/${ch.id}`} className="pf-btn-ghost">
+                        Inspect Minds
+                      </a>
+                      {isReady ? (
+                        <a
+                          href={`/studies/new?audienceId=${ch.latestAudience!.id}`}
+                          className="pf-btn-primary"
+                        >
+                          New Study
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          className="pf-btn-primary"
+                          disabled={busy}
+                          onClick={() => void retryChannel(ch)}
+                        >
+                          {busy ? "Starting…" : "Retry Build 16 Minds"}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </article>
         ))}
